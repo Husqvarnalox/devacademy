@@ -3,6 +3,7 @@
              xmlns:vm="using:DevAcademy.Desktop.ViewModels"
              xmlns:views="using:DevAcademy.Desktop.Views"
              x:Class="DevAcademy.Desktop.App"
+             Name="DevAcademy"
              RequestedThemeVariant="Default">
 
   <Application.DataTemplates>

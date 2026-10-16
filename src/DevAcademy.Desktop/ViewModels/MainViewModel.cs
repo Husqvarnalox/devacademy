@@ -120,6 +120,14 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
         await SwitchAsync(vm, Section.Settings);
     }
 
+    /// <summary>Settings → About; also the target of the macOS application menu's "About" item.</summary>
+    public async Task ShowAboutAsync()
+    {
+        var vm = new SettingsViewModel(services, this, InitializeAsync) { SelectedTab = SettingsViewModel.AboutTab };
+        await vm.LoadAsync();
+        await SwitchAsync(vm, Section.Settings);
+    }
+
     public async Task ShowAiSettingsAsync()
     {
         var vm = new SettingsViewModel(services, this, InitializeAsync) { SelectedTab = SettingsViewModel.AiTab };

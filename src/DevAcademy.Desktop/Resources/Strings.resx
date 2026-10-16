@@ -664,6 +664,7 @@
   <data name="Onboarding_PathsHint" xml:space="preserve"><value>Маршрут — готовая последовательность курсов к цели. Можно выбрать позже или вести несколько.</value></data>
   <data name="Onboarding_NoPath" xml:space="preserve"><value>Без маршрута</value></data>
   <data name="Onboarding_NoPathHint" xml:space="preserve"><value>Выберу курсы сам из каталога.</value></data>
+  <data name="Menu_About" xml:space="preserve"><value>О программе DevAcademy</value></data>
   <data name="Path_Goal" xml:space="preserve"><value>Цель: {0}</value></data>
   <data name="PathGoal_general" xml:space="preserve"><value>общая подготовка</value></data>
   <data name="PathGoal_backend" xml:space="preserve"><value>бэкенд-разработка</value></data>
