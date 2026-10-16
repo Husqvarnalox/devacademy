@@ -1,0 +1,191 @@
+id: os.fundamentals.ipc-and-io
+title: "Взаимодействие процессов и ввод-вывод: каналы, сигналы, блокировки"
+goal: "Объяснять, как процессы обмениваются данными через каналы, сокеты и сигналы, и предсказывать, кто и когда блокируется при ограниченном буфере."
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [os.fundamentals.processes-and-system-calls, os.fundamentals.threads-and-synchronization]
+related: [go.fundamentals.goroutines-and-channels, python.concurrency.concurrency-models]
+next: []
+seeAlso:
+  - "Общая память и семафоры POSIX"
+  - "epoll, kqueue и io_uring"
+objectives:
+  - Перечислить основные механизмы межпроцессного взаимодействия (канал, сокет, сигнал, общая память) и сравнить их.
+  - Объяснить семантику блокирующего чтения и записи в канал с ограниченным буфером, включая EOF и SIGPIPE.
+  - Различать блокирующий, неблокирующий и мультиплексированный (select/poll) ввод-вывод.
+  - Связать канал с задачей «производитель - потребитель» из урока о потоках.
+masteryCriteria:
+  - Вы по ёмкости канала и спискам записей и чтений определяете, какой процесс заблокируется на каком шаге.
+  - Вы знаете, когда read возвращает 0, и когда write завершается сигналом SIGPIPE.
+  - Вы объясняете, почему read может вернуть меньше байт, чем запрошено, и как это влияет на код.
+  - Ваш симулятор печатает блокировку один раз, пока процесс ждёт, и корректно закрывает концы канала.
+tags: [os, ipc, pipe, signals, io, blocking, select]
+facts:
+  - kind: internals
+    text: >-
+      Канал (pipe) - однонаправленный байтовый поток с буфером ограниченного размера в ядре. Запись в полный канал блокируется, пока читатель не освободит место; чтение из пустого канала
+      блокируется, пока писатель не запишет данные. Если все дескрипторы записи закрыты, чтение возвращает 0 (конец файла).
+    sources:
+      - https://man7.org/linux/man-pages/man7/pipe.7.html
+      - https://pubs.opengroup.org/onlinepubs/9699919799/functions/pipe.html
+  - kind: internals
+    text: >-
+      Если записывать в канал, у которого закрыты все дескрипторы чтения, процесс получает сигнал SIGPIPE (по умолчанию завершающий процесс), а write при игнорировании сигнала
+      возвращает ошибку EPIPE. В Python SIGPIPE по умолчанию игнорируется, поэтому такая запись приводит к исключению BrokenPipeError.
+    sources:
+      - https://man7.org/linux/man-pages/man7/signal.7.html
+      - https://docs.python.org/3/library/signal.html
+  - kind: real-world
+    text: >-
+      Вызов read возвращает столько байт, сколько доступно, но не больше запрошенного, поэтому читающий код обязан работать в цикле. Для ожидания готовности сразу нескольких дескрипторов
+      используют select, poll или их современные аналоги.
+    sources:
+      - https://man7.org/linux/man-pages/man2/read.2.html
+      - https://docs.python.org/3/library/select.html
+  - kind: internals
+    text: >-
+      Размер буфера канала зависит от системы: в Linux по умолчанию 64 КиБ (можно менять через fcntl). Атомарность записи гарантируется только для порций не больше PIPE_BUF.
+    sources:
+      - https://man7.org/linux/man-pages/man7/pipe.7.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что вернёт read() из канала, если все концы записи закрыты и буфер пуст?"
+      options:
+        - "Ошибку EPIPE"
+        - "0 - признак конца файла"
+        - "Заблокируется навсегда"
+        - "Один нулевой байт"
+      answer: 1
+      explanation: >-
+        Ноль байт - стандартный признак EOF. Ошибка EPIPE относится к записи в канал без читателей.
+    - id: q2
+      type: single
+      prompt: "Что произойдёт при записи в канал, у которого закрыты все концы чтения?"
+      options:
+        - "Данные молча потеряются"
+        - "Запись заблокируется до появления читателя"
+        - "Процесс получит SIGPIPE (или ошибку EPIPE, если сигнал игнорируется)"
+        - "Канал автоматически увеличится"
+      answer: 2
+      explanation: >-
+        Данные некому читать, поэтому ядро сообщает об этом писателю. Если сигнал не перехвачен, он завершает процесс; Python его игнорирует и бросает BrokenPipeError.
+    - id: q3
+      type: numeric
+      prompt: "Ёмкость канала 4 байта, пуст. Писатель вызывает write на 6 байт. Сколько байт окажется в канале до того, как писатель заблокируется?"
+      answer: 4
+      tolerance: 0
+      explanation: >-
+        Блокирующий write заполняет канал до отказа (4 байта) и ждёт, пока читатель освободит место для остальных 2 байт.
+    - id: q4
+      type: multiple
+      prompt: "Какие утверждения о read верны? Выберите все."
+      options:
+        - "read может вернуть меньше байт, чем запрошено"
+        - "Для надёжного чтения заданного объёма нужен цикл"
+        - "read из пустого канала с живым писателем в блокирующем режиме ждёт данных"
+        - "Нулевой результат всегда означает ошибку"
+      answer: [0, 1, 2]
+      explanation: >-
+        Ноль означает EOF, а не ошибку; ошибки сообщаются отдельно (в Python как исключения).
+    - id: q5
+      type: single
+      prompt: "Чем неблокирующий ввод-вывод отличается от блокирующего при чтении пустого канала?"
+      options:
+        - "Ничем"
+        - "Вызов сразу завершается ошибкой «попробуйте позже» (EAGAIN) вместо ожидания"
+        - "Вызов возвращает нули"
+        - "Вызов закрывает канал"
+      answer: 1
+      explanation: >-
+        В Python это BlockingIOError. Такой режим используют вместе с select/poll: сначала ждут готовности, затем читают без блокировки.
+exercise:
+  id: os.fundamentals.ipc-and-io.exercise
+  title: "Симулятор канала с блокирующими операциями"
+  prompt: |
+    Реализуйте в `main.py` симулятор канала ограниченной ёмкости между писателем (producer) и читателем (consumer).
+
+    **Формат ввода.**
+
+    ```
+    <ёмкость канала C>
+    producer: <список записей>
+    consumer: <список чтений>
+    ```
+
+    Элемент списка - число байт либо `.` (процесс на этом ходу занят своим делом).
+
+    **Ходы** чередуются, начинает писатель; завершившийся процесс свой ход пропускает без вывода. Пусть в канале `fill` байт.
+
+    *Писатель.* Берёт следующий элемент списка. Для `.` печатает `producer works`. Для числа начинается запись остатка `rem`. Если читатель уже завершился, печатается `producer SIGPIPE: reader closed the pipe`, писатель завершается. Если `fill == C` (канал полон), писатель один раз печатает `producer blocks: pipe full` и ждёт (последующие пустые ходы без вывода). Иначе пишется `w = min(rem, C - fill)` байт, печатается `producer write w (pipe fill/C)`; если остался остаток, печатается `producer blocks: pipe full` и запись продолжится на следующем ходу писателя, когда появится место. Когда выполнена последняя запись из списка, на том же ходу печатается `producer closes pipe`; если список исчерпан, а закрытия не было - оно печатается на ходу, когда писатель его обнаружил.
+
+    *Читатель.* Берёт следующий элемент списка. Для `.` печатает `consumer works`. Для числа `k`: при `fill > 0` читает `r = min(k, fill)` байт и печатает `consumer read r (pipe fill/C)`. При `fill == 0` и закрытом канале печатает `consumer read 0 (EOF)` и завершается (остальные запросы игнорируются). При `fill == 0` и живом писателе один раз печатает `consumer blocks: pipe empty` и ждёт данных. После последнего запроса списка (и после EOF) читатель печатает `consumer done` и закрывает свой конец.
+
+    В конце печатается `bytes written: X, bytes read: Y`.
+
+    **Пример.** `C = 4`, писатель `6`, читатель `2 2 2`: писатель кладёт 4 байта и блокируется (остаток 2); читатель берёт 2; писатель дописывает 2 (канал снова полон) и закрывает канал; читатель берёт 2 и ещё 2, на чём завершается.
+  entryFile: main.py
+  evaluation: io
+  starter: exercise/starter
+  solution: exercise/solution
+  hints:
+    - "Заведите состояние: fill, closed (писатель закрыл), reader_gone, rem (остаток текущей записи или None), want (текущий запрос чтения или None), флаги p_blocked и c_blocked, индексы wi и ri. Основной цикл: turn += 1, на чётных ходах действует писатель, на нечётных читатель; завершённых пропускайте через continue."
+    - "Блокировка - это не отдельное состояние, а то, что запись или запрос остались незавершёнными (rem или want не None). На следующем ходу процесс снова пытается выполнить то же действие. Флаг blocked нужен, чтобы сообщение печаталось один раз за период ожидания, и сбрасывается, когда операция продвинулась."
+    - "Порядок проверок у писателя: взять элемент (или обработать '.') -> reader_gone? SIGPIPE -> канал полон? блокировка -> запись min(rem, free) -> остаток? блокировка, иначе rem = None и, если список исчерпан, закрытие канала. У читателя: взять запрос -> fill == 0 и closed? EOF -> fill == 0? блокировка -> чтение min(want, fill) -> если запросов больше нет, 'consumer done'."
+    - "Не забудьте: завершившийся читатель закрывает конец (reader_gone = True), а завершившийся писатель закрывает канал (closed = True). Итоговые суммы считайте по фактически записанным и прочитанным байтам, а не по запросам."
+  tests:
+    - id: full-pipe
+      title: "Запись больше ёмкости: писатель блокируется"
+      stdin: "4\nproducer: 6\nconsumer: 2 2 2\n"
+      expected: "producer write 4 (pipe 4/4)\nproducer blocks: pipe full\nconsumer read 2 (pipe 2/4)\nproducer write 2 (pipe 4/4)\nproducer closes pipe\nconsumer read 2 (pipe 2/4)\nconsumer read 2 (pipe 0/4)\nconsumer done\nbytes written: 6, bytes read: 6\n"
+      compare: trim
+      hint: "Первая запись помещает 4 байта и блокируется с остатком 2. Когда читатель освободит место, писатель дописывает остаток."
+    - id: eof
+      title: "Читатель получает EOF после закрытия канала"
+      stdin: "4\nproducer: 3 3\nconsumer: 5 5 5\n"
+      expected: "producer write 3 (pipe 3/4)\nconsumer read 3 (pipe 0/4)\nproducer write 3 (pipe 3/4)\nproducer closes pipe\nconsumer read 3 (pipe 0/4)\nconsumer read 0 (EOF)\nconsumer done\nbytes written: 6, bytes read: 6\n"
+      compare: trim
+      hint: "read возвращает не больше, чем есть в канале (3), а не запрошенные 5. После закрытия писателем и пустого канала read возвращает 0 - это EOF, и читатель завершается."
+    - id: sigpipe
+      title: "Читатель закончил раньше: писатель получает SIGPIPE"
+      stdin: "2\nproducer: 5 5\nconsumer: 1\n"
+      expected: "producer write 2 (pipe 2/2)\nproducer blocks: pipe full\nconsumer read 1 (pipe 1/2)\nconsumer done\nproducer SIGPIPE: reader closed the pipe\nbytes written: 2, bytes read: 1\n"
+      compare: trim
+      hint: "Читатель закрывает свой конец сразу после последнего запроса. Следующий ход писателя печатает SIGPIPE и завершает его; байты, оставшиеся в канале, прочитаны не будут."
+    - id: empty-pipe
+      title: "Пустой канал: читатель блокируется (скрытый)"
+      stdin: "4\nproducer: 2 . . 3\nconsumer: 2 2 2 2\n"
+      expected: "producer write 2 (pipe 2/4)\nconsumer read 2 (pipe 0/4)\nproducer works\nconsumer blocks: pipe empty\nproducer works\nproducer write 3 (pipe 3/4)\nproducer closes pipe\nconsumer read 2 (pipe 1/4)\nconsumer read 1 (pipe 0/4)\nconsumer read 0 (EOF)\nconsumer done\nbytes written: 5, bytes read: 5\n"
+      compare: trim
+      hidden: true
+      hint: "'.' означает, что процесс на этом ходу занят своим делом и печатает 'works'. Блокировка печатается один раз, пока состояние не изменится."
+    - id: exact-fit
+      title: "Запись ровно по ёмкости (скрытый)"
+      stdin: "3\nproducer: 3 3 3\nconsumer: 3 3 3\n"
+      expected: "producer write 3 (pipe 3/3)\nconsumer read 3 (pipe 0/3)\nproducer write 3 (pipe 3/3)\nconsumer read 3 (pipe 0/3)\nproducer write 3 (pipe 3/3)\nproducer closes pipe\nconsumer read 3 (pipe 0/3)\nconsumer done\nbytes written: 9, bytes read: 9\n"
+      compare: trim
+      hidden: true
+      hint: "Если места хватает ровно, писатель не блокируется. Закрытие канала печатается на том же ходу, что и последняя запись."
+    - id: tiny-reads
+      title: "Читатель берёт по одному байту (скрытый)"
+      stdin: "2\nproducer: 4\nconsumer: 1 1 1 1\n"
+      expected: "producer write 2 (pipe 2/2)\nproducer blocks: pipe full\nconsumer read 1 (pipe 1/2)\nproducer write 1 (pipe 2/2)\nproducer blocks: pipe full\nconsumer read 1 (pipe 1/2)\nproducer write 1 (pipe 2/2)\nproducer closes pipe\nconsumer read 1 (pipe 1/2)\nconsumer read 1 (pipe 0/2)\nconsumer done\nbytes written: 4, bytes read: 4\n"
+      compare: trim
+      hidden: true
+      hint: "Запись 4 при ёмкости 2: пишем 2, блокировка; после первого чтения освобождается 1 байт, писатель дописывает по одному."
+    - id: consumer-first-empty
+      title: "Долгий писатель и нетерпеливый читатель (скрытый)"
+      stdin: "5\nproducer: . . 2\nconsumer: 3 3\n"
+      expected: "producer works\nconsumer blocks: pipe empty\nproducer works\nproducer write 2 (pipe 2/5)\nproducer closes pipe\nconsumer read 2 (pipe 0/5)\nconsumer read 0 (EOF)\nconsumer done\nbytes written: 2, bytes read: 2\n"
+      compare: trim
+      hidden: true
+      hint: "Читатель блокируется на первом же запросе: в канале ничего нет. Он просыпается, когда появляются данные, но получает только то, что там есть."
+    - id: eof-with-leftover-requests
+      title: "Запросов больше, чем байт (скрытый)"
+      stdin: "8\nproducer: 1\nconsumer: 1 1 1\n"
+      expected: "producer write 1 (pipe 1/8)\nproducer closes pipe\nconsumer read 1 (pipe 0/8)\nconsumer read 0 (EOF)\nconsumer done\nbytes written: 1, bytes read: 1\n"
+      compare: trim
+      hidden: true
+      hint: "После EOF читатель завершается; оставшиеся запросы не выполняются, 'consumer done' печатается один раз."

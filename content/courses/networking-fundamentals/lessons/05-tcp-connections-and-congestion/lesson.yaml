@@ -1,0 +1,319 @@
+id: "networking.fundamentals.tcp-connections-and-congestion"
+title: "TCP: соединение, состояния, поток и перегрузка"
+goal: "Понимать, как TCP устанавливает и закрывает соединение, нумерует байты, управляет скоростью по окну получателя и по оценке перегрузки сети, и моделировать это автоматом состояний и сменой окна по алгоритму Reno."
+difficulty: "hard"
+estimatedMinutes: 120
+prerequisites:
+  - "networking.fundamentals.ipv4-header-and-checksum"
+related:
+  - "python.stdlib.json-csv-struct"
+  - "go.fundamentals.goroutines-and-channels"
+  - "rust.fundamentals.structs-enums-pattern-matching"
+next:
+  - "networking.fundamentals.udp-and-dns"
+seeAlso:
+  - "Современные алгоритмы перегрузки (CUBIC, BBR) и TCP Fast Open - в уроке упомянуты, но не разбираются"
+objectives:
+  - "Описать трёхстороннее рукопожатие и четырёхстороннее закрытие, роль флагов SYN, ACK, FIN, RST и начальных номеров последовательности."
+  - "Объяснить номера последовательности и подтверждения: нумеруются байты, ack равен номеру следующего ожидаемого байта."
+  - "Пройти по диаграмме состояний TCP (CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED, FIN_WAIT_1/2, CLOSE_WAIT, CLOSING, LAST_ACK, TIME_WAIT) и реализовать автомат, управляемый событиями."
+  - "Различать управление потоком (окно получателя rwnd) и управление перегрузкой (окно перегрузки cwnd) и вычислять окно отправки min(cwnd, rwnd)."
+  - "Описать slow start, congestion avoidance (AIMD), быструю повторную передачу и быстрое восстановление, реакцию на таймаут, и смоделировать эволюцию cwnd в Reno."
+masteryCriteria:
+  - "Вы реализуете автомат TCP с таблицей переходов (состояние, событие) -> (новое состояние, отправляемый сегмент)."
+  - "Вы объясняете, почему сторона, закрывшая соединение первой, оказывается в TIME_WAIT, и что такое 2MSL."
+  - "Вы вычисляете ack по ISN и длине данных (SYN и FIN занимают по одному номеру)."
+  - "Вы моделируете Reno: удвоение cwnd в slow start до ssthresh, затем +1 за RTT; при 3 дубликатах ACK ssthresh = cwnd / 2 и cwnd = ssthresh; при таймауте cwnd = 1."
+tags:
+  - "networking"
+  - "tcp"
+  - "state-machine"
+  - "congestion-control"
+  - "flow-control"
+  - "reno"
+facts:
+  - kind: "internals"
+    text: "TCP нумерует каждый байт потока 32-битным номером последовательности. Номер в заголовке сегмента - номер первого байта его данных, а поле подтверждения (ack) содержит номер следующего ожидаемого байта. Флаги SYN и FIN занимают по одному номеру последовательности. Начальный номер (ISN) выбирается неочевидным образом, чтобы затруднить подделку сегментов."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9293.html#section-3.4"
+      - "https://www.rfc-editor.org/rfc/rfc6528.html"
+  - kind: "internals"
+    text: "Диаграмма состояний TCP в RFC 9293 включает CLOSED, LISTEN, SYN-SENT, SYN-RECEIVED, ESTABLISHED, FIN-WAIT-1, FIN-WAIT-2, CLOSE-WAIT, CLOSING, LAST-ACK и TIME-WAIT. Сторона, первой отправившая FIN, после получения FIN от собеседника переходит в TIME-WAIT и ждёт 2*MSL, чтобы последний ACK не потерялся и старые сегменты исчезли из сети."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9293.html#section-3.3.2"
+      - "https://www.rfc-editor.org/rfc/rfc9293.html#section-3.6.1"
+  - kind: "internals"
+    text: "Размер окна приёма в заголовке TCP - 16 бит (до 65535 байт). Масштабирование окна (RFC 7323) договаривается в SYN-сегментах и умножает значение на 2^shift, что позволяет окнам до 1 гигабайта. Окно, объявленное получателем (rwnd), реализует управление потоком; отправитель не имеет права держать в пути больше min(cwnd, rwnd)."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc7323.html"
+      - "https://www.rfc-editor.org/rfc/rfc9293.html#section-3.8.6"
+  - kind: "internals"
+    text: "RFC 5681 определяет четыре алгоритма: медленный старт (slow start), предотвращение перегрузки (congestion avoidance), быструю повторную передачу (fast retransmit) и быстрое восстановление (fast recovery). Начальное значение ssthresh может быть сколь угодно большим; после потери ssthresh = max(FlightSize / 2, 2 * SMSS). При медленном старте cwnd растёт примерно вдвое за RTT, при предотвращении перегрузки - примерно на один сегмент за RTT."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc5681.html#section-3.1"
+      - "https://www.rfc-editor.org/rfc/rfc5681.html#section-3.2"
+  - kind: "real-world"
+    text: "Reno в учебниках - лишь базовая модель. В Linux по умолчанию используется CUBIC (RFC 9438), у которого окно растёт кубической функцией времени, а не линейно; существует и BBR, строящий оценку по полосе и задержке. Принцип 'увеличивай осторожно, уменьшай резко' (AIMD) остаётся основой справедливого деления канала."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9438.html"
+  - kind: "misconception"
+    text: "«TCP гарантирует доставку». Он гарантирует доставку данных по порядку и без дубликатов, пока соединение живо, но если связь пропала насовсем, отправитель узнает об этом только по таймауту, и часть отправленных данных так и останется непринятой. Кроме того, ACK подтверждает, что данные приняты стеком получателя, а не что приложение их обработало."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Какие сегменты образуют трёхстороннее рукопожатие TCP?
+      options:
+        - "SYN, SYN+ACK, ACK"
+        - "SYN, ACK, FIN"
+        - "SYN, SYN, ACK"
+        - "ACK, SYN+ACK, FIN"
+      answer: 0
+      explanation: "Клиент отправляет SYN, сервер отвечает SYN+ACK, клиент подтверждает ACK."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Клиент отправил SYN с начальным номером последовательности 1000. Каким будет поле подтверждения (ack) в ответном SYN+ACK?
+      answer: 1001
+      tolerance: 0
+      explanation: "SYN занимает один номер последовательности, поэтому сервер ожидает следующим байтом номер 1001."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        В каком состоянии остаётся сторона, первой закрывшая соединение, после получения FIN от собеседника и отправки последнего ACK?
+      options:
+        - "CLOSE_WAIT"
+        - "LAST_ACK"
+        - "TIME_WAIT"
+        - "FIN_WAIT_1"
+      answer: 2
+      explanation: "Активно закрывающая сторона ждёт 2*MSL в TIME_WAIT, чтобы отправить повторный ACK при потере и дать устареть старым сегментам."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        В Reno при cwnd = 20 сегментов приходят три дубликата ACK. Чему становится ssthresh (в сегментах)?
+      answer: 10
+      tolerance: 0
+      explanation: "ssthresh = max(cwnd / 2, 2) = 10; затем cwnd = ssthresh после восстановления."
+    - id: "q5"
+      type: "multiple"
+      prompt: |
+        Какие утверждения верны?
+      options:
+        - "Управление потоком ограничивает отправителя окном получателя (rwnd)"
+        - "Окно перегрузки cwnd оценивает отправитель по признакам потерь"
+        - "Окно отправки равно min(cwnd, rwnd)"
+        - "В slow start cwnd растёт линейно, на 1 сегмент за RTT"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Slow start растёт экспоненциально (примерно вдвое за RTT); линейный рост - фаза предотвращения перегрузки."
+exercise:
+  id: "networking.fundamentals.tcp-connections-and-congestion.exercise"
+  title: "Автомат состояний TCP"
+  prompt: |
+
+    **Сеть не используется.** Программа моделирует один конец TCP-соединения. Начальное состояние - `CLOSED`. Из stdin читаются события, по одному на строку (пустые строки пропускаются). Для каждого события выведите одну строку и обновите состояние.
+
+    События: `passive_open`, `active_open`, `close`, `rcv_syn`, `rcv_synack`, `rcv_ack`, `rcv_fin`, `rcv_finack` (FIN вместе с ACK нашего FIN), `rcv_rst`, `timeout` (истёк таймер 2MSL).
+
+    Таблица переходов `(состояние, событие) -> (новое состояние, отправляемый сегмент)`:
+
+    | состояние | событие | новое состояние | send |
+    |---|---|---|---|
+    | CLOSED | passive_open | LISTEN | `-` |
+    | CLOSED | active_open | SYN_SENT | `SYN` |
+    | LISTEN | rcv_syn | SYN_RCVD | `SYN+ACK` |
+    | LISTEN | active_open | SYN_SENT | `SYN` |
+    | LISTEN | close | CLOSED | `-` |
+    | SYN_SENT | rcv_synack | ESTABLISHED | `ACK` |
+    | SYN_SENT | rcv_syn | SYN_RCVD | `SYN+ACK` |
+    | SYN_SENT | close | CLOSED | `-` |
+    | SYN_RCVD | rcv_ack | ESTABLISHED | `-` |
+    | SYN_RCVD | close | FIN_WAIT_1 | `FIN` |
+    | ESTABLISHED | close | FIN_WAIT_1 | `FIN` |
+    | ESTABLISHED | rcv_fin | CLOSE_WAIT | `ACK` |
+    | FIN_WAIT_1 | rcv_ack | FIN_WAIT_2 | `-` |
+    | FIN_WAIT_1 | rcv_fin | CLOSING | `ACK` |
+    | FIN_WAIT_1 | rcv_finack | TIME_WAIT | `ACK` |
+    | FIN_WAIT_2 | rcv_fin | TIME_WAIT | `ACK` |
+    | CLOSING | rcv_ack | TIME_WAIT | `-` |
+    | TIME_WAIT | timeout | CLOSED | `-` |
+    | CLOSE_WAIT | close | LAST_ACK | `FIN` |
+    | LAST_ACK | rcv_ack | CLOSED | `-` |
+
+    Дополнительно (упрощение): `rcv_rst` в любом состоянии, кроме `CLOSED` и `LISTEN`, ведёт в `CLOSED` с `send=-`.
+
+    Формат строки: `<событие>: <СТАРОЕ> -> <НОВОЕ> send=<сегмент>`. Если для пары (состояние, событие) перехода нет (в том числе `rcv_rst` в `CLOSED` и `LISTEN`), выведите `<событие>: <СОСТОЯНИЕ> ignored` и не меняйте состояние. Если имя события не входит в список выше, выведите `<событие>: unknown event`. В конце всегда печатается `final=<СОСТОЯНИЕ>`.
+
+    Пример: ввод `active_open`, `rcv_synack`, `close` даёт
+
+    ```
+    active_open: CLOSED -> SYN_SENT send=SYN
+    rcv_synack: SYN_SENT -> ESTABLISHED send=ACK
+    close: ESTABLISHED -> FIN_WAIT_1 send=FIN
+    final=FIN_WAIT_1
+    ```
+
+    **Что дано.** Заготовка читает события и каждое объявляет игнорируемым.
+  entryFile: "tcp_fsm_task.py"
+  evaluation: "io"
+  hints:
+    - "Храните переходы в словаре: ключ - кортеж (состояние, событие), значение - (новое состояние, сегмент). Вне словаря остаётся только особый случай rcv_rst."
+    - "Три разных исхода для строки: имя события вообще не встречается в таблице (и это не rcv_rst) - unknown event; пара есть в таблице - переход; пары нет - ignored."
+    - "Множество известных событий получите из ключей словаря и добавьте 'rcv_rst'. rcv_rst обрабатывайте до таблицы: если состояние не CLOSED и не LISTEN, переход в CLOSED с send=-."
+    - "Не забывайте печатать final=<состояние> в самом конце, даже если событий не было. Состояние обновляется только при реальном переходе, а в ignored и unknown остаётся прежним."
+  tests:
+    - id: "client"
+      title: "Клиент: открытие и закрытие"
+      stdin: "active_open\nrcv_synack\nclose\nrcv_ack\nrcv_fin\ntimeout\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_synack: SYN_SENT -> ESTABLISHED send=ACK\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_ack: FIN_WAIT_1 -> FIN_WAIT_2 send=-\nrcv_fin: FIN_WAIT_2 -> TIME_WAIT send=ACK\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
+      hint: "active_open: CLOSED -> SYN_SENT с отправкой SYN; при rcv_synack - ESTABLISHED и ACK. Активное закрытие идёт через FIN_WAIT_1, FIN_WAIT_2 и TIME_WAIT."
+    - id: "server"
+      title: "Сервер: пассивное открытие и закрытие"
+      stdin: "passive_open\nrcv_syn\nrcv_ack\nrcv_fin\nclose\nrcv_ack\n"
+      expected: "passive_open: CLOSED -> LISTEN send=-\nrcv_syn: LISTEN -> SYN_RCVD send=SYN+ACK\nrcv_ack: SYN_RCVD -> ESTABLISHED send=-\nrcv_fin: ESTABLISHED -> CLOSE_WAIT send=ACK\nclose: CLOSE_WAIT -> LAST_ACK send=FIN\nrcv_ack: LAST_ACK -> CLOSED send=-\nfinal=CLOSED\n"
+      hint: "Пассивная сторона: LISTEN -> SYN_RCVD -> ESTABLISHED; получив FIN, переходит в CLOSE_WAIT, затем в LAST_ACK."
+    - id: "invalid"
+      title: "Недопустимые и неизвестные события"
+      stdin: "rcv_ack\npassive_open\nfrobnicate\nrcv_synack\nclose\n"
+      expected: "rcv_ack: CLOSED ignored\npassive_open: CLOSED -> LISTEN send=-\nfrobnicate: unknown event\nrcv_synack: LISTEN ignored\nclose: LISTEN -> CLOSED send=-\nfinal=CLOSED\n"
+      hint: "Событие, которого нет в таблице для текущего состояния, печатается как 'ignored', неизвестное имя - как 'unknown event'."
+    - id: "simultaneous-close"
+      title: "Одновременное закрытие (скрытый)"
+      stdin: "active_open\nrcv_synack\nclose\nrcv_fin\nrcv_ack\ntimeout\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_synack: SYN_SENT -> ESTABLISHED send=ACK\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_fin: FIN_WAIT_1 -> CLOSING send=ACK\nrcv_ack: CLOSING -> TIME_WAIT send=-\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
+      hidden: true
+      hint: "FIN_WAIT_1 + rcv_fin -> CLOSING (отправляется ACK), затем rcv_ack -> TIME_WAIT."
+    - id: "fin-ack"
+      title: "FIN и ACK одним сегментом (скрытый)"
+      stdin: "active_open\nrcv_synack\nclose\nrcv_finack\ntimeout\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_synack: SYN_SENT -> ESTABLISHED send=ACK\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_finack: FIN_WAIT_1 -> TIME_WAIT send=ACK\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
+      hidden: true
+      hint: "FIN_WAIT_1 + rcv_finack -> TIME_WAIT с отправкой ACK, минуя FIN_WAIT_2."
+    - id: "simultaneous-open"
+      title: "Одновременное открытие (скрытый)"
+      stdin: "active_open\nrcv_syn\nrcv_ack\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_syn: SYN_SENT -> SYN_RCVD send=SYN+ACK\nrcv_ack: SYN_RCVD -> ESTABLISHED send=-\nfinal=ESTABLISHED\n"
+      hidden: true
+      hint: "SYN_SENT + rcv_syn -> SYN_RCVD с отправкой SYN+ACK."
+    - id: "reset"
+      title: "RST и закрытие из LISTEN (скрытый)"
+      stdin: "passive_open\nrcv_rst\nclose\npassive_open\nrcv_syn\nrcv_rst\nactive_open\nclose\n"
+      expected: "passive_open: CLOSED -> LISTEN send=-\nrcv_rst: LISTEN ignored\nclose: LISTEN -> CLOSED send=-\npassive_open: CLOSED -> LISTEN send=-\nrcv_syn: LISTEN -> SYN_RCVD send=SYN+ACK\nrcv_rst: SYN_RCVD -> CLOSED send=-\nactive_open: CLOSED -> SYN_SENT send=SYN\nclose: SYN_SENT -> CLOSED send=-\nfinal=CLOSED\n"
+      hidden: true
+      hint: "В LISTEN сегмент RST игнорируется; в остальных состояниях (кроме CLOSED) rcv_rst ведёт в CLOSED. Из LISTEN можно закрыться (close)."
+    - id: "close-in-syn-rcvd"
+      title: "Закрытие в SYN_RCVD и повторное открытие (скрытый)"
+      stdin: "passive_open\nrcv_syn\nclose\nrcv_fin\nrcv_ack\ntimeout\nclose\ntimeout\n"
+      expected: "passive_open: CLOSED -> LISTEN send=-\nrcv_syn: LISTEN -> SYN_RCVD send=SYN+ACK\nclose: SYN_RCVD -> FIN_WAIT_1 send=FIN\nrcv_fin: FIN_WAIT_1 -> CLOSING send=ACK\nrcv_ack: CLOSING -> TIME_WAIT send=-\ntimeout: TIME_WAIT -> CLOSED send=-\nclose: CLOSED ignored\ntimeout: CLOSED ignored\nfinal=CLOSED\n"
+      hidden: true
+      hint: "SYN_RCVD + close -> FIN_WAIT_1 (отправляется FIN); TIME_WAIT выходит только по timeout."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "final=CLOSED\n"
+      hidden: true
+      hint: "Без событий состояние остаётся CLOSED."
+challenge:
+  id: "networking.fundamentals.tcp-connections-and-congestion.challenge"
+  title: "Трасса окна перегрузки Reno"
+  prompt: |
+
+    **Сеть не используется.** Смоделируйте поведение окна перегрузки TCP Reno по RTT. Размеры измеряются в сегментах (MSS), все значения целые.
+
+    Первая строка ввода: `init=<cwnd> ssthresh=<порог> rwnd=<окно получателя>` (в любом порядке полей). Далее идёт по одному событию на каждый RTT (пустые строки пропускаются):
+
+    * `ack` - все сегменты окна подтверждены. Если `cwnd < ssthresh` (slow start), `cwnd = min(cwnd * 2, ssthresh)`; иначе (congestion avoidance) `cwnd = cwnd + 1`;
+    * `3dupack` - потеря обнаружена по трём дубликатам ACK (быстрая повторная передача и восстановление): `ssthresh = max(cwnd // 2, 2)`, `cwnd = ssthresh`;
+    * `timeout` - сработал таймер повторной передачи: `ssthresh = max(cwnd // 2, 2)`, `cwnd = 1`;
+    * любое другое слово - неизвестное событие, состояние не меняется.
+
+    Фаза после события: `slow-start`, если `cwnd < ssthresh`, иначе `congestion-avoidance`. Окно отправки `send_window = min(cwnd, rwnd)`.
+
+    Вывод: сначала начальная строка, затем по строке на каждое событие (номер `rtt` равен номеру строки события, начиная с 1, даже у неизвестного события), в конце максимум cwnd:
+
+    Пример. Ввод:
+
+    ```
+    init=1 ssthresh=16 rwnd=6
+    ack
+    ack
+    ack
+    3dupack
+    wat
+    ```
+
+    Вывод:
+
+    ```
+    rtt 0: init cwnd=1 ssthresh=16 phase=slow-start send_window=1
+    rtt 1: ack cwnd=2 ssthresh=16 phase=slow-start send_window=2
+    rtt 2: ack cwnd=4 ssthresh=16 phase=slow-start send_window=4
+    rtt 3: ack cwnd=8 ssthresh=16 phase=slow-start send_window=6
+    rtt 4: 3dupack cwnd=4 ssthresh=4 phase=congestion-avoidance send_window=4
+    rtt 5: wat unknown event
+    max_cwnd=8
+    ```
+
+    Для неизвестного события печатается `rtt <n>: <слово> unknown event`. `max_cwnd` - наибольшее значение `cwnd` за всю трассу, включая начальное.
+
+    **Что дано.** Заготовка читает настройки и печатает `not implemented`.
+  entryFile: "reno_task.py"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Разберите первую строку в словарь целых: split() по пробелам, затем partition('='). Начальные cwnd и ssthresh возьмите из init и ssthresh."
+    - "Опишите функцию phase(): 'slow-start' при cwnd < ssthresh, иначе 'congestion-avoidance'. Печатайте строку через общую функцию report(label, rtt), чтобы формат не расходился."
+    - "Для ack различайте две ветки: в slow start cwnd = min(cwnd * 2, ssthresh), в предотвращении перегрузки cwnd += 1. Для потерь сначала пересчитайте ssthresh = max(cwnd // 2, 2), потом cwnd."
+    - "Номер RTT берите из enumerate(events, start=1), в том числе для неизвестных событий (они только печатаются и пропускаются через continue). Максимум обновляйте после каждого изменения cwnd."
+  tests:
+    - id: "slow-start"
+      title: "Slow start до ssthresh"
+      stdin: "init=1 ssthresh=16 rwnd=64\nack\nack\nack\nack\nack\nack\n"
+      expected: "rtt 0: init cwnd=1 ssthresh=16 phase=slow-start send_window=1\nrtt 1: ack cwnd=2 ssthresh=16 phase=slow-start send_window=2\nrtt 2: ack cwnd=4 ssthresh=16 phase=slow-start send_window=4\nrtt 3: ack cwnd=8 ssthresh=16 phase=slow-start send_window=8\nrtt 4: ack cwnd=16 ssthresh=16 phase=congestion-avoidance send_window=16\nrtt 5: ack cwnd=17 ssthresh=16 phase=congestion-avoidance send_window=17\nrtt 6: ack cwnd=18 ssthresh=16 phase=congestion-avoidance send_window=18\nmax_cwnd=18\n"
+      hint: "Пока cwnd < ssthresh, каждый RTT cwnd удваивается, но не выше ssthresh; затем +1 за RTT."
+    - id: "fast-retransmit"
+      title: "Быстрая повторная передача"
+      stdin: "init=1 ssthresh=16 rwnd=64\nack\nack\nack\nack\nack\nack\n3dupack\nack\nack\n"
+      expected: "rtt 0: init cwnd=1 ssthresh=16 phase=slow-start send_window=1\nrtt 1: ack cwnd=2 ssthresh=16 phase=slow-start send_window=2\nrtt 2: ack cwnd=4 ssthresh=16 phase=slow-start send_window=4\nrtt 3: ack cwnd=8 ssthresh=16 phase=slow-start send_window=8\nrtt 4: ack cwnd=16 ssthresh=16 phase=congestion-avoidance send_window=16\nrtt 5: ack cwnd=17 ssthresh=16 phase=congestion-avoidance send_window=17\nrtt 6: ack cwnd=18 ssthresh=16 phase=congestion-avoidance send_window=18\nrtt 7: 3dupack cwnd=9 ssthresh=9 phase=congestion-avoidance send_window=9\nrtt 8: ack cwnd=10 ssthresh=9 phase=congestion-avoidance send_window=10\nrtt 9: ack cwnd=11 ssthresh=9 phase=congestion-avoidance send_window=11\nmax_cwnd=18\n"
+      hint: "3dupack: ssthresh = max(cwnd // 2, 2), cwnd = ssthresh, остаёмся в congestion avoidance."
+    - id: "timeout"
+      title: "Таймаут возвращает в slow start"
+      stdin: "init=10 ssthresh=8 rwnd=64\nack\ntimeout\nack\nack\nack\nack\n"
+      expected: "rtt 0: init cwnd=10 ssthresh=8 phase=congestion-avoidance send_window=10\nrtt 1: ack cwnd=11 ssthresh=8 phase=congestion-avoidance send_window=11\nrtt 2: timeout cwnd=1 ssthresh=5 phase=slow-start send_window=1\nrtt 3: ack cwnd=2 ssthresh=5 phase=slow-start send_window=2\nrtt 4: ack cwnd=4 ssthresh=5 phase=slow-start send_window=4\nrtt 5: ack cwnd=5 ssthresh=5 phase=congestion-avoidance send_window=5\nrtt 6: ack cwnd=6 ssthresh=5 phase=congestion-avoidance send_window=6\nmax_cwnd=11\n"
+      hint: "Timeout: ssthresh = max(cwnd // 2, 2), cwnd = 1."
+    - id: "rwnd"
+      title: "Окно получателя ограничивает отправку (скрытый)"
+      stdin: "init=2 ssthresh=4 rwnd=5\nack\nack\nack\nack\nack\n"
+      expected: "rtt 0: init cwnd=2 ssthresh=4 phase=slow-start send_window=2\nrtt 1: ack cwnd=4 ssthresh=4 phase=congestion-avoidance send_window=4\nrtt 2: ack cwnd=5 ssthresh=4 phase=congestion-avoidance send_window=5\nrtt 3: ack cwnd=6 ssthresh=4 phase=congestion-avoidance send_window=5\nrtt 4: ack cwnd=7 ssthresh=4 phase=congestion-avoidance send_window=5\nrtt 5: ack cwnd=8 ssthresh=4 phase=congestion-avoidance send_window=5\nmax_cwnd=8\n"
+      hidden: true
+      hint: "send_window = min(cwnd, rwnd), а сам cwnd продолжает расти."
+    - id: "floor"
+      title: "Нижний предел ssthresh (скрытый)"
+      stdin: "init=1 ssthresh=8 rwnd=8\ntimeout\n3dupack\ntimeout\nack\nack\n"
+      expected: "rtt 0: init cwnd=1 ssthresh=8 phase=slow-start send_window=1\nrtt 1: timeout cwnd=1 ssthresh=2 phase=slow-start send_window=1\nrtt 2: 3dupack cwnd=2 ssthresh=2 phase=congestion-avoidance send_window=2\nrtt 3: timeout cwnd=1 ssthresh=2 phase=slow-start send_window=1\nrtt 4: ack cwnd=2 ssthresh=2 phase=congestion-avoidance send_window=2\nrtt 5: ack cwnd=3 ssthresh=2 phase=congestion-avoidance send_window=3\nmax_cwnd=3\n"
+      hidden: true
+      hint: "ssthresh не опускается ниже 2."
+    - id: "unknown"
+      title: "Неизвестное событие занимает номер RTT (скрытый)"
+      stdin: "init=4 ssthresh=2 rwnd=100\nack\nwat\nack\n"
+      expected: "rtt 0: init cwnd=4 ssthresh=2 phase=congestion-avoidance send_window=4\nrtt 1: ack cwnd=5 ssthresh=2 phase=congestion-avoidance send_window=5\nrtt 2: wat unknown event\nrtt 3: ack cwnd=6 ssthresh=2 phase=congestion-avoidance send_window=6\nmax_cwnd=6\n"
+      hidden: true
+      hint: "Неизвестное событие не меняет состояние, но номер RTT равен номеру строки события."
+    - id: "no-events"
+      title: "Только начальная строка (скрытый)"
+      stdin: "init=3 ssthresh=3 rwnd=1\n"
+      expected: "rtt 0: init cwnd=3 ssthresh=3 phase=congestion-avoidance send_window=1\nmax_cwnd=3\n"
+      hidden: true
+      hint: "Выводятся строка rtt 0 и max_cwnd."
+    - id: "long"
+      title: "Длинная трасса (скрытый)"
+      stdin: "init=1 ssthresh=32 rwnd=40\nack\nack\nack\nack\nack\nack\nack\nack\n3dupack\nack\nack\nack\nack\ntimeout\nack\nack\nack\n3dupack\n"
+      expected: "rtt 0: init cwnd=1 ssthresh=32 phase=slow-start send_window=1\nrtt 1: ack cwnd=2 ssthresh=32 phase=slow-start send_window=2\nrtt 2: ack cwnd=4 ssthresh=32 phase=slow-start send_window=4\nrtt 3: ack cwnd=8 ssthresh=32 phase=slow-start send_window=8\nrtt 4: ack cwnd=16 ssthresh=32 phase=slow-start send_window=16\nrtt 5: ack cwnd=32 ssthresh=32 phase=congestion-avoidance send_window=32\nrtt 6: ack cwnd=33 ssthresh=32 phase=congestion-avoidance send_window=33\nrtt 7: ack cwnd=34 ssthresh=32 phase=congestion-avoidance send_window=34\nrtt 8: ack cwnd=35 ssthresh=32 phase=congestion-avoidance send_window=35\nrtt 9: 3dupack cwnd=17 ssthresh=17 phase=congestion-avoidance send_window=17\nrtt 10: ack cwnd=18 ssthresh=17 phase=congestion-avoidance send_window=18\nrtt 11: ack cwnd=19 ssthresh=17 phase=congestion-avoidance send_window=19\nrtt 12: ack cwnd=20 ssthresh=17 phase=congestion-avoidance send_window=20\nrtt 13: ack cwnd=21 ssthresh=17 phase=congestion-avoidance send_window=21\nrtt 14: timeout cwnd=1 ssthresh=10 phase=slow-start send_window=1\nrtt 15: ack cwnd=2 ssthresh=10 phase=slow-start send_window=2\nrtt 16: ack cwnd=4 ssthresh=10 phase=slow-start send_window=4\nrtt 17: ack cwnd=8 ssthresh=10 phase=slow-start send_window=8\nrtt 18: 3dupack cwnd=4 ssthresh=4 phase=congestion-avoidance send_window=4\nmax_cwnd=35\n"
+      hidden: true
+      hint: "Проверьте обе ветки потерь на одной трассе."

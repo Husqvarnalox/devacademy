@@ -1,0 +1,24 @@
+id: networking-fundamentals
+version: 1.0.0
+title: "Компьютерные сети: от кадра до TLS"
+description: >-
+  Общий для разных языков курс о компьютерных сетях из восьми уроков: уровни OSI и TCP/IP, инкапсуляция и MTU,
+  IPv4/IPv6-адресация и подсети (CIDR), Ethernet, ARP и маршрутизация по самому длинному префиксу, заголовок IPv4 и контрольная сумма
+  Интернета, TCP (рукопожатие, автомат состояний, управление потоком и перегрузкой), UDP и DNS, HTTP/1.1, HTTP/2 и HTTP/3,
+  TLS 1.3 и диагностика (ping, traceroute, dig, curl -v). Живых сокетов и перехвата пакетов нет: все упражнения на Python
+  (только стандартная библиотека) разбирают и строят байты и текст со стандартного ввода - шестнадцатеричные дампы заголовков,
+  DNS-сообщения, ClientHello, HTTP-ответы - и моделируют протоколы (автомат TCP, рост окна Reno, таблица маршрутизации).
+  Примеры в теории выполняются при проверке содержимого (Python 3.14); диагностика показана примерами вывода, помеченными как иллюстрации.
+languageId: python
+level: 3
+track: networking
+requires: [python-fundamentals]
+lessons:
+  - 01-layers-and-encapsulation
+  - 02-ip-addressing-and-subnetting
+  - 03-ethernet-arp-routing
+  - 04-ipv4-header-and-checksum
+  - 05-tcp-connections-and-congestion
+  - 06-udp-and-dns
+  - 07-http-evolution
+  - 08-tls-and-diagnostics

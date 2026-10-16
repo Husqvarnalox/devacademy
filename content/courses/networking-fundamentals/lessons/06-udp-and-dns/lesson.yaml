@@ -1,0 +1,209 @@
+id: "networking.fundamentals.udp-and-dns"
+title: "UDP и DNS: датаграммы и разбор имён"
+goal: "Понимать, чем UDP отличается от TCP, как устроены его заголовок и контрольная сумма с псевдозаголовком, и разбирать двоичное сообщение DNS, включая сжатие имён указателями."
+difficulty: "hard"
+estimatedMinutes: 110
+prerequisites:
+  - "networking.fundamentals.tcp-connections-and-congestion"
+related:
+  - "python.stdlib.json-csv-struct"
+  - "nodejs.fundamentals.buffers-encodings"
+next:
+  - "networking.fundamentals.http-evolution"
+seeAlso:
+  - "DNSSEC, DNS поверх TLS/HTTPS и рекурсивное разрешение с кешированием - упомянуты, но не разбираются"
+objectives:
+  - "Описать UDP: датаграммы без соединения, 8-байтный заголовок, отсутствие подтверждений, порядка и управления перегрузкой, и привести случаи, где это достоинство."
+  - "Вычислить контрольную сумму UDP по псевдозаголовку IPv4 и данным с помощью алгоритма из RFC 1071."
+  - "Разобрать заголовок DNS: идентификатор, флаги (QR, OPCODE, AA, TC, RD, RA, RCODE) и четыре счётчика секций."
+  - "Прочитать вопросы и записи ресурсов (имя, тип, класс, TTL, rdata) и декодировать A, AAAA, NS, CNAME."
+  - "Читать имена в формате меток и раскрывать сжатие: указатель из двух байтов с префиксом 11 и смещением от начала сообщения."
+masteryCriteria:
+  - "Вы разбираете DNS-ответ из hex без внешних библиотек и корректно ведёте позицию в потоке при указателях."
+  - "Вы объясняете, почему указатель должен указывать назад и как защититься от зацикливания."
+  - "Вы отличаете rcode NXDOMAIN (3) от ответа NOERROR без записей."
+  - "Вы вычисляете контрольную сумму UDP и объясняете, зачем в неё входит псевдозаголовок."
+tags:
+  - "networking"
+  - "udp"
+  - "dns"
+  - "binary-parsing"
+  - "struct"
+facts:
+  - kind: "internals"
+    text: "Заголовок UDP состоит из четырёх 16-битных полей: порт отправителя, порт получателя, длина (заголовок плюс данные) и контрольная сумма. Всего 8 байт. UDP не устанавливает соединение, не подтверждает доставку, не восстанавливает порядок и не регулирует скорость."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc768"
+  - kind: "internals"
+    text: "Контрольная сумма UDP считается по псевдозаголовку (адреса отправителя и получателя, нулевой байт, протокол 17 и длина UDP), заголовку UDP и данным. В IPv4 нулевая сумма означает, что отправитель её не вычислял; в IPv6 сумма обязательна."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc768"
+      - "https://www.rfc-editor.org/rfc/rfc1071"
+  - kind: "internals"
+    text: "Сообщение DNS состоит из 12-байтного заголовка (идентификатор, флаги, четыре счётчика) и секций вопросов, ответов, авторитетных серверов и дополнительных записей. Имя записывается метками с однобайтовой длиной (до 63) и завершается нулевым байтом. Для экономии места суффикс имени заменяется указателем: два байта, старшие два бита которых равны 11, остальные 14 бит - смещение от начала сообщения."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc1035#section-4.1.1"
+      - "https://www.rfc-editor.org/rfc/rfc1035#section-4.1.4"
+  - kind: "internals"
+    text: "Запись AAAA содержит 16 байт адреса IPv6 (RFC 3596). Классическое ограничение размера DNS-сообщения поверх UDP - 512 байт; механизм EDNS(0) (RFC 6891) позволяет объявить больший размер, а при переполнении выставляется флаг TC и клиент повторяет запрос по TCP."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc3596"
+      - "https://www.rfc-editor.org/rfc/rfc6891"
+  - kind: "real-world"
+    text: "Коды ответа (RCODE) включают 0 NOERROR, 2 SERVFAIL, 3 NXDOMAIN (имени не существует), 5 REFUSED. Ответ NOERROR с нулём записей означает, что имя существует, но записей запрошенного типа нет - это не то же самое, что NXDOMAIN."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc1035#section-4.1.1"
+  - kind: "misconception"
+    text: "«UDP быстрее TCP, поэтому лучше». UDP не быстрее сам по себе: он просто не делает ничего сверх доставки датаграмм. Если приложению нужны надёжность, порядок или справедливое деление канала, их придётся реализовать самому (как это делает QUIC)."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: |
+        Сколько байтов занимает заголовок UDP?
+      answer: 8
+      tolerance: 0
+      explanation: "Четыре поля по 2 байта: порты, длина, контрольная сумма."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что означает значение 0xC0 в старших битах байта длины внутри имени DNS?
+      options:
+        - "Метка длиной 192 байта"
+        - "Указатель сжатия на другое место сообщения"
+        - "Конец имени"
+        - "Расширенный тип записи"
+      answer: 1
+      explanation: "Два старших бита 11 означают указатель: вместе со следующим байтом они дают 14-битное смещение."
+    - id: "q3"
+      type: "numeric"
+      prompt: |
+        На какое смещение (в байтах от начала сообщения) указывает указатель c0 0c?
+      answer: 12
+      tolerance: 0
+      explanation: "0x0c = 12: это первый байт после 12-байтного заголовка, обычно начало имени в вопросе."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        Какое числовое значение RCODE у NXDOMAIN?
+      answer: 3
+      tolerance: 0
+      explanation: "NXDOMAIN - имя не существует, код 3."
+    - id: "q5"
+      type: "multiple"
+      prompt: |
+        Какие утверждения о UDP верны?
+      options:
+        - "Не требует установления соединения"
+        - "Гарантирует порядок доставки"
+        - "Не включает управление перегрузкой"
+        - "Датаграммы могут быть потеряны без уведомления отправителя"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Порядок UDP не гарантирует."
+exercise:
+  id: "networking.fundamentals.udp-and-dns.exercise"
+  title: "Декодер ответа DNS"
+  prompt: |
+
+    **Сеть не используется.** На stdin подаётся hex-дамп DNS-сообщения (пробелы и переводы строк игнорируются). Разберите его и выведите структуру.
+
+    Формат вывода:
+
+    1. Строка заголовка: `id=0x<4 hex-цифры строчными> qr=<бит> opcode=<число> aa=<бит> tc=<бит> rd=<бит> ra=<бит> rcode=<число> (<имя>)`. Имена rcode: 0 `NOERROR`, 1 `FORMERR`, 2 `SERVFAIL`, 3 `NXDOMAIN`, 4 `NOTIMP`, 5 `REFUSED`, иначе `other`.
+    2. Строка `questions=<n> answers=<n> authority=<n> additional=<n>`.
+    3. На каждый вопрос строка `Q <имя> <ТИП> <КЛАСС>`.
+    4. На каждую запись секции ответов строка `AN <имя> <ТИП> <КЛАСС> ttl=<N> <rdata>`.
+
+    Секции authority и additional не разбираются (читаются только счётчики). Имя печатается через точки без завершающей; корень - `.`. Типы: 1 `A`, 2 `NS`, 5 `CNAME`, 28 `AAAA`, иначе `TYPE<число>`. Класс 1 - `IN`, иначе `CLASS<число>`.
+
+    rdata: для `A` (длина 4) - четыре десятичных числа через точку; для `AAAA` (длина 16) - восемь групп hex без ведущих нулей, через `:` (без сокращения `::`); для `NS` и `CNAME` - имя (может содержать указатели на всё сообщение); для остальных типов - hex байтов rdata без пробелов.
+
+    Имя читается по меткам: байт длины `n` (до 63), затем `n` символов; ноль завершает имя. Байт со старшими битами `11` вместе со следующим образует указатель на смещение от начала сообщения; имя продолжается с этого места, а позиция после имени в исходном потоке - сразу за указателем. Старшие биты `01` и `10` недопустимы.
+
+    Ошибки (печатается только одна строка и ничего более): `error: bad hex` для некорректного hex; `error: truncated`, если данные кончились раньше, чем требуется; `error: bad pointer`, если указатель указывает не строго назад (на себя или вперёд); `error: bad label` для недопустимых старших битов длины.
+
+    Пример: ввод `1a2b 8180 0001 0001 0000 0000 076578616d706c6503636f6d0000010001 c00c 0001 0001 0000012c 0004 5db8d822` даёт
+
+    ```
+    id=0x1a2b qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=0 (NOERROR)
+    questions=1 answers=1 authority=0 additional=0
+    Q example.com A IN
+    AN example.com A IN ttl=300 93.184.216.34
+    ```
+
+    **Что дано.** Заготовка читает hex и печатает `error: not implemented`.
+  entryFile: "dns_task.py"
+  evaluation: "io"
+  hints:
+    - "Переведите ввод в bytes: bytes.fromhex(''.join(text.split())). ValueError означает error: bad hex. Заголовок - шесть чисел по 2 байта; для чтения пишите u16(data, pos) со срезом и проверкой границ."
+    - "Функция read_name(data, pos) возвращает (имя, позиция после имени). Пока не встретили ноль, читайте метки; при указателе запомните позицию после него только в первый раз и продолжайте чтение с цели указателя."
+    - "Проверка указателя: если цель >= текущей позиции указателя, это bad pointer (так же защищаетесь от циклов). Если length & 0xC0 равно 0x40 или 0x80, это bad label. Любой выход за длину данных - truncated."
+    - "Для rdata типов NS и CNAME вызывайте read_name с позиции rdata в исходном сообщении, а саму позицию двигайте на rdlength независимо от длины прочитанного имени. Все исключения ловите в одном месте и печатайте error: <причина>."
+  tests:
+    - id: "a-record"
+      title: "Ответ с одной A-записью"
+      stdin: "1a 2b 81 80 00 01 00 01 00 00 00 00 07 65 78 61\n6d 70 6c 65 03 63 6f 6d 00 00 01 00 01 c0 0c 00\n01 00 01 00 00 01 2c 00 04 5d b8 d8 22\n"
+      expected: "id=0x1a2b qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=0 (NOERROR)\nquestions=1 answers=1 authority=0 additional=0\nQ example.com A IN\nAN example.com A IN ttl=300 93.184.216.34\n"
+      hint: "Заголовок - 6 слов по 2 байта; имя ответа сжато указателем c0 0c (смещение 12)."
+    - id: "cname"
+      title: "Цепочка CNAME и A"
+      stdin: "42 42 81 80 00 01 00 02 00 00 00 00 03 77 77 77\n07 65 78 61 6d 70 6c 65 03 63 6f 6d 00 00 01 00\n01 c0 0c 00 05 00 01 00 00 0e 10 00 02 c0 10 c0\n10 00 01 00 01 00 00 00 3c 00 04 5d b8 d8 22\n"
+      expected: "id=0x4242 qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=0 (NOERROR)\nquestions=1 answers=2 authority=0 additional=0\nQ www.example.com A IN\nAN www.example.com CNAME IN ttl=3600 example.com\nAN example.com A IN ttl=60 93.184.216.34\n"
+      hint: "Имя в rdata у CNAME тоже может быть сжатым; читайте его с позиции rdata относительно всего сообщения."
+    - id: "aaaa"
+      title: "AAAA-запись"
+      stdin: "00 07 81 80 00 01 00 01 00 00 00 00 04 69 70 76\n36 07 65 78 61 6d 70 6c 65 03 6f 72 67 00 00 1c\n00 01 c0 0c 00 1c 00 01 00 00 00 78 00 10 20 01\n0d b8 00 00 00 00 00 00 00 00 00 00 00 01\n"
+      expected: "id=0x0007 qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=0 (NOERROR)\nquestions=1 answers=1 authority=0 additional=0\nQ ipv6.example.org AAAA IN\nAN ipv6.example.org AAAA IN ttl=120 2001:db8:0:0:0:0:0:1\n"
+      hint: "16 байт rdata - восемь групп; печатайте без ведущих нулей и без ::."
+    - id: "nxdomain"
+      title: "NXDOMAIN без ответов (скрытый)"
+      stdin: "00 01 81 83 00 01 00 00 00 00 00 00 04 6e 6f 70\n65 07 65 78 61 6d 70 6c 65 03 63 6f 6d 00 00 01\n00 01\n"
+      expected: "id=0x0001 qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=3 (NXDOMAIN)\nquestions=1 answers=0 authority=0 additional=0\nQ nope.example.com A IN\n"
+      hidden: true
+      hint: "rcode - младшие 4 бита слова флагов; 3 = NXDOMAIN. Ответов нет, печатаются только заголовок и вопрос."
+    - id: "multi"
+      title: "CNAME на частично сжатое имя и два A (скрытый)"
+      stdin: "be ef 85 80 00 01 00 03 00 00 00 00 03 61 70 69\n07 65 78 61 6d 70 6c 65 03 6e 65 74 00 00 01 00\n01 c0 0c 00 05 00 01 00 00 00 1e 00 0b 04 65 64\n67 65 03 63 64 6e c0 10 c0 2d 00 01 00 01 00 00\n00 14 00 04 c6 33 64 0a c0 2d 00 01 00 01 00 00\n00 14 00 04 c6 33 64 0b\n"
+      expected: "id=0xbeef qr=1 opcode=0 aa=1 tc=0 rd=1 ra=1 rcode=0 (NOERROR)\nquestions=1 answers=3 authority=0 additional=0\nQ api.example.net A IN\nAN api.example.net CNAME IN ttl=30 edge.cdn.example.net\nAN edge.cdn.example.net A IN ttl=20 198.51.100.10\nAN edge.cdn.example.net A IN ttl=20 198.51.100.11\n"
+      hidden: true
+      hint: "Имя может заканчиваться указателем на суффикс: сначала метки, потом c0 xx."
+    - id: "query"
+      title: "Запрос (qr=0) (скрытый)"
+      stdin: "ab cd 01 00 00 01 00 00 00 00 00 00 07 65 78 61\n6d 70 6c 65 03 63 6f 6d 00 00 01 00 01\n"
+      expected: "id=0xabcd qr=0 opcode=0 aa=0 tc=0 rd=1 ra=0 rcode=0 (NOERROR)\nquestions=1 answers=0 authority=0 additional=0\nQ example.com A IN\n"
+      hidden: true
+      hint: "Запрос - то же сообщение без ответов; qr=0, rd=1."
+    - id: "root"
+      title: "Корневое имя и NS (скрытый)"
+      stdin: "00 02 81 80 00 01 00 01 00 00 00 00 00 00 02 00\n01 00 00 02 00 01 00 07 e9 00 00 14 01 61 0c 72\n6f 6f 74 2d 73 65 72 76 65 72 73 03 6e 65 74 00\n"
+      expected: "id=0x0002 qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=0 (NOERROR)\nquestions=1 answers=1 authority=0 additional=0\nQ . NS IN\nAN . NS IN ttl=518400 a.root-servers.net\n"
+      hidden: true
+      hint: "Корень печатается как '.', тип NS читается как имя."
+    - id: "unknown-type"
+      title: "Неизвестный тип (TXT) (скрытый)"
+      stdin: "00 03 81 80 00 01 00 01 00 00 00 00 01 74 07 65\n78 61 6d 70 6c 65 03 63 6f 6d 00 00 10 00 01 c0\n0c 00 10 00 01 00 00 00 05 00 06 05 68 65 6c 6c\n6f\n"
+      expected: "id=0x0003 qr=1 opcode=0 aa=0 tc=0 rd=1 ra=1 rcode=0 (NOERROR)\nquestions=1 answers=1 authority=0 additional=0\nQ t.example.com TYPE16 IN\nAN t.example.com TYPE16 IN ttl=5 0568656c6c6f\n"
+      hidden: true
+      hint: "Для типов вне A/AAAA/NS/CNAME rdata печатается шестнадцатеричной строкой."
+    - id: "loop"
+      title: "Указатель на самого себя (скрытый)"
+      stdin: "1a 2b 81 80 00 01 00 01 00 00 00 00 07 65 78 61\n6d 70 6c 65 03 63 6f 6d 00 00 01 00 01 c0 1d 00\n01 00 01 00 00 01 2c 00 04 5d b8 d8 22\n"
+      expected: "error: bad pointer\n"
+      hidden: true
+      hint: "Указатель обязан вести строго назад (target < позиции указателя), иначе error: bad pointer."
+    - id: "forward"
+      title: "Указатель вперёд (скрытый)"
+      stdin: "1a 2b 81 80 00 01 00 01 00 00 00 00 07 65 78 61\n6d 70 6c 65 03 63 6f 6d 00 00 01 00 01 c0 40 00\n01 00 01 00 00 01 2c 00 04 5d b8 d8 22\n"
+      expected: "error: bad pointer\n"
+      hidden: true
+      hint: "Указатель вперёд - тоже error: bad pointer."
+    - id: "truncated"
+      title: "Обрезанное сообщение (скрытый)"
+      stdin: "1a 2b 81 80 00 01 00 01 00 00 00 00 07 65 78 61\n6d 70 6c 65 03 63 6f 6d 00 00 01 00 01 c0 0c 00\n01 00 01 00 00 01 2c 00\n"
+      expected: "error: truncated\n"
+      hidden: true
+      hint: "Если данных не хватает, печатается error: truncated."

@@ -1,0 +1,225 @@
+id: "networking.fundamentals.ipv4-header-and-checksum"
+title: "Заголовок IPv4 и контрольная сумма Интернета"
+goal: "Разбирать заголовок IPv4 из шестнадцатеричного дампа поле за полем, считать и проверять контрольную сумму по RFC 1071 и объяснять роль TTL, флагов и смещения фрагмента."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "networking.fundamentals.ethernet-arp-routing"
+related:
+  - "python.stdlib.json-csv-struct"
+  - "nodejs.fundamentals.buffers-encodings"
+  - "rust.fundamentals.error-handling"
+next:
+  - "networking.fundamentals.tcp-connections-and-congestion"
+seeAlso:
+  - "Заголовок IPv6 и расширяющие заголовки (в курсе упоминаются только сравнением)"
+objectives:
+  - "Назвать поля заголовка IPv4, их размер и порядок: version, IHL, DSCP/ECN, total length, identification, flags, fragment offset, TTL, protocol, header checksum, адреса, опции."
+  - "Извлекать поля из байтов с помощью срезов, int.from_bytes, struct и побитовых операций (сдвиги и маски)."
+  - "Вычислять контрольную сумму Интернета (RFC 1071) как дополнение до единицы суммы 16-битных слов и проверять ею заголовок."
+  - "Объяснять, как TTL предотвращает бесконечные петли и как traceroute использует его, и почему маршрутизатор пересчитывает контрольную сумму."
+  - "Диагностировать некорректный дамп: не IPv4, ошибка в IHL, обрезанный заголовок, неверные шестнадцатеричные символы."
+masteryCriteria:
+  - "Вы разбираете дамп заголовка и получаете те же значения полей, которые показал бы анализатор пакетов."
+  - "Вы считаете контрольную сумму обнулением поля, сложением 16-битных слов с переносом старшего бита в младший и инверсией."
+  - "Вы проверяете сумму по всему заголовку включая поле контрольной суммы и ожидаете 0xFFFF до инверсии (0 после)."
+  - "Вы различаете DF и MF и знаете, что смещение фрагмента измеряется в блоках по 8 байт."
+tags:
+  - "networking"
+  - "ipv4"
+  - "header"
+  - "checksum"
+  - "ttl"
+  - "rfc1071"
+facts:
+  - kind: "internals"
+    text: "Заголовок IPv4 занимает от 20 до 60 байт: длина задаётся полем IHL в 32-битных словах (минимум 5). Поля: version/IHL (1 байт), DSCP/ECN (1), total length (2), identification (2), flags и fragment offset (2), TTL (1), protocol (1), header checksum (2), source (4), destination (4), далее опции."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc791.html#section-3.1"
+  - kind: "internals"
+    text: "Контрольная сумма Интернета - дополнение до единицы суммы 16-битных слов в дополнительном коде единиц: слова складываются, перенос из старшего бита добавляется в младший, результат инвертируется. При проверке сумма всех слов вместе с полем контрольной суммы даёт 0xFFFF (после инверсии - 0). Если число байтов нечётное, в конец добавляется нулевой байт."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc1071.html"
+      - "https://www.rfc-editor.org/rfc/rfc1071.html#section-2"
+  - kind: "performance"
+    text: "Маршрутизатору не нужно пересчитывать сумму заголовка целиком при уменьшении TTL: достаточно инкрементально обновить её по формуле HC' = ~(~HC + ~m + m'), где m и m' - старое и новое значения изменившегося 16-битного слова."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc1624.html"
+  - kind: "internals"
+    text: "Байт Type of Service в современных сетях разделён на DSCP (6 бит, класс обслуживания) и ECN (2 бита, явное уведомление о перегрузке). Поле TTL при пересылке уменьшается на единицу; маршрутизатор, получивший пакет с TTL 1, отбрасывает его и отвечает ICMP Time Exceeded - этим пользуется traceroute."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc2474.html"
+      - "https://www.rfc-editor.org/rfc/rfc3168.html"
+      - "https://www.rfc-editor.org/rfc/rfc792.html"
+  - kind: "internals"
+    text: "В заголовке IPv6 контрольной суммы нет: проверку целостности оставили канальному уровню (FCS) и транспортному (TCP, UDP, где сумма обязательна). Вместо TTL в IPv6 используется поле Hop Limit, а фрагментация вынесена в отдельный расширяющий заголовок."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc8200.html#section-3"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: |
+        В заголовке IPv4 поле IHL равно 7. Какова длина заголовка в байтах?
+      answer: 28
+      tolerance: 0
+      explanation: "IHL измеряется в 32-битных словах: 7 * 4 = 28 байт (20 байт обязательной части и 8 байт опций)."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Чему равна 16-битная сумма слов 0xFFFF и 0x0002 в арифметике дополнения до единицы (с добавлением переноса)? Ответ - десятичное число.
+      answer: 2
+      tolerance: 0
+      explanation: "0xFFFF + 0x0002 = 0x10001; старший бит переноса складывается с младшей частью: 0x0001 + 1 = 0x0002."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что делает маршрутизатор с полем TTL при пересылке пакета?
+      options:
+        - "Увеличивает на 1"
+        - "Уменьшает на 1; при достижении 0 пакет отбрасывается и отправляется ICMP Time Exceeded"
+        - "Не меняет"
+        - "Заменяет на 64"
+      answer: 1
+      explanation: "Так пакеты в петле не живут вечно, а traceroute получает ответы от каждого хопа."
+    - id: "q4"
+      type: "multiple"
+      prompt: |
+        Какие утверждения верны?
+      options:
+        - "Контрольная сумма заголовка IPv4 меняется при пересылке, потому что меняется TTL"
+        - "У заголовка IPv6 контрольной суммы нет"
+        - "Контрольная сумма IPv4 защищает данные пакета"
+        - "Сумма всех слов заголовка вместе с полем контрольной суммы даёт 0xFFFF"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Сумма IPv4 покрывает только заголовок; целостность данных проверяют TCP и UDP своими суммами."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что означает флаг DF = 1?
+      options:
+        - "Пакет - последний фрагмент"
+        - "Пакет нельзя фрагментировать"
+        - "Пакет нужно доставить срочно"
+        - "Пакет шифрован"
+      answer: 1
+      explanation: "Don't Fragment: если пакет не помещается в MTU, маршрутизатор отбрасывает его и отправляет ICMP 'fragmentation needed'."
+exercise:
+  id: "networking.fundamentals.ipv4-header-and-checksum.exercise"
+  title: "Разбор заголовка IPv4 и проверка контрольной суммы"
+  prompt: |
+
+    **Сеть не используется.** Из stdin приходит шестнадцатеричный дамп начала IP-пакета: пары hex-цифр, разделённые любыми пробелами и переводами строк. Разберите заголовок и выведите поля.
+
+    Пример дампа (заголовок UDP-пакета):
+
+    ```
+    45 00 00 73 00 00 40 00 40 11 b8 61 c0 a8 00 01 c0 a8 00 c7
+    ```
+
+    Вывод:
+
+    ```
+    version=4
+    ihl=5 (20 bytes)
+    dscp=0 ecn=0
+    total_length=115
+    identification=0x0000
+    flags=DF
+    fragment_offset=0
+    ttl=64
+    protocol=17 (UDP)
+    header_checksum=0xb861
+    checksum=valid
+    src=192.168.0.1
+    dst=192.168.0.199
+    options=0 bytes
+    ```
+
+    Правила:
+
+    * `ihl` - младшая тетрада первого байта; длина заголовка `ihl * 4` байт. `dscp` - старшие 6 бит второго байта, `ecn` - младшие 2.
+    * `identification` и `header_checksum` печатаются как `0x` и ровно четыре строчные hex-цифры.
+    * `flags`: старшие 3 бита 16-битного слова, где бит `0x2` - DF, бит `0x1` - MF (бит `0x4` зарезервирован и игнорируется). Выводите `DF`, `MF`, `DF+MF` или `none`. `fragment_offset` - младшие 13 бит, **в блоках по 8 байт** (выводите как есть).
+    * `protocol`: число и имя в скобках: 1 `ICMP`, 2 `IGMP`, 6 `TCP`, 17 `UDP`, 41 `IPv6`, 47 `GRE`, 50 `ESP`, 89 `OSPF`, иначе `other`.
+    * Контрольная сумма: обнулите поле суммы в копии заголовка (`ihl * 4` байт), сложите 16-битные слова со сложением переноса и инвертируйте (RFC 1071). Если результат равен записанному значению, выведите `checksum=valid`, иначе `checksum=invalid (expected 0x....)` с ожидаемым значением (четыре hex-цифры).
+    * `options` - число байт заголовка сверх 20. Байты после заголовка (данные) игнорируются.
+
+    Ошибки (выводится только одна строка, остальное не печатается), проверяются в таком порядке:
+
+    1. `error: bad hex` - в дампе есть символы, не образующие байты (нечётное число цифр тоже ошибка);
+    2. `error: truncated header` - меньше 20 байт;
+    3. `error: not IPv4` - version не равна 4;
+    4. `error: bad ihl` - `ihl < 5`;
+    5. `error: truncated header` - байт меньше, чем `ihl * 4`.
+
+    **Что дано.** Заготовка читает дамп в `bytes` и печатает `not implemented`.
+  entryFile: "ipv4_header_task.py"
+  evaluation: "io"
+  hints:
+    - "Сначала bytes.fromhex(''.join(text.split())) внутри try/except ValueError. Затем version = data[0] >> 4, ihl = data[0] & 0x0F; длину заголовка берите как ihl * 4."
+    - "16-битные поля читайте как (data[i] << 8) | data[i + 1] или int.from_bytes(data[i:i + 2], 'big'). Флаги: word >> 13; смещение: word & 0x1FFF. Адреса - четыре байта через точку."
+    - "Контрольная сумма: header[:10] + b'\\x00\\x00' + header[12:], затем сумма слов по два байта; пока total >> 16: total = (total & 0xFFFF) + (total >> 16); результат ~total & 0xFFFF."
+    - "Порядок ошибок важен: сначала hex, потом len < 20, потом version, потом ihl < 5, потом len(data) < ihl * 4. Контрольную сумму считайте только по первым ihl * 4 байтам, а не по всему дампу."
+  tests:
+    - id: "valid"
+      title: "Корректный заголовок UDP"
+      stdin: "45 00 00 73 00 00 40 00 40 11 b8 61 c0 a8 00 01\nc0 a8 00 c7\n"
+      expected: "version=4\nihl=5 (20 bytes)\ndscp=0 ecn=0\ntotal_length=115\nidentification=0x0000\nflags=DF\nfragment_offset=0\nttl=64\nprotocol=17 (UDP)\nheader_checksum=0xb861\nchecksum=valid\nsrc=192.168.0.1\ndst=192.168.0.199\noptions=0 bytes\n"
+      hint: "Поля: version - старшая тетрада байта 0, ihl - младшая; сумма по 16-битным словам со сложением переноса."
+    - id: "bad-checksum"
+      title: "Испорченный TTL"
+      stdin: "45 00 00 73 00 00 40 00 3f 11 b8 61 c0 a8 00 01\nc0 a8 00 c7\n"
+      expected: "version=4\nihl=5 (20 bytes)\ndscp=0 ecn=0\ntotal_length=115\nidentification=0x0000\nflags=DF\nfragment_offset=0\nttl=63\nprotocol=17 (UDP)\nheader_checksum=0xb861\nchecksum=invalid (expected 0xb961)\nsrc=192.168.0.1\ndst=192.168.0.199\noptions=0 bytes\n"
+      hint: "Пересчитайте сумму с обнулённым полем контрольной суммы и сравните с записанным значением."
+    - id: "options-mf"
+      title: "Опции, флаг MF и смещение фрагмента"
+      stdin: "46 00 00 2c be ef 20 b9 11 01 60 24 c6 33 64 07\ncb 00 71 c8 01 01 01 00 61 62 63 64\n"
+      expected: "version=4\nihl=6 (24 bytes)\ndscp=0 ecn=0\ntotal_length=44\nidentification=0xbeef\nflags=MF\nfragment_offset=185\nttl=17\nprotocol=1 (ICMP)\nheader_checksum=0x6024\nchecksum=valid\nsrc=198.51.100.7\ndst=203.0.113.200\noptions=4 bytes\n"
+      hint: "ihl=6 означает 24 байта заголовка; флаги: бит 0x2 - DF, бит 0x1 - MF; смещение измеряется в 8-байтовых блоках."
+    - id: "ttl-tcp-dscp"
+      title: "TCP, DSCP и ECN, TTL=1 (скрытый)"
+      stdin: "45 b9 00 3c 1c 46 40 00 01 06 9e 97 ac 10 fe 01\n0a 0a 0a 0a\n"
+      expected: "version=4\nihl=5 (20 bytes)\ndscp=46 ecn=1\ntotal_length=60\nidentification=0x1c46\nflags=DF\nfragment_offset=0\nttl=1\nprotocol=6 (TCP)\nheader_checksum=0x9e97\nchecksum=valid\nsrc=172.16.254.1\ndst=10.10.10.10\noptions=0 bytes\n"
+      hidden: true
+      hint: "tos: старшие 6 бит - DSCP, младшие 2 - ECN. 0xb9 = 101110|01."
+    - id: "wrong-version"
+      title: "Версия 6 (скрытый)"
+      stdin: "60 00 00 00 00 08 11 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \n"
+      expected: "error: not IPv4\n"
+      hidden: true
+      hint: "Если старшая тетрада не 4, выведите error: not IPv4."
+    - id: "truncated"
+      title: "Обрезанный заголовок (скрытый)"
+      stdin: "45 00 00 73 00 00 40 00 40 11 b8 61 c0 a8 00\n"
+      expected: "error: truncated header\n"
+      hidden: true
+      hint: "Меньше 20 байтов - error: truncated header."
+    - id: "ihl-too-long"
+      title: "ihl больше данных (скрытый)"
+      stdin: "48 00 00 3c 00 00 40 00 40 06 23 ba 0a 00 00 01\n0a 00 00 02\n"
+      expected: "error: truncated header\n"
+      hidden: true
+      hint: "ihl задаёт длину заголовка; если данных меньше - error: truncated header."
+    - id: "bad-ihl"
+      title: "ihl меньше 5 (скрытый)"
+      stdin: "44 00 00 14 00 00 00 00 40 06 00 00 0a 00 00 01 0a 00 00 02\n"
+      expected: "error: bad ihl\n"
+      hidden: true
+      hint: "ihl < 5 невозможен: error: bad ihl."
+    - id: "bad-hex"
+      title: "Не шестнадцатеричные символы (скрытый)"
+      stdin: "45 00 zz 28\n"
+      expected: "error: bad hex\n"
+      hidden: true
+      hint: "bytes.fromhex бросает ValueError - превратите его в error: bad hex."
+    - id: "other-proto-payload"
+      title: "Лишние байты после заголовка (скрытый)"
+      stdin: "45 00 00 30 00 01 00 00 ff 59 d9 6c e0 00 00 05\n01 01 01 01 de ad be ef 00 01 02 03\n"
+      expected: "version=4\nihl=5 (20 bytes)\ndscp=0 ecn=0\ntotal_length=48\nidentification=0x0001\nflags=none\nfragment_offset=0\nttl=255\nprotocol=89 (OSPF)\nheader_checksum=0xd96c\nchecksum=valid\nsrc=224.0.0.5\ndst=1.1.1.1\noptions=0 bytes\n"
+      hidden: true
+      hint: "Контрольная сумма считается только по ihl*4 байтам заголовка, а не по всему дампу."

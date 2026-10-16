@@ -1,0 +1,214 @@
+id: "networking.fundamentals.tls-and-diagnostics"
+title: "TLS и диагностика сети"
+goal: "Понимать, что даёт TLS (шифрование, целостность, проверка сервера), как устроено рукопожатие и сообщение ClientHello с SNI, и читать вывод основных диагностических утилит: ping, traceroute, dig и curl."
+difficulty: "medium"
+estimatedMinutes: 110
+prerequisites:
+  - "networking.fundamentals.http-evolution"
+related:
+  - "python.stdlib.json-csv-struct"
+  - "python.automation.robust-http-clients"
+next: []
+seeAlso:
+  - "Криптографические примитивы (обмен ключами, AEAD) и инфраструктура открытых ключей в деталях - за рамками урока"
+objectives:
+  - "Объяснить три свойства, которые даёт TLS: конфиденциальность, целостность и аутентификацию сервера, и чем HTTPS отличается от HTTP."
+  - "Описать рукопожатие TLS 1.3: ClientHello, ServerHello, обмен ключами, проверка сертификата, один RTT до данных приложения."
+  - "Разобрать заголовок записи TLS и префикс ClientHello: версии, шифронаборы, расширения, SNI, ALPN, supported_versions и значения GREASE."
+  - "Объяснить цепочку доверия сертификатов, имена в SAN и типичные причины ошибок проверки."
+  - "Прочитать вывод ping, traceroute, dig и curl -v и связать его с уровнями модели."
+masteryCriteria:
+  - "Вы разбираете запись TLS и ClientHello из hex на границах полей, не выходя за длины вложенных структур."
+  - "Вы объясняете, зачем нужен SNI и почему он виден наблюдателю в открытом виде в классическом ClientHello."
+  - "Вы отличаете проблемы DNS, маршрутизации, TCP и TLS по выводу диагностических утилит."
+  - "Вы понимаете, чем отличаются версии протокола в записи и в расширении supported_versions."
+tags:
+  - "networking"
+  - "tls"
+  - "https"
+  - "sni"
+  - "alpn"
+  - "diagnostics"
+  - "parsing"
+facts:
+  - kind: "internals"
+    text: "Запись TLS начинается с 5-байтного заголовка: тип содержимого (1 байт; 22 - handshake, 23 - application data), версия записи (2 байта) и длина (2 байта). Первое сообщение клиента - ClientHello (тип рукопожатия 1) с 3-байтной длиной, версией, 32 случайными байтами, идентификатором сессии, списками шифронаборов и методов сжатия и расширениями."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc8446.html#section-5.1"
+      - "https://www.rfc-editor.org/rfc/rfc8446.html#section-4.1.2"
+  - kind: "internals"
+    text: "В TLS 1.3 поле версии в ClientHello равно 0x0303 (TLS 1.2) ради совместимости, а реальные версии клиент перечисляет в расширении supported_versions (43). Рукопожатие TLS 1.3 требует одного кругового обхода (1-RTT) до отправки данных приложения."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc8446.html#section-4.2.1"
+      - "https://www.rfc-editor.org/rfc/rfc8446.html#section-2"
+  - kind: "internals"
+    text: "Расширение server_name (SNI, тип 0) сообщает имя сервера, чтобы один IP-адрес мог обслуживать много имён с разными сертификатами; ALPN (тип 16) согласует прикладной протокол, например h2 или http/1.1."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc6066.html#section-3"
+      - "https://www.rfc-editor.org/rfc/rfc7301.html"
+  - kind: "internals"
+    text: "Значения GREASE вида 0x0A0A, 0x1A1A, ..., 0xFAFA клиенты подмешивают в списки версий, шифронаборов и расширений, чтобы серверы не ломались на неизвестных значениях."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc8701.html"
+  - kind: "real-world"
+    text: "Проверка сертификата строится по цепочке: сертификат сервера подписан промежуточным удостоверяющим центром, тот - корневым, которому клиент доверяет заранее. Имя сервера сверяется с полем Subject Alternative Name; сертификат также должен быть действителен по времени."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc5280.html"
+      - "https://www.rfc-editor.org/rfc/rfc6125.html"
+  - kind: "misconception"
+    text: "«Замок в браузере значит, что сайт безопасен». TLS гарантирует защиту канала и подлинность имени сервера, но не добропорядочность сайта и не защищает от того, что сам сервер сделает с вашими данными."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Зачем в ClientHello передаётся расширение SNI?
+      options:
+        - "Чтобы шифровать сессию"
+        - "Чтобы сервер, обслуживающий много имён на одном IP, выбрал нужный сертификат"
+        - "Чтобы проверить MTU"
+        - "Чтобы получить адрес по DNS"
+      answer: 1
+      explanation: "SNI называет желаемое имя сервера ещё до выбора сертификата."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Сколько круговых обходов (RTT) требует рукопожатие TLS 1.3 до первых данных приложения при новом соединении (поверх уже установленного TCP)?
+      answer: 1
+      tolerance: 0
+      explanation: "ClientHello с key_share и ответ сервера завершают обмен ключами за один круговой обход."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что проверяет клиент при проверке сертификата?
+      options:
+        - "Только срок действия"
+        - "Цепочку подписей до доверенного корня, срок и соответствие имени (SAN)"
+        - "Только размер ключа"
+        - "Совпадение MAC-адреса"
+      answer: 1
+      explanation: "Нужны все проверки: цепочка, срок действия и имя."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Какая утилита использует нарастающее значение TTL, чтобы показать маршрутизаторы на пути?
+      options:
+        - "ping"
+        - "traceroute"
+        - "dig"
+        - "curl"
+      answer: 1
+      explanation: "traceroute отправляет пакеты с TTL 1, 2, 3 и получает ICMP Time Exceeded от каждого маршрутизатора."
+    - id: "q5"
+      type: "multiple"
+      prompt: |
+        Какие утверждения верны?
+      options:
+        - "dig показывает ответы DNS"
+        - "curl -v показывает рукопожатие TLS и заголовки HTTP"
+        - "ping проверяет достижимость через ICMP echo"
+        - "ping показывает сертификат сервера"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Сертификат ping не видит: он работает на уровне ICMP."
+exercise:
+  id: "networking.fundamentals.tls-and-diagnostics.exercise"
+  title: "Разбор записи TLS и ClientHello"
+  prompt: |
+
+    **Сеть не используется.** На stdin подан hex-дамп одной записи TLS с сообщением ClientHello (пробелы и переводы строк игнорируются). Разберите её.
+
+    Структура (числа - big-endian):
+
+    * **Запись**: тип (1), версия (2), длина (2), затем столько байт содержимого.
+    * **Рукопожатие**: тип (1, ClientHello = 1), длина (3).
+    * **ClientHello**: версия (2), random (32), длина session id (1) и сам session id, длина списка шифронаборов (2) и по 2 байта на набор, длина списка методов сжатия (1) и сами методы, затем, если остались данные, длина блока расширений (2) и расширения: тип (2), длина (2), данные.
+    * Расширение 0 (`server_name`): список из длины (2) и записей: тип имени (1), длина (2), имя. Берётся первое имя типа 0.
+    * Расширение 43 (`supported_versions`) в ClientHello: длина списка (1) и версии по 2 байта.
+    * Расширение 16 (`application_layer_protocol_negotiation`): длина списка (2) и строки с однобайтовой длиной.
+
+    Вывод (по строке):
+
+    ```
+    record_type=22 (handshake)
+    record_version=0x0301 (TLS 1.0)
+    record_length=<n>
+    handshake_type=1 (client_hello)
+    handshake_length=<n>
+    client_version=0x0303 (TLS 1.2)
+    session_id_length=<n>
+    cipher_suites=<n>: <имена через ", ">
+    compression_methods=<n>
+    extensions=<n>: <имена через ", " или ->
+    sni=<имя или ->
+    supported_versions=<версии через ", " или ->
+    alpn=<протоколы через "," или ->
+    ```
+
+    Названия версий: `0x0300` SSL 3.0, `0x0301` TLS 1.0, `0x0302` TLS 1.1, `0x0303` TLS 1.2, `0x0304` TLS 1.3, иначе `unknown`. Шифронаборы: `1301` `TLS_AES_128_GCM_SHA256`, `1302` `TLS_AES_256_GCM_SHA384`, `1303` `TLS_CHACHA20_POLY1305_SHA256`, `c02b` `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256`, `c02c` `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384`, `c02f` `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`, `c030` `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`, `cca8` `TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256`, `cca9` `TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256`, `00ff` `TLS_EMPTY_RENEGOTIATION_INFO_SCSV`; неизвестный набор печатается как `0x` и четыре hex-цифры строчными. Расширения: 0 `server_name`, 10 `supported_groups`, 11 `ec_point_formats`, 13 `signature_algorithms`, 16 `application_layer_protocol_negotiation`, 21 `padding`, 43 `supported_versions`, 45 `psk_key_exchange_modes`, 51 `key_share`; неизвестное - `ext_<десятичное число>`. Значение GREASE - 16-битное число, у которого оба байта равны и имеют вид `0x?A` (`0x0a0a`, `0x1a1a`, ..., `0xfafa`); везде печатается как `GREASE`.
+
+    Ошибки (одна строка): `error: bad hex`; `error: not a handshake record`, если тип записи не 22; `error: not a ClientHello`, если тип рукопожатия не 1; `error: truncated`, если данных меньше, чем заявлено любой длиной. Порядок проверки: сначала читаются 5 байт заголовка записи (нехватка - truncated), затем проверяется тип записи.
+
+    **Что дано.** Заготовка читает hex и печатает `error: not implemented`.
+  entryFile: "clienthello_task.py"
+  evaluation: "io"
+  hints:
+    - "Заведите небольшой класс Reader с позицией и методами take(n), u8(), u16(), u24(). Метод take бросает исключение truncated, если не хватает байт. Это убережёт от выхода за границы на всех уровнях вложенности."
+    - "Вложенные структуры читайте через новые Reader на срезах: body = Reader(rec.take(record_length)), hello = Reader(body.take(handshake_length)), список наборов - Reader(hello.take(n)). Тогда расширение не может «залезть» в соседнее."
+    - "GREASE: value & 0x0F0F == 0x0A0A и старший байт равен младшему. Эта проверка применяется к шифронаборам, типам расширений и версиям в supported_versions. Неизвестные наборы и расширения форматируйте как 0x%04x и ext_N."
+    - "Блок расширений может отсутствовать (данных больше нет) - тогда extensions=0: -, sni=-, supported_versions=-, alpn=-. Для SNI берите первое имя типа 0; для ALPN идите по строкам с однобайтовой длиной внутри списка с двухбайтовой."
+  tests:
+    - id: "modern"
+      title: "ClientHello в стиле браузера (GREASE, TLS 1.3, ALPN)"
+      stdin: "16 03 01 00 b4 01 00 00 b0 03 03 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 20 a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 aa ab ac ad ae af b0 b1 b2 b3\nb4 b5 b6 b7 b8 b9 ba bb bc bd be bf 00 0c 1a 1a 13 01 13 02 13 03 c0 2b c0 2f 01 00 00 5b 0a 0a\n00 00 00 00 00 10 00 0e 00 00 0b 65 78 61 6d 70 6c 65 2e 63 6f 6d 00 10 00 0e 00 0c 02 68 32 08\n68 74 74 70 2f 31 2e 31 00 2b 00 07 06 2a 2a 03 04 03 03 00 0a 00 06 00 04 00 1d 00 17 00 0b 00\n02 01 00 00 0d 00 06 00 04 04 03 08 04 00 2d 00 02 01 01 00 33 00 02 00 00\n"
+      expected: "record_type=22 (handshake)\nrecord_version=0x0301 (TLS 1.0)\nrecord_length=180\nhandshake_type=1 (client_hello)\nhandshake_length=176\nclient_version=0x0303 (TLS 1.2)\nsession_id_length=32\ncipher_suites=6: GREASE, TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256\ncompression_methods=1\nextensions=9: GREASE, server_name, application_layer_protocol_negotiation, supported_versions, supported_groups, ec_point_formats, signature_algorithms, psk_key_exchange_modes, key_share\nsni=example.com\nsupported_versions=GREASE, TLS 1.3, TLS 1.2\nalpn=h2,http/1.1\n"
+      hint: "Поля идут подряд: тип записи (1), версия (2), длина (2), тип рукопожатия (1), длина (3), версия (2), random (32), session id (1+N), наборы шифров (2+2N), сжатие (1+N), расширения (2+...)."
+    - id: "minimal"
+      title: "ClientHello без расширений"
+      stdin: "16 03 01 00 31 01 00 00 2d 03 03 00 01 02 03 04\n05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 00 00 06 c0 2f\nc0 30 00 ff 01 00\n"
+      expected: "record_type=22 (handshake)\nrecord_version=0x0301 (TLS 1.0)\nrecord_length=49\nhandshake_type=1 (client_hello)\nhandshake_length=45\nclient_version=0x0303 (TLS 1.2)\nsession_id_length=0\ncipher_suites=3: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_EMPTY_RENEGOTIATION_INFO_SCSV\ncompression_methods=1\nextensions=0: -\nsni=-\nsupported_versions=-\nalpn=-\n"
+      hint: "Блока расширений может не быть вовсе: тогда sni=-, supported_versions=-, alpn=-."
+    - id: "sni-org"
+      title: "SNI www.example.org"
+      stdin: "16 03 01 00 62 01 00 00 5e 03 03 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 00 00 06 cc a8 cc a9 00 9c 01 00 00 2f 00 00 00 14 00 12 00 00\n0f 77 77 77 2e 65 78 61 6d 70 6c 65 2e 6f 72 67 00 0d 00 04 00 02 04 01 00 10 00 0b 00 09 08 68\n74 74 70 2f 31 2e 31\n"
+      expected: "record_type=22 (handshake)\nrecord_version=0x0301 (TLS 1.0)\nrecord_length=98\nhandshake_type=1 (client_hello)\nhandshake_length=94\nclient_version=0x0303 (TLS 1.2)\nsession_id_length=0\ncipher_suites=3: TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, 0x009c\ncompression_methods=1\nextensions=3: server_name, signature_algorithms, application_layer_protocol_negotiation\nsni=www.example.org\nsupported_versions=-\nalpn=http/1.1\n"
+      hint: "Расширение server_name (тип 0): длина списка (2), тип имени (1, значение 0 = host_name), длина имени (2), имя."
+    - id: "no-sni"
+      title: "Расширения без SNI (скрытый)"
+      stdin: "16 03 01 00 45 01 00 00 41 03 03 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 00 00 02 13 01 01 00 00 16 00 2b 00 03 02 03 04 00 15 00 05 00\n00 00 00 00 77 77 00 02 7a 7a\n"
+      expected: "record_type=22 (handshake)\nrecord_version=0x0301 (TLS 1.0)\nrecord_length=69\nhandshake_type=1 (client_hello)\nhandshake_length=65\nclient_version=0x0303 (TLS 1.2)\nsession_id_length=0\ncipher_suites=1: TLS_AES_128_GCM_SHA256\ncompression_methods=1\nextensions=3: supported_versions, padding, ext_30583\nsni=-\nsupported_versions=TLS 1.3\nalpn=-\n"
+      hidden: true
+      hint: "Неизвестные типы расширений печатаются как ext_<номер>; padding - тип 21."
+    - id: "not-handshake"
+      title: "Запись с данными приложения (скрытый)"
+      stdin: "17 03 03 00 04 01 02 03 04\n"
+      expected: "error: not a handshake record\n"
+      hidden: true
+      hint: "Тип записи 23 (application_data) - не рукопожатие: error: not a handshake record."
+    - id: "server-hello"
+      title: "ServerHello вместо ClientHello (скрытый)"
+      stdin: "16 03 01 00 2d 02 00 00 29 03 03 00 01 02 03 04\n05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 00 00 02 13 01\n01 00\n"
+      expected: "error: not a ClientHello\n"
+      hidden: true
+      hint: "Тип рукопожатия 2 - ServerHello: error: not a ClientHello."
+    - id: "truncated"
+      title: "Запись обрезана (скрытый)"
+      stdin: "16 03 01 00 b4 01 00 00 b0 03 03 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 20 a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 aa ab ac ad ae af\n"
+      expected: "error: truncated\n"
+      hidden: true
+      hint: "Длина записи больше доступных байтов: error: truncated."
+    - id: "bad-hex"
+      title: "Некорректный hex (скрытый)"
+      stdin: "16 03 01 xx\n"
+      expected: "error: bad hex\n"
+      hidden: true
+      hint: "Ошибку fromhex превратите в error: bad hex."
+    - id: "tls12-only"
+      title: "TLS 1.2 с SNI и без ALPN (скрытый)"
+      stdin: "16 03 01 00 52 01 00 00 4e 03 03 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14\n15 16 17 18 19 1a 1b 1c 1d 1e 1f 00 00 04 c0 2b c0 2c 01 00 00 21 00 00 00 14 00 12 00 00 0f 61\n2e 62 2e 65 78 61 6d 70 6c 65 2e 6e 65 74 00 2b 00 05 04 03 03 03 02\n"
+      expected: "record_type=22 (handshake)\nrecord_version=0x0301 (TLS 1.0)\nrecord_length=82\nhandshake_type=1 (client_hello)\nhandshake_length=78\nclient_version=0x0303 (TLS 1.2)\nsession_id_length=0\ncipher_suites=2: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\ncompression_methods=1\nextensions=2: server_name, supported_versions\nsni=a.b.example.net\nsupported_versions=TLS 1.2, TLS 1.1\nalpn=-\n"
+      hidden: true
+      hint: "supported_versions перечисляет версии в порядке предпочтения клиента."

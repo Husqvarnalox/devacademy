@@ -1,0 +1,219 @@
+id: os.fundamentals.processes-and-system-calls
+title: "Что делает ОС: режимы ядра, системные вызовы, процессы"
+goal: "Объяснять, зачем нужны режимы ядра и пользователя и системные вызовы, и описывать процесс через PCB, состояния и переключение контекста."
+difficulty: easy
+estimatedMinutes: 75
+prerequisites: [python.fundamentals.dicts-and-sets, python.fundamentals.errors-and-files]
+related: [python.concurrency.concurrency-models, os.fundamentals.cpu-scheduling]
+next: [os.fundamentals.cpu-scheduling]
+seeAlso:
+  - "Создание процессов через fork/exec и работа с ними на уровне POSIX (в курсе не разбирается: упражнения выполняются как симуляторы)"
+objectives:
+  - Назвать три роли ОС (абстракция ресурсов, мультиплексирование, защита) и объяснить, зачем процессору нужны привилегированный и непривилегированный режимы.
+  - Описать, что происходит при системном вызове (ловушка, переход в режим ядра, возврат) и чем он отличается от обычного вызова функции.
+  - Перечислить, что хранится в блоке управления процессом (PCB), и объяснить, что сохраняется и восстанавливается при переключении контекста.
+  - Нарисовать диаграмму состояний процесса NEW, READY, RUNNING, WAITING, TERMINATED и назвать событие для каждого перехода.
+  - Реализовать конечный автомат состояний процессов по журналу событий и находить недопустимые переходы.
+masteryCriteria:
+  - Вы объясняете, почему программа пользователя не может сама выполнить привилегированную инструкцию или читать память ядра, и что происходит при попытке.
+  - Вы для любой пары состояний говорите, существует ли переход, и какое событие его вызывает; знаете, что из READY нельзя попасть в WAITING напрямую.
+  - Вы понимаете, что на одном ядре в состоянии RUNNING не больше одного процесса.
+  - "Ваш симулятор проходит скрытые тесты: неизвестный pid, повторный create, второй dispatch при занятом CPU, неизвестное событие."
+tags: [os, kernel, system-calls, process, pcb, context-switch]
+facts:
+  - kind: internals
+    text: >-
+      Системный вызов - контролируемый вход в ядро: специальная инструкция процессора переводит выполнение в режим ядра по заранее настроенному адресу,
+      ядро проверяет аргументы и после выполнения возвращает управление в режим пользователя. Библиотека C (например, glibc) оборачивает большинство системных вызовов
+      в обычные функции; полный перечень вызовов Linux приведён в справочных страницах раздела 2.
+    sources:
+      - https://man7.org/linux/man-pages/man2/syscalls.2.html
+      - https://man7.org/linux/man-pages/man2/intro.2.html
+      - https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-mechanisms.pdf
+  - kind: internals
+    text: >-
+      fork() создаёт дочерний процесс как копию вызывающего: у них разные идентификаторы и раздельные адресные пространства, в момент вызова с одинаковым содержимым.
+      Это стандартизировано в POSIX.
+    sources:
+      - https://man7.org/linux/man-pages/man2/fork.2.html
+      - https://pubs.opengroup.org/onlinepubs/9699919799/functions/fork.html
+  - kind: misconception
+    text: >-
+      «Программа в состоянии READY тормозит» - неверно: READY означает, что процесс готов к исполнению и ждёт только процессор, а ожидание внешнего события
+      (диск, сеть, ввод) - это отдельное состояние WAITING (в литературе также BLOCKED). Названия и число состояний различаются у разных ОС;
+      пять состояний в этом курсе - учебная модель.
+    sources:
+      - https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-intro.pdf
+  - kind: real-world
+    text: >-
+      Python-функция os.write вызывает системный вызов write почти напрямую (без буферизации объекта файла), а ошибки ядра превращает в исключения OSError с полем errno,
+      например FileNotFoundError для ENOENT.
+    sources:
+      - https://docs.python.org/3/library/os.html
+      - https://docs.python.org/3/library/errno.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что происходит, когда пользовательская программа в режиме пользователя пытается выполнить привилегированную инструкцию (например, отключить прерывания)?"
+      options:
+        - "Инструкция выполняется, но результат игнорируется"
+        - "Процессор генерирует исключение, управление получает ядро, обычно процесс завершается"
+        - "Процессор тихо переключается в режим ядра и выполняет инструкцию"
+        - "Компилятор не даёт собрать такую программу"
+      answer: 1
+      explanation: >-
+        Защита обеспечивается аппаратно: привилегированная инструкция в режиме пользователя вызывает исключение. Обработчик ядра обычно завершает процесс (в Unix - сигналом).
+    - id: q2
+      type: single
+      prompt: "Чем системный вызов отличается от вызова обычной функции?"
+      options:
+        - "Ничем, это просто функция из стандартной библиотеки"
+        - "Он быстрее, потому что не использует стек"
+        - "Он переводит процессор в режим ядра через ловушку и выполняет код ядра по фиксированной точке входа"
+        - "Он выполняется в другом процессе-демоне"
+      answer: 2
+      explanation: >-
+        Функция-обёртка кладёт номер вызова и аргументы в регистры и выполняет инструкцию входа в ядро. Адрес входа определяет ядро, а не программа.
+    - id: q3
+      type: multiple
+      prompt: "Что обычно хранится в блоке управления процессом (PCB)? Выберите все верные варианты."
+      options:
+        - "Идентификатор процесса и состояние"
+        - "Сохранённые значения регистров и счётчика команд"
+        - "Сведения об адресном пространстве и открытых файлах"
+        - "Исходный код программы на языке высокого уровня"
+      answer: [0, 1, 2]
+      explanation: >-
+        PCB описывает процесс для ядра: pid, состояние, регистры, данные для планирования, отображение памяти, таблицу открытых файлов. Исходный код в нём не хранится.
+    - id: q4
+      type: single
+      prompt: "Процесс в состоянии RUNNING выполнил чтение с диска, данных пока нет. В какое состояние он перейдёт?"
+      options:
+        - "READY"
+        - "WAITING"
+        - "TERMINATED"
+        - "NEW"
+      answer: 1
+      explanation: >-
+        Событие block переводит RUNNING в WAITING. Когда диск закончит операцию, будет событие wake: WAITING -> READY, и только затем планировщик выберет процесс (READY -> RUNNING).
+    - id: q5
+      type: numeric
+      prompt: "Сколько процессов могут одновременно находиться в состоянии RUNNING на машине с одним процессорным ядром?"
+      answer: 1
+      tolerance: 0
+      explanation: >-
+        Состояние RUNNING означает, что процесс исполняется на ядре прямо сейчас. Одно ядро исполняет одну последовательность инструкций, остальные ждут в READY (при N ядрах - до N процессов).
+exercise:
+  id: os.fundamentals.processes-and-system-calls.exercise
+  title: "Автомат состояний процессов по журналу событий"
+  prompt: |
+    Ядро с одним процессором ведёт таблицу процессов. Реализуйте в `main.py` симулятор: он читает журнал событий, применяет их и сообщает о недопустимых переходах.
+
+    **Состояния:** `NONE` (процесса нет в таблице), `NEW`, `READY`, `RUNNING`, `WAITING`, `TERMINATED`.
+
+    **События и переходы:**
+
+    | событие | было | станет |
+    |---|---|---|
+    | `create` | `NONE` | `NEW` |
+    | `admit` | `NEW` | `READY` |
+    | `dispatch` | `READY` | `RUNNING` |
+    | `timeout` | `RUNNING` | `READY` |
+    | `block` | `RUNNING` | `WAITING` |
+    | `wake` | `WAITING` | `READY` |
+    | `exit` | `RUNNING` | `TERMINATED` |
+
+    **Формат ввода.** Первая строка - число событий `n`. Далее `n` строк `<pid> <событие>`, pid - целое число.
+
+    **Правила.**
+
+    * Событие недопустимо, если текущее состояние процесса не совпадает со столбцом «было». Состояние процесса не меняется, выводится строка `event i: pid P cannot E in state S`, где `i` - номер события с единицы, `S` - текущее состояние.
+    * Если имя события неизвестно, выводится `event i: unknown event 'E'`.
+    * Процессор один: если `dispatch` корректен по состоянию, но какой-то процесс уже `RUNNING`, событие отклоняется строкой `event i: pid P cannot dispatch: CPU busy (running: Q)`.
+    * Допустимые события ничего не выводят.
+
+    **Формат вывода.** Сначала строки об ошибках по порядку событий. Затем строка `final:` и по строке `<pid> <СОСТОЯНИЕ>` для каждого процесса в таблице, по возрастанию pid. Затем `invalid: K` (число отклонённых событий) и `dispatches: D` (число принятых `dispatch`).
+
+    **Пример.**
+
+    ```
+    4
+    1 create
+    1 dispatch
+    1 admit
+    1 dispatch
+    ```
+
+    Вывод:
+
+    ```
+    event 2: pid 1 cannot dispatch in state NEW
+    final:
+    1 RUNNING
+    invalid: 1
+    dispatches: 1
+    ```
+  entryFile: main.py
+  evaluation: io
+  starter: exercise/starter
+  solution: exercise/solution
+  hints:
+    - "Нужны две вещи: словарь pid -> состояние и переменная с pid процесса, который сейчас на CPU. Для pid, которого нет в словаре, состояние - NONE."
+    - "Сведите правила к таблице TRANSITIONS: для события берите пару (было, станет). Сначала проверьте, что событие известно, затем что текущее состояние равно «было», и только потом правило про занятый CPU."
+    - "Для dispatch после проверки состояния: если running не None, выведите сообщение про CPU busy и перейдите к следующему событию. При успешном dispatch запомните pid и увеличьте счётчик; при timeout, block и exit освободите CPU (running = None)."
+    - "Каркас: for i, (pid, ev) in enumerate(events, 1): ...; ошибки накапливайте в списке строк и после цикла добавьте 'final:', строки sorted(state) и две итоговые строки. Не забудьте, что отклонённое событие не меняет ни состояние, ни running."
+  tests:
+    - id: sample
+      title: "Пример из условия"
+      stdin: "4\n1 create\n1 dispatch\n1 admit\n1 dispatch\n"
+      expected: "event 2: pid 1 cannot dispatch in state NEW\nfinal:\n1 RUNNING\ninvalid: 1\ndispatches: 1\n"
+      compare: trim
+      hint: "Второе событие недопустимо, потому что процесс ещё NEW. Четвёртое допустимо: после admit процесс READY."
+    - id: lifecycle
+      title: "Нормальный жизненный цикл одного процесса"
+      stdin: "7\n1 create\n1 admit\n1 dispatch\n1 block\n1 wake\n1 dispatch\n1 exit\n"
+      expected: "final:\n1 TERMINATED\ninvalid: 0\ndispatches: 2\n"
+      compare: trim
+      hint: "Без ошибок: после последней строки выводится блок final, invalid: 0, а dispatches считает успешные dispatch (здесь 2)."
+    - id: cpu-busy
+      title: "Один процессор: второй dispatch отклоняется"
+      stdin: "9\n1 create\n1 admit\n1 dispatch\n2 create\n2 admit\n2 dispatch\n1 block\n2 dispatch\n1 wake\n"
+      expected: "event 6: pid 2 cannot dispatch: CPU busy (running: 1)\nfinal:\n1 READY\n2 RUNNING\ninvalid: 1\ndispatches: 2\n"
+      compare: trim
+      hint: "Пока процесс 1 в RUNNING, dispatch другого процесса недопустим; состояние отклонённого процесса не меняется."
+    - id: wrong-state
+      title: "События в неподходящем состоянии"
+      stdin: "5\n1 create\n1 dispatch\n1 admit\n1 admit\n1 wake\n"
+      expected: "event 2: pid 1 cannot dispatch in state NEW\nevent 4: pid 1 cannot admit in state READY\nevent 5: pid 1 cannot wake in state READY\nfinal:\n1 READY\ninvalid: 3\ndispatches: 0\n"
+      compare: trim
+      hint: "Сообщение содержит состояние ДО события. dispatch в NEW и wake в READY недопустимы, а допустимый admit меняет NEW на READY."
+    - id: unknown-pid
+      title: "События для процесса, который не создавали (скрытый)"
+      stdin: "3\n7 admit\n7 exit\n7 create\n"
+      expected: "event 1: pid 7 cannot admit in state NONE\nevent 2: pid 7 cannot exit in state NONE\nfinal:\n7 NEW\ninvalid: 2\ndispatches: 0\n"
+      compare: trim
+      hidden: true
+      hint: "У pid, которого нет в таблице, состояние NONE; допустимо для него только create."
+    - id: terminated
+      title: "После exit процесс нельзя трогать (скрытый)"
+      stdin: "7\n4 create\n4 admit\n4 dispatch\n4 exit\n4 wake\n4 create\n4 dispatch\n"
+      expected: "event 5: pid 4 cannot wake in state TERMINATED\nevent 6: pid 4 cannot create in state TERMINATED\nevent 7: pid 4 cannot dispatch in state TERMINATED\nfinal:\n4 TERMINATED\ninvalid: 3\ndispatches: 1\n"
+      compare: trim
+      hidden: true
+      hint: "TERMINATED остаётся в таблице: create для него тоже недопустим, потому что состояние не NONE."
+    - id: unknown-event
+      title: "Неизвестное событие (скрытый)"
+      stdin: "4\n1 create\n1 sleep\n1 admit\n2 yield\n"
+      expected: "event 2: unknown event 'sleep'\nevent 4: unknown event 'yield'\nfinal:\n1 READY\ninvalid: 2\ndispatches: 0\n"
+      compare: trim
+      hidden: true
+      hint: "Неизвестное имя события выводится как event i: unknown event 'имя' и считается недопустимым; состояние не меняется."
+    - id: preemption
+      title: "Вытеснение и смена процесса на CPU (скрытый)"
+      stdin: "14\n1 create\n2 create\n1 admit\n2 admit\n1 dispatch\n1 timeout\n2 dispatch\n2 block\n1 dispatch\n2 wake\n2 dispatch\n1 exit\n2 dispatch\n3 dispatch\n"
+      expected: "event 11: pid 2 cannot dispatch: CPU busy (running: 1)\nevent 14: pid 3 cannot dispatch in state NONE\nfinal:\n1 TERMINATED\n2 RUNNING\ninvalid: 2\ndispatches: 4\n"
+      compare: trim
+      hidden: true
+      hint: "timeout, block и exit освобождают CPU. Событие 11 (dispatch процесса 2) отклоняется, потому что работает процесс 1; после exit процесса 1 dispatch процесса 2 проходит."

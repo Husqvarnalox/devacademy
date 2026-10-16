@@ -1,0 +1,22 @@
+id: os-fundamentals
+version: 1.0.0
+title: Основы операционных систем
+description: >-
+  Концепции операционных систем на симуляторах: процессы и системные вызовы, планирование процессора (FCFS, SJF, Round Robin,
+  SRTF), потоки и гонки данных, взаимные блокировки и алгоритм банкира, страничная адресация и TLB, виртуальная память и
+  алгоритмы замещения страниц (аномалия Бэлэди), файловые системы с inode и ссылками, каналы, сигналы и блокирующий
+  ввод-вывод. Упражнения выполняются на Python стандартной библиотеки: вы пишете модели планировщика, менеджера памяти и
+  файловой системы, а не код ядра. Каждый пример теории проверен запуском (Python 3.14).
+languageId: python
+level: 3
+track: operating-systems
+requires: [python-fundamentals]
+lessons:
+  - 01-processes-and-system-calls
+  - 02-cpu-scheduling
+  - 03-threads-and-synchronization
+  - 04-deadlocks
+  - 05-paging-and-address-translation
+  - 06-virtual-memory-page-replacement
+  - 07-file-systems
+  - 08-ipc-and-io

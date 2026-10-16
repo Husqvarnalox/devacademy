@@ -1,0 +1,230 @@
+id: "networking.fundamentals.http-evolution"
+title: "HTTP/1.1, HTTP/2 и HTTP/3"
+goal: "Понимать формат сообщений HTTP/1.1 и способы определения длины тела, и объяснять, какие проблемы решают двоичные кадры HTTP/2 и QUIC в HTTP/3."
+difficulty: "medium"
+estimatedMinutes: 100
+prerequisites:
+  - "networking.fundamentals.udp-and-dns"
+related:
+  - "nodejs.fundamentals.http-fundamentals"
+  - "python.automation.robust-http-clients"
+next:
+  - "networking.fundamentals.tls-and-diagnostics"
+seeAlso:
+  - "Кеширование, куки, CORS и аутентификация в HTTP - отдельные темы, в уроке не разбираются"
+objectives:
+  - "Разобрать текстовое сообщение HTTP/1.1: стартовая строка, заголовки, пустая строка и тело."
+  - "Определить границы тела по Content-Length, по Transfer-Encoding: chunked и по закрытию соединения, и разобрать chunked-тело с трейлерами."
+  - "Объяснить блокировку начала очереди (head-of-line blocking) в HTTP/1.1 и как её частично решают несколько соединений и конвейеризация."
+  - "Описать HTTP/2: двоичные кадры (9-байтный заголовок), потоки и мультиплексирование на одном TCP-соединении, сжатие заголовков HPACK."
+  - "Описать HTTP/3: те же семантики поверх QUIC (UDP), потоки без блокировки на уровне транспорта, целые числа переменной длины."
+masteryCriteria:
+  - "Вы разбираете HTTP-ответ с chunked-телом на байтах, а не на строках, и корректно считаете длину тела."
+  - "Вы объясняете, почему в HTTP/2 остаётся блокировка начала очереди на уровне TCP и как её убирает QUIC."
+  - "Вы читаете 9-байтный заголовок кадра HTTP/2 и целое переменной длины QUIC."
+  - "Вы понимаете, что семантика HTTP (методы, статусы, заголовки) одна и та же во всех версиях."
+tags:
+  - "networking"
+  - "http"
+  - "http2"
+  - "http3"
+  - "quic"
+  - "hpack"
+  - "parsing"
+facts:
+  - kind: "internals"
+    text: "Сообщение HTTP/1.1 состоит из стартовой строки, строк заголовков, пустой строки и необязательного тела; строки завершаются CRLF. Длина тела определяется заголовком Transfer-Encoding: chunked, либо Content-Length, либо (для ответа) закрытием соединения."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9112.html#section-6"
+      - "https://www.rfc-editor.org/rfc/rfc9112.html#section-6.3"
+  - kind: "internals"
+    text: "Chunked-кодирование передаёт тело кусками: размер в шестнадцатеричной записи (возможны расширения после точки с запятой), CRLF, данные, CRLF. Последний кусок имеет размер 0, затем могут идти поля трейлера и пустая строка."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9112.html#section-7.1"
+  - kind: "internals"
+    text: "HTTP/2 передаёт сообщения двоичными кадрами с 9-байтным заголовком: длина (24 бита), тип (8), флаги (8), зарезервированный бит и идентификатор потока (31 бит). Несколько потоков мультиплексируются в одном TCP-соединении. Заголовки сжимаются HPACK с общей статической и динамической таблицами."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9113.html#section-4.1"
+      - "https://www.rfc-editor.org/rfc/rfc7541.html"
+  - kind: "internals"
+    text: "Пример из RFC 7541 (C.2.1): байты 40 0a 63 75 73 74 6f 6d 2d 6b 65 79 0d 63 75 73 74 6f 6d 2d 68 65 61 64 65 72 кодируют литеральное поле с добавлением в динамическую таблицу: имя custom-key и значение custom-header. Байт 0x82 - индексированное поле :method: GET из статической таблицы."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc7541.html#appendix-C.2.1"
+      - "https://www.rfc-editor.org/rfc/rfc7541.html#appendix-A"
+  - kind: "internals"
+    text: "HTTP/3 отображает семантику HTTP на потоки QUIC, а QUIC работает поверх UDP, встраивает TLS 1.3 и даёт независимые потоки: потеря пакета блокирует только затронутые потоки. Целые числа переменной длины в QUIC используют два старших бита первого байта для кодирования длины 1, 2, 4 или 8 байт."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9114.html"
+      - "https://www.rfc-editor.org/rfc/rfc9000.html#section-16"
+      - "https://www.rfc-editor.org/rfc/rfc9000.html#appendix-A.1"
+  - kind: "misconception"
+    text: "«HTTP/2 и HTTP/3 - другой протокол с другими методами». Семантика (методы, статусы, заголовки, представления) описана в RFC 9110 и общая для всех версий; меняется только способ передачи по сети."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9110.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что главное в HTTP/2 по сравнению с HTTP/1.1?
+      options:
+        - "Мультиплексирование нескольких потоков в одном соединении двоичными кадрами"
+        - "Работа поверх UDP"
+        - "Отказ от заголовков"
+        - "Обязательное шифрование паролей"
+      answer: 0
+      explanation: "Кадры и потоки позволяют вести много запросов параллельно по одному TCP-соединению."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Размер куска в chunked-кодировании записан как 1a (шестнадцатеричное). Сколько это байтов в десятичной записи?
+      answer: 26
+      tolerance: 0
+      explanation: "0x1a = 16 + 10 = 26."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Поверх какого транспорта работает HTTP/3?
+      options:
+        - "TCP"
+        - "QUIC поверх UDP"
+        - "SCTP"
+        - "ICMP"
+      answer: 1
+      explanation: "HTTP/3 использует QUIC, который реализован поверх UDP."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что в HTTP/2 сжимают HPACK и его таблицы?
+      options:
+        - "Тело ответа"
+        - "Поля заголовков запросов и ответов"
+        - "TCP-заголовок"
+        - "DNS-запросы"
+      answer: 1
+      explanation: "HPACK кодирует заголовки с использованием статической и динамической таблиц."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Как в chunked-теле обозначается его конец?
+      options:
+        - "Куском размера 0"
+        - "Закрытием соединения"
+        - "Заголовком Content-Length"
+        - "Строкой END"
+      answer: 0
+      explanation: "Последний кусок имеет размер 0; после него могут идти трейлеры и пустая строка."
+exercise:
+  id: "networking.fundamentals.http-evolution.exercise"
+  title: "Разбор chunked-ответа HTTP/1.1"
+  prompt: |
+
+    **Сеть не используется.** На stdin подан полный HTTP-ответ (с CRLF или LF в концах строк). Разберите его на байтах и выведите результат.
+
+    Алгоритм:
+
+    1. Первая строка - стартовая: `HTTP/x.y КОД ПРИЧИНА`. Версия должна начинаться с `HTTP/`, код - целое число; причина может отсутствовать (тогда пустая) и может содержать пробелы. Иначе - `error: bad status line`.
+    2. Строки заголовков `имя: значение` до пустой строки. Имена приводятся к нижнему регистру, значения обрезаются по краям; повторные заголовки склеиваются через `, `. Строка без двоеточия - `error: bad header`.
+    3. Определение тела: если в `transfer-encoding` есть `chunked` (без учёта регистра), тело chunked; иначе, если есть `content-length`, берётся ровно столько байт (нечисловое значение - `error: bad content-length`); иначе тело - всё до конца ввода.
+    4. Chunked: строка размера - hex-число, после `;` идут расширения (игнорируются); пустой или нешестнадцатеричный размер - `error: bad chunk size`. Размер 0 завершает данные. После данных куска должен идти CRLF (или LF), иначе `error: bad chunk terminator`. Затем идут строки трейлера `имя: значение` до пустой строки. Нехватка байт всюду - `error: truncated`.
+
+    Вывод при успехе:
+
+    ```
+    version=<версия>
+    status=<код>
+    reason=<причина>
+    chunks=<число ненулевых кусков>
+    trailer <имя>=<значение>      (по строке на каждый трейлер, имена в нижнем регистре)
+    body_bytes=<число байт тела>
+    ---
+    <тело как UTF-8>
+    ```
+
+    Для не-chunked ответов `chunks=0`. При ошибке печатается только одна строка `error: <причина>`.
+
+    Пример: ввод `HTTP/1.1 200 OK`, `Transfer-Encoding: chunked`, пустая строка, затем `4`, `Wiki`, `5`, `pedia`, `0`, пустая строка (каждая строка заканчивается CRLF) даёт
+
+    ```
+    version=HTTP/1.1
+    status=200
+    reason=OK
+    chunks=2
+    body_bytes=9
+    ---
+    Wikipedia
+    ```
+
+    **Что дано.** Заготовка читает байты ввода и печатает `error: not implemented`.
+  entryFile: "chunked_task.py"
+  evaluation: "io"
+  hints:
+    - "Читайте sys.stdin.buffer.read() как bytes: размер куска считается в байтах, а не символах. Напишите read_line(data, pos), которая находит b'\\n', убирает необязательный b'\\r' и возвращает (строка, новая позиция); отсутствие перевода строки - truncated."
+    - "Разбор стартовой строки: decode, split(' ', 2). Заголовки читайте до пустой строки, имя в нижнем регистре через partition(':'); отсутствие двоеточия - bad header. Повторные имена склейте через запятую с пробелом."
+    - "Цикл chunked: прочитать строку размера, отрезать часть после ';', проверить, что все символы шестнадцатеричные, int(x, 16). Размер 0 - выход; иначе проверьте границы, возьмите срез данных, затем ожидайте CRLF или LF (иначе bad chunk terminator)."
+    - "После нулевого куска читайте строки трейлера, пока строка не пустая. Тело, содержащее переводы строк, длиннее, чем кажется: body_bytes считайте по bytes, а печатайте body.decode('utf-8', 'replace'). Если данных не хватает в любом месте, это truncated."
+  tests:
+    - id: "simple"
+      title: "Три куска"
+      stdin: "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nWiki\r\n6\r\npedia \r\nb\r\nin\n\nchunks.\r\n0\r\n\r\n"
+      expected: "version=HTTP/1.1\nstatus=200\nreason=OK\nchunks=3\nbody_bytes=21\n---\nWikipedia in\n\nchunks.\n"
+      hint: "Читайте размер в hex до CRLF, затем ровно столько байтов и CRLF; нулевой кусок завершает тело."
+    - id: "extension-upper"
+      title: "Расширение куска и заглавные hex-цифры"
+      stdin: "HTTP/1.1 200 OK\r\ntransfer-encoding: Chunked\r\n\r\n10;name=value\r\n0123456789ABCDEF\r\n3\r\nxyz\r\n0\r\n\r\n"
+      expected: "version=HTTP/1.1\nstatus=200\nreason=OK\nchunks=2\nbody_bytes=19\n---\n0123456789ABCDEFxyz\n"
+      hint: "Всё после ';' в строке размера - расширение, его нужно отбросить; имена заголовков нечувствительны к регистру."
+    - id: "content-length"
+      title: "Тело по Content-Length"
+      stdin: "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\nContent-Type: text/plain\r\n\r\nNot found!!"
+      expected: "version=HTTP/1.1\nstatus=404\nreason=Not Found\nchunks=0\nbody_bytes=9\n---\nNot found\n"
+      hint: "Без chunked длина тела берётся из Content-Length; лишние байты после тела игнорируются."
+    - id: "trailers"
+      title: "Трейлеры после нулевого куска (скрытый)"
+      stdin: "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum\r\n\r\n4\r\ndata\r\n0\r\nX-Checksum: abc123\r\nX-Count: 1\r\n\r\n"
+      expected: "version=HTTP/1.1\nstatus=200\nreason=OK\nchunks=1\ntrailer x-checksum=abc123\ntrailer x-count=1\nbody_bytes=4\n---\ndata\n"
+      hidden: true
+      hint: "После куска 0 идут строки трейлеров до пустой строки; их имена печатаются в нижнем регистре."
+    - id: "utf8"
+      title: "Кириллица: размеры в байтах (скрытый)"
+      stdin: "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/plain; charset=utf-8\r\n\r\ne\r\nПривет, \r\n7\r\nмир!\r\n0\r\n\r\n"
+      expected: "version=HTTP/1.1\nstatus=200\nreason=OK\nchunks=2\nbody_bytes=21\n---\nПривет, мир!\n"
+      hidden: true
+      hint: "Размер куска считается в байтах: 'Привет, ' - 14 байт, то есть e. Читайте stdin.buffer."
+    - id: "empty-chunked"
+      title: "Пустое chunked-тело (скрытый)"
+      stdin: "HTTP/1.1 204 No Content\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"
+      expected: "version=HTTP/1.1\nstatus=204\nreason=No Content\nchunks=0\nbody_bytes=0\n---\n\n"
+      hidden: true
+      hint: "Если первый кусок нулевой, тело пустое и chunks=0."
+    - id: "until-close"
+      title: "Тело до закрытия соединения (скрытый)"
+      stdin: "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nline one\nline two\n"
+      expected: "version=HTTP/1.1\nstatus=200\nreason=OK\nchunks=0\nbody_bytes=18\n---\nline one\nline two\n\n"
+      hidden: true
+      hint: "Без Content-Length и chunked тело - всё, что осталось в потоке."
+    - id: "bad-size"
+      title: "Некорректный размер куска (скрытый)"
+      stdin: "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nhello\r\n0\r\n\r\n"
+      expected: "error: bad chunk size\n"
+      hidden: true
+      hint: "Размер должен состоять из hex-цифр; иначе error: bad chunk size."
+    - id: "truncated"
+      title: "Поток оборван посреди куска (скрытый)"
+      stdin: "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n10\r\nshort"
+      expected: "error: truncated\n"
+      hidden: true
+      hint: "Заявлено 16 байт, получено 5: error: truncated."
+    - id: "bad-terminator"
+      title: "Нет CRLF после данных (скрытый)"
+      stdin: "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabcXY0\r\n\r\n"
+      expected: "error: bad chunk terminator\n"
+      hidden: true
+      hint: "После данных куска обязательно CRLF; иначе error: bad chunk terminator."
+    - id: "multi-header"
+      title: "Список кодирований и пустая причина (скрытый)"
+      stdin: "HTTP/1.1 200\r\nSet-Cookie: a=1\r\nset-cookie: b=2\r\nTransfer-Encoding: gzip, chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n"
+      expected: "version=HTTP/1.1\nstatus=200\nreason=\nchunks=1\nbody_bytes=2\n---\nok\n"
+      hidden: true
+      hint: "chunked может стоять в списке кодирований; причина (reason) может отсутствовать."
