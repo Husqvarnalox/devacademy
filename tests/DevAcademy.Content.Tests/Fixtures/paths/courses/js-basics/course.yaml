@@ -1,0 +1,8 @@
+id: js-basics
+version: 1.0.0
+title: JS Basics
+description: JS Basics
+languageId: javascript
+level: 0
+track: javascript
+lessons: [01-j]

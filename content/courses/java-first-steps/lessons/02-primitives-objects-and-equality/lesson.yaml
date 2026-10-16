@@ -1,0 +1,138 @@
+id: "java.first-steps.primitives-objects-and-equality"
+title: "Примитивы и объекты: == против equals, упаковка"
+goal: "Различать примитивы и ссылки, сравнивать содержимое через equals и понимать автоупаковку и кэш Integer."
+difficulty: "intro"
+estimatedMinutes: 40
+prerequisites:
+  - "java.first-steps.how-java-runs"
+objectives:
+  - "Объяснить, что в Java параметры передаются по значению, а для объектов копируется ссылка."
+  - "Различать == (идентичность) и equals (содержимое)."
+  - "Описать упаковку, распаковку и кэш Integer."
+  - "Назвать особенности Double.equals и Integer.equals(Long)."
+masteryCriteria:
+  - "Вы предсказываете результат == для литералов, new String и Integer 127 против 1000."
+  - "Вы безопасно сравниваете строки, в том числе потенциально null."
+  - "Вы избегаете ошибок list.remove(int) и распаковки null."
+related:
+  - "javascript.first-steps.values-and-equality"
+  - "python.fundamentals.variables-and-input"
+next: []
+tags:
+  - "java"
+  - "equals"
+  - "autoboxing"
+  - "string"
+  - "references"
+facts:
+  - kind: "internals"
+    text: "Спецификация языка гарантирует, что упаковка значений int от -128 до 127 возвращает один и тот же объект Integer. Для остальных значений идентичность объектов не гарантируется."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se22/html/jls-5.html#jls-5.1.7"
+  - kind: "internals"
+    text: "Строковые литералы одинакового содержимого ссылаются на один и тот же экземпляр String (литералы интернируются). Метод intern() возвращает канонический экземпляр из пула."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se22/html/jls-3.html#jls-3.10.5"
+  - kind: "internals"
+    text: "Метод Double.equals сравнивает двоичное представление значений: он считает NaN равным NaN и различает 0.0 и -0.0, что отличается от оператора ==."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/22/docs/api/java.base/java/lang/Double.html#equals(java.lang.Object)"
+  - kind: "misconception"
+    text: "«В Java объекты передаются по ссылке» - неверно. Передаётся копия ссылки: метод может изменить объект, но не может заменить переменную вызывающего."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что выведет: String a = new String(\"x\"); String b = new String(\"x\"); System.out.println(a == b);"
+      options:
+        - "true"
+        - "false"
+        - "x"
+        - "Ошибка компиляции."
+      answer: 1
+      explanation: "new String создаёт два разных объекта, оператор == сравнивает ссылки, и результат false. Сравнивать содержимое нужно через equals."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие сравнения истинны?"
+      options:
+        - "Integer.valueOf(127) == Integer.valueOf(127)"
+        - "Integer.valueOf(5).equals(5L)"
+        - "Integer.valueOf(1000).equals(1000)"
+        - "Double.valueOf(0.0).equals(-0.0)"
+      answer:
+        - 0
+        - 2
+      explanation: "Integer 127 берётся из кэша, поэтому ссылки совпадают. Integer.valueOf(5).equals(5L) ложно, потому что 5L - это Long. equals для 1000 и 1000 истинно."
+    - id: "q3"
+      type: "single"
+      prompt: "Что делает list.remove(1) для List<Integer>?"
+      options:
+        - "Удаляет значение 1."
+        - "Бросает исключение."
+        - "Удаляет элемент с индексом 1."
+        - "Ничего не делает."
+      answer: 2
+      explanation: "Компилятор выбирает перегрузку remove(int index) без упаковки, поэтому удаляется элемент с индексом 1, а не значение 1."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой метод класса Objects сравнивает два объекта на равенство, допуская null?"
+      answer:
+        - "Objects.equals"
+        - "equals"
+      explanation: "Objects.equals(a, b) возвращает true, если оба null, и вызывает a.equals(b) иначе, не бросая NullPointerException."
+exercise:
+  id: "java.first-steps.primitives-objects-and-equality.exercise"
+  title: "Равенство объектов"
+  prompt: |
+
+    Программа получает `n` и затем `n` строк вида `тип1 значение1 тип2 значение2`. Тип - одно из слов `int`, `long`, `double`, `string`. Значения не содержат пробелов.
+
+    Для каждой строки создайте два **объекта** (`Integer`, `Long`, `Double` или `String`) из значений и выведите результат метода `equals` первого объекта для второго: `true` или `false`.
+    Объекты разных классов не равны, даже если числа совпадают (`int 5 long 5` - `false`).
+
+    **Пример.** Строки `int 5 int 5` и `int 5 long 5` дают `true` и `false`.
+
+    В заготовке функция `same` сравнивает объекты оператором `==`. Исправьте её и реализуйте `parse`. Подумайте, почему `==` работает для маленьких `int`, но не для строк из ввода и не для `1000`.
+    Для `double` используйте `Double.parseDouble`, она понимает `NaN`.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Оператор == у ссылок сравнивает идентичность. Строки, прочитанные Scanner, всегда отдельные объекты, поэтому == даёт false даже для одинакового текста."
+    - "В parse выберите класс по kind: Integer.valueOf(Integer.parseInt(value)), Long.valueOf(Long.parseLong(value)), Double.valueOf(Double.parseDouble(value)); иначе верните саму строку."
+    - "В same вызовите a.equals(b) (или Objects.equals(a, b)). У Integer.equals есть проверка класса, поэтому Integer и Long не равны."
+    - "Сам по себе Double.equals уже нужным образом обрабатывает NaN и -0.0 — ничего специально делать для них не нужно, если сравниваете объекты Double, а не примитивы."
+  tests:
+    - id: "basic"
+      title: "Одинаковые значения одного типа"
+      stdin: "3\nint 5 int 5\nstring abc string abc\nlong 7 long 7\n"
+      expected: "true\ntrue\ntrue\n"
+      hint: "Для int равенство - это equals у объектов Integer, а для строк, прочитанных из ввода, - equals, а не ==."
+    - id: "different"
+      title: "Разные значения и разные типы"
+      stdin: "4\nint 5 int 6\nstring abc string abd\nint 5 long 5\nstring a int 1\n"
+      expected: "false\nfalse\nfalse\nfalse\n"
+      hint: "Integer.equals(Long) ложно даже при равных числах. Объекты разных классов не равны."
+    - id: "big-ints"
+      title: "Числа вне кэша Integer"
+      stdin: "4\nint 1000 int 1000\nint 127 int 127\nint -129 int -129\nlong 3000000000 long 3000000000\n"
+      expected: "true\ntrue\ntrue\ntrue\n"
+      hint: "Значения больше 127 упаковываются в разные объекты: == даёт false. Нужен equals."
+    - id: "double-special"
+      title: "NaN и нулевые значения double (скрытый)"
+      stdin: "4\ndouble NaN double NaN\ndouble 0.0 double -0.0\ndouble 1.5 double 1.50\ndouble 1.0 double 1.1\n"
+      expected: "true\nfalse\ntrue\nfalse\n"
+      hidden: true
+      hint: "У Double метод equals считает NaN равным NaN и различает 0.0 и -0.0 — в отличие от оператора ==. Сравнивайте через equals у объектов Double."
+    - id: "unicode-strings"
+      title: "Строки с Unicode и регистром (скрытый)"
+      stdin: "3\nstring привет string привет\nstring Java string java\nstring  x string x\n"
+      expected: "true\nfalse\ntrue\n"
+      hidden: true
+      hint: "Строки сравниваются точно: регистр различается. Читайте токены так, чтобы сохранялись символы Unicode."
+    - id: "mixed"
+      title: "Смешанные случаи (скрытый)"
+      stdin: "5\nint 0 int -0\nlong -1 int -1\nstring 1 int 1\ndouble 2 double 2.0\nint 2147483647 int 2147483647\n"
+      expected: "true\nfalse\nfalse\ntrue\ntrue\n"
+      hidden: true
+      hint: "-0 как целое равно 0. Строка \"1\" и число 1 не равны, как и Integer с Long."

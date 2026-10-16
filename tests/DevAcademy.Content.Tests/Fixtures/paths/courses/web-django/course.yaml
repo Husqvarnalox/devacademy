@@ -1,0 +1,18 @@
+id: web-django
+version: 1.0.0
+title: Web Django
+description: Web Django
+languageId: python
+level: 2
+track: python
+requires: [py-basics]
+lessons: [01-d]
+framework:
+  id: django
+  version: "5.2"
+  docs: [https://docs.djangoproject.com/en/5.2/]
+  compatibility: Python 3.10 - 3.13
+  deprecated:
+    - { feature: "USE_L10N", status: removed, note: "Setting no longer has effect." }
+  migrationNotes: |
+    Read the **release notes** before upgrading.

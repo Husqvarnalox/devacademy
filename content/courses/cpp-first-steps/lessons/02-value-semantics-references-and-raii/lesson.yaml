@@ -1,0 +1,148 @@
+id: "cpp.first-steps.value-semantics-references-and-raii"
+title: "Значения, ссылки и RAII"
+goal: "Понять, когда C++ копирует объекты, как ссылки позволяют менять оригинал и как деструкторы управляют ресурсами."
+difficulty: "intro"
+estimatedMinutes: 40
+prerequisites:
+  - "cpp.first-steps.how-cpp-runs"
+objectives:
+  - "Различать передачу по значению, по T& и по const T&."
+  - "Предсказывать порядок вызова конструкторов и деструкторов."
+  - "Объяснить RAII и почему в этом курсе нет ручных new и delete."
+  - "Узнавать висячие ссылки и их последствия."
+masteryCriteria:
+  - "Вы выбираете тип параметра, исходя из того, меняет ли функция объект."
+  - "Вы объясняете, когда выполняется cleanup при исключении."
+related:
+  - "python.fundamentals.lists"
+next: []
+tags:
+  - "cpp"
+  - "raii"
+  - "references"
+  - "value-semantics"
+facts:
+  - kind: "internals"
+    text: "Локальные объекты с автоматической длительностью хранения уничтожаются при выходе из области видимости в порядке, обратном порядку их создания."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/destructor"
+  - kind: "internals"
+    text: "Начиная с C++17 копирование временного объекта при инициализации гарантированно пропускается (guaranteed copy elision)."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/copy_elision"
+  - kind: "historical"
+    text: "Термин RAII (Resource Acquisition Is Initialization) связан с идеей Страуструпа: ресурс захватывается при создании объекта и освобождается в деструкторе."
+    sources:
+      - "https://www.stroustrup.com/bs_faq2.html#finally"
+  - kind: "misconception"
+    text: "«Ссылка - это указатель с другим синтаксисом» - упрощение: ссылка должна быть привязана к объекту при создании и не может быть пустой или перепривязанной."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "void f(std::vector<int> v) { v[0] = 1; } — изменит ли f вектор вызывающего кода?"
+      options:
+        - "Да."
+        - "Нет."
+        - "Только если вектор не пуст."
+        - "Ошибка компиляции."
+      answer: 1
+      explanation: "Параметр передан по значению: функция получила копию, оригинал не меняется."
+    - id: "q2"
+      type: "single"
+      prompt: "В блоке создаются объекты a, затем b. В каком порядке они уничтожатся?"
+      options:
+        - "a, затем b."
+        - "В произвольном порядке."
+        - "b, затем a."
+        - "Деструкторы не вызываются."
+      answer: 2
+      explanation: "Деструкторы вызываются в порядке, обратном созданию: сначала b, потом a."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что относится к RAII?"
+      options:
+        - "Освобождение ресурса в деструкторе."
+        - "Обязательный вызов delete вручную."
+        - "std::unique_ptr и std::vector."
+        - "Сборщик мусора."
+      answer:
+        - 0
+        - 2
+      explanation: "Ресурс захватывается в конструкторе, освобождается в деструкторе; unique_ptr и vector - примеры. Ручной delete - то, что RAII заменяет."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется механизм, при котором destructor вызывается при исключении во время размотки стека?"
+      answer:
+        - "RAII"
+        - "размотка стека"
+        - "stack unwinding"
+      explanation: "Автоматические объекты уничтожаются при размотке стека; RAII использует это для гарантированной очистки."
+exercise:
+  id: "cpp.first-steps.value-semantics-references-and-raii.exercise"
+  title: "Копия, ссылка и Section"
+  prompt: |
+
+    Программа получает `n` и затем `n` целых чисел (по модулю не больше 10^10).
+
+    Нужно выполнить два шага и напечатать результат в точном формате. Каждый шаг выполняется в отдельном блоке, где создаётся объект `Section` (RAII): его конструктор печатает `begin <имя>`, а деструктор - `end <имя>`.
+
+    ```
+    begin sorted
+    sorted: <числа по возрастанию через пробел>
+    end sorted
+    begin shift
+    shifted: <числа в исходном порядке, из каждого вычтен минимум>
+    end shift
+    original: <исходные числа в исходном порядке>
+    ```
+
+    * `sortedCopy` принимает вектор **по значению**, сортирует и возвращает результат: исходные данные не меняются.
+    * `shiftToZero` должна изменять вектор **на месте**, через ссылку.
+    * Строка `original` печатается из отдельной копии `original`, сделанной до сдвига.
+
+    **Пример.** Для `3` и `5 3 9`: `sorted: 3 5 9`, `shifted: 2 0 6`, `original: 5 3 9`.
+
+    В заготовке `shiftToZero` принимает вектор по значению, поэтому сдвиг не доходит до вызывающего кода. Исправьте сигнатуру.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: строка shifted совпадает с исходным вектором. shiftToZero получает копию вектора и меняет её."
+    - "Измените параметр shiftToZero так, чтобы он ссылался на объект вызывающего кода."
+    - "Сигнатура: void shiftToZero(std::vector<long long>& v)."
+    - "sortedCopy оставьте по значению: она сортирует свою копию. Section ничего менять не нужно: begin/end печатаются конструктором и деструктором."
+  tests:
+    - id: "basic"
+      title: "Несортированные числа"
+      stdin: "4\n5 3 9 4\n"
+      expected: "begin sorted\nsorted: 3 4 5 9\nend sorted\nbegin shift\nshifted: 2 0 6 1\nend shift\noriginal: 5 3 9 4\n"
+      hint: "shiftToZero должна принимать вектор по ссылке (std::vector<long long>&), иначе меняется копия."
+    - id: "lines"
+      title: "Числа с повторами"
+      stdin: "5\n7 7 2 2 10\n"
+      expected: "begin sorted\nsorted: 2 2 7 7 10\nend sorted\nbegin shift\nshifted: 5 5 0 0 8\nend shift\noriginal: 7 7 2 2 10\n"
+      hint: "sortedCopy должна сортировать свою копию (параметр по значению), чтобы дальше shift работал с исходным порядком."
+    - id: "single"
+      title: "Одно число"
+      stdin: "1\n42\n"
+      expected: "begin sorted\nsorted: 42\nend sorted\nbegin shift\nshifted: 0\nend shift\noriginal: 42\n"
+      hint: "При n = 1 после сдвига остаётся 0."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "4\n-5 3 -10 0\n"
+      expected: "begin sorted\nsorted: -10 -5 0 3\nend sorted\nbegin shift\nshifted: 5 13 0 10\nend shift\noriginal: -5 3 -10 0\n"
+      hidden: true
+      hint: "Вычитайте минимум, а не 0: -10 станет 0, 3 станет 13."
+    - id: "big"
+      title: "Большие значения (скрытый)"
+      stdin: "3\n3000000000 5000000000 4000000000\n"
+      expected: "begin sorted\nsorted: 3000000000 4000000000 5000000000\nend sorted\nbegin shift\nshifted: 0 2000000000 1000000000\nend shift\noriginal: 3000000000 5000000000 4000000000\n"
+      hidden: true
+      hint: "Значения не помещаются в int. Используйте long long."
+    - id: "sorted"
+      title: "Уже отсортированный ввод (скрытый)"
+      stdin: "6\n1 2 3 4 5 6\n"
+      expected: "begin sorted\nsorted: 1 2 3 4 5 6\nend sorted\nbegin shift\nshifted: 0 1 2 3 4 5\nend shift\noriginal: 1 2 3 4 5 6\n"
+      hidden: true
+      hint: "Порядок секций begin/end фиксирован: деструктор Section печатает end при выходе из блока."

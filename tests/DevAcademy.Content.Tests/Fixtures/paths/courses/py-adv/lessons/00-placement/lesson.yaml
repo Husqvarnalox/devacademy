@@ -1,0 +1,22 @@
+id: pa.placement
+title: Placement
+goal: Placement
+difficulty: intro
+estimatedMinutes: 10
+objectives: [Placement]
+assessmentFor: [pb.one, pb.two, pb.three]
+quiz:
+  passThreshold: 1.0
+  questions:
+    - id: q1
+      type: single
+      prompt: One?
+      options: ["yes", "no"]
+      answer: 0
+      explanation: Yes.
+    - id: q2
+      type: single
+      prompt: Two?
+      options: ["no", "yes"]
+      answer: 1
+      explanation: Yes.

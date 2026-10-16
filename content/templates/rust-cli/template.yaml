@@ -1,0 +1,8 @@
+id: rust-cli
+title: Rust — консольная программа (cargo)
+languageId: rust
+description: >-
+  Минимальный пакет cargo: Cargo.toml, src/main.rs с функцией greet и модульным тестом.
+  Зависимостей нет, поэтому сеть cargo не нужна (она требуется только для скачивания зависимостей).
+files: files
+postCreate: []

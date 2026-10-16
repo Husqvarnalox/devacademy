@@ -1,0 +1,13 @@
+id: "nodejs-first-steps"
+version: "1.0.0"
+title: "Node.js: первые шаги"
+description: "Вводный курс из трёх уроков про Node.js как среду выполнения JavaScript: процесс, аргументы и потоки ввода-вывода, модули ESM и CommonJS, порядок задач в цикле событий, тесты на node:test. Остальные темы трека (файловая система, сеть, npm) запланированы."
+languageId: "javascript"
+level: 1
+track: "nodejs"
+requires:
+  - "javascript-first-steps"
+lessons:
+  - "01-runtime-process-and-stdin"
+  - "02-modules-and-event-loop"
+  - "03-modules-and-node-test"

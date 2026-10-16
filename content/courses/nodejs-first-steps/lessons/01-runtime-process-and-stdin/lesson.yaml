@@ -1,0 +1,154 @@
+id: "nodejs.first-steps.runtime-process-and-stdin"
+title: "Node.js как среда: process, argv, stdin и цикл событий"
+goal: "Понять, из чего состоит Node.js, как устроены процесс и потоки ввода-вывода, и асинхронно прочитать весь stdin."
+difficulty: "intro"
+estimatedMinutes: 35
+prerequisites:
+  - "javascript.first-steps.how-javascript-runs"
+objectives:
+  - "Назвать роли V8, libuv и API Node.js в процессе node."
+  - "Пользоваться process.argv, process.stdout и process.exitCode."
+  - "Прочитать stdin как поток порций и собрать из них строку через for await."
+  - "Объяснить, почему JavaScript-код в Node.js работает в одном потоке и не блокируется на вводе."
+masteryCriteria:
+  - "Вы объясняете, чем Node.js отличается от языка JavaScript и от браузера."
+  - "Вы знаете, где в process.argv начинаются пользовательские аргументы."
+  - "Вы пишете чтение stdin так, что русский текст и пустой ввод обрабатываются верно."
+related:
+  - "javascript.first-steps.how-javascript-runs"
+next:
+  - "nodejs.first-steps.modules-and-event-loop"
+tags:
+  - "nodejs"
+  - "process"
+  - "stdin"
+  - "streams"
+  - "event-loop"
+facts:
+  - kind: "internals"
+    text: "Процесс node состоит из движка V8, библиотеки libuv (цикл событий и асинхронный ввод-вывод) и собственных API Node.js. Версии V8 и libuv доступны в process.versions."
+    sources:
+      - "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick"
+      - "https://nodejs.org/api/process.html#processversions"
+  - kind: "internals"
+    text: "process.stdin в Node.js - читаемый поток (Readable stream). Он отдаёт данные порциями, а чтение до конца ввода выполняется через события data и end либо через асинхронную итерацию for await."
+    sources:
+      - "https://nodejs.org/api/stream.html#readable-streams"
+      - "https://nodejs.org/api/process.html#processstdin"
+  - kind: "misconception"
+    text: "«Node.js многопоточный, поэтому его код выполняется параллельно» - неверно. Ваш JavaScript-код работает в одном потоке; пул потоков libuv выполняет только часть системных операций (например, файловых), а параллельный JavaScript возможен лишь в отдельных worker_threads."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что такое process.argv[1] при запуске node main.js?"
+      options:
+        - "Первый пользовательский аргумент."
+        - "Путь к запущенному скрипту."
+        - "Путь к исполняемому файлу node."
+        - "Текст из stdin."
+      answer: 1
+      explanation: "Элемент [0] - путь к исполняемому файлу node, [1] - путь к скрипту, пользовательские аргументы начинаются с [2]."
+    - id: "q2"
+      type: "single"
+      prompt: "Зачем перед чтением stdin вызывают process.stdin.setEncoding(\"utf8\")?"
+      options:
+        - "Чтобы ввод читался быстрее."
+        - "Чтобы включить цветной вывод."
+        - "Чтобы порции были строками, а многобайтные символы не разрезались."
+        - "Чтобы stdin стал синхронным."
+      answer: 2
+      explanation: "Без кодировки порции приходят как Buffer. При поштучной склейке многобайтовый символ может быть разрезан на границе порций. С setEncoding поток собирает символы корректно."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о Node.js верны?"
+      options:
+        - "libuv организует цикл событий и асинхронный ввод-вывод."
+        - "В Node.js есть глобальный объект window."
+        - "Для чтения stdin обязательно использовать блокирующий вызов."
+        - "Часть системных операций выполняется в пуле потоков libuv, а JavaScript-код - в одном потоке."
+      answer:
+        - 0
+        - 3
+      explanation: "V8 исполняет JavaScript, а libuv организует цикл событий. Ваш JavaScript работает в одном потоке, а window и document - объекты браузера."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое свойство process нужно установить, чтобы процесс завершился с ненулевым кодом, не обрывая вывод?"
+      answer:
+        - "exitCode"
+        - "process.exitCode"
+      explanation: "process.exitCode задаёт код выхода и позволяет программе завершиться естественно, в отличие от process.exit()."
+exercise:
+  id: "nodejs.first-steps.runtime-process-and-stdin.exercise"
+  title: "Мини-wc: строки, слова и байты"
+  prompt: |
+
+    Напишите программу, аналог утилиты `wc`: она читает весь стандартный ввод и печатает три числа.
+
+    ```
+    lines=<число символов перевода строки>
+    words=<число слов>
+    bytes=<число байтов в кодировке UTF-8>
+    ```
+
+    * **Строки.** Число символов `\n` во вводе. Последняя строка без завершающего `\n` не считается, как у `wc -l`.
+    * **Слова.** Непрерывные последовательности символов, не являющихся пробельными (пробел, табуляция, перевод строки).
+    * **Байты.** Размер ввода в UTF-8: русская буква занимает 2 байта, латинская - 1.
+
+    **Пример.** Ввод `hello world` и `foo` на двух строках (с переводом строки в конце каждой) даёт
+
+    ```
+    lines=2
+    words=3
+    bytes=16
+    ```
+
+    Ввод может быть пустым - тогда выведите три нуля. Читайте stdin асинхронно, как показано в теории, и не забудьте задать кодировку.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Соберите stdin одной строкой: process.stdin.setEncoding(\"utf8\"); затем for await (const chunk of process.stdin) text += chunk; внутри async-функции."
+    - "Строки - это число символов \\n: (text.match(/\\n/g) ?? []).length. Слова - группы непробельных символов: text.match(/\\S+/g)."
+    - "match возвращает null, если совпадений нет. Подставьте ?? [] (или проверку), чтобы пустой ввод давал нули, а не TypeError."
+    - "Байты в UTF-8 даёт Buffer.byteLength(text, \"utf8\"). text.length считает единицы UTF-16, а не байты, и для русского текста отличается."
+  tests:
+    - id: "basic"
+      title: "Две строки"
+      stdin: "hello world\nfoo\n"
+      expected: "lines=2\nwords=3\nbytes=16\n"
+      hint: "Подсчёт строк - число символов перевода строки, слов - число групп непробельных символов, байтов - длина в UTF-8."
+    - id: "one-line"
+      title: "Одна строка из четырёх слов"
+      stdin: "one two three four\n"
+      expected: "lines=1\nwords=4\nbytes=19\n"
+      hint: "Формат вывода - три строки lines=..., words=..., bytes=...."
+    - id: "cyrillic"
+      title: "Русский текст"
+      stdin: "привет мир\n"
+      expected: "lines=1\nwords=2\nbytes=20\n"
+      hint: "Одна русская буква занимает 2 байта в UTF-8. Считайте байты через Buffer.byteLength(text, \"utf8\"), а не text.length."
+    - id: "no-newline"
+      title: "Нет завершающего перевода строки (скрытый)"
+      stdin: "a b"
+      expected: "lines=0\nwords=2\nbytes=3\n"
+      hidden: true
+      hint: "Строкой считается каждый символ \\n, поэтому текст без перевода строки даёт lines=0."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "lines=0\nwords=0\nbytes=0\n"
+      hidden: true
+      hint: "\"\".split(/\\s+/) даёт массив из одной пустой строки. Уберите пустые элементы через filter(Boolean) или считайте слова через match(/\\S+/g)."
+    - id: "blank-lines"
+      title: "Пустые строки и лишние пробелы (скрытый)"
+      stdin: "  a   b  \n\n\n c\n"
+      expected: "lines=4\nwords=3\nbytes=15\n"
+      hidden: true
+      hint: "Несколько пробелов подряд и пустые строки не создают слов, но каждый \\n увеличивает lines."
+    - id: "mixed-unicode"
+      title: "Кириллица, латиница и цифры (скрытый)"
+      stdin: "Привет, Node 22!\nЧисла: 1 2 3\n"
+      expected: "lines=2\nwords=7\nbytes=41\n"
+      hidden: true
+      hint: "Слова разделяются пробельными символами, а не буквами: знаки препинания остаются в слове. Байты считайте в UTF-8."

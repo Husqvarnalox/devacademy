@@ -1,0 +1,5 @@
+id: nodejs-backend-intro
+title: Введение в Node.js
+description: Первые шаги в серверном JavaScript. Сначала язык (запуск кода, значения и равенство), затем среда Node.js (process, stdin, модули ESM и CommonJS, цикл событий). Это начало пути; остальные темы трека Node.js пока запланированы.
+goal: backend
+targets: [nodejs-first-steps]

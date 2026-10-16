@@ -1,0 +1,6 @@
+{"ImportPath":"example.com/stats [example.com/stats.test]","Action":"build-output","Output":"# example.com/stats [example.com/stats.test]\n"}
+{"ImportPath":"example.com/stats [example.com/stats.test]","Action":"build-output","Output":"./stats.go:15:9: undefined: undefined1\n"}
+{"ImportPath":"example.com/stats [example.com/stats.test]","Action":"build-fail"}
+{"Time":"2026-10-16T07:01:19.744457+03:00","Action":"start","Package":"example.com/stats"}
+{"Time":"2026-10-16T07:01:19.744506+03:00","Action":"output","Package":"example.com/stats","Output":"FAIL\texample.com/stats [build failed]\n"}
+{"Time":"2026-10-16T07:01:19.744512+03:00","Action":"fail","Package":"example.com/stats","Elapsed":0,"FailedBuild":"example.com/stats [example.com/stats.test]"}

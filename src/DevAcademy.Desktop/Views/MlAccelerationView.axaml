@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.MlAccelerationView"
+             x:DataType="vm:MlAccelerationViewModel">
+  <Border Classes="panel" Padding="14,12">
+    <StackPanel Spacing="10">
+      <TextBlock Text="{loc:T Ml_Title}" Classes="h3" />
+      <TextBlock Text="{loc:T Ml_Description}" Classes="muted" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <Button Content="{loc:T Runtimes_Refresh}" Command="{Binding DetectCommand}" />
+        <TextBlock Text="{loc:T Runtimes_Detecting}" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsDetecting}" />
+      </StackPanel>
+      <TextBlock Name="SystemLine" Text="{Binding SystemText}" Classes="caption" TextWrapping="Wrap" />
+      <ItemsControl Name="HardwareList" ItemsSource="{Binding Hardware}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:CapabilityRow">
+            <StackPanel Spacing="1" Margin="0,0,0,6">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <Border Classes="badge"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+              </StackPanel>
+              <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Separator />
+      <TextBlock Text="{loc:T Ml_ProbeHeader}" FontWeight="SemiBold" />
+      <TextBlock Text="{loc:T Ml_ProbeNote}" Classes="muted" TextWrapping="Wrap" />
+      <TextBlock Text="{loc:T Py_NoEnvironments}" Classes="muted" IsVisible="{Binding !HasEnvironments}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <ComboBox Name="EnvBox" ItemsSource="{Binding Environments}" SelectedItem="{Binding SelectedEnvironment}" MinWidth="200" AutomationProperties.Name="{loc:T Ml_Environment}" />
+        <Button Name="ProbeButton" Content="{loc:T Ml_Probe}" Command="{Binding ProbeCommand}" />
+      </StackPanel>
+      <TextBlock Name="ProbeLine" Text="{Binding ProbeMessage}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding ProbeMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <ItemsControl Name="FrameworkList" ItemsSource="{Binding Frameworks}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:CapabilityRow">
+            <StackPanel Spacing="1" Margin="0,0,0,6">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <Border Classes="badge"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+              </StackPanel>
+              <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

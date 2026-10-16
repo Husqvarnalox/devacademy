@@ -1,0 +1,8 @@
+id: py-basics
+version: 1.0.0
+title: Python Basics
+description: Python Basics
+languageId: python
+level: 0
+track: python
+lessons: [01-a, 02-b, 03-c]

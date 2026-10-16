@@ -1,0 +1,205 @@
+id: python.advanced.inheritance-composition-protocols
+title: Наследование, композиция и протоколы
+goal: Понимать порядок разрешения методов (MRO) и кооперативный super(), выбирать между наследованием и композицией и различать номинальные (ABC) и структурные (Protocol) интерфейсы.
+difficulty: hard
+estimatedMinutes: 80
+prerequisites: [python.advanced.classes-and-objects]
+objectives:
+  - Объяснить, как вычисляется MRO по алгоритму C3, и прочитать его из ClassName.__mro__.
+  - Объяснить, что super() обращается к следующему классу в MRO, а не обязательно к родителю, и написать кооперативную цепочку при множественном наследовании.
+  - Сравнить наследование и композицию и выбрать композицию, когда нужна связь «имеет», а не «является».
+  - Определить абстрактный базовый класс через abc.ABC и @abstractmethod и объяснить, когда возникает TypeError при создании экземпляра.
+  - Описать структурный интерфейс через typing.Protocol и объяснить duck typing.
+masteryCriteria:
+  - Вы предсказываете порядок вызовов в ромбовидной иерархии, где каждый класс вызывает super().
+  - Вы объясняете, почему Stack, наследующий list, раскрывает лишнее API, и заменяете его композицией.
+  - "Вы различаете: isinstance с ABC требует наследования или регистрации, isinstance с runtime_checkable Protocol проверяет лишь наличие методов."
+related: [python.advanced.dunder-methods-and-dataclasses]
+next: [python.advanced.typing-fundamentals]
+tags: [python, inheritance, mro, c3, super, composition, abc, protocol, duck-typing]
+facts:
+  - kind: historical
+    text: >-
+      Алгоритм линеаризации C3 для порядка разрешения методов появился в Python 2.3 для классов нового стиля. Абстрактные базовые классы (модуль abc) описаны в PEP 3119, структурные подтипы typing.Protocol - в PEP 544 (Python 3.8).
+    sources:
+      - https://docs.python.org/3/howto/mro.html
+      - https://peps.python.org/pep-3119/
+      - https://peps.python.org/pep-0544/
+  - kind: internals
+    text: >-
+      super() без аргументов возвращает прокси-объект, который ищет метод в MRO типа self, начиная с класса, следующего за текущим. Поэтому в ромбе один и тот же базовый метод вызывается один раз,
+      при условии что все классы цепочки используют super(), а не обращаются к базовому классу напрямую.
+    sources:
+      - https://docs.python.org/3/library/functions.html#super
+      - https://docs.python.org/3/howto/mro.html
+  - kind: misconception
+    text: >-
+      «isinstance(x, Proto) проверяет совместимость протокола». Для typing.Protocol с декоратором runtime_checkable проверяется лишь наличие атрибутов с нужными именами; сигнатуры и типы не проверяются.
+      Полную проверку выполняют статические анализаторы (mypy, Pyright), которые в этом курсе пока не установлены.
+    sources:
+      - https://docs.python.org/3/library/typing.html#typing.runtime_checkable
+      - https://docs.python.org/3/library/typing.html#typing.Protocol
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что вернёт D().who()?
+        class A:
+            def who(self): return ["A"]
+        class B(A):
+            def who(self): return ["B"] + super().who()
+        class C(A):
+            def who(self): return ["C"] + super().who()
+        class D(B, C):
+            def who(self): return ["D"] + super().who()
+      options:
+        - "['D', 'B', 'A']"
+        - "['D', 'B', 'C', 'A']"
+        - "['D', 'B', 'A', 'C', 'A']"
+        - "['D', 'C', 'B', 'A']"
+      answer: 1
+      explanation: >-
+        MRO класса D: D, B, C, A. super() в B ведёт не к A, а к следующему классу в MRO экземпляра - C. A вызывается один раз в конце.
+    - id: q2
+      type: single
+      prompt: Когда лучше выбрать композицию, а не наследование?
+      options:
+        - "Когда нужно переиспользовать несколько методов другого класса, но объект не является его разновидностью"
+        - "Только когда классы находятся в разных файлах"
+        - "Когда нужен полиморфизм"
+        - "Никогда: наследование всегда лучше"
+      answer: 0
+      explanation: >-
+        Наследование выражает «является» (Dog is an Animal). Если вы лишь используете другой объект внутри, храните его в атрибуте. Это уменьшает связанность и не раскрывает чужой интерфейс (Stack, унаследованный от list, получил бы insert, sort и т. д.).
+    - id: q3
+      type: single
+      prompt: В чём ключевое отличие abc.ABC от typing.Protocol?
+      options:
+        - "ABC проверяет совместимость по именам методов, Protocol - по наследованию"
+        - "ABC требует явного наследования (или регистрации) - номинальная типизация; Protocol описывает интерфейс структурно: подходит любой класс с нужными методами"
+        - "Protocol работает только в статических анализаторах, у ABC нет проверки во время выполнения"
+        - "Отличий нет, это синонимы"
+      answer: 1
+      explanation: >-
+        ABC с @abstractmethod запрещает создание экземпляра, пока методы не переопределены, и предполагает наследование. Protocol описывает требуемые методы, а подходит любой объект, где они есть (утиная типизация, проверяемая статически).
+    - id: q4
+      type: single
+      prompt: Что произойдёт при вызове Shape(), если Shape(ABC) содержит @abstractmethod def area(self)?
+      options:
+        - "Вернётся экземпляр, а area вызовет NotImplementedError"
+        - "TypeError: нельзя создать экземпляр абстрактного класса"
+        - "AttributeError"
+        - "Ничего: декоратор @abstractmethod только документирует"
+      answer: 1
+      explanation: >-
+        ABCMeta запрещает создавать экземпляры классов, у которых остались неперекрытые абстрактные методы. Ошибка возникает при создании объекта, а не при вызове метода.
+exercise:
+  id: python.advanced.inheritance-composition-protocols.exercise
+  title: MRO, ABC, Protocol и композиция
+  prompt: |
+    В файле `design_task.py` уже объявлен класс `Base`. Реализуйте остальное. Ничего не читайте и не печатайте.
+
+    1. **Кооперативное `super()`.** У `Base` есть метод `handle()`, возвращающий `["Base"]`. Реализуйте `LoggingMixin(Base)` и `ValidationMixin(Base)`: их `handle()` возвращает `["Logging"] + ...` и `["Validation"] + ...` соответственно, где продолжение берётся из `super().handle()`. Класс `Service(LoggingMixin, ValidationMixin)` не переопределяет `handle`: `Service().handle() == ["Logging", "Validation", "Base"]`. Миксины должны работать в любом порядке наследования.
+    2. **ABC.** `Shape(ABC)` с абстрактным методом `area()` и обычным методом `describe()`, который возвращает строку `"<ИмяКласса> area=<площадь с двумя знаками>"`. Подклассы `Circle(r)` (`math.pi * r * r`) и `Rect(w, h)`. Создать `Shape()` или подкласс без `area` нельзя (`TypeError`).
+    3. **Protocol.** `Speaker` - `typing.Protocol` (с `@runtime_checkable`) с методом `speak(self) -> str`. Функция `make_chorus(objs)` возвращает список результатов `speak()` для тех объектов, которые удовлетворяют `Speaker` (проверка `isinstance`), остальные пропускает. Классы-участники **не наследуют** `Speaker`.
+    4. **Композиция.** `Stack` - стек на внутреннем списке (has-a, не наследование от `list`): `push(x)`, `pop()` (на пустом - `IndexError`), `peek()` (на пустом - `IndexError`), `__len__`. Лишних методов списка (`append`, `insert`, `sort`) быть не должно.
+
+    **Примеры.**
+
+    ```python
+    Service().handle()                 # ['Logging', 'Validation', 'Base']
+    Circle(1).describe()               # 'Circle area=3.14'
+    make_chorus([Dog(), 42, Robot()])  # ['Woof', 'Beep'] (если у Dog и Robot есть speak)
+    s = Stack(); s.push(1); s.peek()   # 1
+    ```
+  entryFile: design_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните со Stack: храните список в атрибуте (self._items = []) и не наследуйтесь от list. Затем заметьте, что в LoggingMixin и ValidationMixin нужно вызывать super().handle(), а не Base.handle(self)."
+    - "Для кооперативной цепочки каждый миксин делает return [\"Имя\"] + super().handle(). Тогда порядок определяется MRO: у Service MRO - Service, LoggingMixin, ValidationMixin, Base. Для Shape унаследуйтесь от abc.ABC и пометьте area декоратором @abstractmethod."
+    - "Speaker: class Speaker(Protocol) с методом speak(self) -> str, сверху @runtime_checkable (оба имени из модуля typing). isinstance(obj, Speaker) проверит только наличие speak. Для pop/peek на пустом стеке поднимите IndexError явно."
+    - "Скелет Shape.describe: return f\"{type(self).__name__} area={self.area():.2f}\". Скелет Speaker: @runtime_checkable class Speaker(Protocol): def speak(self) -> str: ... Скелет make_chorus: return [o.speak() for o in objs if isinstance(o, Speaker)]."
+  tests:
+    - id: mro-service
+      title: Service.handle - порядок вызовов
+      hint: Каждый миксин должен делать return [имя] + super().handle(), без прямого обращения к Base.
+    - id: shape-basic
+      title: Shape, Circle, Rect - describe
+      hint: describe использует area() подкласса; формат "<Класс> area=<число с 2 знаками>".
+    - id: chorus-basic
+      title: make_chorus - объекты с speak
+      hint: Возвращайте список результатов speak() для объектов, подходящих под Speaker.
+    - id: stack-basic
+      title: Stack - push, pop, peek, len
+      hint: pop возвращает последний добавленный элемент, peek его не удаляет.
+    - id: mro-swapped-order
+      title: Миксины в другом порядке (скрытый)
+      hidden: true
+      hint: Если в миксине вызван Base.handle(self) вместо super().handle(), цепочка обрывается при другом порядке наследования.
+    - id: mro-alone
+      title: Отдельный миксин и MRO (скрытый)
+      hidden: true
+      hint: Каждый миксин наследуется от Base и по отдельности даёт [Имя, "Base"]; MRO у Service начинается с Service, LoggingMixin, ValidationMixin.
+    - id: shape-abstract
+      title: Абстрактность Shape (скрытый)
+      hidden: true
+      hint: Shape должен наследоваться от ABC и иметь @abstractmethod area; тогда Shape() и подкласс без area дают TypeError.
+    - id: chorus-structural
+      title: Protocol - структурная проверка (скрытый)
+      hidden: true
+      hint: Protocol нельзя инстанцировать; в его MRO есть typing.Protocol; классы с методом speak подходят без наследования, остальные пропускаются.
+    - id: stack-composition
+      title: Stack - композиция, а не список (скрытый)
+      hidden: true
+      hint: "Не наследуйтесь от list: у Stack не должно быть append, insert, sort; pop и peek на пустом стеке поднимают IndexError."
+challenge:
+  id: python.advanced.inheritance-composition-protocols.challenge
+  title: Кооперативный __init__ с миксинами
+  prompt: |
+    В файле `coop_task.py` постройте цепочку миксинов с кооперативным `__init__`.
+
+    * `Entity` - база цепочки: `__init__(self, **kwargs)`. Если остались неизвестные именованные аргументы, поднимает `TypeError` (в сообщении перечислите их имена).
+    * `NamedMixin(Entity)`: `__init__(self, *, name, **kwargs)` сохраняет `self.name`.
+    * `TimestampedMixin(Entity)`: `__init__(self, *, created=0, **kwargs)` сохраняет `self.created`.
+    * `TaggedMixin(Entity)`: `__init__(self, *, tags=(), **kwargs)` сохраняет `self.tags` как кортеж.
+    * `Document(NamedMixin, TimestampedMixin, TaggedMixin)` без собственного `__init__`.
+    * `mro_names(cls)` - список имён классов из `cls.__mro__` без `object`.
+
+    Каждый миксин передаёт остальные аргументы дальше через `super().__init__(**kwargs)`. Миксины должны работать в любом порядке и в любом подмножестве: например, класс `class X(TaggedMixin, NamedMixin)` создаётся как `X(name="a", tags=[1])`. Неизвестный аргумент должен приводить к `TypeError` независимо от порядка.
+  entryFile: coop_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Ключевая идея: каждый __init__ забирает только свои именованные параметры и отдаёт остальное следующему через super().__init__(**kwargs). Конец цепочки (Entity) обязан проверить, что ничего лишнего не осталось."
+    - "Entity не должен вызывать super().__init__(**kwargs) с лишними аргументами: object.__init__ их не примет. Проверьте if kwargs: raise TypeError(...) и завершите цепочку."
+    - "Все миксины наследуются от Entity: тогда при любой их комбинации Entity окажется в MRO после них, и цепочка закончится именно на нём. Параметры после * делают аргументы только именованными."
+    - "Скелет: class NamedMixin(Entity): def __init__(self, *, name, **kwargs): self.name = name; super().__init__(**kwargs). Скелет mro_names: return [c.__name__ for c in cls.__mro__ if c is not object]."
+  tests:
+    - id: coop-basic
+      title: Document - все аргументы
+      hint: Document(name="a", created=5, tags=["x"]) должен заполнить три атрибута; tags хранится кортежем.
+    - id: coop-defaults
+      title: Document - значения по умолчанию
+      hint: created по умолчанию 0, tags - пустой кортеж; name обязателен.
+    - id: mro-names
+      title: mro_names
+      hint: "MRO у Document: Document, NamedMixin, TimestampedMixin, TaggedMixin, Entity."
+    - id: coop-any-order
+      title: Любой порядок и подмножество миксинов (скрытый)
+      hidden: true
+      hint: Все миксины наследуются от Entity и вызывают super().__init__(**kwargs), поэтому комбинируются в любом порядке.
+    - id: coop-unknown-kwarg
+      title: Неизвестный аргумент (скрытый)
+      hidden: true
+      hint: Entity.__init__ получает остаток kwargs и поднимает TypeError, если он не пуст.
+    - id: coop-missing-name
+      title: Отсутствие обязательного name (скрытый)
+      hidden: true
+      hint: name - именованный параметр без значения по умолчанию, поэтому пропуск даёт TypeError автоматически.

@@ -1,0 +1,195 @@
+id: python.advanced.iterators-and-generators
+title: Итераторы и генераторы
+goal: Понимать протокол итерации, писать генераторы и ленивые конвейеры, избегать исчерпания итератора и пользоваться основными функциями itertools.
+difficulty: hard
+estimatedMinutes: 80
+prerequisites: [python.fundamentals.loops, python.fundamentals.lists, python.fundamentals.functions]
+objectives:
+  - Различать iterable и iterator, описать протокол __iter__/__next__ и роль StopIteration.
+  - Написать итератор классом и генератором и объяснить, где генератор хранит своё состояние.
+  - Объяснить, почему ленивые вычисления экономят память, и показать это на бесконечном генераторе с islice.
+  - Использовать yield from и генераторные выражения.
+  - Распознавать ловушку исчерпания итератора и применять itertools - islice, chain, groupby, accumulate, product.
+masteryCriteria:
+  - Вы объясняете, почему sum(gen) и затем list(gen) даёт пустой список.
+  - Вы пишете ленивый генератор chunked и убеждаетесь, что он работает с бесконечным входом.
+  - Вы знаете, что itertools.groupby группирует только подряд идущие равные ключи, и умеете подготовить данные.
+related: [python.advanced.decorators, python.advanced.context-managers]
+next: [python.advanced.context-managers]
+tags: [python, iterators, generators, yield, itertools, lazy-evaluation]
+facts:
+  - kind: historical
+    text: >-
+      Генераторы и ключевое слово yield появились в Python 2.2 (PEP 255). Конструкция yield from для делегирования другому генератору добавлена в Python 3.3 (PEP 380).
+    sources:
+      - https://peps.python.org/pep-0255/
+      - https://peps.python.org/pep-0380/
+  - kind: internals
+    text: >-
+      Генератор - объект, хранящий кадр (frame) функции: локальные переменные и позицию выполнения. next() возобновляет выполнение с места последнего yield, пока не встретится следующий yield или конец тела;
+      конец тела приводит к StopIteration. Начиная с Python 3.7 StopIteration, возникшее внутри тела генератора, превращается в RuntimeError (PEP 479).
+    sources:
+      - https://docs.python.org/3/reference/expressions.html#yield-expressions
+      - https://peps.python.org/pep-0479/
+  - kind: misconception
+    text: >-
+      «itertools.groupby группирует все одинаковые элементы». Нет: она объединяет только подряд идущие элементы с одинаковым ключом, как команда uniq. Чтобы сгруппировать всё, вход нужно предварительно отсортировать по тому же ключу.
+    sources:
+      - https://docs.python.org/3/library/itertools.html#itertools.groupby
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет код?
+        g = (x * x for x in range(4))
+        print(sum(g))
+        print(list(g))
+      options:
+        - "14 и [0, 1, 4, 9]"
+        - "14 и []"
+        - "0 и []"
+        - "TypeError"
+      answer: 1
+      explanation: >-
+        Генераторное выражение - итератор, одноразовый. sum полностью его исчерпала (0+1+4+9=14), поэтому list(g) получает пустую последовательность.
+    - id: q2
+      type: single
+      prompt: В чём отличие iterable от iterator?
+      options:
+        - "Это синонимы"
+        - "Iterable умеет создавать итератор через __iter__; iterator сам выдаёт элементы через __next__, а его __iter__ возвращает его самого"
+        - "Iterator всегда хранит все данные в памяти, iterable - нет"
+        - "Iterable можно обойти один раз, iterator - сколько угодно"
+      answer: 1
+      explanation: >-
+        Список - iterable: каждый вызов iter(lst) даёт новый независимый итератор. Итератор помнит позицию и после исчерпания остаётся пустым.
+    - id: q3
+      type: single
+      prompt: |
+        Что вернёт list(groupby([1, 1, 2, 1], key=lambda x: x)) по числу групп?
+      options:
+        - "2 группы: для 1 и для 2"
+        - "3 группы: [1, 1], [2], [1]"
+        - "4 группы"
+        - "Ошибка: нужна сортировка"
+      answer: 1
+      explanation: >-
+        groupby разбивает вход на серии подряд идущих одинаковых ключей: (1,1), (2), (1). Две группы получились бы после sorted().
+    - id: q4
+      type: single
+      prompt: Когда выполнится код тела генераторной функции?
+      options:
+        - "Сразу при вызове функции"
+        - "Только при запросе значения - например, через next() или в цикле for"
+        - "При импорте модуля"
+        - "При вызове close()"
+      answer: 1
+      explanation: >-
+        Вызов генераторной функции только создаёт объект-генератор (состояние GEN_CREATED). Тело начнёт выполняться при первом next() и остановится на первом yield.
+exercise:
+  id: python.advanced.iterators-and-generators.exercise
+  title: Ленивые последовательности
+  prompt: |
+    В файле `lazy_task.py` реализуйте четыре элемента. Тесты проверяют и результат, и **ленивость**; ничего не читайте и не печатайте.
+
+    1. `chunked(iterable, size)` - **генератор**, который выдаёт списки по `size` элементов (последний может быть короче). Должен работать с любым iterable, в том числе бесконечным: `next(chunked(itertools.count(), 3))` равно `[0, 1, 2]`. Если `size < 1` - `ValueError` (возникает при первой итерации).
+    2. Класс `Countdown(start)` - **итератор** (классом, с `__iter__` и `__next__`): выдаёт `start, start-1, ..., 1`, затем `StopIteration`. `iter(c)` возвращает сам `c`; после исчерпания итератор остаётся пустым. При `start <= 0` пуст сразу.
+    3. `flatten(nested)` - генератор, лениво выдающий листья произвольно вложенных списков и кортежей (используйте `yield from`). Строки считаются листьями, а не вложенными последовательностями.
+    4. `run_lengths(items)` - список пар `(значение, длина серии)` для подряд идущих равных элементов (используйте `itertools.groupby`). `[1, 1, 2, 1]` даёт `[(1, 2), (2, 1), (1, 1)]`, пустой вход - `[]`.
+
+    **Примеры.**
+
+    ```python
+    list(chunked("abcde", 2))      # [['a', 'b'], ['c', 'd'], ['e']]
+    list(Countdown(3))             # [3, 2, 1]
+    list(flatten([1, [2, (3, "ab")]]))   # [1, 2, 3, 'ab']
+    run_lengths("aabccc")          # [('a', 2), ('b', 1), ('c', 3)]
+    ```
+  entryFile: lazy_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с Countdown: класс, у которого __iter__ возвращает self, а __next__ либо возвращает очередное число, либо поднимает StopIteration. Затем разберите, почему chunked нельзя строить на list(iterable)."
+    - "chunked: берите по одному элементу из iter(iterable) и копите в списке; когда накопилось size - yield и начните новый список. Остаток после цикла выдайте, если он непустой. Проверку size делайте внутри генератора."
+    - "flatten: для каждого элемента проверьте isinstance(item, (list, tuple)); если да - yield from flatten(item), иначе yield item. run_lengths: groupby(items) даёт пары (ключ, итератор группы); длину группы получите через sum(1 for _ in group)."
+    - "Скелет chunked: it = iter(iterable); if size < 1: raise ValueError; while True: chunk = list(itertools.islice(it, size)); if not chunk: return; yield chunk. Скелет Countdown.__next__: if self.current <= 0: raise StopIteration; value = self.current; self.current -= 1; return value."
+  tests:
+    - id: chunked-basic
+      title: chunked - обычные данные
+      hint: Последний фрагмент может быть короче size; фрагменты - списки.
+    - id: countdown-basic
+      title: Countdown - обратный отсчёт
+      hint: Элементы start, start-1, ..., 1; после 1 нужно поднять StopIteration.
+    - id: flatten-basic
+      title: flatten - вложенные списки и кортежи
+      hint: Рекурсивно обходите списки и кортежи с помощью yield from; всё остальное - лист.
+    - id: runs-basic
+      title: run_lengths - серии
+      hint: Результат - список кортежей (значение, количество) в порядке появления серий.
+    - id: chunked-lazy
+      title: chunked ленив (скрытый)
+      hidden: true
+      hint: "Функция не должна превращать вход в список: бесконечный вход (itertools.count) должен работать, а от источника берётся лишь нужное."
+    - id: chunked-bad-size
+      title: chunked - size меньше 1 (скрытый)
+      hidden: true
+      hint: Для size < 1 нужен ValueError. В генераторе он возникнет при первом next(), а не при вызове функции - это нормально.
+    - id: countdown-exhausted
+      title: Countdown - итератор исчерпывается (скрытый)
+      hidden: true
+      hint: __iter__ возвращает self; второй проход по тому же объекту пуст. Для start <= 0 пустым должен быть сразу.
+    - id: flatten-deep-strings
+      title: flatten - глубина и строки (скрытый)
+      hidden: true
+      hint: Строки итерируемы, но считать их вложенными нельзя - иначе будет бесконечная рекурсия на односимвольных строках.
+    - id: runs-nonconsecutive
+      title: run_lengths - непрерывные серии (скрытый)
+      hidden: true
+      hint: "groupby не сортирует: повторяющееся значение в разных местах даёт отдельные серии. Не сортируйте вход."
+challenge:
+  id: python.advanced.iterators-and-generators.challenge
+  title: Ленивое слияние отсортированных потоков
+  prompt: |
+    В файле `merge_task.py` реализуйте генератор `merge_sorted(*iterables)`: он сливает несколько уже отсортированных по возрастанию потоков в один отсортированный, **лениво**.
+
+    * Потоки могут быть бесконечными: `islice(merge_sorted(count(0, 2), count(1, 2)), 5)` должен дать `0, 1, 2, 3, 4`.
+    * Из каждого потока в любой момент нужно держать **не более одного** непотреблённого элемента: не превращайте потоки в списки и не читайте вперёд больше необходимого.
+    * При равных значениях раньше выдаётся элемент из потока с меньшим номером (устойчивость).
+    * Сами потоки могут быть пустыми; без аргументов результат пуст.
+    * Нельзя пользоваться `heapq.merge` и `sorted` на всём входе; допустимо использовать `heapq.heappush/heappop` или простой перебор «голов» потоков.
+  entryFile: merge_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Храните «голову» каждого потока - его текущий наименьший элемент. На каждом шаге выдаётся наименьшая из голов, и только из этого потока берётся следующий элемент."
+    - "Удобная структура - куча кортежей (значение, номер_потока, итератор). Номер потока в кортеже гарантирует устойчивость и избавляет от сравнения итераторов."
+    - "Инициализируйте кучу первым элементом каждого непустого потока (next(it, sentinel)). После heappop возьмите следующий элемент того же потока и, если он есть, поместите его в кучу."
+    - "Скелет: heap = []; for i, it in enumerate(map(iter, iterables)): first = next(it, _END); if first is not _END: heappush(heap, (first, i, it)); while heap: value, i, it = heappop(heap); yield value; nxt = next(it, _END); if nxt is not _END: heappush(heap, (nxt, i, it))."
+  tests:
+    - id: merge-basic
+      title: Слияние конечных потоков
+      hint: Результат - один отсортированный поток из всех элементов, включая повторы.
+    - id: merge-infinite
+      title: Бесконечные потоки
+      hint: Нельзя вызывать list() на входных потоках; продвигайте только тот поток, из которого только что выдали элемент.
+    - id: merge-empty
+      title: Пустые потоки и отсутствие аргументов
+      hint: Пустой поток не должен ломать слияние; без аргументов возвращайте пустой генератор.
+    - id: merge-lazy
+      title: Не читает вперёд (скрытый)
+      hidden: true
+      hint: После выдачи k элементов из каждого потока должно быть прочитано не более элемента-головы сверх выданных; не инициализируйте кучу двумя элементами.
+    - id: merge-stable
+      title: Устойчивость при равных значениях (скрытый)
+      hidden: true
+      hint: Включите номер потока вторым элементом кортежа в куче, чтобы при равенстве значений побеждал меньший номер.
+    - id: merge-many
+      title: Много потоков (скрытый)
+      hidden: true
+      hint: Алгоритм должен работать для любого числа потоков, не только двух.

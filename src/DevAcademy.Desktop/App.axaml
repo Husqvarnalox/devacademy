@@ -1,0 +1,74 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:views="using:DevAcademy.Desktop.Views"
+             x:Class="DevAcademy.Desktop.App"
+             RequestedThemeVariant="Default">
+
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:OnboardingViewModel"><views:OnboardingView /></DataTemplate>
+    <DataTemplate DataType="vm:CatalogViewModel"><views:CatalogView /></DataTemplate>
+    <DataTemplate DataType="vm:ProblemsViewModel"><views:ProblemsView /></DataTemplate>
+    <DataTemplate DataType="vm:RoadmapViewModel"><views:RoadmapView /></DataTemplate>
+    <DataTemplate DataType="vm:LessonWorkspaceViewModel"><views:LessonWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="vm:DashboardViewModel"><views:DashboardView /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel"><views:SettingsView /></DataTemplate>
+    <DataTemplate DataType="vm:ProjectsViewModel"><views:ProjectsView /></DataTemplate>
+    <DataTemplate DataType="vm:ProjectWorkspaceViewModel"><views:ProjectWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="vm:ExerciseSessionViewModel"><views:SessionView /></DataTemplate>
+    <DataTemplate DataType="vm:PathViewModel"><views:PathView /></DataTemplate>
+    <DataTemplate DataType="vm:ComparisonViewModel"><views:ComparisonView /></DataTemplate>
+    <DataTemplate DataType="vm:QuizViewModel"><views:QuizView /></DataTemplate>
+  </Application.DataTemplates>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="AppBackground" Color="#F5F5F3" />
+          <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SubtleBrush" Color="#EFEFEC" />
+          <SolidColorBrush x:Key="LineBrush" Color="#DCDCD7" />
+          <SolidColorBrush x:Key="MutedText" Color="#6A6A64" />
+          <SolidColorBrush x:Key="AccentText" Color="#1F5C9E" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#2E7D32" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#B3261E" />
+          <SolidColorBrush x:Key="WarnBrush" Color="#8A5A00" />
+          <SolidColorBrush x:Key="MdCodeBackground" Color="#F1F1EE" />
+          <SolidColorBrush x:Key="MdBorder" Color="#D9D9D4" />
+          <SolidColorBrush x:Key="MdMuted" Color="#6A6A64" />
+          <SolidColorBrush x:Key="MdLink" Color="#1F5C9E" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="AppBackground" Color="#17191B" />
+          <SolidColorBrush x:Key="PanelBrush" Color="#1E2124" />
+          <SolidColorBrush x:Key="SubtleBrush" Color="#272B2F" />
+          <SolidColorBrush x:Key="LineBrush" Color="#363B40" />
+          <SolidColorBrush x:Key="MutedText" Color="#9BA1A7" />
+          <SolidColorBrush x:Key="AccentText" Color="#79B0EC" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#6CC070" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#F2837A" />
+          <SolidColorBrush x:Key="WarnBrush" Color="#E0B250" />
+          <SolidColorBrush x:Key="MdCodeBackground" Color="#262A2E" />
+          <SolidColorBrush x:Key="MdBorder" Color="#3A3F44" />
+          <SolidColorBrush x:Key="MdMuted" Color="#9BA1A7" />
+          <SolidColorBrush x:Key="MdLink" Color="#79B0EC" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+      <CornerRadius x:Key="OverlayCornerRadius">6</CornerRadius>
+      <FontFamily x:Key="MonoFont">Menlo, Consolas, 'DejaVu Sans Mono', monospace</FontFamily>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#2563A8" RegionColor="#F5F5F3" />
+        <ColorPaletteResources x:Key="Dark" Accent="#4F8FD6" RegionColor="#17191B" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+    <StyleInclude Source="avares://DevAcademy.Desktop/Styles/Theme.axaml" />
+  </Application.Styles>
+</Application>

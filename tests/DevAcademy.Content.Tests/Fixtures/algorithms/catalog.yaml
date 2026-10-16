@@ -1,0 +1,7 @@
+tracks:
+  - id: algorithms
+    kind: algorithms
+    title: Algorithms
+    description: Problems fixture
+    status: available
+    courses: [algo-basics]

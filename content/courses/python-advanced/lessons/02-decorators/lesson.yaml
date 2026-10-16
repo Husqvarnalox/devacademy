@@ -1,0 +1,207 @@
+id: python.advanced.decorators
+title: Декораторы
+goal: Писать декораторы с аргументами и без, сохранять метаданные через functools.wraps, понимать порядок вложенных декораторов и использовать кеширование из functools.
+difficulty: hard
+estimatedMinutes: 75
+prerequisites: [python.advanced.functions-as-objects]
+objectives:
+  - Объяснить, что @decorator над def - это запись f = decorator(f), и написать декоратор-обёртку с *args и **kwargs.
+  - Объяснить, зачем нужен functools.wraps, и показать, какие атрибуты он копирует (__name__, __doc__, __wrapped__).
+  - Написать декоратор с аргументами (три уровня вложенности) и определить порядок применения при нескольких декораторах.
+  - Реализовать практические декораторы - замер времени, повтор при ошибке, мемоизацию - и объяснить требование хешируемости аргументов у lru_cache и cache.
+  - Описать, что делает декоратор класса, на простом примере.
+masteryCriteria:
+  - Вы предсказываете порядок вывода при двух вложенных декораторах (применение снизу вверх, вызов сверху вниз).
+  - Вы пишете retry(times, exceptions) с корректным повторным возбуждением последнего исключения.
+  - Вы объясняете, почему lru_cache падает с TypeError на аргументе-списке.
+related: [python.advanced.context-managers]
+next: [python.advanced.iterators-and-generators, python.advanced.classes-and-objects]
+tags: [python, decorators, functools, wraps, lru_cache, closures]
+facts:
+  - kind: historical
+    text: >-
+      Синтаксис @decorator для функций и методов появился в Python 2.4 (PEP 318). Декораторы классов добавили позже, в Python 2.6 и 3.0 (PEP 3129).
+      Строка @d над def - лишь краткая запись присваивания f = d(f).
+    sources:
+      - https://peps.python.org/pep-0318/
+      - https://peps.python.org/pep-3129/
+  - kind: internals
+    text: >-
+      functools.wraps(func) - это functools.update_wrapper, применённая как декоратор: она копирует __module__, __name__, __qualname__, __doc__ и __dict__ (а также аннотации) исходной функции и
+      записывает ссылку на неё в атрибут __wrapped__. Именно по __wrapped__ inspect.signature показывает исходную сигнатуру.
+    sources:
+      - https://docs.python.org/3/library/functools.html#functools.update_wrapper
+      - https://docs.python.org/3/library/functools.html#functools.wraps
+  - kind: performance
+    text: >-
+      functools.lru_cache запоминает результаты в словаре, ключ строится из аргументов, поэтому аргументы обязаны быть хешируемыми. functools.cache (Python 3.9+) - то же самое без ограничения размера.
+      Кеш растёт, пока работает процесс, поэтому для неограниченного cache важно, чтобы число разных аргументов было конечным.
+    sources:
+      - https://docs.python.org/3/library/functools.html#functools.lru_cache
+      - https://docs.python.org/3/library/functools.html#functools.cache
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        В каком порядке выполнятся print при определении и вызове?
+        def a(f):
+            print("a")
+            return f
+        def b(f):
+            print("b")
+            return f
+        @a
+        @b
+        def hi(): pass
+      options:
+        - "a, затем b"
+        - "b, затем a"
+        - "Только при вызове hi()"
+        - "Порядок не определён"
+      answer: 1
+      explanation: >-
+        Запись равна hi = a(b(hi)): сначала применяется ближайший к def декоратор b, затем a. Печать происходит при определении функции, а не при вызове.
+    - id: q2
+      type: single
+      prompt: Что произойдёт, если написать обёртку без functools.wraps?
+      options:
+        - "Декоратор перестанет работать"
+        - "У декорированной функции будут __name__ и __doc__ внутренней обёртки, а справка и отладка станут вводить в заблуждение"
+        - "Python выдаст предупреждение при определении"
+        - "Исходная функция будет вызвана дважды"
+      answer: 1
+      explanation: >-
+        Имя hi теперь указывает на объект wrapper, и hi.__name__ равно "wrapper". Работать декоратор продолжит, но метаданные потеряны. wraps копирует их и добавляет __wrapped__.
+    - id: q3
+      type: single
+      prompt: Почему @retry(3) требует трёх вложенных функций, а @timed - двух?
+      options:
+        - "Так требует синтаксис Python"
+        - "retry(3) сначала вызывается и должен вернуть сам декоратор, который уже принимает функцию и возвращает обёртку"
+        - "Три уровня нужны только для рекурсивных функций"
+        - "Вложенность не нужна, это соглашение о стиле"
+      answer: 1
+      explanation: >-
+        Выражение после @ вычисляется как обычное. @retry(3) значит: декоратор = retry(3); затем f = декоратор(f). Поэтому retry(3) обязан вернуть функцию, принимающую функцию.
+    - id: q4
+      type: single
+      prompt: Что произойдёт при вызове функции, обёрнутой в @lru_cache, с аргументом-списком?
+      options:
+        - "Результат закешируется по id списка"
+        - "TypeError: unhashable type: 'list'"
+        - "Список будет автоматически преобразован в кортеж"
+        - "Кеш будет проигнорирован, функция вызовется как обычно"
+      answer: 1
+      explanation: >-
+        Ключ кеша строится из аргументов и должен быть хешируемым. Список изменяемый и хеша не имеет, поэтому ошибка возникает при вызове. Передавайте кортеж.
+exercise:
+  id: python.advanced.decorators.exercise
+  title: Четыре декоратора
+  prompt: |
+    В файле `decorators_task.py` реализуйте четыре декоратора. Тесты применяют их к своим функциям; ничего не читайте и не печатайте. **Все обёртки обязаны сохранять метаданные** (`__name__`, `__doc__`, `__wrapped__`) через `functools.wraps`.
+
+    1. `call_counter(func)` - возвращает обёртку, у которой есть атрибут `calls` - число вызовов (до первого вызова `0`). Обёртка принимает любые аргументы и возвращает результат `func`.
+    2. `retry(times, exceptions=(Exception,))` - декоратор с аргументами. Вызывает функцию до `times` раз (всего попыток, `times >= 1`). Если попытка завершилась исключением из `exceptions`, пробует снова; если все попытки провалились, **повторно возбуждает последнее исключение**. Исключения, не входящие в `exceptions`, пробрасываются сразу, без повторов. Успешный результат возвращается.
+    3. `memoize(func)` - кеширует результаты по **позиционным** аргументам. Обёртка имеет атрибут `cache` (обычный `dict`, ключ - кортеж аргументов). Повторный вызов с теми же аргументами не вызывает `func`. Если аргумент нехешируем, должен возникнуть `TypeError`.
+    4. `tag(name)` - декоратор с аргументом: оборачивает строковый результат функции в `<name>...</name>`. При стекировании `@tag("b")` над `@tag("i")` результат - `<b><i>текст</i></b>`.
+
+    **Примеры.**
+
+    ```python
+    @call_counter
+    def f(): ...
+    f(); f(); f.calls                     # 2
+
+    @tag("b")
+    def hello(): return "hi"
+    hello()                               # '<b>hi</b>'
+    ```
+  entryFile: decorators_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Все четыре декоратора строятся по одной схеме: внутренняя функция wrapper(*args, **kwargs), которую вы возвращаете, а исходная func вызывается внутри. Начните с call_counter - состояние храните в атрибуте обёртки."
+    - "tag и retry принимают аргументы: сначала внешняя функция получает name или times и возвращает настоящий декоратор. Не забудьте @functools.wraps(func) над wrapper во всех четырёх случаях."
+    - "retry: цикл for attempt in range(times); внутри try/except exceptions as exc; запомните exc в переменной last, а после цикла сделайте raise last. memoize: проверка args in cache; ключ args - кортеж, при нехешируемом элементе dict сам бросит TypeError."
+    - "Скелет call_counter: @wraps(func) def wrapper(*args, **kwargs): wrapper.calls += 1; return func(*args, **kwargs); wrapper.calls = 0; return wrapper. Скелет tag: def tag(name): def deco(func): @wraps(func) def wrapper(*a, **k): return f\"<{name}>{func(*a, **k)}</{name}>\"; return wrapper; return deco."
+  tests:
+    - id: counter-basic
+      title: call_counter - подсчёт вызовов
+      hint: Атрибут calls должен быть 0 до первого вызова и увеличиваться на 1 с каждым вызовом; аргументы и результат проходят насквозь.
+    - id: retry-basic
+      title: retry - успех после неудач
+      hint: Функция, дважды падающая и затем успешная, при times=3 должна вернуть результат с третьей попытки.
+    - id: memoize-basic
+      title: memoize - повторный вызов берётся из кеша
+      hint: Сохраняйте результат в словаре по ключу args и вызывайте func только если ключа нет.
+    - id: tag-basic
+      title: tag - оборачивание результата
+      hint: Результат должен иметь вид <имя>текст</имя>; аргументы функции передаются как есть.
+    - id: wraps-metadata
+      title: Метаданные сохраняются (скрытый)
+      hidden: true
+      hint: Над внутренней wrapper поставьте @functools.wraps(func) во всех четырёх декораторах (для retry и tag - внутри конечного декоратора).
+    - id: retry-exhausted
+      title: retry - исчерпание попыток (скрытый)
+      hidden: true
+      hint: После times неудачных попыток нужно повторно возбудить последнее исключение и вызвать функцию ровно times раз, не больше.
+    - id: retry-other-exception
+      title: retry - посторонние исключения не повторяются (скрытый)
+      hidden: true
+      hint: except нужно ограничить кортежем exceptions; остальные исключения должны пролетать сразу, с единственным вызовом.
+    - id: memoize-unhashable
+      title: memoize - нехешируемые аргументы (скрытый)
+      hidden: true
+      hint: Если ключ кортеж содержит список, обращение к словарю даёт TypeError - не перехватывайте его.
+    - id: tag-stacking
+      title: tag - стекирование (скрытый)
+      hidden: true
+      hint: Ближайший к def декоратор применяется первым, поэтому нижний тег оказывается внутренним.
+challenge:
+  id: python.advanced.decorators.challenge
+  title: Кеш с вытеснением LRU
+  prompt: |
+    В файле `lru_task.py` реализуйте декоратор с аргументом `lru(maxsize)`, который кеширует результаты функции по **позиционным** аргументам и хранит не более `maxsize` записей, вытесняя **наименее недавно использованную**.
+
+    * `maxsize` - целое `>= 1`, иначе `ValueError` (при создании декоратора, то есть уже при вызове `lru(0)`).
+    * Попадание в кеш обновляет «свежесть» записи. Вставка новой записи при полном кеше вытесняет самую давнюю по использованию.
+    * У обёртки есть метод `info()`, возвращающий кортеж `(hits, misses, size)`, и метод `clear()`, очищающий кеш и счётчики.
+    * Метаданные исходной функции сохраняются через `functools.wraps`.
+
+    Подсказка по структуре: подойдёт `collections.OrderedDict` с методами `move_to_end` и `popitem(last=False)`. Использовать `functools.lru_cache` нельзя - цель задачи в понимании устройства.
+  entryFile: lru_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Нужны три вещи в замыкании: словарь с порядком использования, счётчики hits и misses. Изменять int из замыкания придётся через nonlocal."
+    - "При попадании сделайте cache.move_to_end(key), чтобы запись стала самой свежей. При промахе вычислите значение, положите его в конец и, если записей больше maxsize, удалите самую старую."
+    - "OrderedDict.popitem(last=False) удаляет запись с начала, то есть самую давнюю. info() должна возвращать текущие значения счётчиков, а не копии на момент создания."
+    - "Скелет: def lru(maxsize): if maxsize < 1: raise ValueError; def deco(func): cache = OrderedDict(); hits = misses = 0; @wraps(func) def wrapper(*args): nonlocal hits, misses; if args in cache: hits += 1; cache.move_to_end(args); return cache[args]; misses += 1; ...; wrapper.info = lambda: (hits, misses, len(cache)); return wrapper; return deco."
+  tests:
+    - id: lru-basic
+      title: Попадания и промахи
+      hint: Первый вызов с новыми аргументами - промах, повторный - попадание; func вызывается только при промахе.
+    - id: lru-evict
+      title: Вытеснение самой давней записи
+      hint: При maxsize=2 после вызовов 1, 2, 3 запись для 1 должна быть вытеснена, и вызов 1 снова станет промахом.
+    - id: lru-bad-size
+      title: maxsize меньше 1
+      hint: Проверяйте maxsize во внешней функции lru, чтобы ValueError возникал при lru(0), а не при вызове функции.
+    - id: lru-recency
+      title: Попадание обновляет свежесть (скрытый)
+      hidden: true
+      hint: После попадания запись надо переместить в конец порядка (move_to_end), иначе вытеснится не та.
+    - id: lru-clear-meta
+      title: clear() и метаданные (скрытый)
+      hidden: true
+      hint: clear() обнуляет и словарь, и счётчики (потребуется nonlocal); имя и __doc__ сохраняет functools.wraps.
+    - id: lru-size
+      title: Размер не превышает maxsize (скрытый)
+      hidden: true
+      hint: Проверяйте len(cache) > maxsize после вставки и удаляйте записи с начала.

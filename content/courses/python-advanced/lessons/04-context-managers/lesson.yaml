@@ -1,0 +1,162 @@
+id: python.advanced.context-managers
+title: Контекстные менеджеры
+goal: Понимать, как инструкция with вызывает __enter__ и __exit__, писать собственные менеджеры классом и через contextlib, гарантированно освобождать ресурсы.
+difficulty: medium
+estimatedMinutes: 60
+prerequisites: [python.advanced.iterators-and-generators, python.fundamentals.errors-and-files]
+objectives:
+  - Объяснить, что именно вызывает инструкция with, и какие три аргумента получает __exit__.
+  - Подавлять исключение возвратом истинного значения из __exit__ и понимать, когда это уместно.
+  - Написать менеджер через @contextlib.contextmanager и объяснить роль try/finally вокруг yield.
+  - Использовать contextlib.suppress и ExitStack для динамического набора ресурсов.
+  - Объяснить, почему with надёжнее __del__ для освобождения ресурсов.
+masteryCriteria:
+  - Вы предсказываете порядок вывода __enter__/тело/__exit__ при исключении в теле и при подавлении исключения.
+  - Вы пишете @contextmanager, который восстанавливает состояние даже при ошибке в теле.
+  - Вы объясняете, почему нельзя полагаться на __del__ для закрытия файла или соединения.
+related: [python.advanced.decorators, python.fundamentals.errors-and-files]
+next: [python.advanced.classes-and-objects]
+tags: [python, with, context-manager, contextlib, exitstack, resources, exceptions]
+facts:
+  - kind: historical
+    text: >-
+      Инструкция with и протокол контекстного менеджера введены в PEP 343 (Python 2.5, по умолчанию - с 2.6). Цель - вынести шаблон try/finally в повторно используемый объект.
+    sources:
+      - https://peps.python.org/pep-0343/
+  - kind: internals
+    text: >-
+      with вызывает type(mgr).__enter__ и __exit__ с аргументами (exc_type, exc_value, traceback); при нормальном завершении все три равны None. Если __exit__ возвращает истинное значение, исключение подавляется,
+      и выполнение продолжается после with. Метод __exit__ вызывается и при break, continue и return внутри блока.
+    sources:
+      - https://docs.python.org/3/reference/compound_stmts.html#the-with-statement
+      - https://docs.python.org/3/reference/datamodel.html#with-statement-context-managers
+  - kind: misconception
+    text: >-
+      «Файл закроется сам, когда объект удалят, поэтому with необязателен». Момент вызова __del__ не гарантирован: в CPython он зависит от счётчика ссылок и сборщика циклов, в других реализациях - от сборщика мусора,
+      а при завершении интерпретатора вызов может вообще не произойти. Освобождение ресурса нужно привязывать к with или try/finally.
+    sources:
+      - https://docs.python.org/3/reference/datamodel.html#object.__del__
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что напечатает код?
+        class M:
+            def __enter__(self): print("in"); return self
+            def __exit__(self, t, v, tb): print("out"); return True
+        with M():
+            print("body")
+            raise ValueError
+        print("after")
+      options:
+        - "in, body, out и затем ValueError"
+        - "in, body, out, after"
+        - "in, body, ValueError (без out)"
+        - "in, out, after"
+      answer: 1
+      explanation: >-
+        __exit__ вызывается в любом случае. Он вернул True, поэтому ValueError подавлен, и выполнение продолжается после блока with.
+    - id: q2
+      type: single
+      prompt: Зачем в генераторном менеджере с @contextmanager обычно пишут yield внутри try ... finally?
+      options:
+        - "Это требование синтаксиса"
+        - "Исключение из тела with пробрасывается в генератор в точке yield; без try/finally код очистки после yield не выполнится"
+        - "finally ускоряет работу менеджера"
+        - "Без try/finally yield не вернёт значение"
+      answer: 1
+      explanation: >-
+        При исключении в теле contextmanager бросает его в генератор в месте yield. Без finally очистка будет пропущена, а ресурс останется занятым.
+    - id: q3
+      type: single
+      prompt: В каком порядке закроются ресурсы при with ExitStack() как stack, в который по очереди добавлены A, B, C?
+      options:
+        - "A, B, C"
+        - "C, B, A"
+        - "Порядок не определён"
+        - "Только последний"
+      answer: 1
+      explanation: >-
+        ExitStack работает как стек (LIFO): закрывает в обратном порядке добавления, как вложенные with. Поэтому зависимые ресурсы корректно освобождаются раньше тех, от которых зависят.
+    - id: q4
+      type: multiple
+      prompt: Почему закрытие ресурса в __del__ ненадёжно?
+      options:
+        - "Момент вызова __del__ не определён языком и зависит от реализации и сборщика мусора"
+        - "При завершении интерпретатора вызов __del__ может не произойти"
+        - "__del__ вызывается только при исключениях"
+        - "Объекты в циклах ссылок освобождаются позже"
+      answer: [0, 1, 3]
+      explanation: >-
+        Язык не гарантирует момент и сам факт вызова. Для надёжного освобождения нужны with или try/finally.
+exercise:
+  id: python.advanced.context-managers.exercise
+  title: Четыре контекстных менеджера
+  prompt: |
+    В файле `ctx_task.py` реализуйте четыре менеджера контекста. Ничего не читайте и не печатайте.
+
+    1. Класс `Transaction(store)` - менеджер для словаря `store`. `__enter__` запоминает копию содержимого и возвращает `store`. Если в теле `with` возникло исключение, `store` возвращается к сохранённому состоянию, а **исключение не подавляется**. Без исключения изменения остаются.
+    2. Класс `Ignore(*exc_types)` - подавляет исключения перечисленных типов (в том числе подклассы). `__enter__` возвращает сам объект; в атрибуте `caught` лежит подавленное исключение (до этого и если не было - `None`). Остальные исключения не подавляются. `Ignore()` без типов ничего не подавляет.
+    3. `temp_attr(obj, name, value)` - менеджер через `@contextlib.contextmanager`: на время блока устанавливает атрибут `obj.name = value`, на выходе (в том числе при исключении) возвращает прежнее значение, а если атрибута раньше не было - удаляет его. Возвращает `obj`.
+    4. `enter_all(*managers)` - менеджер через `contextlib.contextmanager` и `ExitStack`: входит во все переданные менеджеры по порядку, возвращает список их значений `__enter__`, на выходе закрывает в обратном порядке. Если вход в очередной менеджер упал, уже открытые должны быть закрыты, а исключение пробросится.
+
+    **Примеры.**
+
+    ```python
+    data = {"a": 1}
+    try:
+        with Transaction(data) as d:
+            d["a"] = 2
+            raise RuntimeError
+    except RuntimeError:
+        pass
+    data                         # {'a': 1}
+
+    with Ignore(KeyError) as ig:
+        {}["x"]
+    ig.caught                    # KeyError('x')
+    ```
+  entryFile: ctx_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с Ignore: в __exit__ первым аргументом приходит тип исключения (или None). Если он не None и является подклассом из exc_types, сохраните exc_value и верните True; иначе False."
+    - "Transaction: в __enter__ сделайте snapshot = dict(store). В __exit__ при exc_type is not None верните содержимое: store.clear(); store.update(snapshot). Возвращайте False, чтобы исключение шло дальше."
+    - "temp_attr: сохраните старое значение через getattr(obj, name, MISSING) (MISSING = object()), поставьте новое, затем yield obj внутри try ... finally, где восстановите значение или удалите атрибут (delattr). enter_all: with ExitStack() as stack: yield [stack.enter_context(m) for m in managers]."
+    - "Скелет temp_attr: old = getattr(obj, name, _MISSING); setattr(obj, name, value); try: yield obj; finally: if old is _MISSING: delattr(obj, name) else: setattr(obj, name, old). Скелет Ignore.__exit__: if exc_type is not None and self.types and issubclass(exc_type, self.types): self.caught = exc; return True; return False."
+  tests:
+    - id: transaction-commit
+      title: Transaction - изменения сохраняются
+      hint: Без исключения ничего откатывать не нужно; __enter__ должен вернуть сам словарь.
+    - id: ignore-basic
+      title: Ignore - подавление и caught
+      hint: Подавленное исключение сохраните в caught; __exit__ должен вернуть True для подходящего типа.
+    - id: temp-attr-basic
+      title: temp_attr - значение на время блока
+      hint: Внутри блока значение новое, после блока - прежнее; менеджер возвращает obj.
+    - id: enter-all-basic
+      title: enter_all - значения и порядок
+      hint: Верните список значений __enter__ в том же порядке, а выход выполните в обратном (ExitStack делает это сам).
+    - id: transaction-rollback
+      title: Transaction - откат при исключении (скрытый)
+      hidden: true
+      hint: При исключении восстановите исходное содержимое (clear + update) и верните ложное значение, чтобы исключение пошло дальше.
+    - id: ignore-propagates
+      title: Ignore - чужие исключения и подклассы (скрытый)
+      hidden: true
+      hint: Используйте issubclass(exc_type, self.types); исключения других типов не подавляйте, а Ignore() без типов не подавляет ничего.
+    - id: temp-attr-restore
+      title: temp_attr - восстановление при ошибке и удаление нового атрибута (скрытый)
+      hidden: true
+      hint: Восстановление должно быть в finally. Если атрибута раньше не было, после блока его не должно быть.
+    - id: enter-all-cleanup
+      title: enter_all - закрытие в обратном порядке при ошибке в теле (скрытый)
+      hidden: true
+      hint: "Используйте ExitStack: он закроет все открытые менеджеры в обратном порядке и при исключении из тела."
+    - id: enter-all-partial
+      title: enter_all - ошибка при входе (скрытый)
+      hidden: true
+      hint: Если enter_context для третьего менеджера упал, ExitStack всё равно закроет первые два при выходе из внешнего with.

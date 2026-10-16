@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+        xmlns:loc="using:DevAcademy.Desktop.Localization"
+        x:Class="DevAcademy.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="DevAcademy"
+        Width="1280" Height="820" MinWidth="560" MinHeight="480"
+        FontFamily="Inter, $Default">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Border Grid.Row="0" Classes="bar" IsVisible="{Binding ShowNavigation}" Padding="12,6">
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock Text="DevAcademy" Classes="h3" VerticalAlignment="Center" Margin="0,0,16,0" />
+        <Button Content="{loc:T Nav_Catalog}" Command="{Binding CatalogCommand}" Classes="flat topnav"
+                Classes.active="{Binding IsCatalogSection}" />
+        <Button Content="{loc:T Nav_Problems}" Command="{Binding ShowProblemsCommand}" Classes="flat topnav"
+                Classes.active="{Binding IsProblemsSection}" IsVisible="{Binding HasProblems}" />
+        <Button Content="{loc:T Nav_Projects}" Command="{Binding ShowProjectsCommand}" Classes="flat topnav"
+                Classes.active="{Binding IsProjectsSection}" />
+        <Button Content="{loc:T Nav_Dashboard}" Command="{Binding ShowDashboardCommand}" Classes="flat topnav"
+                Classes.active="{Binding IsDashboardSection}" />
+        <Button Content="{loc:T Nav_Settings}" Command="{Binding ShowSettingsCommand}" Classes="flat topnav"
+                Classes.active="{Binding IsSettingsSection}" />
+      </StackPanel>
+    </Border>
+    <Border Grid.Row="1" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Padding="16,8"
+            Background="{DynamicResource SubtleBrush}">
+      <TextBlock Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" />
+    </Border>
+    <ContentControl Grid.Row="2" Content="{Binding Current}" />
+  </Grid>
+</Window>

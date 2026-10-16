@@ -1,0 +1,7 @@
+id: wd.one
+title: Django one
+goal: Django one
+difficulty: intro
+estimatedMinutes: 10
+objectives: [Django one]
+prerequisites: [pb.three]

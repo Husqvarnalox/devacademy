@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:views="using:DevAcademy.Desktop.Views"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.OnboardingView"
+             x:DataType="vm:OnboardingViewModel">
+  <ScrollViewer>
+    <StackPanel MaxWidth="720" Margin="24,32" Spacing="20" HorizontalAlignment="Center">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{loc:T Onboarding_Title}" Classes="h1" />
+        <TextBlock Text="{loc:T Onboarding_Subtitle}" Classes="muted" TextWrapping="Wrap" />
+      </StackPanel>
+      <views:ProfileEditorView DataContext="{Binding Editor}" />
+      <StackPanel Spacing="6" IsVisible="{Binding HasPaths}">
+        <TextBlock Text="{loc:T Onboarding_Paths}" Classes="h3" />
+        <TextBlock Text="{loc:T Onboarding_PathsHint}" Classes="muted" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Paths}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PathChoiceViewModel">
+              <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,0,0,6"
+                      Command="{Binding PickCommand}" AutomationProperties.Name="{Binding Title}">
+                <Grid ColumnDefinitions="22,*" Margin="2">
+                  <TextBlock Text="✓" Foreground="{DynamicResource SystemAccentColor}" IsVisible="{Binding IsSelected}" />
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <Button Content="{loc:T Onboarding_Start}" Command="{Binding FinishCommand}" Classes="accent" Padding="20,8" />
+        <TextBlock Text="{loc:T Onboarding_PickLanguage}" Classes="caption" VerticalAlignment="Center"
+                   IsVisible="{Binding !Editor.HasLanguage}" />
+      </StackPanel>
+      <TextBlock Text="{loc:T Onboarding_Later}" Classes="caption" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

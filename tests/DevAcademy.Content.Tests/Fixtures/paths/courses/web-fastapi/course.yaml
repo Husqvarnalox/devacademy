@@ -1,0 +1,9 @@
+id: web-fastapi
+version: 1.0.0
+title: Web FastAPI
+description: Web FastAPI
+languageId: python
+level: 2
+track: python
+requires: [py-basics]
+lessons: [01-f]

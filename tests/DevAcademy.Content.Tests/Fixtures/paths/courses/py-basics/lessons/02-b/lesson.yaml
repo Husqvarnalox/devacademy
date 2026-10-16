@@ -1,0 +1,7 @@
+id: pb.two
+title: Basics two
+goal: Basics two
+difficulty: intro
+estimatedMinutes: 10
+objectives: [Basics two]
+prerequisites: [pb.one]

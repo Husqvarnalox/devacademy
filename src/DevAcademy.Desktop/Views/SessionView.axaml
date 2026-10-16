@@ -1,0 +1,170 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.SessionView"
+             x:DataType="vm:ExerciseSessionViewModel">
+  <UserControl.DataTemplates>
+    <DataTemplate x:DataType="vm:ConsoleResultViewModel">
+<StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" Classes.success="{Binding IsSuccess}" Classes.danger="{Binding !IsSuccess}" />
+                  <TextBlock Text="{Binding DurationText}" Classes="caption" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding ExitCodeText}" Classes="caption" VerticalAlignment="Center" />
+                  <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}"><TextBlock Text="{Binding IsolationBadge}" FontSize="12" /></Border>
+                </StackPanel>
+                <TextBlock Text="{Binding Message}" Classes="warn" TextWrapping="Wrap" IsVisible="{Binding HasMessage}" />
+                <StackPanel Spacing="2" IsVisible="{Binding HasCompileOutput}">
+                  <TextBlock Text="{loc:T Out_Compile}" Classes="caption" />
+                  <Border Classes="codeout"><SelectableTextBlock Text="{Binding CompileOutput}" Classes="mono" TextWrapping="Wrap" /></Border>
+                </StackPanel>
+                <StackPanel Spacing="2" IsVisible="{Binding HasStdout}">
+                  <TextBlock Text="stdout" Classes="caption" />
+                  <Border Classes="codeout"><SelectableTextBlock Text="{Binding Stdout}" Classes="mono" TextWrapping="Wrap" /></Border>
+                </StackPanel>
+                <StackPanel Spacing="2" IsVisible="{Binding HasStderr}">
+                  <TextBlock Text="stderr" Classes="caption" />
+                  <Border Classes="codeout"><SelectableTextBlock Text="{Binding Stderr}" Classes="mono danger" TextWrapping="Wrap" /></Border>
+                </StackPanel>
+              </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:DataType="vm:TestReportViewModel">
+<StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Verdict}" FontWeight="SemiBold" Classes.success="{Binding IsPassed}" Classes.danger="{Binding !IsPassed}" />
+                <TextBlock Text="{Binding DurationText}" Classes="caption" VerticalAlignment="Center" />
+                <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}"><TextBlock Text="{Binding IsolationBadge}" FontSize="12" /></Border>
+              </StackPanel>
+              <Border Classes="codeout" IsVisible="{Binding HasMessage}"><SelectableTextBlock Text="{Binding Message}" Classes="mono" TextWrapping="Wrap" /></Border>
+              <TextBlock Text="{loc:T Tests_DurationNote}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasCaseDurations}" />
+              <ItemsControl ItemsSource="{Binding Cases}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:TestCaseViewModel">
+                    <StackPanel Spacing="3" Margin="0,0,0,8">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding StatusGlyph}" FontWeight="Bold" Classes.success="{Binding Passed}" Classes.danger="{Binding !Passed}" />
+                        <TextBlock Text="{Binding Title}" />
+                        <TextBlock Text="{Binding DurationText}" Classes="caption" VerticalAlignment="Center" IsVisible="{Binding HasDuration}" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" Margin="20,0,0,0" IsVisible="{Binding HasMessage}" />
+                      <Border Classes="codeout" Margin="20,0,0,0" IsVisible="{Binding HasDetail}">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="{Binding Stdin, StringFormat='stdin: {0}'}" Classes="mono muted" IsVisible="{Binding Stdin, Converter={x:Static ObjectConverters.IsNotNull}}" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding Expected, StringFormat='expected: {0}'}" Classes="mono" TextWrapping="Wrap" />
+                          <TextBlock Text="{Binding Actual, StringFormat='actual: {0}'}" Classes="mono danger" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Classes="bar" Padding="8,6">
+      <Grid ColumnDefinitions="Auto,*">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button Name="RunButton" Content="{loc:T Editor_Run}" Command="{Binding RunCommand}" IsVisible="{Binding CanRun}" Classes="accent" ToolTip.Tip="{loc:T Editor_RunTip}" />
+          <Button Content="{loc:T Editor_Submit}" Command="{Binding SubmitCommand}" IsVisible="{Binding CanSubmit}" ToolTip.Tip="{loc:T Editor_SubmitTip}" />
+          <Button Content="{Binding HintButtonText}" Command="{Binding RevealHintCommand}" IsEnabled="{Binding CanRevealHint}" IsVisible="{Binding HasHints}" />
+          <Button Content="{loc:T Editor_Reset}" Command="{Binding ResetCommand}" IsVisible="{Binding CanSubmit}" />
+          <Button Content="{loc:T Editor_Save}" Command="{Binding SaveDraftCommand}" IsVisible="{Binding CanSubmit}" ToolTip.Tip="{loc:T Editor_SaveTip}" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      </Grid>
+    </Border>
+
+    <!-- Language selector + runtime warning -->
+    <StackPanel Grid.Row="1">
+    <Border Classes="bar" Padding="8,4" IsVisible="{Binding IsMultiLanguage}">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{loc:T Lang_Label}" VerticalAlignment="Center" Classes="caption" />
+        <ComboBox Name="LanguageBox" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" MinWidth="150"
+                  AutomationProperties.Name="{loc:T Lang_Label}" />
+        <TextBlock Text="{Binding RuntimeHint}" Classes="warn" VerticalAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding IsRuntimeMissing}" />
+      </StackPanel>
+    </Border>
+    <Border Name="EnvironmentBar" Classes="bar" Padding="8,4" IsVisible="{Binding HasEnvironmentNotice}">
+      <TextBlock Name="EnvironmentNoticeText" Text="{Binding EnvironmentText}" Classes="warn" TextWrapping="Wrap" />
+    </Border>
+    </StackPanel>
+
+    <!-- File tabs -->
+    <Border Grid.Row="2" Classes="bar" IsVisible="{Binding HasMultipleFiles}">
+      <ListBox ItemsSource="{Binding Files}" SelectedItem="{Binding SelectedFile}" Background="Transparent">
+        <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:EditorFileViewModel"><TextBlock Text="{Binding Path}" FontSize="13" /></DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <!-- Editor -->
+    <Border Grid.Row="3" Background="{DynamicResource PanelBrush}">
+      <ctl:CodeEditorControl Name="CodeEditor" Text="{Binding SelectedFile.Content, Mode=TwoWay}" FileName="{Binding SelectedFile.Path}"
+                             AutomationProperties.Name="{loc:T Editor_Name}" />
+    </Border>
+
+    <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows" />
+
+    <!-- Output -->
+    <TabControl Grid.Row="5" Height="260" SelectedIndex="{Binding OutputTab}" Padding="0">
+      <TabItem Header="{loc:T Out_Console}" IsVisible="{Binding CanRun}">
+        <Grid RowDefinitions="Auto,*" Margin="10,8">
+          <StackPanel Spacing="4" Margin="0,0,0,8">
+            <TextBlock Text="{loc:T Out_Stdin}" Classes="caption" />
+            <TextBox Text="{Binding Stdin}" AcceptsReturn="True" Height="56" FontFamily="{StaticResource MonoFont}" FontSize="13"
+                     AutomationProperties.Name="{loc:T Out_Stdin}" />
+          </StackPanel>
+          <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="8">
+              <TextBlock Text="{loc:T Out_NoRun}" Classes="muted" IsVisible="{Binding ConsoleResult, Converter={x:Static ObjectConverters.IsNull}}" />
+              <ContentControl Content="{Binding ConsoleResult}" />
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="{loc:T Out_Tests}" IsVisible="{Binding CanSubmit}">
+        <ScrollViewer>
+          <StackPanel Margin="10,8" Spacing="8">
+            <TextBlock Text="{loc:T Out_NoSubmit}" Classes="muted" IsVisible="{Binding Report, Converter={x:Static ObjectConverters.IsNull}}" />
+            <ContentControl Content="{Binding Report}" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="{loc:T Out_Hints}" IsVisible="{Binding HasHints}">
+        <ScrollViewer>
+          <StackPanel Margin="10,8" Spacing="8">
+            <TextBlock Text="{loc:T Hints_None}" Classes="muted" IsVisible="{Binding !RevealedCount}" />
+            <ItemsControl ItemsSource="{Binding Hints}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:HintItemViewModel">
+                  <StackPanel Spacing="2" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding Header}" Classes="caption" />
+                    <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="{loc:T Solution_Button}" Command="{Binding ShowSolutionCommand}" IsVisible="{Binding HasSolution}" HorizontalAlignment="Left" />
+            <ItemsControl ItemsSource="{Binding SolutionFiles}" IsVisible="{Binding IsSolutionVisible}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:EditorFileViewModel">
+                  <StackPanel Spacing="2" Margin="0,4,0,8">
+                    <TextBlock Text="{Binding Path}" Classes="caption" />
+                    <Border Classes="codeout"><SelectableTextBlock Text="{Binding Content}" Classes="mono" /></Border>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</UserControl>

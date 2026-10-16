@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.SortingVisualizerView"
+             x:DataType="vm:SortingVisualizerViewModel">
+  <Border Classes="panel" Padding="12">
+    <StackPanel Spacing="10">
+      <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+        <TextBlock Text="{loc:T Viz_Title}" Classes="h3" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" Name="AlgorithmBox" ItemsSource="{Binding Algorithms}" SelectedItem="{Binding SelectedAlgorithm}" MinWidth="170"
+                  AutomationProperties.Name="{loc:T Viz_Algorithm}" />
+        <TextBlock Grid.Column="2" Text="{Binding PositionText}" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" />
+      </Grid>
+
+      <ctl:SortBarsControl Name="Bars" Frame="{Binding Frame}" Height="190" AutomationProperties.Name="{loc:T Viz_Bars}" />
+
+      <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="16">
+        <TextBlock Text="{Binding ComparisonsText}" Classes="caption" />
+        <TextBlock Text="{Binding SwapsText}" Classes="caption" />
+        <TextBlock Text="{Binding WritesText}" Classes="caption" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
+        <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="accent" />
+        <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
+        <Button Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
+        <TextBlock Text="{loc:T Viz_Speed}" Classes="caption" VerticalAlignment="Center" Margin="12,0,0,0" />
+        <Slider Name="SpeedSlider" Minimum="1" Maximum="30" Value="{Binding Speed}" Width="140" VerticalAlignment="Center"
+                AutomationProperties.Name="{loc:T Viz_Speed}" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+        <TextBox Name="InputBox" Text="{Binding InputText}" FontFamily="{StaticResource MonoFont}" PlaceholderText="{loc:T Viz_InputHint}"
+                 AutomationProperties.Name="{loc:T Viz_Input}" />
+        <Button Grid.Column="1" Content="{loc:T Viz_Apply}" Command="{Binding ApplyInputCommand}" />
+        <Button Grid.Column="2" Content="{loc:T Viz_Random}" Command="{Binding RandomizeCommand}" />
+      </Grid>
+      <TextBlock Name="ErrorText" Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+    </StackPanel>
+  </Border>
+</UserControl>

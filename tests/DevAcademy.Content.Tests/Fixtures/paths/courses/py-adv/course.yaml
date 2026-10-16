@@ -1,0 +1,9 @@
+id: py-adv
+version: 1.0.0
+title: Python Advanced
+description: Python Advanced
+languageId: python
+level: 1
+track: python
+requires: [py-basics]
+lessons: [00-placement, 01-x]

@@ -1,0 +1,71 @@
+id: py.vars
+title: Variables
+goal: Use variables
+difficulty: easy
+estimatedMinutes: 20
+prerequisites: [py.hello]
+related: [py.hello]
+facts:
+  - kind: historical
+    text: Python was created in 1991.
+    sources: [https://docs.python.org/3/faq/general.html]
+  - kind: misconception
+    text: Variables are not boxes.
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Which is a string?
+      options: ["1", "'a'", "[]"]
+      answer: 1
+      explanation: quotes
+    - id: q2
+      type: multiple
+      prompt: Which are numbers?
+      options: ["1", "'a'", "2.5"]
+      answer: [0, 2]
+    - id: q3
+      type: short
+      prompt: Keyword to define a function?
+      answer: [def]
+    - id: q4
+      type: numeric
+      prompt: 1/3 to 2 decimals?
+      answer: 0.33
+      tolerance: 0.005
+exercise:
+  id: py.vars.ex1
+  title: Echo
+  prompt: Echo the input.
+  entryFile: main.py
+  evaluation: io
+  hints: [direction, problem]
+  tests:
+    - id: t1
+      title: simple
+      stdin: "hi\n"
+      expected: "hi\n"
+    - id: t2
+      title: hidden
+      stdin: "yo\n"
+      expected: "yo\n"
+      hidden: true
+      hint: handle any text
+challenge:
+  id: py.vars.ch1
+  title: Harness challenge
+  prompt: Write add.
+  entryFile: add.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: test_main.py
+  hints: [direction]
+  starter: exercise/starter
+  solution: exercise/solution
+  tests:
+    - id: a1
+      title: adds
+    - id: a2
+      title: hidden adds
+      hidden: true

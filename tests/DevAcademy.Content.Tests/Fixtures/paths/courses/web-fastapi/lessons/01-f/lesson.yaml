@@ -1,0 +1,7 @@
+id: wf.one
+title: FastAPI one
+goal: FastAPI one
+difficulty: intro
+estimatedMinutes: 10
+objectives: [FastAPI one]
+prerequisites: [pb.three]

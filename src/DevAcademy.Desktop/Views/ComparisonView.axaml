@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:md="using:DevAcademy.Desktop.Markdown"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.ComparisonView"
+             x:DataType="vm:ComparisonViewModel">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel MaxWidth="1400" Margin="24,20" Spacing="14" HorizontalAlignment="Stretch">
+      <Button Content="{loc:T Roadmap_Back}" Command="{Binding BackCommand}" Classes="flat" HorizontalAlignment="Left" Padding="0" />
+      <TextBlock Text="{Binding Title}" Classes="h1" TextWrapping="Wrap" />
+      <StackPanel Spacing="4" IsVisible="{Binding IsNarrow}">
+        <TextBlock Text="{loc:T Comparison_PickSubject}" Classes="caption" />
+        <ComboBox Name="SubjectPicker" ItemsSource="{Binding Subjects}" SelectedItem="{Binding SelectedSubject}"
+                  HorizontalAlignment="Stretch" AutomationProperties.Name="{loc:T Comparison_PickSubject}" />
+      </StackPanel>
+      <!-- The grid itself is built in code (criteria rows x subject columns); see ComparisonView.axaml.cs. -->
+      <Grid Name="TheGrid" />
+      <Border Classes="panel" Padding="14">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{loc:T Comparison_Verdict}" Classes="h3" />
+          <md:MarkdownViewer Markdown="{Binding VerdictGuidance}" LinkCommand="{Binding OpenLinkCommand}" />
+        </StackPanel>
+      </Border>
+      <StackPanel Spacing="2">
+        <TextBlock Text="{loc:T Comparison_Sources}" Classes="h3" />
+        <ItemsControl ItemsSource="{Binding Sources}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="x:String">
+              <Button Content="{Binding}" Classes="flat" Padding="0" HorizontalAlignment="Left"
+                      Command="{Binding $parent[UserControl].((vm:ComparisonViewModel)DataContext).OpenLinkCommand}" CommandParameter="{Binding}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

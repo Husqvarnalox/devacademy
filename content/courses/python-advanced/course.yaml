@@ -1,0 +1,20 @@
+id: python-advanced
+version: 1.0.0
+title: "Python: продвинутый уровень"
+description: >-
+  Второй курс по Python для тех, кто уже прошёл «Основы». Восемь уроков: функции как объекты и замыкания, декораторы,
+  итераторы и генераторы, контекстные менеджеры, классы и объекты, dunder-методы и dataclasses, наследование,
+  композиция и протоколы, основы аннотаций типов. Каждый урок объясняет внутреннее устройство CPython и проверяется запуском кода.
+languageId: python
+level: 2
+track: python
+requires: [python-fundamentals]
+lessons:
+  - 01-functions-as-objects
+  - 02-decorators
+  - 03-iterators-and-generators
+  - 04-context-managers
+  - 05-classes-and-objects
+  - 06-dunder-methods-and-dataclasses
+  - 07-inheritance-composition-protocols
+  - 08-typing-fundamentals

@@ -1,0 +1,155 @@
+id: "php.first-steps.how-php-runs"
+title: "Как выполняется PHP: Zend Engine, опкоды и ввод-вывод"
+goal: "Понять, как php превращает файл в результат, и написать программу, читающую числа из STDIN."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites: []
+objectives:
+  - "Описать путь файла: парсер, опкоды, виртуальная машина Zend; назвать роль OPcache и JIT."
+  - "Объяснить, почему текст вне тегов <?php ... ?> попадает в вывод."
+  - "Читать STDIN и писать в stdout; форматировать числа через sprintf."
+  - "Предсказывать поведение int при переполнении, оператора / и приведения строк."
+masteryCriteria:
+  - "Вы объясняете, зачем нужен OPcache и почему в CLI он выключен."
+  - "Вы различаете вывод echo и var_dump для float."
+  - "Вы читаете ввод, не оставляя пустых токенов, и печатаете среднее через %.2F."
+related:
+  - "python.fundamentals.how-python-runs"
+next:
+  - "php.first-steps.arrays-and-strict-types"
+tags:
+  - "php"
+  - "zend-engine"
+  - "opcache"
+  - "stdin"
+  - "echo"
+facts:
+  - kind: "internals"
+    text: "OPcache ускоряет PHP, сохраняя прекомпилированный байткод скриптов в общей памяти, благодаря чему PHP не загружает и не разбирает скрипты при каждом запросе."
+    sources:
+      - "https://www.php.net/manual/en/intro.opcache.php"
+  - kind: "historical"
+    text: "PHP 8.0 добавил JIT-компиляцию в составе OPcache. JIT по умолчанию выключен и управляется директивами opcache.jit и opcache.jit_buffer_size."
+    sources:
+      - "https://www.php.net/releases/8.0/en.php"
+      - "https://www.php.net/manual/en/opcache.configuration.php"
+  - kind: "internals"
+    text: "Файл PHP интерпретируется как текст, пока парсер не встретит открывающий тег <?php. Всё вне тегов выводится как есть. Закрывающий тег в файле, содержащем только код, рекомендуется опускать."
+    sources:
+      - "https://www.php.net/manual/en/language.basic-syntax.phpmode.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что такое опкоды в PHP?"
+      options:
+        - "Машинные инструкции процессора."
+        - "Байткод, который выполняет виртуальная машина Zend."
+        - "Названия функций в расширениях."
+        - "Шифрованная версия исходного кода."
+      answer: 1
+      explanation: "Парсер строит дерево, из него компилятор делает опкоды - инструкции для виртуальной машины Zend Engine. OPcache может сохранять их между запросами."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет echo PHP_INT_MAX + 1?"
+      options:
+        - "-9223372036854775808"
+        - "0"
+        - "Ошибка: переполнение."
+        - "9.2233720368548E+18"
+      answer: 3
+      explanation: "Целое число не оборачивается при переполнении, а превращается в float; echo покажет примерно 9.2233720368548E+18."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Текст вне <?php ... ?> выводится дословно."
+        - "explode(\" \", $s) надёжно делит по любым пробелам."
+        - "sprintf(\"%.2F\", 2.5) даёт 2.50."
+        - "(int) \"abc\" бросает исключение."
+      answer:
+        - 0
+        - 2
+      explanation: "Текст вне тегов выводится как есть. fgets возвращает строку с \\n. %.2F выводит число без учёта локали."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая константа даёт доступ к стандартному вводу в консольном PHP?"
+      answer:
+        - "STDIN"
+      explanation: "STDIN - открытый поток ввода; из него читают fgets(STDIN) или stream_get_contents(STDIN)."
+exercise:
+  id: "php.first-steps.how-php-runs.exercise"
+  title: "Статистика по числам из STDIN"
+  prompt: |
+
+    Программа получает на вход число `n` (1 <= n <= 1000), а затем `n` целых чисел, каждое из которых по модулю не больше 2 000 000 000.
+    Числа могут быть разбросаны по строкам как угодно и разделены любым количеством пробелов и переводов строк.
+
+    Выведите ровно четыре строки:
+
+    ```
+    sum=<сумма>
+    min=<наименьшее>
+    max=<наибольшее>
+    avg=<среднее арифметическое с двумя знаками после точки>
+    ```
+
+    **Пример.** Ввод `4` и затем `1 2 3 4` даёт
+
+    ```
+    sum=10
+    min=1
+    max=4
+    avg=2.50
+    ```
+
+    Среднее печатайте с точкой как десятичным разделителем, независимо от региональных настроек системы.
+    Сумма может не поместиться в 32 бита, учитывайте это.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Прочитайте весь ввод: stream_get_contents(STDIN). Затем preg_split('/\\s+/', trim($text)) даст токены, даже если числа на разных строках."
+    - "Первый токен - n. Следующие n токенов превратите в числа через array_map('intval', array_slice($tokens, 1, $n))."
+    - "Для величин есть array_sum, min, max и count. Среднее - array_sum($nums) / count($nums)."
+    - "Печатайте через printf(\"sum=%d\\nmin=%d\\nmax=%d\\navg=%.2F\\n\", ...). Заглавная F не зависит от локали."
+  tests:
+    - id: "basic"
+      title: "Числа в одной строке"
+      stdin: "4\n1 2 3 4\n"
+      expected: "sum=10\nmin=1\nmax=4\navg=2.50\n"
+      hint: "Проверьте формат: четыре строки sum=..., min=..., max=..., avg=.... Каждая заканчивается переводом строки."
+    - id: "lines"
+      title: "Числа на разных строках"
+      stdin: "3\n10\n20\n30\n"
+      expected: "sum=60\nmin=10\nmax=30\navg=20.00\n"
+      hint: "Числа на разных строках: разбирайте весь текст через preg_split('/\\s+/'), а не fgets один раз."
+    - id: "single"
+      title: "Одно число"
+      stdin: "1\n7\n"
+      expected: "sum=7\nmin=7\nmax=7\navg=7.00\n"
+      hint: "При n = 1 сумма, минимум и максимум равны одному числу, а среднее - 7.00."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "5\n-3 -1 -4 -1 -5\n"
+      expected: "sum=-14\nmin=-5\nmax=-1\navg=-2.80\n"
+      hidden: true
+      hint: "min и max считайте функциями min/max по массиву, а не от начального значения 0."
+    - id: "whitespace"
+      title: "Лишние пробелы и пустые строки (скрытый)"
+      stdin: "3\n  5   2\n\n 2\n"
+      expected: "sum=9\nmin=2\nmax=5\navg=3.00\n"
+      hidden: true
+      hint: "Ведущие пробелы дают пустой токен, а (int) \"\" равно 0. Вызовите trim() перед preg_split."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: "3\n1 2 2\n"
+      expected: "sum=5\nmin=1\nmax=2\navg=1.67\n"
+      hidden: true
+      hint: "Среднее 5/3 нужно напечатать как 1.67 через %.2F, а не обрезать."
+    - id: "big-sum"
+      title: "Сумма больше 32-битного диапазона (скрытый)"
+      stdin: "2\n2000000000 2000000000\n"
+      expected: "sum=4000000000\nmin=2000000000\nmax=2000000000\navg=2000000000.00\n"
+      hidden: true
+      hint: "PHP использует 64-битные int, поэтому сумма 4000000000 точна. Не приводите к 32-битному типу."

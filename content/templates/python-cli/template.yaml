@@ -1,0 +1,10 @@
+id: python-cli
+title: Python — консольная программа
+languageId: python
+description: >-
+  Минимальный проект на Python 3: main.py с функцией greet и разбором аргументов, тест pytest и requirements.txt.
+  Запуск — «python main.py», тесты — «python -m pytest» (pytest ставится в окружение отдельно, явным действием).
+files: files
+postCreate:
+  - python -m venv .venv
+  - .venv/bin/python -m pip install -r requirements.txt

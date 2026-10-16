@@ -1,0 +1,155 @@
+id: "cpp.first-steps.how-cpp-runs"
+title: "Как выполняется C++: компиляция, компоновка и cin/cout"
+goal: "Понять путь от main.cpp до машинного кода и написать программу, читающую числа через std::cin."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites: []
+objectives:
+  - "Назвать этапы: препроцессор, компилятор, компоновщик."
+  - "Объяснить, что означают -std=c++20, -O2, -Wall -Wextra."
+  - "Читать ввод через std::cin и форматировать вывод через std::fixed и setprecision."
+  - "Понимать, почему переполнение int и выход за границы - неопределённое поведение."
+masteryCriteria:
+  - "Вы выбираете long long для суммы и static_cast<double> до деления."
+  - "Вы объясняете, чем ошибка компиляции отличается от ошибки компоновки."
+related:
+  - "python.fundamentals.how-python-runs"
+next:
+  - "cpp.first-steps.value-semantics-references-and-raii"
+tags:
+  - "cpp"
+  - "compiler"
+  - "linker"
+  - "undefined-behavior"
+facts:
+  - kind: "historical"
+    text: "Бьёрн Страуструп начал работу над C++ в 1979 году под названием «C with Classes»; название C++ появилось в 1983 году."
+    sources:
+      - "https://www.stroustrup.com/bs_faq.html#invention"
+  - kind: "internals"
+    text: "Трансляция программы на C++ проходит стадии (translation phases): препроцессирование, компиляция единиц трансляции и компоновка в исполняемый файл."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/translation_phases"
+  - kind: "internals"
+    text: "Переполнение знакового целого типа в C++ - неопределённое поведение, а для беззнаковых типов арифметика определена по модулю 2^N."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/operators#Overflows"
+  - kind: "misconception"
+    text: "«C++ всегда проверяет границы массива» - неверно: operator[] у vector границы не проверяет, проверяет только at()."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что делает компоновщик (linker)?"
+      options:
+        - "Переводит #include в текст."
+        - "Проверяет типы."
+        - "Объединяет объектные файлы и библиотеки в исполняемый файл."
+        - "Запускает программу."
+      answer: 2
+      explanation: "Компоновщик объединяет объектные файлы и библиотеки в исполняемый файл и разрешает ссылки между ними."
+    - id: "q2"
+      type: "single"
+      prompt: "Что гарантирует стандарт при переполнении знакового int?"
+      options:
+        - "Результат заворачивается по модулю 2^32."
+        - "Бросается исключение."
+        - "Программа завершается с кодом 1."
+        - "Ничего: поведение не определено."
+      answer: 3
+      explanation: "Это неопределённое поведение: стандарт ничего не гарантирует."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно про vector?"
+      options:
+        - "v.at(i) проверяет границы."
+        - "v[i] бросает исключение при выходе за границы."
+        - "v[i] за границами - неопределённое поведение."
+        - "vector нельзя копировать."
+      answer:
+        - 0
+        - 2
+      explanation: "at() проверяет границы и бросает out_of_range; operator[] не проверяет, выход за границы - неопределённое поведение."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой флаг компилятора включает набор предупреждений -Wall и ещё один важный флаг?"
+      answer:
+        - "-Wextra"
+        - "Wextra"
+      explanation: "-Wextra включает дополнительные предупреждения, не входящие в -Wall."
+exercise:
+  id: "cpp.first-steps.how-cpp-runs.exercise"
+  title: "Статистика по числам из stdin"
+  prompt: |
+
+    Программа получает на вход число `n` (1 <= n <= 1000), а затем `n` целых чисел, каждое из которых по модулю не больше 2 000 000 000.
+    Числа могут быть разбросаны по строкам как угодно и разделены любым количеством пробелов и переводов строк.
+
+    Выведите ровно четыре строки:
+
+    ```
+    sum=<сумма>
+    min=<наименьшее>
+    max=<наибольшее>
+    avg=<среднее арифметическое с двумя знаками после точки>
+    ```
+
+    **Пример.** Ввод `4` и затем `1 2 3 4` даёт
+
+    ```
+    sum=10
+    min=1
+    max=4
+    avg=2.50
+    ```
+
+    Среднее печатайте с точкой как десятичным разделителем, независимо от региональных настроек системы.
+    Сумма может не поместиться в 32 бита, учитывайте это.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Прочитайте n через std::cin >> n, затем в цикле читайте числа типа long long: std::cin >> x пропускает пробелы и переводы строк."
+    - "Сумму храните в long long. Для min и max инициализируйте их первым числом (i == 0), чтобы отрицательные числа работали."
+    - "Для среднего: static_cast<double>(sum) / n. Без приведения деление целочисленное."
+    - "Вывод: std::cout << std::fixed << std::setprecision(2) << avg; заголовок <iomanip>."
+  tests:
+    - id: "basic"
+      title: "Числа в одной строке"
+      stdin: "4\n1 2 3 4\n"
+      expected: "sum=10\nmin=1\nmax=4\navg=2.50\n"
+      hint: "Нужны четыре строки sum=, min=, max=, avg=."
+    - id: "lines"
+      title: "Числа на разных строках"
+      stdin: "3\n10\n20\n30\n"
+      expected: "sum=60\nmin=10\nmax=30\navg=20.00\n"
+      hint: "std::cin >> x пропускает переводы строк."
+    - id: "single"
+      title: "Одно число"
+      stdin: "1\n7\n"
+      expected: "sum=7\nmin=7\nmax=7\navg=7.00\n"
+      hint: "При n = 1 все величины равны, avg = 7.00."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "5\n-3 -1 -4 -1 -5\n"
+      expected: "sum=-14\nmin=-5\nmax=-1\navg=-2.80\n"
+      hidden: true
+      hint: "Не начинайте min и max с 0."
+    - id: "whitespace"
+      title: "Лишние пробелы и пустые строки (скрытый)"
+      stdin: "3\n  5   2\n\n 2\n"
+      expected: "sum=9\nmin=2\nmax=5\navg=3.00\n"
+      hidden: true
+      hint: "std::cin пропускает лишние пробелы и пустые строки."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: "3\n1 2 2\n"
+      expected: "sum=5\nmin=1\nmax=2\navg=1.67\n"
+      hidden: true
+      hint: "static_cast<double>(sum) / n, затем setprecision(2)."
+    - id: "big-sum"
+      title: "Сумма больше 32-битного диапазона (скрытый)"
+      stdin: "2\n2000000000 2000000000\n"
+      expected: "sum=4000000000\nmin=2000000000\nmax=2000000000\navg=2000000000.00\n"
+      hidden: true
+      hint: "4000000000 не помещается в int: используйте long long."

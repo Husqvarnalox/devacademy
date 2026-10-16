@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devacademy.local/schema/course.schema.json",
+  "title": "DevAcademy course.yaml",
+  "description": "Editor aid only. The C# ContentValidator is authoritative.",
+  "type": "object",
+  "required": ["id", "version", "title", "languageId", "level", "track", "lessons"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "description": "Must equal the directory name." },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$", "description": "Curriculum version (semver). Never the framework version." },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "languageId": { "type": "string", "minLength": 1 },
+    "level": { "type": "integer", "minimum": 0, "maximum": 6 },
+    "track": { "type": "string", "minLength": 1 },
+    "lessons": { "type": "array", "items": { "type": "string" }, "description": "Lesson directory names under lessons/, in order." },
+    "requires": { "type": "array", "items": { "type": "string" }, "description": "Course ids this course builds on. Must exist; acyclic together with lesson prerequisites." },
+    "framework": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string", "description": "Framework version, e.g. 16.x." },
+        "docs": { "type": "array", "items": { "type": "string", "pattern": "^https://" } },
+        "compatibility": { "type": "string" },
+        "deprecated": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { "feature": { "type": "string" }, "status": { "type": "string" }, "note": { "type": "string" } }
+          }
+        },
+        "migrationNotes": { "type": "string", "description": "Markdown." }
+      }
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devacademy.local/schema/comparison.schema.json",
+  "title": "DevAcademy comparisons/<id>.yaml",
+  "description": "Editor aid only. The C# ContentValidator is authoritative. The id must equal the file name; every criterion x subject cell must be filled.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "subjects",
+    "criteria",
+    "cells",
+    "verdictGuidance",
+    "sources"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "docs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "library",
+              "framework",
+              "language",
+              "runtime"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "description": "Version the cells were written against; a warning if missing."
+          },
+          "docs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^https://"
+            }
+          }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "cells": {
+      "type": "object",
+      "description": "criterionId -> subjectId -> Markdown",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "verdictGuidance": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Markdown: when to choose which. Never 'X is best'."
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^https://"
+      }
+    }
+  }
+}

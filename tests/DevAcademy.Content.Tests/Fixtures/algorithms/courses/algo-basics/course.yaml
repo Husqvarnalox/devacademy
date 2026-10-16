@@ -1,0 +1,8 @@
+id: algo-basics
+version: 1.0.0
+title: Algorithm Basics
+description: Fixture course with a multi-language problem
+languageId: python
+level: 1
+track: algorithms
+lessons: [01-find-max, 02-sorting]

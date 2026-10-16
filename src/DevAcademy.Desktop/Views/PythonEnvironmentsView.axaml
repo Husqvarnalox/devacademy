@@ -1,0 +1,101 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.PythonEnvironmentsView"
+             x:DataType="vm:PythonEnvironmentsViewModel">
+  <Border Classes="panel" Padding="14,12">
+    <StackPanel Spacing="10">
+      <TextBlock Text="{loc:T Py_Title}" Classes="h3" />
+      <TextBlock Text="{loc:T Py_Description}" Classes="muted" TextWrapping="Wrap" />
+
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <TextBlock Text="{loc:T Py_Interpreters}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Content="{loc:T Runtimes_Refresh}" Command="{Binding DetectInterpretersCommand}" />
+        <TextBlock Text="{loc:T Runtimes_Detecting}" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsDetecting}" />
+      </StackPanel>
+      <ItemsControl Name="InterpreterList" ItemsSource="{Binding Interpreters}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:InterpreterRow">
+            <StackPanel Spacing="1" Margin="0,0,0,6">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Display}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Details}" Classes="caption" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Text="{Binding Path}" Classes="caption mono" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Separator />
+      <TextBlock Text="{loc:T Py_Environments}" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding EnvironmentsRoot}" Classes="caption mono" TextWrapping="Wrap" />
+      <TextBlock Text="{loc:T Py_NoEnvironments}" Classes="muted" IsVisible="{Binding !HasEnvironments}" />
+      <ListBox Name="EnvironmentList" ItemsSource="{Binding Environments}" SelectedItem="{Binding SelectedEnvironment}" Background="Transparent"
+               AutomationProperties.Name="{loc:T Py_Environments}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:EnvironmentRow">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Version}" Classes="caption" VerticalAlignment="Center" />
+              <Border Classes="badge"><TextBlock Text="{Binding Tool}" FontSize="12" /></Border>
+              <Border Classes="badge" IsVisible="{Binding IsActive}"><TextBlock Text="{loc:T Py_ActiveBadge}" FontSize="12" /></Border>
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <TextBlock Name="ActiveLine" Text="{Binding ActiveText}" Classes="caption" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Name="SetActiveButton" Content="{loc:T Py_SetActive}" Command="{Binding SetActiveCommand}" />
+        <Button Name="ClearActiveButton" Content="{loc:T Py_ClearActive}" Command="{Binding ClearActiveCommand}" />
+        <Button Name="DeleteButton" Content="{loc:T Py_Delete}" Command="{Binding DeleteCommand}" />
+      </StackPanel>
+
+      <Separator />
+      <TextBlock Text="{loc:T Py_CreateHeader}" FontWeight="SemiBold" />
+      <Grid ColumnDefinitions="Auto,200,Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="6">
+        <TextBlock Text="{loc:T Py_Name}" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Name="NewNameBox" Text="{Binding NewName}" PlaceholderText="{loc:T Py_NameHint}" AutomationProperties.Name="{loc:T Py_Name}" />
+        <TextBlock Grid.Column="2" Text="{loc:T Py_Tool}" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="3" Name="ToolBox" ItemsSource="{Binding Tools}" SelectedItem="{Binding SelectedTool}" MinWidth="110" AutomationProperties.Name="{loc:T Py_Tool}" />
+        <TextBlock Grid.Row="1" Text="{loc:T Py_Interpreter}" VerticalAlignment="Center" />
+        <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Name="InterpreterBox" ItemsSource="{Binding Interpreters}" SelectedItem="{Binding SelectedInterpreter}"
+                  HorizontalAlignment="Stretch" AutomationProperties.Name="{loc:T Py_Interpreter}" />
+      </Grid>
+      <Button Name="CreateButton" Content="{loc:T Py_Create}" Command="{Binding CreateCommand}" Classes="accent" HorizontalAlignment="Left" />
+
+      <Separator />
+      <TextBlock Text="{loc:T Py_PackagesHeader}" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding PackagesError}" Classes="danger" TextWrapping="Wrap" IsVisible="{Binding PackagesError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{loc:T Py_NoPackagesInstalled}" Classes="muted" IsVisible="{Binding !HasPackages}" />
+      <ScrollViewer MaxHeight="180">
+        <ItemsControl Name="PackageList" ItemsSource="{Binding Packages}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:PackageRow">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="{Binding Name}" Classes="mono" />
+                <TextBlock Text="{Binding Version}" Classes="caption mono" VerticalAlignment="Center" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <TextBlock Text="{loc:T Py_InstallHeader}" FontWeight="SemiBold" />
+      <TextBox Name="PackageBox" Text="{Binding PackageText}" AcceptsReturn="True" MinHeight="64" PlaceholderText="{loc:T Py_PackagesHint}"
+               FontFamily="{StaticResource MonoFont}" AutomationProperties.Name="{loc:T Py_InstallHeader}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Name="InstallButton" Content="{loc:T Py_Install}" Command="{Binding InstallPackagesCommand}" Classes="accent" />
+        <Button Name="InstallFileButton" Content="{loc:T Py_InstallFile}" Command="{Binding InstallFromFileCommand}" />
+        <Button Name="CancelInstallButton" Content="{loc:T Py_CancelInstall}" Command="{Binding CancelInstallCommand}" />
+      </StackPanel>
+      <Border Classes="codeout" IsVisible="{Binding InstallLog, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <ScrollViewer MaxHeight="220">
+          <SelectableTextBlock Name="InstallLogText" Text="{Binding InstallLog}" Classes="mono" TextWrapping="Wrap" />
+        </ScrollViewer>
+      </Border>
+      <TextBlock Name="MessageText" Text="{Binding Message}" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+  </Border>
+</UserControl>

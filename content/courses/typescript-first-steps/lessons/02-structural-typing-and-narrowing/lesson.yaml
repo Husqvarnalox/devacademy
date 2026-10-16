@@ -1,0 +1,134 @@
+id: "typescript.first-steps.structural-typing-and-narrowing"
+title: "Структурные типы, сужение и unknown против any"
+goal: "Понять, как TypeScript сопоставляет типы по форме, как работает сужение, и почему данные извне нужно проверять кодом."
+difficulty: "intro"
+estimatedMinutes: 40
+prerequisites:
+  - "typescript.first-steps.how-typescript-runs"
+objectives:
+  - "Объяснить структурную совместимость и проверку лишних свойств."
+  - "Описать дискриминированное объединение и проверить исчерпываемость через never."
+  - "Различать any, unknown и never и выбирать unknown для внешних данных."
+  - "Написать проверку формы для значения типа unknown."
+masteryCriteria:
+  - "Вы объясняете, почему класс Vec подходит там, где ожидается interface Point, не объявляя его."
+  - "Вы пишете switch по discriminant так, что при добавлении варианта компиляция падает."
+  - "Вы проверяете значение из JSON.parse без as и any."
+related:
+  - "javascript.first-steps.values-and-equality"
+next: []
+tags:
+  - "typescript"
+  - "structural-typing"
+  - "narrowing"
+  - "unknown"
+  - "never"
+facts:
+  - kind: "internals"
+    text: "Совместимость типов в TypeScript основана на структуре: значение подходит, если у него есть все нужные члены. Имя типа и способ создания значения не учитываются."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/type-compatibility.html"
+  - kind: "internals"
+    text: "Сужение типов выполняет анализ потока управления: после проверок typeof, ===, in, Array.isArray или по дискриминатору компилятор уточняет тип внутри ветки. Тип never в ветке default позволяет проверить исчерпываемость switch."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/narrowing.html"
+  - kind: "misconception"
+    text: "«Если код компилируется, то JSON.parse вернул нужную структуру» - неверно. JSON.parse возвращает any, а приведение as ничего не проверяет; во время работы типов нет."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему экземпляр класса Vec с полями x и y можно передать там, где ожидается interface Point?"
+      options:
+        - "Потому что Vec наследует Point."
+        - "Потому что интерфейсы автоматически реализуются всеми классами."
+        - "Потому что форма Vec содержит все свойства Point."
+        - "Потому что оба типа объявлены в одном файле."
+      answer: 2
+      explanation: "TypeScript сопоставляет типы по структуре. Если у значения есть нужные свойства нужных типов, объявлять реализацию интерфейса не требуется."
+    - id: "q2"
+      type: "single"
+      prompt: "Что даёт присваивание default-ветки переменной типа never в switch?"
+      options:
+        - "Проверку исчерпываемости: необработанный вариант становится ошибкой компиляции."
+        - "Ускорение switch."
+        - "Запрет использования default."
+        - "Автоматическое создание недостающих case."
+      answer: 0
+      explanation: "Если в объединение добавить новый вариант и не обработать его, значение в default перестанет иметь тип never, и компилятор укажет на ошибку."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно для unknown?"
+      options:
+        - "С ним можно вызывать любые методы без проверки."
+        - "Перед использованием значение нужно сузить."
+        - "Подходит для результата JSON.parse."
+        - "Эквивалентен any."
+      answer:
+        - 1
+        - 2
+      explanation: "Значение unknown можно присвоить, но нельзя использовать без сужения. Сужение выполняется проверками typeof, Array.isArray и подобными. any, напротив, отключает проверки."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое значение typeof возвращает для null?"
+      answer:
+        - "object"
+        - "\"object\""
+      explanation: "typeof null равно \"object\" по историческим причинам; null нужно проверять отдельно через === null."
+exercise:
+  id: "typescript.first-steps.structural-typing-and-narrowing.exercise"
+  title: "Проверка и площадь фигур"
+  prompt: |
+
+    В первой строке записано число `n`. Далее `n` строк, в каждой одно значение в формате JSON (возможно, некорректное, и возможно, пустая строка).
+    Корректная фигура - это объект одного из двух видов:
+
+    * `{"kind": "circle", "r": <число >= 0>}`
+    * `{"kind": "rect", "w": <число >= 0>, "h": <число >= 0>}`
+
+    Другие поля в объекте допускаются и игнорируются. Любая другая строка (не JSON, не объект, неизвестный `kind`, поле другого типа или отрицательное число, пропущенное поле) - **недопустимая фигура**.
+
+    Для каждой строки выведите одну строку:
+
+    * `circle <площадь>` или `rect <площадь>` с двумя знаками после точки (площадь круга - `Math.PI * r * r`);
+    * `invalid`, если фигура недопустима.
+
+    **Что уже есть в заготовке.** Тип `Shape`, чтение строк и цикл вывода. Реализуйте `parseShape` (проверка формы значения типа `unknown`) и `area` с проверкой исчерпываемости через `never`.
+
+    **Пример.** Строка `{"kind": "rect", "w": 3, "h": 4}` даёт `rect 12.00`.
+  entryFile: "main.ts"
+  evaluation: "io"
+  hints:
+    - "Сначала отсейте то, что не объект: typeof value !== \"object\", value === null и Array.isArray(value) - всё это недопустимые данные."
+    - "После этих проверок приведите value к Record<string, unknown> и проверяйте поля по одному: obj.kind === \"circle\" и typeof obj.r === \"number\" && obj.r >= 0."
+    - "Верните новый объект Shape, собранный из проверенных полей. В area для rect верните s.w * s.h, для circle - Math.PI * s.r * s.r."
+    - "Пустая строка и текст не в JSON дают исключение JSON.parse (оно уже перехватывается в заготовке): они должны привести к invalid."
+  tests:
+    - id: "simple"
+      title: "Круг, прямоугольник, неизвестный вид"
+      stdin: "3\n{\"kind\": \"circle\", \"r\": 2}\n{\"kind\": \"rect\", \"w\": 3, \"h\": 4}\n{\"kind\": \"triangle\"}\n"
+      expected: "circle 12.57\nrect 12.00\ninvalid\n"
+      hint: "Круг r=2 даёт 12.57, прямоугольник 3x4 даёт 12.00. Неизвестный kind - invalid."
+    - id: "numbers"
+      title: "Дробные размеры и не JSON"
+      stdin: "3\n{\"kind\": \"circle\", \"r\": 1.5}\n{\"kind\": \"rect\", \"w\": 2.5, \"h\": 4}\nnot json\n"
+      expected: "circle 7.07\nrect 10.00\ninvalid\n"
+      hint: "Числа бывают дробными. Строка не в формате JSON даёт исключение, которое нужно превратить в invalid."
+    - id: "null-and-types"
+      title: "null, нулевой размер, поле неверного типа"
+      stdin: "3\n{\"kind\": \"rect\", \"w\": 0, \"h\": 5}\nnull\n{\"kind\": \"circle\", \"r\": \"2\"}\n"
+      expected: "rect 0.00\ninvalid\ninvalid\n"
+      hint: "typeof null равно object, поэтому null проверяйте отдельно. Строка \"2\" вместо числа - invalid."
+    - id: "bad-shapes"
+      title: "Массив, пустая строка, пропущенное поле, отрицательное число (скрытый)"
+      stdin: "5\n[]\n\n{\"kind\": \"rect\", \"w\": 1}\n{\"kind\": \"circle\", \"r\": -1}\n{\"kind\": \"rect\", \"w\": 0.5, \"h\": 0.5}\n"
+      expected: "invalid\ninvalid\ninvalid\ninvalid\nrect 0.25\n"
+      hidden: true
+      hint: "Массив - тоже object. Отсутствующее поле даёт undefined, а typeof undefined не number. Отрицательный радиус недопустим."
+    - id: "extra-fields"
+      title: "Лишние поля, null в поле, число и строка вместо объекта (скрытый)"
+      stdin: "5\n{\"kind\": \"rect\", \"w\": null, \"h\": 2}\n{\"kind\": \"circle\", \"r\": 0}\n\"circle\"\n42\n{\"kind\": \"rect\", \"w\": 2, \"h\": 3, \"color\": \"red\"}\n"
+      expected: "invalid\ncircle 0.00\ninvalid\ninvalid\nrect 6.00\n"
+      hidden: true
+      hint: "Лишние поля допустимы. null в поле размера (typeof null это object, а не number), строка и число вместо объекта - invalid."

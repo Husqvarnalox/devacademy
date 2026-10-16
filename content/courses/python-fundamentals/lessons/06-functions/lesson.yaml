@@ -1,0 +1,168 @@
+id: python.fundamentals.functions
+title: Функции, параметры и области видимости
+goal: Описывать собственные функции, понимать return/None, виды параметров, ловушку изменяемого значения по умолчанию и правило LEGB.
+difficulty: medium
+estimatedMinutes: 45
+prerequisites: [python.fundamentals.loops]
+objectives:
+  - Определять функции с def и различать вывод через print и возврат через return.
+  - Объяснить, что функция без return возвращает None.
+  - Использовать позиционные, именованные, умолчательные и только именованные параметры.
+  - Объяснить, почему изменяемое значение по умолчанию (например, []) общее для всех вызовов, и как это обойти через None.
+  - Применять правило поиска имён LEGB и знать, когда нужны global и nonlocal.
+masteryCriteria:
+  - Вы предсказываете вывод кода, где функция меняет или не меняет переданный список.
+  - Вы можете исправить функцию с def f(x, items=[]) и объяснить, где живёт этот список.
+  - Вы пишете функцию с докстрингом, значениями по умолчанию и только именованным параметром, а harness-тесты проходят.
+related: [python.fundamentals.variables-and-input]
+next: [python.fundamentals.strings]
+tags: [python, functions, return, parameters, scope, legb, mutable-default]
+facts:
+  - kind: internals
+    text: >-
+      Значения параметров по умолчанию вычисляются один раз - в момент выполнения инструкции def, а не при каждом вызове. Если значение изменяемое (список, словарь),
+      то все вызовы без этого аргумента разделяют один и тот же объект. Его можно увидеть в атрибуте функции __defaults__.
+    sources:
+      - https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
+  - kind: internals
+    text: >-
+      Инструкция def выполняется во время работы программы: она создаёт объект функции и привязывает к нему имя. Пока строка с def не выполнена, функции с таким именем ещё нет.
+    sources:
+      - https://docs.python.org/3/reference/compound_stmts.html#function-definitions
+  - kind: misconception
+    text: >-
+      «Python передаёт аргументы по ссылке (или по значению)». Передаётся ссылка на объект, привязываемая к имени параметра. Изменение изменяемого объекта внутри функции видно снаружи,
+      а присваивание имени параметра нового значения снаружи не видно.
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет код?
+        def double(x):
+            x * 2
+        print(double(4))
+      options:
+        - "8"
+        - "None"
+        - "4"
+        - "Ошибка выполнения"
+      answer: 1
+      explanation: >-
+        Выражение x * 2 вычисляется, но результат нигде не возвращается. Функция без return возвращает None. Нужно написать return x * 2.
+    - id: q2
+      type: single
+      prompt: |
+        Что выведет код?
+        def add(item, bucket=[]):
+            bucket.append(item)
+            return bucket
+        add(1)
+        print(add(2))
+      options:
+        - "[2]"
+        - "[1, 2]"
+        - "[1]"
+        - "Ошибка выполнения"
+      answer: 1
+      explanation: >-
+        Список [] создаётся один раз при определении функции и служит значением по умолчанию для всех вызовов. Первый вызов положил в него 1, второй добавил 2.
+    - id: q3
+      type: single
+      prompt: |
+        Что выведет код?
+        def change(items, n):
+            items.append(0)
+            n = n + 1
+        data = [1]
+        count = 5
+        change(data, count)
+        print(data, count)
+      options:
+        - "[1] 5"
+        - "[1, 0] 5"
+        - "[1, 0] 6"
+        - "[1] 6"
+      answer: 1
+      explanation: >-
+        items и data - имена одного списка, поэтому append виден снаружи. Присваивание n = n + 1 перепривязывает локальное имя n к новому числу и не затрагивает count.
+    - id: q4
+      type: single
+      prompt: |
+        Что произойдёт при вызове f()?
+        total = 0
+        def f():
+            total += 1
+            return total
+      options:
+        - "Вернётся 1"
+        - "UnboundLocalError: total считается локальной переменной, у которой ещё нет значения"
+        - "NameError: имя total не найдено"
+        - "Вернётся 0"
+      answer: 1
+      explanation: >-
+        Присваивание внутри функции делает имя локальным для всей функции. total += 1 пытается прочитать локальную total до присваивания - отсюда UnboundLocalError.
+        Исправление: передавать значение параметром либо объявить global total.
+exercise:
+  id: python.fundamentals.functions.exercise
+  title: Четыре функции
+  prompt: |
+    В файле `functions_task.py` реализуйте четыре функции. Тесты импортируют этот модуль и вызывают функции напрямую; ничего не читайте с клавиатуры и ничего не печатайте.
+
+    1. `clamp(value, low=0, high=100)` - вернуть `value`, ограниченное диапазоном: `low`, если `value < low`; `high`, если `value > high`; иначе `value`. Предполагается `low <= high`.
+    2. `add_item(item, bucket=None)` - добавить `item` в список `bucket` и вернуть его. Если `bucket` не передан, начать с нового пустого списка; вызовы без `bucket` не должны влиять друг на друга.
+       Если `bucket` передан, функция изменяет и возвращает **именно его** (не копию).
+    3. `min_max(numbers)` - вернуть кортеж `(минимум, максимум)`; для пустой последовательности вернуть `None`.
+    4. `greet(name, greeting="Привет", *, loud=False)` - вернуть строку `"<greeting>, <name>!"`; при `loud=True` - в верхнем регистре. Параметр `loud` только именованный: `greet("А", "Б", True)` должен вызывать `TypeError`.
+
+    **Примеры.**
+
+    ```python
+    clamp(150)                  # 100
+    add_item("a", [])           # ['a']
+    min_max([3, 1, 2])          # (1, 3)
+    greet("Анна", loud=True)    # 'ПРИВЕТ, АННА!'
+    ```
+  entryFile: functions_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с clamp - это ветвление. Затем посмотрите на add_item в заготовке: почему список, созданный в def, общий для всех вызовов?"
+    - Значение по умолчанию вычисляется один раз при выполнении def. Для изменяемого значения принято писать None и создавать список внутри функции.
+    - "В greet символ * в списке параметров делает все следующие за ним параметры только именованными. У min_max проверьте пустой ввод (if not numbers) до вызова min и max, иначе они упадут с ValueError."
+    - "Скелет add_item: if bucket is None: bucket = []; затем bucket.append(item); return bucket. Скелет greet: text = f\"{greeting}, {name}!\"; return text.upper() if loud else text."
+  tests:
+    - id: clamp-basic
+      title: clamp - обычные значения
+      hint: Проверьте обе границы и значение внутри диапазона, включая значения, равные границам.
+    - id: add-item-fresh
+      title: add_item с переданным списком
+      hint: Функция должна добавить элемент в конец и вернуть список.
+    - id: min-max-basic
+      title: min_max - непустые данные
+      hint: Результат - кортеж из двух чисел (минимум, максимум); для одного элемента оба значения равны.
+    - id: greet-basic
+      title: greet - значения по умолчанию и именованные аргументы
+      hint: Приветствие по умолчанию - «Привет», формат "<приветствие>, <имя>!".
+    - id: clamp-defaults
+      title: clamp - значения по умолчанию (скрытый)
+      hidden: true
+      hint: Параметры low и high должны иметь значения по умолчанию 0 и 100; проверьте вызов с одним и двумя аргументами.
+    - id: add-item-independent
+      title: add_item - вызовы не делят состояние (скрытый)
+      hidden: true
+      hint: Если bucket=[] в заголовке, список общий для всех вызовов. Используйте None и создавайте список внутри.
+    - id: add-item-given-bucket
+      title: add_item изменяет переданный список (скрытый)
+      hidden: true
+      hint: Не копируйте переданный список - функция должна изменить именно его и вернуть тот же объект.
+    - id: min-max-empty
+      title: min_max на пустой последовательности (скрытый)
+      hidden: true
+      hint: Для пустого ввода нужно вернуть None, а не вызывать min/max (они бросают ValueError).
+    - id: greet-keyword-only
+      title: greet - loud только именованный (скрытый)
+      hidden: true
+      hint: Поставьте * перед loud в списке параметров. И проверьте регистр результата при loud=True.

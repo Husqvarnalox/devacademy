@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devacademy.local/schema/path.schema.json",
+  "title": "DevAcademy paths/<id>.yaml",
+  "description": "Editor aid only. The C# ContentValidator is authoritative.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "goal",
+    "targets"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string",
+      "description": "backend, frontend, fullstack, ml, ..."
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "Existing course ids; required courses and lessons are derived. Targets are always required."
+    },
+    "stages": {
+      "type": "array",
+      "description": "Optional ordered stages shown on the path screen. A course may appear in only one stage.",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "courses"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "courses": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "alternatives": {
+      "type": "array",
+      "description": "'One of' groups of course ids (>= 2 members each). The learner's pick is stored per path; unpicked members are not required. A member may not be a target and may not be required by targets or non-alternative stage courses.",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "uniqueItems": true,
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

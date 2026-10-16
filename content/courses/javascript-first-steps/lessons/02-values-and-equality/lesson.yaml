@@ -1,0 +1,137 @@
+id: "javascript.first-steps.values-and-equality"
+title: "Значения, ссылки и равенство: === против =="
+goal: "Различать сравнение значений и ссылок, предсказывать результат == по правилам приведения и написать глубокое сравнение."
+difficulty: "intro"
+estimatedMinutes: 35
+prerequisites:
+  - "javascript.first-steps.how-javascript-runs"
+objectives:
+  - "Отличать примитивы от объектов и понимать, что в переменной с объектом лежит ссылка."
+  - "Предсказывать результат === и == для примитивов по правилам приведения."
+  - "Знать особые случаи: NaN, -0, typeof null, Object.is."
+  - "Написать рекурсивное глубокое сравнение JSON-подобных значений с учётом null и массивов."
+masteryCriteria:
+  - "Вы объясняете, почему [1] === [1] ложно, а [1] == 1 истинно."
+  - "Вы без запуска предсказываете, чему равны 0 == \"\", null == 0 и \"0\" == \"\"."
+  - "Вы пишете deepEqual, не ломающийся на null и не путающий массив с объектом."
+related:
+  - "python.fundamentals.variables-and-input"
+next: []
+tags:
+  - "javascript"
+  - "equality"
+  - "coercion"
+  - "references"
+  - "typeof"
+facts:
+  - kind: "internals"
+    text: "Оператор == в ECMAScript определён алгоритмом IsLooselyEqual: при разных типах операндов значения приводятся друг к другу по фиксированной таблице шагов (null == undefined, строка в число, булево в число, объект через ToPrimitive). Алгоритм не случаен, но его результаты трудно держать в голове."
+    sources:
+      - "https://tc39.es/ecma262/#sec-islooselyequal"
+  - kind: "historical"
+    text: "typeof null возвращает \"object\", хотя null - примитивное значение. MDN описывает это как ошибку первой версии языка, которую нельзя исправить без нарушения совместимости с существующими программами."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof"
+  - kind: "misconception"
+    text: "«const делает объект неизменяемым» - неверно. const запрещает присвоить имени новое значение, но свойства объекта, на который оно указывает, менять можно. Для запрета изменений нужен, например, Object.freeze (и он поверхностный)."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно [1, 2] === [1, 2]?"
+      options:
+        - "true"
+        - "false"
+        - "undefined"
+        - "Зависит от содержимого массивов."
+      answer: 1
+      explanation: "Каждый литерал массива создаёт новый объект. === сравнивает ссылки, а ссылки разные, поэтому результат false."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие выражения истинны?"
+      options:
+        - "null == undefined"
+        - "\"1\" == 1"
+        - "null == 0"
+        - "[] == \"\""
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "null == undefined - особый случай. \"1\" == 1 приводит строку к числу. [] == \"\" истинно через ToPrimitive. А null == 0 ложно: null нестрого равен только undefined."
+    - id: "q3"
+      type: "single"
+      prompt: "Как правильно проверить, что x - объект, но не null и не массив?"
+      options:
+        - "typeof x === \"object\""
+        - "x instanceof Object"
+        - "typeof x === \"object\" && x !== null && !Array.isArray(x)"
+        - "x == {}"
+      answer: 2
+      explanation: "typeof null равно \"object\", поэтому нужно отдельно исключить null, а массивы отделяются через Array.isArray."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция считает NaN равным NaN и различает 0 и -0?"
+      answer:
+        - "Object.is"
+        - "Object.is()"
+      explanation: "Object.is использует алгоритм SameValue: Object.is(NaN, NaN) истинно, а Object.is(0, -0) ложно."
+exercise:
+  id: "javascript.first-steps.values-and-equality.exercise"
+  title: "Три вида равенства"
+  prompt: |
+
+    В первой строке записано число `n` - количество проверок. Далее `n` строк. В каждой строке два JSON-значения, разделённых ровно строкой ` | ` (пробел, вертикальная черта, пробел).
+    Строки в тестах не содержат такой подпоследовательности внутри себя. Значения: числа, строки, `true`, `false`, `null`, массивы и объекты, возможно вложенные.
+
+    Для каждой пары `A | B` выведите одну строку:
+
+    ```
+    strict=<A === B> loose=<A == B> deep=<результат вашей функции deepEqual(A, B)>
+    ```
+
+    где булевы значения печатаются как `true` или `false`.
+
+    **Что уже есть в заготовке.** Разбор строк через `JSON.parse` и вывод `strict` и `loose`. Вам нужно реализовать `deepEqual`:
+
+    * два значения глубоко равны, если они `===` равны, либо оба - массивы одинаковой длины с попарно глубоко равными элементами,
+      либо оба - обычные объекты с одинаковым набором ключей и глубоко равными значениями по каждому ключу (порядок ключей не важен);
+    * массив и обычный объект между собой не равны; `null` не равен никакому объекту.
+
+    **Пример.** Строка `[1, 2] | [1, 2]` даёт `strict=false loose=false deep=true`: это два разных объекта с одинаковым содержимым.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Начните с быстрых случаев: если a === b, значения глубоко равны. Если хотя бы одно из них не объект или равно null, дальше сравнивать нечего - верните false."
+    - "typeof null равно \"object\", поэтому проверяйте null явно. Массив отличают от объекта через Array.isArray(a) !== Array.isArray(b)."
+    - "Для объектов и массивов сравните Object.keys: количество ключей должно совпасть, а для каждого ключа a нужно, чтобы b имел его (Object.hasOwn) и значения были deepEqual."
+    - "Скелет: if (a === b) return true; if (typeof a !== \"object\" || typeof b !== \"object\" || a === null || b === null) return false; if (Array.isArray(a) !== Array.isArray(b)) return false; затем ka/kb и ka.every(...)."
+  tests:
+    - id: "primitives"
+      title: "Примитивы разных типов"
+      stdin: "4\n1 | \"1\"\n1 | 1.0\n\"0\" | \"\"\nnull | 0\n"
+      expected: "strict=false loose=true deep=false\nstrict=true loose=true deep=true\nstrict=false loose=false deep=false\nstrict=false loose=false deep=false\n"
+      hint: "Для примитивов deep совпадает с ===: 1 и \"1\" разных типов, значит false. Колонку loose уже печатает заготовка."
+    - id: "arrays-objects"
+      title: "Равное содержимое, разные ссылки"
+      stdin: "4\n[1, 2] | [1, 2]\n{\"a\": 1, \"b\": 2} | {\"b\": 2, \"a\": 1}\n[] | \"\"\n[1] | 1\n"
+      expected: "strict=false loose=false deep=true\nstrict=false loose=false deep=true\nstrict=false loose=true deep=false\nstrict=false loose=true deep=false\n"
+      hint: "Два массива с одинаковым содержимым глубоко равны, хотя === даёт false. Проверьте сравнение по элементам и независимость от порядка ключей."
+    - id: "null-and-nested"
+      title: "null, пустые контейнеры и вложенность"
+      stdin: "3\nnull | null\n[] | {}\n[1, [2, 3]] | [1, [2, 3]]\n"
+      expected: "strict=true loose=true deep=true\nstrict=false loose=false deep=false\nstrict=false loose=false deep=true\n"
+      hint: "null равен только null, а [] и {} не равны: сравнивайте Array.isArray у обоих значений. Не забудьте рекурсию для вложенных массивов."
+    - id: "deep-differences"
+      title: "Различия внутри (скрытый)"
+      stdin: "3\n[1, [2, 3]] | [1, [2, 4]]\n{\"a\": [1]} | {\"a\": [1], \"b\": null}\n{\"a\": null} | {\"b\": null}\n"
+      expected: "strict=false loose=false deep=false\nstrict=false loose=false deep=false\nstrict=false loose=false deep=false\n"
+      hidden: true
+      hint: "Различие на глубине должно давать false. Лишний ключ или ключ с другим именем тоже делает объекты разными: сравнивайте количество ключей."
+    - id: "mixed"
+      title: "Смешанные случаи (скрытый)"
+      stdin: "4\n{\"a\": {\"b\": [true, null]}} | {\"a\": {\"b\": [true, null]}}\n[] | false\n[1, 2] | \"1,2\"\n\"a\" | \"a\"\n"
+      expected: "strict=false loose=false deep=true\nstrict=false loose=true deep=false\nstrict=false loose=true deep=false\nstrict=true loose=true deep=true\n"
+      hidden: true
+      hint: "Массив [] нестрого равен false и строке, но глубоко - нет. deepEqual не должен использовать ==."

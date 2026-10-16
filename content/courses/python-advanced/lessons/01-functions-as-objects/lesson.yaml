@@ -1,0 +1,151 @@
+id: python.advanced.functions-as-objects
+title: Функции как объекты и замыкания
+goal: Использовать функции как обычные значения, применять functools.partial и operator, понимать замыкания, nonlocal и позднее связывание в циклах.
+difficulty: medium
+estimatedMinutes: 60
+prerequisites: [python.fundamentals.functions, python.fundamentals.loops]
+objectives:
+  - Передавать функции в другие функции, хранить их в структурах данных и возвращать из функций.
+  - Использовать lambda, key=, functools.partial и operator.itemgetter там, где они короче и яснее обычного def.
+  - Объяснить, что такое замыкание и свободная переменная, и как найти ячейки через __closure__.
+  - Изменять переменную внешней функции через nonlocal и отличать это от global.
+  - Объяснить и исправить ошибку позднего связывания в lambda внутри цикла.
+masteryCriteria:
+  - "Вы предсказываете результат [f() for f in [lambda: i for i in range(3)]] и объясняете его."
+  - Вы пишете фабрику счётчика на замыкании с nonlocal, у которой каждый экземпляр хранит своё состояние.
+  - Вы собираете функцию из других функций (compose) и сортируете записи по нескольким полям через operator.itemgetter.
+related: [python.fundamentals.loops]
+next: [python.advanced.decorators, python.advanced.iterators-and-generators]
+tags: [python, functions, closures, lambda, functools, operator, nonlocal]
+facts:
+  - kind: internals
+    text: >-
+      Замыкание хранит не значения, а ячейки (cell) со ссылками на переменные внешней функции. Эти ячейки лежат в кортеже __closure__ объекта функции,
+      а имена свободных переменных - в __code__.co_freevars. Поэтому функция видит последнее значение переменной, а не то, что было в момент создания.
+    sources:
+      - https://docs.python.org/3/reference/datamodel.html
+      - https://docs.python.org/3/reference/executionmodel.html#naming-and-binding
+  - kind: misconception
+    text: >-
+      «lambda запоминает значение переменной цикла на момент создания». Нет: тело lambda выполняется при вызове и ищет имя в окружающей области видимости в этот момент.
+      Классический пример - список [lambda: i for i in range(3)], все функции которого возвращают 2. Это описано в официальном FAQ.
+    sources:
+      - https://docs.python.org/3/faq/programming.html#why-do-lambdas-defined-in-a-loop-with-different-values-all-return-the-same-result
+  - kind: real-world
+    text: >-
+      functools.partial и operator.itemgetter/attrgetter - стандартные «кирпичики» для key= у sorted и max, для обработчиков событий и для настройки функций без лишних lambda.
+    sources:
+      - https://docs.python.org/3/library/functools.html#functools.partial
+      - https://docs.python.org/3/library/operator.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет код?
+        fs = [lambda: i for i in range(3)]
+        print([f() for f in fs])
+      options:
+        - "[0, 1, 2]"
+        - "[2, 2, 2]"
+        - "[3, 3, 3]"
+        - "Ошибка выполнения"
+      answer: 1
+      explanation: >-
+        Все три lambda ссылаются на одну переменную i из окружающей области. Они вызываются после цикла, когда i равна 2 (последнее значение range(3)).
+    - id: q2
+      type: single
+      prompt: |
+        Что нужно написать во внутренней функции, чтобы она увеличивала переменную count внешней функции (а не создавала новую локальную)?
+      options:
+        - "global count"
+        - "nonlocal count"
+        - "Ничего: count += 1 сам найдёт внешнюю переменную"
+        - "self.count += 1"
+      answer: 1
+      explanation: >-
+        Присваивание делает имя локальным. nonlocal говорит, что имя относится к ближайшей объемлющей функции. global относится к модулю, а без объявления будет UnboundLocalError.
+    - id: q3
+      type: multiple
+      prompt: "Какие из способов исправляют late binding в [lambda: i for i in range(3)]?"
+      options:
+        - "lambda i=i: i"
+        - "functools.partial(identity, i), где identity = lambda x: x"
+        - "Добавить nonlocal i"
+        - "Заменить range(3) на list(range(3))"
+      answer: [0, 1]
+      explanation: >-
+        Значение по умолчанию и partial фиксируют текущее значение i в момент создания функции. nonlocal здесь не применим, а list(range(3)) ничего не меняет: переменная всё равно одна.
+    - id: q4
+      type: single
+      prompt: "Чем functools.partial(int, base=2) отличается от lambda s: int(s, 2)?"
+      options:
+        - "Это разные операции и результат разный"
+        - "Оба создают вызываемый объект с зафиксированным аргументом; partial - готовый объект стандартной библиотеки без собственного тела"
+        - "partial работает только со встроенными функциями"
+        - "lambda вычисляет аргументы заранее, а partial - при вызове"
+      answer: 1
+      explanation: >-
+        partial хранит исходную функцию и зафиксированные аргументы (атрибуты func, args, keywords), а при вызове подставляет остальные. Работает с любыми вызываемыми объектами.
+exercise:
+  id: python.advanced.functions-as-objects.exercise
+  title: Функции собирают функции
+  prompt: |
+    В файле `functional_task.py` реализуйте четыре функции. Тесты импортируют модуль и вызывают их напрямую; ничего не читайте и не печатайте.
+
+    1. `compose(*funcs)` - вернуть функцию, применяющую `funcs` **справа налево**: `compose(f, g)(x) == f(g(x))`. Без аргументов `compose()` возвращает тождественную функцию (`compose()(5) == 5`). Каждая из `funcs` принимает один аргумент.
+    2. `make_counter(start=0)` - вернуть функцию-счётчик на замыкании: каждый вызов увеличивает значение на 1 и возвращает новое. `make_counter(10)` даёт при вызовах 11, 12, ... Разные счётчики независимы.
+    3. `make_multipliers(n)` - вернуть список из `n` функций, где `i`-я функция умножает аргумент на `i` (индексы `0..n-1`). Используйте обычный цикл или генератор списка - но так, чтобы каждая функция помнила **своё** `i`.
+    4. `sort_records(records, *fields)` - вернуть **новый** список словарей, отсортированный по указанным полям по возрастанию (сначала по первому полю, при равенстве - по следующему). Исходный список не менять. Используйте `operator.itemgetter`. Без полей возвращается копия в исходном порядке.
+
+    **Примеры.**
+
+    ```python
+    compose(str, abs)(-3)                     # '3'
+    c = make_counter(10); c(); c()            # 11, затем 12
+    [f(5) for f in make_multipliers(3)]       # [0, 5, 10]
+    sort_records([{"a": 2}, {"a": 1}], "a")   # [{'a': 1}, {'a': 2}]
+    ```
+  entryFile: functional_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с make_counter: внутренняя функция должна менять переменную внешней. Затем посмотрите на make_multipliers в заготовке - что вернёт [f(5) for f in ...]?"
+    - "В make_multipliers все lambda смотрят на одну переменную цикла. Нужно зафиксировать значение при создании: параметр по умолчанию или functools.partial. В compose используйте цикл по reversed(funcs)."
+    - "itemgetter(*fields) возвращает функцию-ключ; с одним полем она вернёт значение, с несколькими - кортеж. Для sorted годится и то и другое. Пустой fields обработайте отдельно: itemgetter() без аргументов вызывает TypeError."
+    - "Скелеты. make_counter: count = start; def inc(): nonlocal count; count += 1; return count; return inc. make_multipliers: [lambda x, i=i: x * i for i in range(n)]. compose: def run(x): for f in reversed(funcs): x = f(x); return x."
+  tests:
+    - id: compose-basic
+      title: compose - порядок применения
+      hint: "compose(f, g)(x) - это f(g(x)): первой применяется самая правая функция, последней - самая левая."
+    - id: counter-basic
+      title: make_counter - счёт от start
+      hint: Первый вызов должен вернуть start + 1. Внутри нужен nonlocal, иначе будет UnboundLocalError.
+    - id: multipliers-basic
+      title: make_multipliers - каждая функция помнит своё i
+      hint: Если все функции возвращают одно и то же, это late binding - зафиксируйте i через параметр по умолчанию.
+    - id: sort-basic
+      title: sort_records - сортировка по одному полю
+      hint: sorted(records, key=itemgetter(field)) возвращает новый отсортированный список.
+    - id: compose-identity
+      title: compose() без аргументов (скрытый)
+      hidden: true
+      hint: Пустая композиция - тождественная функция, она возвращает аргумент без изменений.
+    - id: counter-independent
+      title: Счётчики независимы (скрытый)
+      hidden: true
+      hint: Состояние должно жить в замыкании конкретного вызова make_counter, а не в глобальной переменной.
+    - id: multipliers-edge
+      title: make_multipliers - n = 0 и независимость (скрытый)
+      hidden: true
+      hint: Для n = 0 вернуть пустой список; функции должны вести себя одинаково и после завершения цикла.
+    - id: sort-multi-key
+      title: sort_records - несколько полей и стабильность (скрытый)
+      hidden: true
+      hint: itemgetter с несколькими именами возвращает кортеж, а кортежи сравниваются поэлементно. Для одного поля - просто значение.
+    - id: sort-no-mutation
+      title: sort_records - вход не меняется (скрытый)
+      hidden: true
+      hint: sorted() создаёт новый список, а list.sort() меняет исходный. Без полей верните копию, а не сам аргумент.

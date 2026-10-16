@@ -1,0 +1,151 @@
+id: "nodejs.first-steps.modules-and-event-loop"
+title: "Модули ESM и CommonJS, фазы цикла событий"
+goal: "Различать CommonJS и ES-модули в Node.js, предсказывать порядок синхронного кода, nextTick, промисов и таймеров, и читать stdin через top-level await."
+difficulty: "intro"
+estimatedMinutes: 40
+prerequisites:
+  - "nodejs.first-steps.runtime-process-and-stdin"
+objectives:
+  - "Объяснить, как Node.js выбирает CommonJS или ESM для файла."
+  - "Назвать главные отличия require/module.exports и import/export, включая top-level await."
+  - "Перечислить фазы цикла событий и место nextTick и микрозадач."
+  - "Предсказать порядок вывода в простом скрипте с таймером, промисом и nextTick."
+  - "Прочитать весь stdin одним await через node:stream/consumers."
+masteryCriteria:
+  - "Вы по расширению, package.json и синтаксису определяете, как будет выполнен файл."
+  - "Вы объясняете, почему колбэк промиса выполняется раньше таймера с задержкой 0."
+  - "Вы пишете ESM-программу с import и top-level await без ручной сборки порций."
+related:
+  - "javascript.first-steps.values-and-equality"
+next: []
+tags:
+  - "nodejs"
+  - "esm"
+  - "commonjs"
+  - "event-loop"
+  - "promises"
+facts:
+  - kind: "internals"
+    text: "Node.js определяет систему модулей файла по расширению (.mjs, .cjs), по полю type в ближайшем package.json и, когда тип не задан, по синтаксису. В ES-модуле нет require, module, __filename и __dirname."
+    sources:
+      - "https://nodejs.org/api/packages.html#determining-module-system"
+      - "https://nodejs.org/api/esm.html"
+  - kind: "internals"
+    text: "Цикл событий libuv в Node.js проходит фазы timers, pending callbacks, idle/prepare, poll, check и close callbacks. Очереди process.nextTick и микрозадач (промисы) выполняются между колбэками и перед переходом к следующей фазе."
+    sources:
+      - "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick"
+  - kind: "misconception"
+    text: "«setTimeout с задержкой 0 выполняет функцию немедленно» - неверно. Колбэк выполняется только после текущего синхронного кода, очереди nextTick и микрозадач, в фазе timers, и не раньше положенного срока."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой порядок вывода у CommonJS-скрипта: setTimeout(f, 0), Promise.resolve().then(g), process.nextTick(h), затем console.log(\"sync\")?"
+      options:
+        - "f, g, h, sync"
+        - "sync, f, g, h"
+        - "sync, h, g, f"
+        - "sync, g, h, f"
+      answer: 2
+      explanation: "Сначала синхронный код, затем очередь nextTick, потом микрозадачи промисов и только затем таймеры."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что недоступно в ES-модуле Node.js по умолчанию?"
+      options:
+        - "require"
+        - "module.exports"
+        - "__dirname"
+        - "await на верхнем уровне"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "В ESM нет CommonJS-переменных require, module, __dirname и __filename. Вместо них используют import и import.meta. await на верхнем уровне в ESM разрешён."
+    - id: "q3"
+      type: "single"
+      prompt: "Что произойдёт, если в файле без package.json нет import и export?"
+      options:
+        - "Он выполнится как ESM."
+        - "Он выполнится как CommonJS."
+        - "Node.js откажется его запускать."
+        - "Он выполнится в браузере."
+      answer: 1
+      explanation: "Если тип не задан и синтаксис ESM не обнаружен, файл выполняется как CommonJS, и в нём доступны require и module."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция из node:stream/consumers возвращает промис со строкой, собранной из потока?"
+      answer:
+        - "text"
+        - "text()"
+      explanation: "text(stream) асинхронно читает поток целиком и возвращает строку; json и buffer работают аналогично."
+exercise:
+  id: "nodejs.first-steps.modules-and-event-loop.exercise"
+  title: "Суммы по именам в ES-модуле"
+  prompt: |
+
+    Программа читает весь стандартный ввод. Каждая непустая строка имеет вид `имя,сумма`, где `сумма` - целое число (возможно, отрицательное).
+    Пробелы вокруг имени и суммы нужно отбросить. Пустые строки (и строки из одних пробелов) пропускаются. Строки могут оканчиваться как `\n`, так и `\r\n`.
+
+    Для каждого имени найдите сумму всех его значений и выведите по строке `имя: сумма`. Имена выводите по возрастанию в порядке обычной сортировки строк
+    в JavaScript (`array.sort()` без аргументов, по кодовым единицам UTF-16), то есть без учёта локали.
+
+    Если ввод пуст, ничего не выводите.
+
+    **Требования к решению.** Файл должен быть ES-модулем: используйте `import`, а чтение ввода выполните через `await text(process.stdin)` из `node:stream/consumers` (top-level await).
+
+    **Пример.** Ввод
+
+    ```
+    alice,10
+    bob,5
+    alice,7
+    ```
+
+    даёт
+
+    ```
+    alice: 17
+    bob: 5
+    ```
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Файл должен остаться ES-модулем: оставьте import в начале и используйте await на верхнем уровне. Ввод уже прочитан в переменную input."
+    - "Разбейте input по \\n, на каждой строке сделайте trim() и пропустите пустые. Затем split(\",\") и trim() у обеих частей."
+    - "Копите суммы в Map: totals.set(name, (totals.get(name) ?? 0) + Number(amount)). Number справляется с отрицательными числами."
+    - "Выводите имена в порядке [...totals.keys()].sort() и формат `${name}: ${totals.get(name)}`. sort() без аргументов не учитывает локаль."
+  tests:
+    - id: "basic"
+      title: "Несколько имён"
+      stdin: "alice,10\nbob,5\nalice,7\n"
+      expected: "alice: 17\nbob: 5\n"
+      hint: "Суммируйте по имени в Map и выведите по одной строке name: total, отсортировав имена."
+    - id: "single"
+      title: "Один человек"
+      stdin: "carol,100\n"
+      expected: "carol: 100\n"
+      hint: "Достаточно одной записи: формат строки - имя, двоеточие, пробел, сумма."
+    - id: "negative"
+      title: "Отрицательные суммы"
+      stdin: "dan,-5\ndan,3\neve,0\n"
+      expected: "dan: -2\neve: 0\n"
+      hint: "Сумма может быть отрицательной или нулевой. Преобразуйте значение через Number, а не parseInt без основания."
+    - id: "spaces-sort"
+      title: "Пробелы и порядок сортировки (скрытый)"
+      stdin: "  Bob , 5 \nalice,1\n Bob,2\nЯна,4\n"
+      expected: "Bob: 7\nalice: 1\nЯна: 4\n"
+      hidden: true
+      hint: "Обрежьте пробелы у имени и суммы. Сортировка по умолчанию идёт по кодовым единицам: заглавная B стоит раньше строчной a, а кириллица позже латиницы."
+    - id: "crlf-blank"
+      title: "Windows-переводы строк и пустые строки (скрытый)"
+      stdin: "x,1\r\n\r\ny,2\r\nx,3\r\n\r\n"
+      expected: "x: 4\ny: 2\n"
+      hidden: true
+      hint: "Пустые строки пропускайте, а \\r в конце строки уберёт trim()."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: ""
+      hidden: true
+      hint: "Пустой ввод не должен падать и не должен ничего печатать."

@@ -1,0 +1,5 @@
+id: typescript-intro
+title: Введение в TypeScript
+description: Короткий путь для тех, кто знает основы программирования. Сначала JavaScript (запуск кода, равенство), затем TypeScript (стирание типов, структурная типизация, сужение). Остальные темы трека запланированы.
+goal: general
+targets: [typescript-first-steps]

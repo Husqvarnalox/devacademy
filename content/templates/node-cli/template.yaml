@@ -1,0 +1,8 @@
+id: node-cli
+title: Node.js — консольная программа (ESM)
+languageId: javascript
+description: >-
+  Минимальный проект Node.js на ES-модулях: main.js с функцией greet и тест на встроенном node:test.
+  Зависимостей нет: «node main.js» и «node --test» работают без npm install.
+files: files
+postCreate: []

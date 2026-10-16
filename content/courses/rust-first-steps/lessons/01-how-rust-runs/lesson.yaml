@@ -1,0 +1,151 @@
+id: "rust.first-steps.how-rust-runs"
+title: "Как выполняется Rust: rustc, нет рантайма и stdin"
+goal: "Понять, что делает rustc, и написать программу, читающую числа из stdin."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites: []
+objectives:
+  - "Объяснить, что Rust компилируется в машинный код без сборщика мусора."
+  - "Различать let и let mut, типы i32 и i64, преобразования as."
+  - "Читать stdin через read_to_string и split_whitespace."
+  - "Знать, что поведение переполнения зависит от режима сборки."
+masteryCriteria:
+  - "Вы выбираете i64 для суммы и приводите к f64 до деления."
+  - "Вы объясняете, зачем нужны checked_, wrapping_ и saturating_."
+related:
+  - "python.fundamentals.how-python-runs"
+next:
+  - "rust.first-steps.ownership-moves-and-borrowing"
+tags:
+  - "rust"
+  - "rustc"
+  - "stdin"
+  - "overflow"
+facts:
+  - kind: "historical"
+    text: "Rust 1.0 - первая стабильная версия языка - была выпущена 15 мая 2015 года."
+    sources:
+      - "https://blog.rust-lang.org/2015/05/15/Rust-1.0/"
+  - kind: "internals"
+    text: "При целочисленном переполнении в отладочной сборке Rust паникует, а в релизной сборке по умолчанию выполняет заворачивание по модулю (two's complement)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch03-02-data-types.html#integer-overflow"
+  - kind: "misconception"
+    text: "«println! - обычная функция» - неверно: восклицательный знак означает макрос, который раскрывается на этапе компиляции."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что создаёт rustc для программы с fn main()?"
+      options:
+        - "Файл байткода JVM."
+        - "Файл для интерпретатора."
+        - "Исполняемый файл с машинным кодом."
+        - "Ничего, пока не запущен cargo."
+      answer: 2
+      explanation: "rustc переводит программу в машинный код и создаёт исполняемый файл; виртуальной машины нет."
+    - id: "q2"
+      type: "single"
+      prompt: "Что делает let x = 5; x = 6;?"
+      options:
+        - "Присваивает 6."
+        - "Ошибка компиляции."
+        - "Паника при запуске."
+        - "Создаёт новую переменную."
+      answer: 1
+      explanation: "Переменные по умолчанию неизменяемы, поэтому присваивание - ошибка компиляции. Нужен let mut x."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "x.checked_add(1) возвращает Option."
+        - "i32 + i64 допустимо без приведения."
+        - "println! - макрос."
+        - "Rust использует сборщик мусора."
+      answer:
+        - 0
+        - 2
+      explanation: "checked_add возвращает Option, а println! - макрос. i32 и i64 складывать без приведения нельзя."
+    - id: "q4"
+      type: "short"
+      prompt: "Каким методом строки разбить ввод по пробелам и переводам строк, пропуская пустые части?"
+      answer:
+        - "split_whitespace"
+        - "split_whitespace()"
+      explanation: "split_whitespace() разбивает по любым пробельным символам и не создаёт пустых элементов."
+exercise:
+  id: "rust.first-steps.how-rust-runs.exercise"
+  title: "Статистика по числам из stdin"
+  prompt: |
+
+    Программа получает на вход число `n` (1 <= n <= 1000), а затем `n` целых чисел, каждое из которых по модулю не больше 2 000 000 000.
+    Числа могут быть разбросаны по строкам как угодно и разделены любым количеством пробелов и переводов строк.
+
+    Выведите ровно четыре строки:
+
+    ```
+    sum=<сумма>
+    min=<наименьшее>
+    max=<наибольшее>
+    avg=<среднее арифметическое с двумя знаками после точки>
+    ```
+
+    **Пример.** Ввод `4` и затем `1 2 3 4` даёт
+
+    ```
+    sum=10
+    min=1
+    max=4
+    avg=2.50
+    ```
+
+    Среднее печатайте с точкой как десятичным разделителем, независимо от региональных настроек системы.
+    Сумма может не поместиться в 32 бита, учитывайте это.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Прочитайте весь stdin: read_to_string(&mut input), затем input.split_whitespace(). Первое слово - n."
+    - "Следующие n слов разберите как i64: it.take(n).map(|t| t.parse().unwrap()).collect::<Vec<i64>>()."
+    - "Сумма: nums.iter().sum::<i64>(); минимум и максимум: *nums.iter().min().unwrap() и max()."
+    - "Среднее: sum as f64 / n as f64, формат {:.2}. Форматирование не зависит от локали."
+  tests:
+    - id: "basic"
+      title: "Числа в одной строке"
+      stdin: "4\n1 2 3 4\n"
+      expected: "sum=10\nmin=1\nmax=4\navg=2.50\n"
+      hint: "Нужны четыре строки sum=, min=, max=, avg=."
+    - id: "lines"
+      title: "Числа на разных строках"
+      stdin: "3\n10\n20\n30\n"
+      expected: "sum=60\nmin=10\nmax=30\navg=20.00\n"
+      hint: "split_whitespace пропускает переводы строк и пустые части."
+    - id: "single"
+      title: "Одно число"
+      stdin: "1\n7\n"
+      expected: "sum=7\nmin=7\nmax=7\navg=7.00\n"
+      hint: "При n = 1 все величины равны, avg = 7.00."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "5\n-3 -1 -4 -1 -5\n"
+      expected: "sum=-14\nmin=-5\nmax=-1\navg=-2.80\n"
+      hidden: true
+      hint: "Не начинайте min и max с 0; берите их из данных."
+    - id: "whitespace"
+      title: "Лишние пробелы и пустые строки (скрытый)"
+      stdin: "3\n  5   2\n\n 2\n"
+      expected: "sum=9\nmin=2\nmax=5\navg=3.00\n"
+      hidden: true
+      hint: "split_whitespace игнорирует лишние пробелы и пустые строки."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: "3\n1 2 2\n"
+      expected: "sum=5\nmin=1\nmax=2\navg=1.67\n"
+      hidden: true
+      hint: "Приведите к f64 до деления: sum as f64 / n as f64."
+    - id: "big-sum"
+      title: "Сумма больше 32-битного диапазона (скрытый)"
+      stdin: "2\n2000000000 2000000000\n"
+      expected: "sum=4000000000\nmin=2000000000\nmax=2000000000\navg=2000000000.00\n"
+      hidden: true
+      hint: "4000000000 не помещается в i32. Используйте i64."

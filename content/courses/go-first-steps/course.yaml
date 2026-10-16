@@ -1,0 +1,11 @@
+id: "go-first-steps"
+version: "1.0.0"
+title: "Go: первые шаги"
+description: "Вводный курс из трёх уроков: как Go компилируется в исполняемый файл и читает ввод, срезы с len/cap и append, затем пакеты, ошибки-значения и go test. Остальные темы трека Go запланированы."
+languageId: "go"
+level: 0
+track: "go"
+lessons:
+  - "01-how-go-runs"
+  - "02-slices-len-cap-and-append"
+  - "03-packages-and-go-test"

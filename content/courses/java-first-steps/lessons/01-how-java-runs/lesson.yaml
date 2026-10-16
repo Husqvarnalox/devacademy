@@ -1,0 +1,157 @@
+id: "java.first-steps.how-java-runs"
+title: "Как выполняется Java: javac, байткод и JVM"
+goal: "Понять путь от Main.java до выполнения на JVM и написать программу, читающую числа через Scanner."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites: []
+objectives:
+  - "Описать роли javac, файла .class, JVM, интерпретатора и JIT-компиляторов C1 и C2."
+  - "Объяснить, чем байткод отличается от машинного кода."
+  - "Читать stdin через Scanner и писать в stdout через System.out."
+  - "Предсказывать поведение int при переполнении, целочисленного деления и printf с локалью."
+masteryCriteria:
+  - "Вы объясняете, зачем нужна JVM и почему .class переносим между платформами."
+  - "Вы выбираете long для суммы и приводите к double до деления."
+  - "Вы форматируете число через Locale.ROOT и знаете, чем %n отличается от \\n."
+related:
+  - "python.fundamentals.how-python-runs"
+next:
+  - "java.first-steps.primitives-objects-and-equality"
+tags:
+  - "java"
+  - "jvm"
+  - "bytecode"
+  - "jit"
+  - "scanner"
+facts:
+  - kind: "internals"
+    text: "Файл .class начинается с магического числа 0xCAFEBABE; далее следуют версия формата, пул констант и описания классов, полей и методов. Формат определён спецификацией виртуальной машины Java."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jvms/se22/html/jvms-4.html#jvms-4.1"
+  - kind: "internals"
+    text: "HotSpot использует ступенчатую компиляцию (tiered compilation): сначала байткод интерпретируется, затем часто выполняемый код компилируется быстрым компилятором C1, а самый горячий - оптимизирующим компилятором C2."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/22/vm/java-hotspot-virtual-machine-performance-enhancements.html"
+  - kind: "historical"
+    text: "Начиная с Java 11 команда java умеет запускать файл с исходным кодом напрямую: компиляция выполняется в памяти (JEP 330). Это та же компиляция в байткод, просто без файла .class на диске."
+    sources:
+      - "https://openjdk.org/jeps/330"
+  - kind: "misconception"
+    text: "«Java интерпретируется» - упрощение. Байткод сначала интерпретируется, но горячие методы JVM компилирует в машинный код во время выполнения."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что создаёт команда javac Main.java?"
+      options:
+        - "Исполняемый файл для вашего процессора."
+        - "Файл Main.class с байткодом для JVM."
+        - "Копию Main.java без комментариев."
+        - "Образ Docker."
+      answer: 1
+      explanation: "javac переводит исходный код в байткод и записывает его в файл Main.class. Выполняет его JVM."
+    - id: "q2"
+      type: "single"
+      prompt: "Чему равно Integer.MAX_VALUE + 1, если вычисление выполняется во время работы?"
+      options:
+        - "Integer.MAX_VALUE"
+        - "0"
+        - "ArithmeticException"
+        - "Integer.MIN_VALUE"
+      answer: 3
+      explanation: "Переполнение int не вызывает ошибки: результат равен Integer.MIN_VALUE (-2147483648). Math.addExact бросил бы ArithmeticException."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно?"
+      options:
+        - "JIT-компилятор переводит горячий байткод в машинный код."
+        - "String.format(\"%.2f\", x) зависит от локали по умолчанию."
+        - "JVM нельзя запустить без файла .java."
+        - "Байткод привязан к архитектуре процессора."
+      answer:
+        - 0
+        - 1
+      explanation: "HotSpot интерпретирует байткод и компилирует горячие участки; printf без явной локали зависит от региональных настроек."
+    - id: "q4"
+      type: "short"
+      prompt: "Каким методом Scanner читать следующее целое число типа long?"
+      answer:
+        - "nextLong"
+        - "nextLong()"
+      explanation: "nextLong() пропускает пробельные символы и читает следующее число типа long."
+exercise:
+  id: "java.first-steps.how-java-runs.exercise"
+  title: "Статистика по числам из stdin"
+  prompt: |
+
+    Программа получает на вход число `n` (1 <= n <= 1000), а затем `n` целых чисел, каждое из которых по модулю не больше 2 000 000 000.
+    Числа могут быть разбросаны по строкам как угодно и разделены любым количеством пробелов и переводов строк.
+
+    Выведите ровно четыре строки:
+
+    ```
+    sum=<сумма>
+    min=<наименьшее>
+    max=<наибольшее>
+    avg=<среднее арифметическое с двумя знаками после точки>
+    ```
+
+    **Пример.** Ввод `4` и затем `1 2 3 4` даёт
+
+    ```
+    sum=10
+    min=1
+    max=4
+    avg=2.50
+    ```
+
+    Среднее печатайте с точкой как десятичным разделителем, независимо от региональных настроек системы.
+    Сумма может не поместиться в 32 бита, учитывайте это.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Создайте Scanner(System.in). nextInt() читает n, а в цикле nextLong() - сами числа; переводы строк и лишние пробелы Scanner пропускает сам."
+    - "Сумму храните в long. Для минимума и максимума начните с Long.MAX_VALUE и Long.MIN_VALUE либо с первого прочитанного числа."
+    - "Для среднего приведите сумму к double до деления: (double) sum / n. Если сначала разделить long на int, дробная часть пропадёт."
+    - "Для вывода используйте printf(Locale.ROOT, \"sum=%d%nmin=%d%nmax=%d%navg=%.2f%n\", ...). Locale.ROOT гарантирует точку."
+  tests:
+    - id: "basic"
+      title: "Числа в одной строке"
+      stdin: "4\n1 2 3 4\n"
+      expected: "sum=10\nmin=1\nmax=4\navg=2.50\n"
+      hint: "Проверьте формат: четыре строки sum=..., min=..., max=..., avg=...."
+    - id: "lines"
+      title: "Числа на разных строках"
+      stdin: "3\n10\n20\n30\n"
+      expected: "sum=60\nmin=10\nmax=30\navg=20.00\n"
+      hint: "Числа на разных строках: Scanner.nextLong() сам пропускает переводы строк."
+    - id: "single"
+      title: "Одно число"
+      stdin: "1\n7\n"
+      expected: "sum=7\nmin=7\nmax=7\navg=7.00\n"
+      hint: "При n = 1 все три величины равны одному числу, а среднее - 7.00."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "5\n-3 -1 -4 -1 -5\n"
+      expected: "sum=-14\nmin=-5\nmax=-1\navg=-2.80\n"
+      hidden: true
+      hint: "Начальные значения min и max не должны быть 0: используйте Long.MAX_VALUE/Long.MIN_VALUE."
+    - id: "whitespace"
+      title: "Лишние пробелы и пустые строки (скрытый)"
+      stdin: "3\n  5   2\n\n 2\n"
+      expected: "sum=9\nmin=2\nmax=5\navg=3.00\n"
+      hidden: true
+      hint: "Scanner игнорирует лишние пробелы и пустые строки между числами."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: "3\n1 2 2\n"
+      expected: "sum=5\nmin=1\nmax=2\navg=1.67\n"
+      hidden: true
+      hint: "Среднее 5/3 надо поделить как double и напечатать как 1.67 через %.2f."
+    - id: "big-sum"
+      title: "Сумма больше 32-битного диапазона (скрытый)"
+      stdin: "2\n2000000000 2000000000\n"
+      expected: "sum=4000000000\nmin=2000000000\nmax=2000000000\navg=2000000000.00\n"
+      hidden: true
+      hint: "4000000000 не помещается в int. Храните сумму и числа в long."

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Porta.Pty" />
+    <InternalsVisibleTo Include="DevAcademy.Terminal.Tests" />
+  </ItemGroup>
+
+</Project>

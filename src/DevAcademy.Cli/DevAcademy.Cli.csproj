@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevAcademy.Content\DevAcademy.Content.csproj" />
+    <ProjectReference Include="..\DevAcademy.Application\DevAcademy.Application.csproj" />
+    <ProjectReference Include="..\DevAcademy.Execution\DevAcademy.Execution.csproj" />
+    <ProjectReference Include="..\DevAcademy.Infrastructure\DevAcademy.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>

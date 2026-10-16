@@ -1,0 +1,7 @@
+id: pa.one
+title: Advanced one
+goal: Advanced one
+difficulty: intro
+estimatedMinutes: 10
+objectives: [Advanced one]
+prerequisites: [pb.three]

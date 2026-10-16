@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devacademy.local/schema/template.schema.json",
+  "title": "DevAcademy templates/<id>/template.yaml",
+  "description": "Editor aid only. The C# ContentLoader is authoritative.",
+  "type": "object",
+  "required": ["id", "title", "languageId"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "description": "Must equal the directory name." },
+    "title": { "type": "string", "minLength": 1 },
+    "languageId": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "files": { "type": "string", "default": "files", "description": "Directory (relative to the template) copied into the new project; {{name}} is substituted in text files." },
+    "postCreate": { "type": "array", "items": { "type": "string" }, "description": "Commands shown to the user after creation. NEVER executed automatically." }
+  }
+}

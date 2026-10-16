@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.ProfileEditorView"
+             x:DataType="vm:ProfileEditorViewModel">
+  <StackPanel Spacing="20">
+    <StackPanel Spacing="8">
+      <TextBlock Text="{loc:T Onboarding_Language}" Classes="h3" />
+      <ItemsControl ItemsSource="{Binding Languages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:TrackChoiceViewModel">
+            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,0,0,6"
+                    IsEnabled="{Binding IsAvailable}"
+                    Command="{Binding PickCommand}"
+                    AutomationProperties.Name="{Binding Title}">
+              <Grid ColumnDefinitions="22,*,Auto" Margin="2">
+                <TextBlock Text="✓" Foreground="{DynamicResource SystemAccentColor}" IsVisible="{Binding IsSelected}" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Description}" Classes="caption" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <TextBlock Grid.Column="2" Text="{Binding StatusText}" Classes="caption" VerticalAlignment="Center" Margin="12,0,0,0" />
+              </Grid>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Text="{loc:T Onboarding_Goal}" Classes="h3" />
+      <ComboBox ItemsSource="{Binding Goals}" SelectedItem="{Binding SelectedGoal}" MinWidth="320">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Text="{loc:T Onboarding_Level}" Classes="h3" />
+      <ComboBox ItemsSource="{Binding Levels}" SelectedItem="{Binding SelectedLevel}" MinWidth="320">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Text="{loc:T Onboarding_Depth}" Classes="h3" />
+      <ComboBox ItemsSource="{Binding Depths}" SelectedItem="{Binding SelectedDepth}" MinWidth="320">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

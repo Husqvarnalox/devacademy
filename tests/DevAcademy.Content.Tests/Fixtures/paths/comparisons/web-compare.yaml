@@ -1,0 +1,21 @@
+id: web-compare
+title: Web compared
+subjects:
+  - { id: django, title: Django, kind: framework, version: "5.2", docs: [https://docs.djangoproject.com/en/5.2/] }
+  - { id: fastapi, title: FastAPI, kind: framework, version: "0.115", docs: [https://fastapi.tiangolo.com/] }
+  - { id: flask, title: Flask, kind: framework, version: "3.1", docs: [https://flask.palletsprojects.com/] }
+criteria:
+  - { id: scope, title: Scope, description: What is included }
+  - { id: async, title: Async, description: Async support }
+cells:
+  scope:
+    django: "**Django** has batteries."
+    fastapi: "FastAPI is API focused."
+    flask: "Flask is small."
+  async:
+    django: "Django supports async views."
+    fastapi: "FastAPI is ASGI."
+    flask: "Flask needs an extra."
+verdictGuidance: |
+  Django, FastAPI or Flask: choose by the task.
+sources: [https://docs.djangoproject.com/en/5.2/]

@@ -1,0 +1,165 @@
+id: python.advanced.classes-and-objects
+title: Классы и объекты изнутри
+goal: Понимать поиск атрибутов, связанные методы и дескрипторы, различать classmethod, staticmethod и property, избегать ловушки изменяемого атрибута класса.
+difficulty: medium
+estimatedMinutes: 70
+prerequisites: [python.advanced.functions-as-objects, python.fundamentals.dicts-and-sets]
+objectives:
+  - Описать порядок поиска атрибута - дескриптор данных, __dict__ экземпляра, класс и его базовые классы - и проверить его через vars().
+  - Объяснить, что метод - это функция-дескриптор, и что obj.method создаёт связанный метод с __self__ и __func__.
+  - Выбирать между обычным методом, @classmethod и @staticmethod и объяснить разницу на подклассе.
+  - Использовать @property для вычисляемых атрибутов и проверки значений.
+  - Объяснить, почему изменяемый атрибут класса общий для экземпляров, и как работает __slots__.
+masteryCriteria:
+  - Вы предсказываете, изменит ли self.x += 1 атрибут класса или создаст атрибут экземпляра.
+  - Вы пишете класс со свойством с проверкой и с альтернативным конструктором через @classmethod, корректно работающим в подклассах.
+  - Вы объясняете, что даёт __slots__ и какие ограничения накладывает.
+related: [python.advanced.decorators]
+next: [python.advanced.dunder-methods-and-dataclasses, python.advanced.inheritance-composition-protocols]
+tags: [python, classes, attributes, descriptors, property, classmethod, staticmethod, slots]
+facts:
+  - kind: internals
+    text: >-
+      Функции в теле класса являются дескрипторами без данных: у них есть __get__. Когда вы пишете obj.method, поиск находит функцию в классе, вызывает func.__get__(obj, type(obj)) и получает связанный метод,
+      у которого __self__ - это obj, а __func__ - исходная функция. property, classmethod и staticmethod устроены по тому же принципу дескрипторов.
+    sources:
+      - https://docs.python.org/3/howto/descriptor.html
+      - https://docs.python.org/3/reference/datamodel.html#implementing-descriptors
+  - kind: misconception
+    text: >-
+      «self.counter += 1 увеличивает счётчик класса». Это запись self.counter = self.counter + 1: чтение находит атрибут класса, но присваивание всегда создаёт атрибут в __dict__ экземпляра.
+      Атрибут класса остаётся прежним. Для общего счётчика обращайтесь к классу явно: Cls.counter += 1.
+    sources:
+      - https://docs.python.org/3/tutorial/classes.html#class-and-instance-variables
+  - kind: performance
+    text: >-
+      __slots__ заменяет словарь __dict__ экземпляра фиксированным набором слотов: экземпляры занимают меньше памяти, а лишние атрибуты присвоить нельзя. Это особенность реализации CPython-объектов с описанным
+      в документации поведением; выигрыш заметен при миллионах небольших объектов.
+    sources:
+      - https://docs.python.org/3/reference/datamodel.html#slots
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет код?
+        class A:
+            n = 0
+            def inc(self):
+                self.n += 1
+        a, b = A(), A()
+        a.inc(); a.inc(); b.inc()
+        print(A.n, a.n, b.n)
+      options:
+        - "3 2 1"
+        - "0 2 1"
+        - "0 0 0"
+        - "3 3 3"
+      answer: 1
+      explanation: >-
+        self.n += 1 читает n (находит атрибут класса) и записывает результат в __dict__ экземпляра. Каждый экземпляр получает свой n, а A.n остаётся 0.
+    - id: q2
+      type: single
+      prompt: |
+        Что выведет код?
+        class Box:
+            items = []
+        x, y = Box(), Box()
+        x.items.append(1)
+        print(y.items)
+      options:
+        - "[]"
+        - "[1]"
+        - "AttributeError"
+        - "None"
+      answer: 1
+      explanation: >-
+        items - атрибут класса, у x и y нет собственного. x.items.append изменяет общий список, который виден через оба экземпляра.
+    - id: q3
+      type: single
+      prompt: Когда @classmethod предпочтительнее @staticmethod?
+      options:
+        - "Когда метод вообще не использует класс или экземпляр"
+        - "Когда метод должен создавать или настраивать экземпляры через cls, чтобы работать и в подклассах"
+        - "Когда метод должен быть быстрее"
+        - "Когда нужно скрыть метод от подклассов"
+      answer: 1
+      explanation: >-
+        classmethod получает класс первым аргументом (cls), поэтому альтернативный конструктор вернёт экземпляр подкласса, если вызвать его у подкласса. staticmethod - просто функция внутри пространства имён класса.
+    - id: q4
+      type: single
+      prompt: Что сделает присваивание p.z = 1, если у класса есть __slots__ = ("x", "y") и нет __dict__?
+      options:
+        - "Создаст атрибут z"
+        - "Поднимет AttributeError"
+        - "Изменит атрибут класса"
+        - "Проигнорирует присваивание"
+      answer: 1
+      explanation: >-
+        Набор атрибутов фиксирован слотами, словаря для новых имён нет, поэтому присваивание неописанного имени вызывает AttributeError.
+exercise:
+  id: python.advanced.classes-and-objects.exercise
+  title: Четыре класса
+  prompt: |
+    В файле `classes_task.py` реализуйте четыре класса. Ничего не читайте и не печатайте.
+
+    1. `Temperature(celsius)`:
+       * свойство `celsius` с чтением и записью; значение ниже `-273.15` даёт `ValueError` (и в конструкторе тоже);
+       * свойство `fahrenheit` с чтением и записью: `F = C * 9 / 5 + 32`, запись пересчитывает градусы Цельсия;
+       * `@classmethod from_fahrenheit(cls, f)` - альтернативный конструктор, который должен работать и для подклассов;
+       * `@staticmethod is_valid(c)` - `True`, если `c >= -273.15`.
+    2. `Registry` - каждому созданному экземпляру присваивается атрибут `id`: 1, 2, 3, ... Счётчик хранится в атрибуте **класса** `_next_id` (начально `1`); экземпляры не должны заводить собственную копию. `@classmethod count()` возвращает число созданных экземпляров, `@classmethod reset()` сбрасывает счётчик.
+    3. `Bag` - метод `add(item)` добавляет элемент в список `items` **этого** экземпляра и возвращает `self`. У разных экземпляров списки независимы.
+    4. `Point(x, y)` с `__slots__ = ("x", "y")`: нельзя присвоить другие атрибуты (`AttributeError`), у экземпляров нет `__dict__`. Метод `moved(dx, dy)` возвращает **новый** `Point`.
+
+    **Примеры.**
+
+    ```python
+    t = Temperature.from_fahrenheit(212); t.celsius        # 100.0
+    Registry.reset(); Registry().id, Registry().id          # (1, 2)
+    Bag().add(1).add(2).items                               # [1, 2]
+    Point(1, 2).moved(1, 1).x                               # 2
+    ```
+  entryFile: classes_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с Bag: список должен создаваться в __init__ (self.items = []), а не в теле класса. Сравните с тем, что сделано в заготовке."
+    - "Registry: прибавлять нужно к атрибуту класса, а не к self: self._next_id += 1 создаёт атрибут экземпляра. Пишите Registry._next_id += 1 (или type(self)._next_id)."
+    - "Temperature: храните значение в _celsius; свойства celsius и fahrenheit делаются через @property и @celsius.setter / @fahrenheit.setter. В __init__ присваивайте self.celsius = celsius, чтобы сработала проверка. from_fahrenheit возвращайте через cls(...)."
+    - "Скелет celsius: @property def celsius(self): return self._celsius; @celsius.setter def celsius(self, value): if value < -273.15: raise ValueError(...); self._celsius = value. Для Point задайте __slots__ = (\"x\", \"y\") в теле класса и в moved верните Point(self.x + dx, self.y + dy)."
+  tests:
+    - id: temperature-basic
+      title: Temperature - чтение и пересчёт
+      hint: fahrenheit вычисляется из celsius; запись fahrenheit должна менять celsius.
+    - id: registry-basic
+      title: Registry - последовательные id
+      hint: Первый экземпляр после reset() получает id 1, второй - 2; count() возвращает число созданных.
+    - id: bag-basic
+      title: Bag - add возвращает self
+      hint: add добавляет в items и возвращает self, чтобы вызовы можно было сцеплять.
+    - id: point-basic
+      title: Point - moved
+      hint: moved не меняет исходную точку, а возвращает новую.
+    - id: temperature-validation
+      title: Temperature - проверка и classmethod/staticmethod (скрытый)
+      hidden: true
+      hint: Проверка должна срабатывать и в конструкторе, и при записи через setter; is_valid - staticmethod, вызывается и у класса, и у экземпляра.
+    - id: temperature-subclass
+      title: from_fahrenheit в подклассе (скрытый)
+      hidden: true
+      hint: Создавайте экземпляр через cls(...), а не Temperature(...), тогда у подкласса вернётся подкласс.
+    - id: registry-class-attr
+      title: Registry - общий счётчик класса (скрытый)
+      hidden: true
+      hint: После создания экземпляров "_next_id" не должен появляться в vars(экземпляр); изменяйте Registry._next_id.
+    - id: bag-independent
+      title: Bag - независимые экземпляры (скрытый)
+      hidden: true
+      hint: Если items объявлен в теле класса, список общий для всех экземпляров. Создавайте его в __init__.
+    - id: point-slots
+      title: Point - __slots__ (скрытый)
+      hidden: true
+      hint: Укажите __slots__ = ("x", "y"); тогда у экземпляров нет __dict__ и присваивание z вызывает AttributeError.

@@ -1,0 +1,160 @@
+id: "ml.foundations.classification-metrics"
+title: "Метрики классификации: accuracy, precision, recall, F1"
+goal: "Считать матрицу ошибок и метрики бинарной классификации и понимать, почему accuracy вводит в заблуждение на несбалансированных данных."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites: ["ml.foundations.what-is-ml"]
+related: ["python.fundamentals.functions", "python.fundamentals.lists"]
+next: ["ml.foundations.knn"]
+objectives:
+  - "Построить матрицу ошибок (TP, FP, FN, TN) по спискам истинных и предсказанных меток."
+  - "Вычислить accuracy, precision, recall и F1 и объяснить смысл каждой метрики словами."
+  - "Показать на примере, что при дисбалансе классов accuracy может быть высокой у бесполезной модели."
+  - "Явно обработать деление на ноль в precision, recall и F1."
+  - "Объяснить влияние порога классификации на компромисс между precision и recall."
+masteryCriteria:
+  - "Ваши функции сходятся с эталонными значениями в пределах 1e-9 на сбалансированных и несбалансированных наборах."
+  - "Вы объясняете, почему F1 - среднее гармоническое, а не арифметическое."
+  - "Для пустого входа и случая «нет положительных» функции возвращают определённое значение 0.0, а не падают."
+tags: ["ml", "classification", "metrics", "precision", "recall", "f1", "imbalanced-data"]
+facts:
+  - kind: "misconception"
+    text: "«Чем выше accuracy, тем лучше модель». На выборке, где 95% объектов принадлежат одному классу, постоянный ответ даёт accuracy 0.95 при нулевой полноте для редкого класса. Практическое руководство по выбору метрик приведено в Google Machine Learning Crash Course."
+    sources:
+      - "https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall"
+  - kind: "real-world"
+    text: "Для задач с разной ценой ошибок метрику выбирают по бизнес-риску: в медицинском скрининге максимизируют recall (не пропустить больного), в фильтрах контента для публикации - precision (не блокировать невиновных). Обзор метрик и их вариантов описан в руководстве scikit-learn."
+    sources: ["https://scikit-learn.org/stable/modules/model_evaluation.html"]
+  - kind: "internals"
+    text: "В scikit-learn функции precision_score, recall_score и f1_score принимают параметр zero_division, который задаёт значение при нулевом знаменателе. Соглашение «0.0» в этом уроке совпадает с одним из допустимых вариантов."
+    sources: ["https://scikit-learn.org/stable/modules/model_evaluation.html"]
+  - kind: "performance"
+    text: "Все четыре счётчика матрицы ошибок считаются за один проход по данным за O(n) и с постоянной памятью, поэтому метрики классификации дёшевы по сравнению с обучением модели; для больших данных суммирование выполняют по пакетам и складывают счётчики."
+    sources: ["https://scikit-learn.org/stable/modules/model_evaluation.html"]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: "В матрице ошибок TP = 8, FP = 2, FN = 4, TN = 86. Чему равна precision? Ответ - десятичная дробь."
+      answer: 0.8
+      tolerance: 0.0001
+      explanation: "precision = TP / (TP + FP) = 8 / 10 = 0.8."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Те же данные (TP = 8, FP = 2, FN = 4, TN = 86). Чему равна recall? Ответ - десятичная дробь, округлите до трёх знаков."
+      answer: 0.667
+      tolerance: 0.001
+      explanation: "recall = TP / (TP + FN) = 8 / 12 ≈ 0.667."
+    - id: "q3"
+      type: "single"
+      prompt: "Фильтр для заблокированных платежей должен минимизировать число случаев, когда честный клиент получает отказ. Какая метрика для этого важнее?"
+      options:
+        - "Recall положительного класса «мошенник»"
+        - "Precision положительного класса «мошенник»"
+        - "Любая: они одинаковы"
+        - "Число объектов в выборке"
+      answer: 1
+      explanation: "Отказ честному клиенту - это ложная тревога (FP). Высокая precision означает, что почти все блокировки справедливы."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему для F1 используется среднее гармоническое, а не арифметическое?"
+      options:
+        - "Оно строго больше арифметического"
+        - "Оно сильно снижается, если одна из метрик близка к нулю"
+        - "Оно проще считать"
+        - "Так принято только в Python"
+      answer: 1
+      explanation: "При P = 1 и R = 0.01 арифметическое среднее около 0.5, а гармоническое около 0.02: F1 не позволяет скрыть провал одной из метрик."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Данные: 1000 объектов, 10 положительных. Модель всегда отвечает «0». Какие утверждения верны?"
+      options:
+        - "accuracy = 0.99"
+        - "recall положительного класса = 0"
+        - "precision положительного класса не определена (знаменатель 0)"
+        - "F1 = 0.99"
+      answer: [0, 1, 2]
+      explanation: "Верных ответов 990 из 1000 (0.99), найдено 0 из 10 положительных (recall 0), предсказанных положительных нет (precision 0/0); F1 при этом 0 по принятому соглашению."
+    - id: "q6"
+      type: "single"
+      prompt: "Как изменятся precision и recall, если понизить порог классификации (называть положительными больше объектов)?"
+      options:
+        - "Recall обычно вырастет, precision обычно упадёт"
+        - "Оба вырастут"
+        - "Оба упадут"
+        - "Не изменятся"
+      answer: 0
+      explanation: "Больше объектов становятся положительными: находится больше настоящих положительных (recall вверх), но растёт и число ложных тревог (precision вниз)."
+complexity:
+  time: "O(n)"
+  space: "O(1)"
+  explanation: "Один проход по меткам с четырьмя счётчиками; метрики - формулы над счётчиками."
+exercise:
+  id: "ml.foundations.classification-metrics.exercise"
+  title: "Метрики бинарной классификации"
+  prompt: |
+    В файле `metrics_task.py` реализуйте пять функций. Метки - целые `0`/`1`, положительный класс - `1`. Только стандартная библиотека; ничего не печатайте.
+
+    1. `confusion_matrix(y_true, y_pred)` - вернуть кортеж `(tp, fp, fn, tn)`.
+    2. `accuracy(y_true, y_pred)` = `(tp + tn) / n`.
+    3. `precision(y_true, y_pred)` = `tp / (tp + fp)`.
+    4. `recall(y_true, y_pred)` = `tp / (tp + fn)`.
+    5. `f1(y_true, y_pred)` = `2*p*r / (p + r)`.
+
+    **Соглашение:** если знаменатель равен 0 (пустой вход, нет предсказанных положительных, нет настоящих положительных или `p + r = 0`), функция возвращает `0.0`.
+
+    Тесты сравнивают числа с допуском `1e-9`.
+
+    **Пример.**
+
+    ```python
+    y_true = [1, 1, 1, 1, 0, 0, 0, 0, 0, 0]
+    y_pred = [1, 1, 1, 0, 1, 1, 0, 0, 0, 0]
+    confusion_matrix(y_true, y_pred)   # (3, 2, 1, 4)
+    accuracy(y_true, y_pred)           # 0.7
+    precision(y_true, y_pred)          # 0.6
+    recall(y_true, y_pred)             # 0.75
+    ```
+  entryFile: "metrics_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Начните с confusion_matrix: один цикл по zip(y_true, y_pred) и четыре счётчика. Остальные функции - формулы над ними."
+    - "Для деления на ноль заведите маленький помощник: def _div(a, b): return a / b if b else 0.0 - и используйте его везде."
+    - "f1 выражается через precision и recall; если p + r == 0, верните 0.0 (так бывает, когда ни одного положительного не найдено)."
+    - "Знаменатели: precision делит на tp + fp (предсказанные положительные), recall - на tp + fn (настоящие положительные), accuracy - на n."
+  tests:
+    - id: "confusion"
+      title: "Матрица ошибок"
+      hint: "Порядок в кортеже: tp, fp, fn, tn. Метка 1 - положительный класс."
+    - id: "accuracy"
+      title: "accuracy"
+      hint: "(tp + tn) / n; для всех верных ответов 1.0."
+    - id: "precision-recall"
+      title: "precision и recall на примере"
+      hint: "precision = tp / (tp + fp), recall = tp / (tp + fn)."
+    - id: "f1"
+      title: "F1 на примере"
+      hint: "Среднее гармоническое precision и recall."
+    - id: "imbalanced-accuracy-lies"
+      title: "Дисбаланс: accuracy 0.95 при recall 0 (скрытый)"
+      hidden: true
+      hint: "Если предсказанных положительных нет, precision = 0.0 по соглашению, а не исключение."
+    - id: "high-recall-low-precision"
+      title: "Высокая полнота, низкая точность (скрытый)"
+      hidden: true
+      hint: "4 настоящих положительных найдены, ложных тревог 6: precision 0.4, recall 1.0."
+    - id: "no-positives-in-truth"
+      title: "Нет положительных в разметке (скрытый)"
+      hidden: true
+      hint: "tp + fn = 0: recall должен быть 0.0, а не ZeroDivisionError."
+    - id: "empty-input"
+      title: "Пустой вход (скрытый)"
+      hidden: true
+      hint: "Для пустого входа все метрики 0.0, матрица ошибок нулевая."
+    - id: "f1-is-harmonic"
+      title: "F1 - среднее гармоническое (скрытый)"
+      hidden: true
+      hint: "2*p*r/(p + r) строго меньше (p + r)/2 при p != r."

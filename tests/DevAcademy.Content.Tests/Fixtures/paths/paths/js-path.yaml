@@ -1,0 +1,5 @@
+id: js-path
+title: JS path
+description: JS
+goal: general
+targets: [js-basics]

@@ -1,0 +1,10 @@
+id: "java-first-steps"
+version: "1.0.0"
+title: "Java: первые шаги"
+description: "Вводный курс из двух уроков: как Java компилируется в байткод и выполняется на JVM, затем примитивы и объекты, разница между == и equals и автоупаковка. Остальные темы трека Java запланированы."
+languageId: "java"
+level: 0
+track: "java"
+lessons:
+  - "01-how-java-runs"
+  - "02-primitives-objects-and-equality"

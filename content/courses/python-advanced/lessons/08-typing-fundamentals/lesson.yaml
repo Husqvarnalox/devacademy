@@ -1,0 +1,185 @@
+id: python.advanced.typing-fundamentals
+title: Аннотации типов
+goal: Понимать, что подсказки типов не проверяются во время выполнения, читать их через __annotations__ и get_type_hints, использовать современный синтаксис и обобщения PEP 695 и писать простой проверяющий код на их основе.
+difficulty: hard
+estimatedMinutes: 80
+prerequisites: [python.advanced.classes-and-objects, python.advanced.functions-as-objects]
+objectives:
+  - Показать, что интерпретатор не проверяет аннотации, и найти их в __annotations__.
+  - Записывать типы современным синтаксисом - list[int], dict[str, int], X | None, Callable, Literal, TypedDict.
+  - "Объяснить синтаксис обобщений PEP 695 (def f[T](x: T) -> T, class Box[T]) и соответствие устаревшему TypeVar, а также указать версию Python, с которой он доступен."
+  - Использовать typing.get_type_hints, get_origin и get_args для разбора аннотаций во время выполнения.
+  - Объяснить сужение типа через isinstance и роль статических анализаторов mypy и Pyright.
+masteryCriteria:
+  - Вы объясняете, почему add("a", "b") работает при аннотациях int, и где это обнаружит статический анализатор.
+  - Вы пишете функцию проверки значения по аннотации, разбирающую union, контейнеры и Literal через get_origin/get_args.
+  - Вы пишете обобщённую функцию в синтаксисе Python 3.12+ и видите её параметры типа в __type_params__.
+related: [python.advanced.dunder-methods-and-dataclasses, python.advanced.inheritance-composition-protocols]
+next: []
+seeAlso:
+  - "Статическая проверка типов с mypy и Pyright (запланировано: инструменты пока не установлены в среде)"
+tags: [python, typing, annotations, generics, typeddict, literal, pep-695, get_type_hints]
+facts:
+  - kind: historical
+    text: >-
+      Синтаксис аннотаций функций появился в Python 3.0 (PEP 3107), стандартная семантика подсказок типов и модуль typing - в Python 3.5 (PEP 484).
+      Синтаксис обобщений def f[T](x: T) -> T, class Box[T] и инструкция type добавлены в Python 3.12 (PEP 695).
+    sources:
+      - https://peps.python.org/pep-3107/
+      - https://peps.python.org/pep-0484/
+      - https://peps.python.org/pep-0695/
+  - kind: internals
+    text: >-
+      Документация прямо указывает: среда выполнения Python не проверяет аннотации функций и переменных. Они сохраняются в __annotations__ (у функций, классов, модулей) и доступны для чтения;
+      typing.get_type_hints разворачивает строковые и отложенные аннотации в объекты. В Python 3.14 аннотации по умолчанию вычисляются лениво (PEP 649, PEP 749), поэтому для чтения надёжнее использовать get_type_hints или модуль inspect.
+    sources:
+      - https://docs.python.org/3/library/typing.html
+      - https://docs.python.org/3/howto/annotations.html
+      - https://peps.python.org/pep-0649/
+  - kind: real-world
+    text: >-
+      Проверку типов выполняют отдельные инструменты - mypy, Pyright и встроенные проверки редакторов: они разбирают исходный код, не запуская его. В этом курсе они не установлены, поэтому упражнения проверяют поведение во время выполнения;
+      интеграция статических анализаторов запланирована в инструментарии платформы.
+    sources:
+      - https://typing.python.org/en/latest/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет код?
+        def add(a: int, b: int) -> int:
+            return a + b
+        print(add("x", "y"))
+      options:
+        - "TypeError во время вызова"
+        - "xy"
+        - "Ошибка при определении функции"
+        - "None"
+      answer: 1
+      explanation: >-
+        Аннотации не проверяются интерпретатором. Оператор + для строк работает, поэтому результат xy. Несоответствие аннотациям нашли бы mypy или Pyright без запуска программы.
+    - id: q2
+      type: single
+      prompt: Что означает запись `str | None` в аннотации и с какой версии Python она доступна как синтаксис объединения типов?
+      options:
+        - "Строка или None; оператор | для типов работает с Python 3.10"
+        - "Побитовое ИЛИ строки с None; только с Python 3.13"
+        - "Только строка; None игнорируется"
+        - "Ошибка синтаксиса во всех версиях"
+      answer: 0
+      explanation: >-
+        X | Y обозначает объединение типов (PEP 604) и доступен с Python 3.10. Эквивалент: typing.Optional[str] или typing.Union[str, None].
+    - id: q3
+      type: single
+      prompt: "Что объявляет def first[T](xs: list[T]) -> T и с какой версии Python такой синтаксис допустим?"
+      options:
+        - "Функцию с параметром типа T; синтаксис PEP 695 доступен с Python 3.12"
+        - "Функцию с обычным параметром T; синтаксис есть во всех версиях Python 3"
+        - "Ошибку: квадратные скобки нельзя ставить после имени функции"
+        - "Функцию, которая проверяет тип элементов во время вызова"
+      answer: 0
+      explanation: >-
+        PEP 695 добавил объявление параметров типа прямо в заголовок функции или класса (Python 3.12). До этого использовали T = TypeVar("T"). Само по себе объявление ничего не проверяет во время выполнения.
+    - id: q4
+      type: single
+      prompt: |
+        Что делает код?
+        def size(x: int | str) -> int:
+            if isinstance(x, str):
+                return len(x)
+            return x
+      options:
+        - "isinstance сужает тип: в ветке после проверки анализатор знает, что x - str, а дальше - int"
+        - "isinstance преобразует x в строку"
+        - "Аннотация заставляет интерпретатор отклонить другие типы"
+        - "Код не запустится без mypy"
+      answer: 0
+      explanation: >-
+        Сужение типа (narrowing) - вывод статическим анализатором более точного типа внутри ветки. Во время выполнения это обычный isinstance.
+    - id: q5
+      type: single
+      prompt: Какой инструмент нужен, чтобы получить предупреждение о неправильном типе аргумента до запуска программы?
+      options:
+        - "Любой запуск python"
+        - "Статический анализатор типов - mypy или Pyright"
+        - "Модуль typing"
+        - "Функция typing.get_type_hints"
+      answer: 1
+      explanation: >-
+        typing даёт лишь синтаксис и вспомогательные функции для чтения аннотаций. Проверку выполняют внешние анализаторы, которые в среде курса пока не установлены.
+exercise:
+  id: python.advanced.typing-fundamentals.exercise
+  title: Проверка типов во время выполнения
+  prompt: |
+    Нужен Python 3.12+ (синтаксис `def f[T]`). Поскольку mypy и Pyright в среде не установлены, проверим аннотации сами - во время выполнения. В файле `typing_task.py` реализуйте:
+
+    1. `check_type(value, tp)` - `True`, если `value` соответствует аннотации `tp`. Нужно поддержать: обычные классы (`isinstance`), `Any`, `None`, объединения (`int | str`, `Optional[int]`, `Union[...]`), `Literal[...]` (значение и его точный тип), контейнеры `list[X]`, `set[X]`, `dict[K, V]`, `tuple[X, ...]` и `tuple[X, Y]` (с учётом вложенности). Используйте `typing.get_origin` и `typing.get_args`.
+    2. `bad_arguments(func, *args, **kwargs)` - список имён параметров **в порядке сигнатуры**, чьи переданные значения не соответствуют аннотациям `func` (аннотации читайте через `typing.get_type_hints`). Параметры без аннотации и непереданные параметры с умолчаниями игнорируются; `*args`/`**kwargs` не проверяйте. Некорректный сам по себе вызов (не хватает аргументов) даёт `TypeError` от `inspect.Signature.bind`.
+    3. Декоратор `strict(func)` - перед вызовом проверяет аргументы через `bad_arguments` и при ошибке поднимает `TypeError` с именами параметров в сообщении; после вызова проверяет результат по аннотации `return` (если она есть) и тоже поднимает `TypeError`. Метаданные функции сохраняются.
+    4. `first[T](items: list[T], default: T) -> T` - обобщённая функция, объявленная **в синтаксисе PEP 695**: возвращает первый элемент или `default` для пустого списка.
+    5. `matches_typeddict(data, td)` - `True`, если словарь `data` соответствует `TypedDict` `td`: есть все обязательные ключи (`td.__required_keys__`), нет лишних, значения подходят под типы (`get_type_hints(td)`).
+
+    **Примеры.**
+
+    ```python
+    check_type([1, 2], list[int])          # True
+    check_type({"a": None}, dict[str, int | None])   # True
+    def f(a: int, b: str = "x"): ...
+    bad_arguments(f, "1", b=2)             # ['a', 'b']
+    first([], 0)                           # 0
+    ```
+  requires: { python: ">=3.12" }
+  entryFile: typing_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с first: в Python 3.12+ параметр типа объявляется прямо в заголовке: def first[T](...). Затем разберитесь с check_type: сначала origin = get_origin(tp); если origin равен None, значит tp - обычный класс."
+    - "Объединения: при get_origin(tp) в (typing.Union, types.UnionType) значение подходит, если подходит хоть одно из get_args(tp). Для Literal сравнивайте и значение, и тип (иначе True == 1). Для list/set/dict/tuple сначала проверьте isinstance(value, origin), затем элементы."
+    - "tuple[X, ...] имеет get_args == (X, Ellipsis) - все элементы по одному типу. tuple[X, Y] - позиционные типы, длины должны совпасть. bad_arguments: sig = inspect.signature(func); bound = sig.bind(*args, **kwargs); hints = get_type_hints(func); для каждого (имя, значение) из bound.arguments проверьте check_type, пропуская VAR_POSITIONAL и VAR_KEYWORD."
+    - "Скелет strict: @wraps(func) def wrapper(*a, **k): bad = bad_arguments(func, *a, **k); if bad: raise TypeError(...); result = func(*a, **k); hints = get_type_hints(func); if 'return' in hints and not check_type(result, hints['return']): raise TypeError(...); return result. Скелет TypedDict: hints = get_type_hints(td); required = td.__required_keys__; return set(data) <= set(hints) and required <= set(data) and all(check_type(v, hints[k]) for k, v in data.items())."
+  tests:
+    - id: check-simple
+      title: check_type - простые типы и объединения
+      hint: Обычный класс проверяйте через isinstance; None - через "value is None"; объединение - любой из get_args.
+    - id: check-containers
+      title: check_type - контейнеры
+      hint: Для list[int] сначала isinstance(value, list), затем каждый элемент; dict проверяйте по ключам и значениям; tuple[int, ...] - один тип для всех.
+    - id: bad-arguments-basic
+      title: bad_arguments - несоответствующие параметры
+      hint: Свяжите аргументы с параметрами через inspect.signature(func).bind и проверьте каждый по get_type_hints.
+    - id: strict-basic
+      title: strict - проверка аргументов
+      hint: Обёртка должна пропускать корректный вызов и поднимать TypeError при неверном типе аргумента.
+    - id: first-generic
+      title: first - обобщённая функция
+      hint: first.__type_params__ должен содержать один параметр с именем T, то есть объявляйте def first[T](...) в синтаксисе Python 3.12.
+    - id: typeddict-basic
+      title: matches_typeddict - обычный случай
+      hint: Используйте get_type_hints(td) для типов значений и td.__required_keys__ для обязательных ключей.
+    - id: check-literal-any-none
+      title: Literal, Any, None, Optional (скрытый)
+      hidden: true
+      hint: "Literal[1] не должен принимать True: сравнивайте и значение, и точный тип. Any принимает всё; внутри Optional[int] (get_args) None представлен классом NoneType, а в простой аннотации tp=None тоже нужно обработать."
+    - id: check-nested
+      title: Вложенные контейнеры (скрытый)
+      hidden: true
+      hint: Функция должна рекурсивно вызывать себя для аргументов вложенного типа, например list[dict[str, int | None]].
+    - id: bad-arguments-order
+      title: bad_arguments - порядок, умолчания, без аннотаций (скрытый)
+      hidden: true
+      hint: Используйте bound.arguments (он упорядочен как сигнатура и не содержит непереданных параметров); параметры без аннотации пропускайте.
+    - id: strict-return
+      title: strict - результат и метаданные (скрытый)
+      hidden: true
+      hint: Результат проверяется по hints["return"]; для "-> None" get_type_hints даёт NoneType. Не забудьте functools.wraps.
+    - id: typeddict-keys
+      title: matches_typeddict - лишние и отсутствующие ключи (скрытый)
+      hidden: true
+      hint: Обязательные ключи - td.__required_keys__; ключи, которых нет в get_type_hints(td), лишние. total=False делает ключи необязательными.
+    - id: first-behavior
+      title: first - значения (скрытый)
+      hidden: true
+      hint: Первый элемент непустого списка или default для пустого; не проверяйте тип элементов.

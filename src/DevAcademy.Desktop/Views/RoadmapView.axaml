@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:md="using:DevAcademy.Desktop.Markdown"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.RoadmapView"
+             x:DataType="vm:RoadmapViewModel">
+  <ScrollViewer>
+    <StackPanel MaxWidth="900" Margin="24,20" Spacing="14" HorizontalAlignment="Stretch">
+      <Button Content="{loc:T Roadmap_Back}" Command="{Binding BackCommand}" Classes="flat" HorizontalAlignment="Left" Padding="0" />
+      <StackPanel Spacing="4">
+        <TextBlock Text="{Binding Title}" Classes="h1" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding ProgressText}" FontWeight="SemiBold" Margin="0,6,0,0" />
+      </StackPanel>
+      <Border Classes="panel" Padding="14" IsVisible="{Binding HasFramework}">
+        <StackPanel Spacing="6" DataContext="{Binding Framework}" x:DataType="vm:FrameworkInfoViewModel">
+          <TextBlock Text="{Binding Title}" Classes="h3" />
+          <TextBlock Text="{Binding CurriculumText}" Classes="caption" />
+          <TextBlock Text="{Binding Compatibility}" TextWrapping="Wrap" IsVisible="{Binding HasCompatibility}" />
+          <StackPanel Spacing="2" IsVisible="{Binding HasDeprecated}">
+            <TextBlock Text="{loc:T Framework_Deprecated}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding Deprecated}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DeprecatedRowViewModel">
+                  <TextBlock TextWrapping="Wrap" Classes="warn">
+                    <Run Text="{Binding Feature}" FontWeight="SemiBold" /><Run Text=" — " /><Run Text="{Binding Status}" /><Run Text=": " /><Run Text="{Binding Note}" />
+                  </TextBlock>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <StackPanel Spacing="2" IsVisible="{Binding HasMigrationNotes}">
+            <TextBlock Text="{loc:T Framework_Migration}" FontWeight="SemiBold" />
+            <md:MarkdownViewer Markdown="{Binding MigrationNotes}" />
+          </StackPanel>
+          <StackPanel Spacing="2" IsVisible="{Binding HasDocs}">
+            <TextBlock Text="{loc:T Framework_Docs}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding Docs}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <Button Content="{Binding}" Classes="flat" Padding="0" HorizontalAlignment="Left"
+                          Command="{Binding $parent[UserControl].((vm:RoadmapViewModel)DataContext).OpenLinkCommand}" CommandParameter="{Binding}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      <ItemsControl ItemsSource="{Binding Placements}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:PlacementRowViewModel">
+            <Border Classes="panel" Padding="14,10" Margin="0,0,0,6">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Content="{loc:T Placement_Skip}" Command="{Binding TakeCommand}" Margin="12,0,0,0" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <Border Classes="panel" Padding="14" IsVisible="{Binding HasPlacementCheck}">
+        <StackPanel Spacing="8" DataContext="{Binding PlacementCheck}" x:DataType="vm:PlacementViewModel">
+          <TextBlock Text="{Binding Title}" Classes="h3" TextWrapping="Wrap" />
+          <ContentControl Content="{Binding Quiz}" />
+          <TextBlock Text="{Binding Outcome}" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <Button Content="{loc:T Placement_Close}" Command="{Binding CloseCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+      <ItemsControl ItemsSource="{Binding Lessons}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:RoadmapLessonViewModel">
+            <Border Classes="panel" Padding="14,10" Margin="0,0,0,6">
+              <Grid ColumnDefinitions="32,*,Auto">
+                <TextBlock Text="{Binding Number}" Classes="muted" VerticalAlignment="Top" Margin="0,2,0,0" />
+                <StackPanel Grid.Column="1" Spacing="3">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <Border Classes="badge"><TextBlock Text="{Binding StateText}" FontSize="12" /></Border>
+                  </StackPanel>
+                  <TextBlock Text="{Binding Goal}" Classes="muted" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Meta}" Classes="caption" />
+                  <TextBlock Text="{Binding SourceText}" Classes="caption success" IsVisible="{Binding IsCompleted}" />
+                  <TextBlock Text="{Binding WhyLocked}" Classes="caption warn" TextWrapping="Wrap" IsVisible="{Binding IsLocked}" />
+                </StackPanel>
+                <Button Grid.Column="2" Content="{Binding OpenText}" Command="{Binding OpenCommand}" VerticalAlignment="Center" Margin="12,0,0,0" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

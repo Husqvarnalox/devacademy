@@ -1,0 +1,134 @@
+id: "kotlin.first-steps.null-safety-and-val-var"
+title: "Null-безопасность: ?, ?., ?: и !!"
+goal: "Понять, как система типов Kotlin отделяет nullable-значения, и обрабатывать null без падений."
+difficulty: "intro"
+estimatedMinutes: 35
+prerequisites:
+  - "kotlin.first-steps.how-kotlin-runs"
+objectives:
+  - "Различать T и T? и объяснять, почему компилятор отвергает присваивание null в T."
+  - "Применять ?., ?: и smart cast."
+  - "Объяснить, чем !! опасен и когда он оправдан."
+  - "Использовать toIntOrNull и map[key] как источники nullable."
+masteryCriteria:
+  - "Вы переписываете код с !! на ?: или явную проверку."
+  - "Вы называете места, где NPE всё же возможен: Java-код, !!, инициализация."
+related:
+  - "python.fundamentals.variables-and-input"
+next: []
+tags:
+  - "kotlin"
+  - "null-safety"
+  - "elvis"
+  - "smart-cast"
+facts:
+  - kind: "internals"
+    text: "В документации Kotlin перечислены единственные причины NullPointerException: явный вызов throw NullPointerException(), оператор !!, ошибки порядка инициализации и взаимодействие с Java-кодом."
+    sources:
+      - "https://kotlinlang.org/docs/null-safety.html"
+  - kind: "historical"
+    text: "Идею, что значение может отсутствовать, Тони Хоар назвал «ошибкой на миллиард долларов» в докладе 2009 года о введении null-ссылки в ALGOL W в 1965 году."
+    sources:
+      - "https://www.infoq.com/presentations/Null-References-The-Billion-Dollar-Mistake-Tony-Hoare/"
+  - kind: "misconception"
+    text: "«?: работает как тернарный оператор» - неверно: он подставляет правую часть только если левая равна null, а не при любом ложном значении."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт при val s: String = null?"
+      options:
+        - "Исключение при запуске."
+        - "s станет пустой строкой."
+        - "Ошибка компиляции."
+        - "Предупреждение, программа запустится."
+      answer: 2
+      explanation: "Тип String не допускает null, поэтому это ошибка компиляции, а не исключение при запуске."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет: val s: String? = null; println(s?.length ?: -1)?"
+      options:
+        - "null"
+        - "-1"
+        - "0"
+        - "NPE"
+      answer: 1
+      explanation: "s?.length равно null, поэтому оператор Элвиса подставляет -1."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие выражения не бросят исключение при x = null (x: String?)?"
+      options:
+        - "x?.length"
+        - "x ?: \"\""
+        - "x!!.length"
+        - "Все они компилируются и безопасны."
+      answer:
+        - 0
+        - 1
+      explanation: "?. и ?: безопасны. x!! бросает NPE, а x.length не скомпилируется для nullable-типа."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция вернёт null вместо исключения для строки \"abc\" при переводе в Int?"
+      answer:
+        - "toIntOrNull"
+        - "toIntOrNull()"
+      explanation: "toIntOrNull() возвращает null при некорректной строке."
+exercise:
+  id: "kotlin.first-steps.null-safety-and-val-var.exercise"
+  title: "Домен из адреса без !!"
+  prompt: |
+
+    Программа получает `n`, а затем `n` строк вида `имя адрес`. Вместо адреса может стоять `-`, что означает «адреса нет».
+
+    Для каждой строки выведите `имя: ДОМЕН`, где ДОМЕН - часть адреса после первого `@`, приведённая к верхнему регистру. Если адреса нет (`-`) или в нём нет `@`, выведите `имя: NONE`.
+
+    **Пример.** Строки `ann ann@example.com` и `bob -` дают
+
+    ```
+    ann: EXAMPLE.COM
+    bob: NONE
+    ```
+
+    В заготовке функция `domain` возвращает `String?`, но вызывающий код использует `!!`, и программа падает на строке без адреса. Исправьте так, чтобы `null` обрабатывался без `!!`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Запустите программу на строке 'bob -': !! на null бросает NullPointerException. Функция domain уже возвращает String?, поэтому проблема в вызывающем коде."
+    - "Уберите !! и подставьте значение по умолчанию: val d = domain(parts[1]) ?: \"NONE\"."
+    - "Внутри domain: email.takeIf { '@' in it } вернёт null, если '@' нет. Затем ?.substringAfter('@') и ?.uppercase()."
+    - "Итог: return email.takeIf { '@' in it }?.substringAfter('@')?.uppercase()."
+  tests:
+    - id: "basic"
+      title: "Обычные адреса"
+      stdin: "3\nann ann@example.com\nbob bob@mail.org\neve eve@x.io\n"
+      expected: "ann: EXAMPLE.COM\nbob: MAIL.ORG\neve: X.IO\n"
+      hint: "Домен - часть после '@', в верхнем регистре: substringAfter('@').uppercase()."
+    - id: "missing"
+      title: "Адрес отсутствует"
+      stdin: "3\nann ann@example.com\nbob -\neve eve@x.io\n"
+      expected: "ann: EXAMPLE.COM\nbob: NONE\neve: X.IO\n"
+      hint: "Для '-' нужно получить null и вывести NONE через ?:. Вызов !! на null бросает исключение."
+    - id: "all-missing"
+      title: "Адресов нет вообще"
+      stdin: "2\nzed -\namy -\n"
+      expected: "zed: NONE\namy: NONE\n"
+      hint: "Нет ни одного адреса: каждая строка заканчивается на NONE."
+    - id: "no-at"
+      title: "Адрес без @ (скрытый)"
+      stdin: "2\nkim kim.example.com\nlee lee@sub.domain.net\n"
+      expected: "kim: NONE\nlee: SUB.DOMAIN.NET\n"
+      hidden: true
+      hint: "Если в адресе нет '@', результат тоже NONE. Используйте takeIf { '@' in it }."
+    - id: "single"
+      title: "Один пользователь (скрытый)"
+      stdin: "1\nsolo -\n"
+      expected: "solo: NONE\n"
+      hidden: true
+      hint: "Работает и при n = 1."
+    - id: "case"
+      title: "Регистр домена (скрытый)"
+      stdin: "2\na A@MiXeD.Org\nb b@x.y\n"
+      expected: "a: MIXED.ORG\nb: X.Y\n"
+      hidden: true
+      hint: "Домен надо привести к верхнему регистру: uppercase()."

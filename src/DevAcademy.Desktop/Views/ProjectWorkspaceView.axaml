@@ -1,0 +1,190 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.ProjectWorkspaceView"
+             x:DataType="vm:ProjectWorkspaceViewModel">
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Cmd+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Ctrl+F" Command="{Binding FindCommand}" />
+    <KeyBinding Gesture="Cmd+F" Command="{Binding FindCommand}" />
+    <KeyBinding Gesture="Ctrl+H" Command="{Binding ReplaceCommand}" />
+    <KeyBinding Gesture="Cmd+Alt+F" Command="{Binding ReplaceCommand}" />
+    <KeyBinding Gesture="Ctrl+G" Command="{Binding GoToLineCommand}" />
+    <KeyBinding Gesture="Cmd+G" Command="{Binding GoToLineCommand}" />
+  </UserControl.KeyBindings>
+  <Grid RowDefinitions="Auto,Auto,*,Auto,260">
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Classes="bar" Padding="10,6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Content="{loc:T Ws_CloseProject}" Command="{Binding CloseProjectCommand}" Classes="flat" />
+          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding Root}" Classes="caption mono" VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Button Content="{loc:T Ws_Save}" Command="{Binding SaveCommand}" />
+          <Button Content="{loc:T Ws_Split}" Command="{Binding ToggleSplitCommand}" />
+          <Button Content="{loc:T Ws_Run}" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Classes="accent"
+                  ToolTip.Tip="{Binding RunCommandText}" />
+          <Button Content="{loc:T Ws_Test}" Command="{Binding TestCommand}" IsEnabled="{Binding CanRun}"
+                  ToolTip.Tip="{Binding TestCommandText}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Border Grid.Row="1" Padding="10,4" Background="{DynamicResource SubtleBrush}">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{loc:T Ws_NoSandbox}" Classes="caption warn" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsPython}">
+          <TextBlock Text="{loc:T Ws_PythonEnv}" Classes="caption" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{Binding PythonChoices}" SelectedItem="{Binding SelectedPython}" MinWidth="220"
+                    AutomationProperties.Name="{loc:T Ws_PythonEnv}" />
+          <Button Content="{loc:T Ws_CreateVenv}" Command="{Binding CreateVenvCommand}" />
+          <Button Content="{loc:T Ws_InstallRequirements}" Command="{Binding InstallRequirementsCommand}" />
+        </StackPanel>
+        <StackPanel Spacing="2" IsVisible="{Binding HasPostCreate}">
+          <TextBlock Text="{loc:T Ws_PostCreate}" Classes="caption" />
+          <ItemsControl ItemsSource="{Binding PostCreateCommands}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PostCreateCommand">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Text}" Classes="mono" VerticalAlignment="Center" />
+                  <Button Content="{loc:T Ws_ToTerminal}"
+                          Command="{Binding $parent[ItemsControl].((vm:ProjectWorkspaceViewModel)DataContext).TypePostCreateCommand}" CommandParameter="{Binding}" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <TextBlock Text="{Binding Status}" Classes="caption" TextWrapping="Wrap"
+                   IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+    </Border>
+
+    <!-- Explorer + editors -->
+    <Grid Grid.Row="2" ColumnDefinitions="260,4,*">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="6">
+        <WrapPanel Orientation="Horizontal">
+          <Button Content="{loc:T Ws_NewFileShort}" Command="{Binding NewFileCommand}" Classes="flat" ToolTip.Tip="{loc:T Ws_NewFile}" />
+          <Button Content="{loc:T Ws_NewFolderShort}" Command="{Binding NewFolderCommand}" Classes="flat" ToolTip.Tip="{loc:T Ws_NewFolder}" />
+          <Button Content="{loc:T Ws_Rename}" Command="{Binding RenameCommand}" Classes="flat" IsEnabled="{Binding Explorer.HasSelection}" />
+          <Button Content="{loc:T Ws_Delete}" Command="{Binding DeleteCommand}" Classes="flat" IsEnabled="{Binding Explorer.HasSelection}" />
+          <Button Content="{loc:T Ws_Refresh}" Command="{Binding RefreshExplorerCommand}" Classes="flat" />
+        </WrapPanel>
+        <CheckBox Grid.Row="1" Content="{loc:T Ws_ShowIgnored}" ToolTip.Tip="{loc:T Ws_ShowIgnoredHint}" IsChecked="{Binding Explorer.ShowIgnored}" FontSize="12" />
+        <TextBox Grid.Row="2" Name="FileQueryBox" Text="{Binding Search.FileQuery}" PlaceholderText="{loc:T Ws_FileSearch}" Margin="0,2" />
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,2">
+          <TextBox Name="TextQueryBox" Text="{Binding Search.TextQuery}" PlaceholderText="{loc:T Ws_TextSearch}" />
+          <Button Grid.Column="1" Content="{loc:T Ws_Cancel}" Click="OnCancelSearch" Classes="flat" IsVisible="{Binding Search.CanCancel}" />
+        </Grid>
+        <Grid Grid.Row="4">
+          <TreeView Name="Tree" ItemsSource="{Binding Explorer.Roots}" SelectedItem="{Binding Explorer.Selected}"
+                    IsVisible="{Binding !ShowSearch}">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:TreeNodeViewModel">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="vm:TreeNodeViewModel">
+                <TextBlock Text="{Binding Name}" Classes.muted="{Binding IsIgnored}" />
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+          <Grid IsVisible="{Binding ShowSearch}" RowDefinitions="Auto,*">
+            <TextBlock Text="{Binding Search.Status}" Classes="caption" TextWrapping="Wrap" />
+            <ListBox Grid.Row="1" ItemsSource="{Binding Search.TextResults}" Name="TextHits" IsVisible="{Binding ShowTextHits}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:SearchHitItem">
+                  <StackPanel>
+                    <TextBlock Text="{Binding Display}" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Preview}" Classes="caption mono" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <ListBox Grid.Row="1" ItemsSource="{Binding Search.FileResults}" Name="FileHits" IsVisible="{Binding !ShowTextHits}">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" FontSize="12" /></DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Grid>
+      </Grid>
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+      <ItemsControl Grid.Column="2" ItemsSource="{Binding Groups}" Name="GroupsHost">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:EditorGroupViewModel">
+            <Border Classes="panel" Padding="0" Margin="1" Tag="{Binding}" PointerPressed="OnGroupPressed">
+              <Grid RowDefinitions="Auto,*">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <ItemsControl ItemsSource="{Binding Tabs}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:EditorTabViewModel">
+                        <StackPanel Orientation="Horizontal">
+                          <Button Classes="tab" Classes.active="{Binding IsSelected}" Click="OnTabClick">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                              <TextBlock Text="{Binding Title}" />
+                              <TextBlock Text="●" IsVisible="{Binding IsDirty}" Classes="warn" />
+                              <TextBlock Text="⚠" IsVisible="{Binding DeletedOnDisk}" Classes="danger" />
+                            </StackPanel>
+                          </Button>
+                          <Button Content="×" Classes="flat" Click="OnTabClose" Padding="4,0" AutomationProperties.Name="{loc:T Ws_CloseTab}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+                <ctl:CodeEditorControl Grid.Row="1" IsVisible="{Binding HasTabs}" Document="{Binding ActiveTab.Document}" FileName="{Binding ActiveTab.Title}" />
+                <TextBlock Grid.Row="1" Text="{loc:T Ws_NoFileOpen}" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding !HasTabs}" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Grid>
+
+    <GridSplitter Grid.Row="3" ResizeDirection="Rows" Height="4" HorizontalAlignment="Stretch" />
+
+    <!-- Terminal panel -->
+    <Grid Grid.Row="4" RowDefinitions="Auto,*">
+      <Border Classes="bar" Padding="6,2">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="{loc:T Ws_Terminal}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <ListBox ItemsSource="{Binding Terminals}" SelectedItem="{Binding ActiveTerminal}" MaxHeight="34">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:TerminalTabViewModel">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="{Binding Title}" />
+                    <TextBlock Text="{Binding StatusText}" Classes="caption" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <Button Content="{loc:T Ws_NewTerminal}" Command="{Binding NewTerminalTabCommand}" />
+            <Button Content="{loc:T Ws_KillTerminal}" Command="{Binding KillTerminalCommand}" IsEnabled="{Binding CanKillActive}" />
+            <Button Content="{loc:T Ws_CloseTerminal}" Command="{Binding CloseTerminalCommand}" IsEnabled="{Binding HasActiveTerminal}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+      <ctl:TerminalControl Grid.Row="1" Name="TerminalHost" Session="{Binding ActiveSession}" />
+      <TextBlock Grid.Row="1" Text="{loc:T Ws_NoTerminal}" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsVisible="{Binding NoActiveTerminal}" />
+    </Grid>
+  </Grid>
+</UserControl>

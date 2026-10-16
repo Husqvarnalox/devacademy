@@ -1,0 +1,141 @@
+id: "rust.first-steps.ownership-moves-and-borrowing"
+title: "Владение, перемещение и заимствование"
+goal: "Понять правила владения и заимствования и объяснить, почему borrow checker отвергает часть программ."
+difficulty: "intro"
+estimatedMinutes: 45
+prerequisites:
+  - "rust.first-steps.how-rust-runs"
+objectives:
+  - "Сформулировать три правила владения."
+  - "Различать move, Copy и clone."
+  - "Выбирать между T, &T и &mut T в параметрах."
+  - "Читать ошибки E0382, E0499, E0502, E0106 и исправлять их."
+masteryCriteria:
+  - "Вы объясняете, какую ошибку памяти предотвращает каждое правило."
+  - "Вы исправляете программу с перемещённым значением заимствованием, а не клонированием."
+related:
+  - "python.fundamentals.lists"
+next: []
+tags:
+  - "rust"
+  - "ownership"
+  - "borrowing"
+  - "borrow-checker"
+facts:
+  - kind: "internals"
+    text: "Правила владения в Rust: у каждого значения есть владелец, в каждый момент владелец один, при выходе владельца из области видимости значение уничтожается."
+    sources:
+      - "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+  - kind: "internals"
+    text: "Правила ссылок: в любой момент можно иметь либо одну изменяемую ссылку, либо любое число неизменяемых; ссылки всегда должны быть действительными."
+    sources:
+      - "https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"
+  - kind: "misconception"
+    text: "«Borrow checker замедляет программу» - неверно: проверки выполняются во время компиляции и не добавляют накладных расходов во время работы."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "let a = String::from(\"x\"); let b = a; println!(\"{}\", a); — что произойдёт?"
+      options:
+        - "Выведется x."
+        - "Паника при запуске."
+        - "Ошибка компиляции: значение перемещено."
+        - "Выведется пустая строка."
+      answer: 2
+      explanation: "Присваивание перемещает владение в b, а использование a после этого — ошибка компиляции E0382."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие сочетания ссылок допустимы одновременно?"
+      options:
+        - "Две и более &T."
+        - "&T и &mut T."
+        - "Одна &mut T."
+        - "Две &mut T."
+      answer:
+        - 0
+        - 2
+      explanation: "Любое число &T допустимо; одна &mut допустима только без других ссылок. Две &mut или &T с &mut недопустимы."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему let first = &v[0]; v.push(4); println!(\"{}\", first); не компилируется?"
+      options:
+        - "Потому что вектор неизменяемый."
+        - "Потому что push может перераспределить память, а ссылка first ещё нужна."
+        - "Потому что first имеет тип i32."
+        - "Потому что нет mut у first."
+      answer: 1
+      explanation: "push может перераспределить буфер вектора, и first указывала бы на освобождённую память, поэтому одновременно живущие &v[0] и &mut v запрещены."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой метод создаёт глубокую копию String?"
+      answer:
+        - "clone"
+        - "clone()"
+      explanation: "clone() выделяет новую память и копирует данные, поэтому оба значения владеют независимыми копиями."
+exercise:
+  id: "rust.first-steps.ownership-moves-and-borrowing.exercise"
+  title: "Заимствование вместо перемещения"
+  prompt: |
+
+    Программа получает `n` и затем `n` слов (непустых, без пробелов).
+
+    Выведите три строки:
+
+    ```
+    total=<суммарная длина слов в символах>
+    longest=<самое длинное слово; при равенстве - первое из них>
+    words=<все слова в верхнем регистре через пробел>
+    ```
+
+    **Пример.** Для `3` и `rust go kotlin`: `total=13`, `longest=kotlin`, `words=RUST GO KOTLIN`.
+
+    Функции должны работать так:
+
+    * `total_len` и `longest` только читают данные: они **заимствуют** слова через `&`;
+    * `shout` изменяет слова на месте через `&mut`;
+    * после вызова каждой функции `words` остаётся доступным.
+
+    В заготовке `total_len` принимает `Vec<String>` по значению: вектор перемещается внутрь функции, и программа не компилируется (`E0382`). Исправьте сигнатуры.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: компилятор сообщит E0382 «borrow of moved value: words». total_len(words) перемещает вектор внутрь функции."
+    - "Функция только читает слова, значит, ей нужна общая ссылка, а не владение."
+    - "Измените сигнатуру: fn total_len(words: &[String]) -> usize."
+    - "Измените вызов на total_len(&words). Остальные функции уже заимствуют правильно: longest читает, shout принимает &mut."
+  tests:
+    - id: "basic"
+      title: "Несколько слов"
+      stdin: "3\nrust go kotlin\n"
+      expected: "total=12\nlongest=kotlin\nwords=RUST GO KOTLIN\n"
+      hint: "total_len должна заимствовать слова (&[String]), иначе words перемещается и не доступен дальше."
+    - id: "tie"
+      title: "Два слова одной длины"
+      stdin: "3\nabc xyz de\n"
+      expected: "total=8\nlongest=abc\nwords=ABC XYZ DE\n"
+      hint: "При равной длине longest - первое слово. Сравнивайте строго: >."
+    - id: "single"
+      title: "Одно слово"
+      stdin: "1\nownership\n"
+      expected: "total=9\nlongest=ownership\nwords=OWNERSHIP\n"
+      hint: "При n = 1 total равен длине слова, longest - само слово."
+    - id: "mixed"
+      title: "Слова с цифрами и разной длиной (скрытый)"
+      stdin: "4\na1 bb22 ccc d\n"
+      expected: "total=10\nlongest=bb22\nwords=A1 BB22 CCC D\n"
+      hidden: true
+      hint: "Строка words печатается после shout: слова приведены к верхнему регистру."
+    - id: "many"
+      title: "Много слов (скрытый)"
+      stdin: "6\none two three four five six\n"
+      expected: "total=22\nlongest=three\nwords=ONE TWO THREE FOUR FIVE SIX\n"
+      hidden: true
+      hint: "longest считается по исходным словам, до shout."
+    - id: "unicode"
+      title: "Кириллица (скрытый)"
+      stdin: "3\nпривет мир программа\n"
+      expected: "total=18\nlongest=программа\nwords=ПРИВЕТ МИР ПРОГРАММА\n"
+      hidden: true
+      hint: "len() возвращает байты. Для общей длины в символах используйте chars().count()."

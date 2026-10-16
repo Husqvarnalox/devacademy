@@ -1,0 +1,10 @@
+id: "kotlin-first-steps"
+version: "1.0.0"
+title: "Kotlin: первые шаги"
+description: "Вводный курс из двух уроков: как Kotlin компилируется в байткод JVM и читает ввод, затем null-безопасность и val/var. Остальные темы трека Kotlin запланированы."
+languageId: "kotlin"
+level: 0
+track: "kotlin"
+lessons:
+  - "01-how-kotlin-runs"
+  - "02-null-safety-and-val-var"

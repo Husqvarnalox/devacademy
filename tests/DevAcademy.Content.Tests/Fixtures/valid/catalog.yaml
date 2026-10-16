@@ -1,0 +1,12 @@
+tracks:
+  - id: python
+    kind: language
+    title: Python
+    description: Python language
+    languageId: python
+    status: available
+    courses: [py-basics]
+  - id: javascript
+    kind: language
+    title: JavaScript
+    status: planned

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04,     rid: linux-x64 }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
+          - { os: windows-2025,     rid: win-x64 }
+          - { os: macos-15,         rid: osx-arm64 }
+          - { os: macos-15-intel,   rid: osx-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: dotnet restore DevAcademy.slnx
+      - run: dotnet build DevAcademy.slnx -c Release --no-restore
+      - run: dotnet format whitespace DevAcademy.slnx --verify-no-changes
+      # Domain/Content/Application/Infrastructure/AI/Desktop (headless) — everything except the runner suite.
+      - name: Unit, integration and headless UI tests
+        shell: bash
+        run: |
+          for p in tests/*/*.csproj; do
+            case $p in *Execution.Tests*) continue;; esac
+            dotnet test "$p" -c Release --no-build || exit 1
+          done
+      # Real toolchains present on the runner image; missing ones are skipped by the tests themselves.
+      - name: Code execution engine tests
+        run: dotnet test tests/DevAcademy.Execution.Tests -c Release --no-build
+      - name: Validate content (runs reference solutions where toolchains exist)
+        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions
+
+  publish:
+    needs: test
+    if: github.event_name == 'push'
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-24.04, rid: linux-x64 }
+          - { os: ubuntu-24.04, rid: linux-arm64 }
+          - { os: windows-2025, rid: win-x64 }
+          - { os: windows-2025, rid: win-arm64 }
+          - { os: macos-15,     rid: osx-arm64 }
+          - { os: macos-15,     rid: osx-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish self-contained build
+        shell: bash
+        run: |
+          dotnet publish src/DevAcademy.Desktop -c Release -r ${{ matrix.rid }} --self-contained true \
+            -p:PublishSingleFile=true -o artifacts/${{ matrix.rid }}
+          cp -R content artifacts/${{ matrix.rid }}/content
+      - uses: actions/upload-artifact@v4
+        with:
+          name: devacademy-${{ matrix.rid }}
+          path: artifacts/${{ matrix.rid }}

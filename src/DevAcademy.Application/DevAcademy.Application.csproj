@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevAcademy.Domain\DevAcademy.Domain.csproj" />
+    <ProjectReference Include="..\DevAcademy.Execution\DevAcademy.Execution.csproj" />
+    <ProjectReference Include="..\DevAcademy.AI\DevAcademy.AI.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,7 @@
+id: pb.three
+title: Basics three
+goal: Basics three
+difficulty: intro
+estimatedMinutes: 10
+objectives: [Basics three]
+prerequisites: [pb.two]

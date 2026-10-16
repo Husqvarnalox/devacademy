@@ -1,0 +1,155 @@
+id: python.advanced.dunder-methods-and-dataclasses
+title: Специальные методы и dataclasses
+goal: Реализовывать __repr__, __str__, __eq__ и __hash__, упорядочивание и протокол контейнера, а затем заменять шаблонный код декоратором dataclass.
+difficulty: medium
+estimatedMinutes: 75
+prerequisites: [python.advanced.classes-and-objects]
+objectives:
+  - Различать __repr__ и __str__ и выбирать, какой из них определять.
+  - Сформулировать контракт __eq__ и __hash__ и объяснить, почему класс с одним __eq__ становится нехешируемым.
+  - Получить полный набор сравнений через __lt__ и functools.total_ordering.
+  - Реализовать __len__, __getitem__ и __contains__ для собственного контейнера.
+  - Использовать dataclass с значениями по умолчанию, default_factory, frozen, order и slots и объяснить, что именно он генерирует.
+masteryCriteria:
+  - Вы объясняете, почему x == y при равных хешах необязательно, но x == y обязано влечь hash(x) == hash(y).
+  - Вы пишете dataclass с изменяемым полем через default_factory и понимаете, почему field(default=[]) запрещено.
+  - Вы пишете контейнер, который поддерживает len(), индексы, срезы, in и итерацию.
+related: [python.advanced.inheritance-composition-protocols]
+next: [python.advanced.typing-fundamentals]
+tags: [python, dunder, repr, eq, hash, total_ordering, dataclass, container-protocol]
+facts:
+  - kind: historical
+    text: >-
+      Модуль dataclasses появился в Python 3.7 (PEP 557). Параметр slots=True у декоратора dataclass добавлен в Python 3.10, поэтому примеры с ним требуют версии не ниже 3.10.
+    sources:
+      - https://peps.python.org/pep-0557/
+      - https://docs.python.org/3/library/dataclasses.html
+  - kind: internals
+    text: >-
+      Если класс определяет __eq__, но не определяет __hash__, Python неявно устанавливает __hash__ = None, и экземпляры становятся нехешируемыми (нельзя положить в set или использовать ключом словаря).
+      Контракт: равные объекты обязаны иметь равные хеши. Для dataclass: eq=True без frozen оставляет __hash__ равным None, а eq=True вместе с frozen=True генерирует __hash__ по полям.
+    sources:
+      - https://docs.python.org/3/reference/datamodel.html#object.__hash__
+      - https://docs.python.org/3/library/dataclasses.html#module-contents
+  - kind: real-world
+    text: >-
+      __repr__ нужен разработчику: однозначное представление, по возможности пригодное для воссоздания объекта. __str__ - для пользователя. Контейнеры (list, dict) показывают элементы через repr, а не str,
+      поэтому хороший __repr__ окупается при отладке и в логах.
+    sources:
+      - https://docs.python.org/3/reference/datamodel.html#object.__repr__
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что произойдёт?
+        class P:
+            def __init__(self, x): self.x = x
+            def __eq__(self, other): return self.x == other.x
+        print(len({P(1), P(1)}))
+      options:
+        - "1"
+        - "2"
+        - "TypeError: unhashable type: 'P'"
+        - "0"
+      answer: 2
+      explanation: >-
+        Определив __eq__ и не определив __hash__, класс лишается хеша (__hash__ становится None). Добавление в множество вызывает TypeError. Нужен __hash__, согласованный с __eq__.
+    - id: q2
+      type: single
+      prompt: Что напечатает print([Money(5)]), если у Money определён __str__, но не __repr__?
+      options:
+        - "Результат __str__ для каждого элемента"
+        - "Для элементов списка используется __repr__, поэтому будет стандартное <Money object at 0x...>"
+        - "TypeError"
+        - "Пустой список []"
+      answer: 1
+      explanation: >-
+        str(list) строит строку из repr элементов. Без собственного __repr__ вы увидите представление по умолчанию. Определяйте __repr__ в первую очередь.
+    - id: q3
+      type: single
+      prompt: Почему поле items со значением [] в dataclass нужно задавать через field(default_factory=list)?
+      options:
+        - "Иначе список будет иметь неверный тип"
+        - "Значение по умолчанию общее для всех экземпляров; dataclass запрещает изменяемые значения (list, dict, set) по умолчанию, поднимая ValueError"
+        - "default_factory быстрее обычного значения"
+        - "Без него не сгенерируется __init__"
+      answer: 1
+      explanation: >-
+        Как и у параметров функций, общий изменяемый объект - источник скрытых багов. default_factory вызывается заново для каждого экземпляра.
+    - id: q4
+      type: multiple
+      prompt: Какие методы достаточно определить в классе, чтобы работали len(x), x[i], i in x и for i in x?
+      options:
+        - "__len__"
+        - "__getitem__ (с индексами 0, 1, 2, ... и IndexError на выходе за границу)"
+        - "__contains__ (необязателен: in и for сработают через итерацию)"
+        - "__str__"
+      answer: [0, 1, 2]
+      explanation: >-
+        len использует __len__, индексирование - __getitem__. Если нет __iter__, Python итерирует через __getitem__ с 0 до IndexError, а in без __contains__ перебирает элементы. __contains__ лишь ускоряет проверку.
+exercise:
+  id: python.advanced.dunder-methods-and-dataclasses.exercise
+  title: Модель данных
+  prompt: |
+    В файле `model_task.py` реализуйте пять классов. Нужен Python 3.10+ (параметр `slots=True`). Ничего не читайте и не печатайте.
+
+    1. `Money(cents, currency="USD")` (обычный класс): `__repr__` даёт `Money(150, 'USD')`; `__str__` даёт `1.50 USD` (сумма в основных единицах с двумя знаками); `__eq__` сравнивает `cents` и `currency` (с объектами других типов - `NotImplemented`); `__hash__` согласован с `__eq__`; упорядочивание через `__lt__` и `functools.total_ordering` (валюты должны совпадать, при разных валютах операции порядка дают `TypeError` - то есть верните `NotImplemented`).
+    2. `Playlist(tracks)` (обычный класс над списком): `__len__`, `__getitem__` (индекс, в том числе отрицательный; срез возвращает новый `Playlist`; выход за границу - `IndexError`), `__contains__`. Итерация `for t in playlist` должна работать.
+    3. `Version` - dataclass с полями `major: int`, `minor: int = 0`, `patch: int = 0`, параметрами `frozen=True, order=True`; `__str__` даёт `1.2.3`.
+    4. `Cart` - dataclass с `slots=True` и полями `owner: str`, `items: list[str]` (по умолчанию новый пустой список для каждого экземпляра), `discount: float = 0.0`; метод `add(item)` добавляет в `items`.
+
+    **Примеры.**
+
+    ```python
+    repr(Money(150)), str(Money(150))        # ("Money(150, 'USD')", '1.50 USD')
+    len(Playlist(["a", "b"])), "a" in Playlist(["a", "b"])   # (2, True)
+    Version(1, 2) < Version(1, 10)           # True
+    Cart("ann").items                        # []
+    ```
+  entryFile: model_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с dataclass-классов: @dataclass(frozen=True, order=True) для Version и @dataclass(slots=True) для Cart; изменяемое поле задаётся как items: list[str] = field(default_factory=list)."
+    - "Для Money: __eq__ сравнивает кортежи (cents, currency) и возвращает NotImplemented для чужих типов; __hash__ = hash((cents, currency)); __lt__ сравнивает cents при одинаковой валюте. Остальные сравнения даст @functools.total_ordering."
+    - "Playlist: __getitem__ может делегировать списку: result = self._tracks[index]; для среза (isinstance(index, slice)) оберните результат в Playlist. IndexError список поднимет сам. __len__ и __contains__ тоже делегируйте."
+    - "Скелет Money.__str__: return f\"{self.cents / 100:.2f} {self.currency}\". Скелет __lt__: if not isinstance(other, Money) or other.currency != self.currency: return NotImplemented; return self.cents < other.cents. Для Version.__str__ используйте f\"{self.major}.{self.minor}.{self.patch}\"."
+  tests:
+    - id: money-repr-str
+      title: Money - repr и str
+      hint: repr должен выглядеть как вызов конструктора (Money(150, 'USD')), а str - как 1.50 USD.
+    - id: money-order
+      title: Money - упорядочивание
+      hint: Достаточно __eq__ и __lt__ с декоратором total_ordering; sorted и max используют сравнения.
+    - id: playlist-basic
+      title: Playlist - len, индекс, in
+      hint: Делегируйте len, индексацию и in внутреннему списку.
+    - id: version-order
+      title: Version - порядок и str
+      hint: order=True сравнивает экземпляры как кортежи полей в порядке объявления.
+    - id: cart-basic
+      title: Cart - поля и add
+      hint: Поле items должно создаваться через default_factory; repr и сравнение генерирует dataclass.
+    - id: money-eq-hash
+      title: Money - eq и hash (скрытый)
+      hidden: true
+      hint: Равные объекты обязаны иметь равные хеши; не забудьте __hash__, иначе экземпляры нехешируемы. Для чужих типов __eq__ возвращает NotImplemented (результат сравнения - False, без ошибки).
+    - id: money-currency-mismatch
+      title: Money - разные валюты (скрытый)
+      hidden: true
+      hint: Сравнение порядка разных валют должно давать TypeError - для этого верните NotImplemented из __lt__.
+    - id: playlist-index-slice
+      title: Playlist - срезы, отрицательные индексы и итерация (скрытый)
+      hidden: true
+      hint: Срез - это объект slice; результат среза упакуйте в Playlist. Итерация работает через __getitem__ с IndexError или добавьте __iter__.
+    - id: version-frozen-hash
+      title: Version - frozen и хеш (скрытый)
+      hidden: true
+      hint: frozen=True запрещает присваивание полей (FrozenInstanceError) и вместе с eq=True генерирует __hash__, поэтому версии можно класть в set.
+    - id: cart-independent-slots
+      title: Cart - независимые списки и slots (скрытый)
+      hidden: true
+      hint: default_factory=list создаёт новый список для каждого экземпляра; slots=True убирает __dict__.

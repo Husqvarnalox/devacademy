@@ -1,0 +1,12 @@
+id: python-web
+title: Python web
+description: Web with Python
+goal: backend
+targets: [py-basics]
+stages:
+  - title: Foundation
+    courses: [py-basics]
+  - title: Web
+    courses: [web-django, web-fastapi]
+alternatives:
+  - [web-django, web-fastapi]

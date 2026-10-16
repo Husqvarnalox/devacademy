@@ -1,0 +1,5 @@
+id: python-from-zero
+title: Python с нуля
+description: Путь для тех, кто никогда не программировал. Проходит весь курс «Основы Python» в порядке уроков.
+goal: general
+targets: [python-fundamentals]

@@ -1,0 +1,36 @@
+id: algo.find-max
+title: Find the maximum
+goal: Scan a list once
+difficulty: easy
+estimatedMinutes: 10
+complexity:
+  time: O(n)
+  space: O(1)
+  explanation: One pass, one variable.
+editorial: editorial.md
+exercise:
+  id: algo.find-max.ex1
+  title: Maximum of a line
+  prompt: Read integers from one line and print the largest.
+  evaluation: io
+  hints: [use a running maximum]
+  tests:
+    - id: t1
+      title: three numbers
+      stdin: "3 9 2\n"
+      expected: "9\n"
+    - id: t2
+      title: negatives (hidden)
+      stdin: "-5 -2 -9\n"
+      expected: "-2\n"
+      hidden: true
+      hint: negative numbers
+  variants:
+    python:
+      entryFile: main.py
+      starter: exercise/python/starter
+      solution: exercise/python/solution
+    javascript:
+      entryFile: main.js
+      starter: exercise/javascript/starter
+      solution: exercise/javascript/solution

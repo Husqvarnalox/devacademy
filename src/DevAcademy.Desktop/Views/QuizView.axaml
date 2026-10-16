@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.QuizView"
+             x:DataType="vm:QuizViewModel">
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="2">
+      <TextBlock Text="{loc:T Quiz_Title}" Classes="h2" />
+      <TextBlock Text="{Binding ThresholdText}" Classes="caption" />
+      <TextBlock Text="{Binding BestScoreText}" Classes="caption" IsVisible="{Binding BestScoreText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+    <ItemsControl ItemsSource="{Binding Questions}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:QuizQuestionViewModel">
+          <Border Classes="panel" Padding="14,12" Margin="0,0,0,10">
+            <StackPanel Spacing="8">
+              <TextBlock Text="{Binding Number, StringFormat='{}{0}.'}" Classes="caption" />
+              <SelectableTextBlock Text="{Binding Prompt}" TextWrapping="Wrap" FontSize="15" />
+              <TextBlock Text="{Binding HintText}" Classes="caption" />
+              <ItemsControl ItemsSource="{Binding Options}" IsVisible="{Binding !IsText}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:QuizOptionViewModel">
+                    <StackPanel>
+                      <RadioButton Content="{Binding Text}" IsChecked="{Binding IsSelected}"
+                                   GroupName="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).GroupName}"
+                                   IsVisible="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsSingle}"
+                                   IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                      <CheckBox Content="{Binding Text}" IsChecked="{Binding IsSelected}"
+                                IsVisible="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsMultiple}"
+                                IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" IsEnabled="{Binding !IsLocked}" MaxWidth="320" HorizontalAlignment="Left"
+                       AutomationProperties.Name="{loc:T Quiz_Answer}" />
+              <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" Classes.success="{Binding IsCorrect}" Classes.danger="{Binding IsWrong}" IsVisible="{Binding IsLocked}" />
+              <Border Classes="codeout" IsVisible="{Binding HasExplanation}">
+                <SelectableTextBlock Text="{Binding Explanation}" TextWrapping="Wrap" />
+              </Border>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <TextBlock Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" Spacing="12">
+      <Button Content="{loc:T Quiz_Submit}" Command="{Binding SubmitCommand}" Classes="accent" />
+      <Button Content="{loc:T Quiz_Retry}" Command="{Binding RetryCommand}" IsVisible="{Binding IsSubmitted}" />
+      <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" VerticalAlignment="Center"
+                 Classes.success="{Binding Passed}" Classes.danger="{Binding !Passed}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

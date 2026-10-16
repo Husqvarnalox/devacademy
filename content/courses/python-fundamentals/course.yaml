@@ -1,0 +1,21 @@
+id: python-fundamentals
+version: 1.0.0
+title: Основы Python
+description: >-
+  Первый курс по Python для тех, кто начинает с нуля. Десять уроков: от того, как CPython запускает файл,
+  до работы с исключениями и файлами. В каждом уроке объясняется, что происходит внутри интерпретатора,
+  есть запускаемые примеры, тест и упражнение с автоматической проверкой.
+languageId: python
+level: 0
+track: python
+lessons:
+  - 01-how-python-runs
+  - 02-variables-and-input
+  - 03-numbers-and-operators
+  - 04-conditions
+  - 05-loops
+  - 06-functions
+  - 07-strings
+  - 08-lists
+  - 09-dicts-and-sets
+  - 10-errors-and-files

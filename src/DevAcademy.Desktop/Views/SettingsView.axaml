@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:views="using:DevAcademy.Desktop.Views"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <TabControl Margin="24,16" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
+    <TabItem Header="{loc:T Settings_General}">
+      <ScrollViewer>
+        <StackPanel MaxWidth="720" Spacing="22" Margin="0,12" HorizontalAlignment="Left">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{loc:T Settings_Theme}" Classes="h3" />
+            <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="200"
+                      AutomationProperties.Name="{loc:T Settings_Theme}">
+              <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Spacing="10">
+            <TextBlock Text="{loc:T Settings_Profile}" Classes="h3" />
+            <views:ProfileEditorView DataContext="{Binding Profile}" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Button Content="{loc:T Common_Save}" Command="{Binding SaveProfileCommand}" Classes="accent" />
+              <TextBlock Text="{Binding ProfileMessage}" Classes="success" VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+
+    <TabItem Header="{loc:T Settings_Runtimes}">
+      <ScrollViewer>
+        <StackPanel MaxWidth="900" Spacing="12" Margin="0,12" HorizontalAlignment="Left">
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="{loc:T Runtimes_Refresh}" Command="{Binding DetectRuntimesCommand}" />
+            <TextBlock Text="{loc:T Runtimes_Detecting}" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsDetecting}" />
+          </StackPanel>
+          <ItemsControl ItemsSource="{Binding Runtimes}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:RuntimeRowViewModel">
+                <Border Classes="panel" Padding="14,10" Margin="0,0,0,8">
+                  <StackPanel Spacing="3">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <TextBlock Text="{Binding Language}" FontWeight="SemiBold" Classes="mono" />
+                      <Border Classes="badge"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+                      <TextBlock Text="{Binding Version}" Classes="caption" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Path}" Classes="caption mono" TextWrapping="Wrap" IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <TextBlock Text="{Binding Notes}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding Notes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <TextBlock Text="{Binding InstallHint}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding InstallHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    <Button Content="{loc:T Runtimes_OpenInstall}" Command="{Binding OpenInstallCommand}" IsVisible="{Binding HasInstallUrl}" HorizontalAlignment="Left" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Border Classes="panel" Padding="14,12">
+            <StackPanel Spacing="8">
+              <TextBlock Text="{loc:T Types_Title}" Classes="h3" />
+              <TextBlock Text="{loc:T Types_Description}" Classes="muted" TextWrapping="Wrap" />
+              <Button Content="{loc:T Types_Button}" Command="{Binding ProvisionTypesCommand}" HorizontalAlignment="Left" />
+              <Border Classes="codeout" IsVisible="{Binding ProvisionOutput, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <SelectableTextBlock Text="{Binding ProvisionOutput}" Classes="mono" TextWrapping="Wrap" />
+              </Border>
+            </StackPanel>
+          </Border>
+          <views:PythonEnvironmentsView Name="PythonSection" DataContext="{Binding Python}" />
+          <views:MlAccelerationView Name="MlSection" DataContext="{Binding Ml}" />
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+
+    <TabItem Header="{loc:T Settings_Data}">
+      <ScrollViewer>
+        <StackPanel MaxWidth="720" Spacing="18" Margin="0,12" HorizontalAlignment="Left">
+          <StackPanel Spacing="2">
+            <TextBlock Text="{loc:T Data_Location}" Classes="caption" />
+            <SelectableTextBlock Text="{Binding DataDir}" Classes="mono" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="{loc:T Data_ExportHeader}" Classes="h3" />
+            <TextBlock Text="{loc:T Data_ExportNote}" Classes="muted" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button Content="{loc:T Data_Export}" Command="{Binding ExportCommand}" />
+              <Button Content="{loc:T Data_Import}" Command="{Binding ImportCommand}" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Spacing="6">
+            <TextBlock Text="{loc:T Data_BackupHeader}" Classes="h3" />
+            <TextBlock Text="{loc:T Data_BackupNote}" Classes="muted" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button Content="{loc:T Data_Backup}" Command="{Binding BackupCommand}" />
+              <Button Content="{loc:T Data_Restore}" Command="{Binding RestoreCommand}" />
+            </StackPanel>
+          </StackPanel>
+          <TextBlock Text="{Binding DataMessage}" TextWrapping="Wrap" IsVisible="{Binding DataMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+
+    <TabItem Header="{loc:T Settings_Ai}">
+      <views:AiSettingsView DataContext="{Binding Ai}" />
+    </TabItem>
+  </TabControl>
+</UserControl>

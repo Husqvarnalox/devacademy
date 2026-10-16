@@ -1,0 +1,155 @@
+id: "nodejs.first-steps.modules-and-node-test"
+title: "Модули и тесты с node:test"
+goal: "Разделять программу на ES-модули, подключать их через относительные пути с расширением и проверять поведение функций тестами node:test."
+difficulty: "intro"
+estimatedMinutes: 45
+prerequisites:
+  - "nodejs.first-steps.modules-and-event-loop"
+objectives:
+  - "Написать два ES-модуля, один из которых импортирует функции другого."
+  - "Объяснить, зачем в относительном import нужно расширение файла."
+  - "Прочитать тест на node:test: describe, it и проверки из node:assert/strict."
+  - "Отличать ошибку в тесте (assert) от синтаксической ошибки в модуле."
+  - "Хранить деньги в целых копейках и обосновать, почему так надёжнее."
+masteryCriteria:
+  - "Вы разносите связанные функции по модулям и экспортируете только нужное."
+  - "Вы запускаете node --test и по отчёту находите упавшую проверку."
+  - "Вы проверяете в тесте не только обычные значения, но и граничные и ошибочные входы."
+related:
+  - "nodejs.first-steps.modules-and-event-loop"
+next: []
+tags:
+  - "nodejs"
+  - "esm"
+  - "testing"
+  - "node-test"
+facts:
+  - kind: "internals"
+    text: "Встроенный раннер node:test запускается командой node --test. Без аргументов он ищет файлы тестов по шаблонам (например, *.test.js, *.test.mjs и каталоги test). Тесты выполняются в отдельных дочерних процессах, по одному на файл."
+    sources:
+      - "https://nodejs.org/api/test.html"
+  - kind: "internals"
+    text: "В ES-модулях относительный путь в import обязан содержать расширение файла: Node.js не подставляет .js и не ищет index.js в каталоге, как это делал require в CommonJS."
+    sources:
+      - "https://nodejs.org/api/esm.html#mandatory-file-extensions"
+  - kind: "misconception"
+    text: "«Дробные числа точны, пока их немного» - неверно. В двоичной арифметике 0.1 + 0.2 даёт 0.30000000000000004. Поэтому суммы денег хранят целыми числами минимальных единиц, то есть копейками."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Как правильно подключить функцию из соседнего файла money.mjs в ES-модуле?"
+      options:
+        - "import { parsePrice } from \"./money\";"
+        - "import { parsePrice } from \"./money.mjs\";"
+        - "const { parsePrice } = require(\"./money.mjs\");"
+        - "import parsePrice from money.mjs;"
+      answer: 1
+      explanation: "В ESM относительный путь пишется полностью, с расширением. Расширение не подставляется, а require в ES-модуле недоступен."
+    - id: "q2"
+      type: "single"
+      prompt: "Что делает команда node --test?"
+      options:
+        - "Запускает только файл с именем test.js."
+        - "Находит файлы тестов, запускает их и печатает отчёт; при падении проверки процесс завершается с ненулевым кодом."
+        - "Проверяет синтаксис, но не выполняет код."
+        - "Устанавливает зависимости для тестов."
+      answer: 1
+      explanation: "Раннер node:test встроен в Node.js. Он выполняет файлы тестов и сообщает о результатах, а код возврата сигнализирует об успехе или неудаче."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие вызовы проверят, что функция бросает исключение RangeError?"
+      options:
+        - "assert.throws(() => f(-1), RangeError)"
+        - "assert.equal(f(-1), RangeError)"
+        - "assert.throws(f(-1), RangeError)"
+        - "try { f(-1); assert.fail(); } catch (e) { assert.ok(e instanceof RangeError) }"
+      answer:
+        - 0
+        - 3
+      explanation: "assert.throws принимает функцию, которую сам вызывает. В варианте с f(-1) исключение возникает до вызова assert.throws, и тест упадёт по другой причине. Вариант с try/catch корректен, если assert.fail стоит после вызова."
+    - id: "q4"
+      type: "short"
+      prompt: "Чему равно 1250, переведённое в строку формата рубли.копейки (формат из урока)?"
+      answer:
+        - "12.50"
+      explanation: "1250 копеек - это 12 рублей 50 копеек, то есть строка 12.50 с двумя знаками после точки."
+exercise:
+  id: "nodejs.first-steps.modules-and-node-test.exercise"
+  title: "Корзина покупок из двух модулей"
+  prompt: |
+
+    Проект состоит из двух ES-модулей, покрытых тестами `node:test`. Нужно реализовать функции так, чтобы все тесты проходили. Тесты лежат в папке `tests/` (она скрыта от редактирования), запускаются автоматически по кнопке «Проверить».
+
+    **`src/money.mjs`** - цены в копейках.
+
+    * `parsePrice(text)` - разбирает строку цены в целое число копеек: `"12.5"` -> `1250`, `"7"` -> `700`, `"0.05"` -> `5`. Допустимый вид: цифры, затем необязательная точка и одна-две цифры. Пробелы по краям отбрасываются. Любая другая строка (`""`, `"-1"`, `"1.234"`, `"1,5"`, `".5"`) - `RangeError`. Если передана не строка, бросайте `TypeError`.
+    * `formatPrice(cents)` - копейки в строку с двумя знаками: `1250` -> `"12.50"`, `5` -> `"0.05"`. Принимается только неотрицательное целое число, иначе `RangeError`.
+
+    **`src/cart.mjs`** - корзина из строк `{ name, price, qty }`, цена приходит текстом.
+
+    * `lineTotal(line)` - стоимость строки в копейках: `parsePrice(line.price) * line.qty`. Количество должно быть целым числом не меньше 1, иначе `RangeError`.
+    * `cartTotal(lines)` - сумма стоимостей всех строк; для пустой корзины `0`.
+    * `receipt(lines)` - массив строк чека: по одной на позицию вида `Чай x2 = 7.00`, затем последняя `Итого: 7.00`. Для пустой корзины - `["Итого: 0.00"]`.
+
+    Модуль `cart.mjs` уже импортирует `formatPrice` и `parsePrice` из `money.mjs`: используйте их, а не дублируйте код. Сначала реализуйте `money.mjs`, затем `cart.mjs`. Для переключения между файлами используйте вкладки над редактором.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/money.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["node", "--test", "--test-reporter=junit", "--test-reporter-destination=report.xml", "--test-reporter=spec", "--test-reporter-destination=stdout", "tests/*.test.mjs"]
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 30
+  hints:
+    - "Начните с parsePrice: проверьте typeof text, затем сопоставьте text.trim() с регулярным выражением /^(\\d+)(?:\\.(\\d{1,2}))?$/ и посмотрите, что лежит в группах."
+    - "Дробную часть дополните нулями справа: \"5\" означает 50 копеек, а не 5. Подойдёт padEnd(2, \"0\"). Итог: целые * 100 + копейки."
+    - "formatPrice: Math.floor(cents / 100) даёт рубли, а String(cents % 100).padStart(2, \"0\") - копейки с ведущим нулём."
+    - "В cart.mjs lineTotal проверяет qty через Number.isInteger, cartTotal - это reduce по lineTotal, а receipt собирает строки через map и добавляет итог в конец."
+  tests:
+    - id: "parse-integer"
+      title: "parsePrice: целая цена"
+      match: "parsePrice > целая цена"
+      hint: "Строка без точки означает целые рубли: умножьте на 100."
+    - id: "parse-fraction"
+      title: "parsePrice: дробная цена"
+      match: "parsePrice > дробная цена"
+      hint: "Одна цифра после точки - десятки копеек: \"12.5\" это 1250, а не 1205."
+    - id: "format-price"
+      title: "formatPrice: копейки в строку"
+      match: "formatPrice > копейки в строку"
+      hint: "Копейки всегда двузначные: 5 превращается в \"0.05\"."
+    - id: "parse-spaces"
+      title: "parsePrice: пробелы по краям (скрытый)"
+      match: "parsePrice > пробелы по краям"
+      hidden: true
+      hint: "Перед разбором вызовите trim()."
+    - id: "parse-invalid"
+      title: "parsePrice: неверный формат (скрытый)"
+      match: "parsePrice > отвергает неверный формат"
+      hidden: true
+      hint: "Проверяйте всю строку целиком (^ и $), иначе подойдёт и \"1.234\", и \"1 2\"."
+    - id: "format-invalid"
+      title: "formatPrice: неверные суммы (скрытый)"
+      match: "formatPrice > отвергает неверные суммы"
+      hidden: true
+      hint: "Number.isSafeInteger отсеивает дроби, NaN и Infinity; строка \"100\" тоже не число."
+    - id: "cart-total"
+      title: "cartTotal: суммы корзины (скрытый)"
+      match: "cartTotal*"
+      hidden: true
+      hint: "Сумма по строкам через reduce с начальным значением 0, тогда пустая корзина даёт 0."
+    - id: "receipt"
+      title: "receipt: чек (скрытый)"
+      match: "receipt*"
+      hidden: true
+      hint: "Строки позиций, затем итог; формат: имя, пробел, x, количество, пробел, =, пробел, сумма."
+    - id: "line-qty"
+      title: "lineTotal: неверное количество (скрытый)"
+      match: "lineTotal*"
+      hidden: true
+      hint: "Number.isInteger(\"2\") даёт false, поэтому строковое количество тоже отвергается."

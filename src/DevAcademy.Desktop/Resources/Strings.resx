@@ -1,0 +1,699 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Catalog_ContentErrors" xml:space="preserve"><value>Ошибок в контенте: {0}. Проблемные курсы пропущены.</value></data>
+  <data name="Catalog_CourseMeta" xml:space="preserve"><value>Уроков: {0} · версия {1}</value></data>
+  <data name="Catalog_Empty" xml:space="preserve"><value>Курсы не найдены.</value></data>
+  <data name="Catalog_OpenCourse" xml:space="preserve"><value>Открыть курс</value></data>
+  <data name="Catalog_Title" xml:space="preserve"><value>Каталог</value></data>
+  <data name="Challenge_Note" xml:space="preserve"><value>Challenge: более сложная задача без подсказок в условии. Решение проверяется скрытыми тестами.</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Отмена</value></data>
+  <data name="Common_Ok" xml:space="preserve"><value>ОК</value></data>
+  <data name="Common_Save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Dashboard_CourseCount" xml:space="preserve"><value>{0} из {1}</value></data>
+  <data name="Dashboard_Courses" xml:space="preserve"><value>Мои курсы</value></data>
+  <data name="Dashboard_Credited" xml:space="preserve"><value>Засчитано по входной проверке: {0}</value></data>
+  <data name="Dashboard_DayTip" xml:space="preserve"><value>{0}: отправок {1}</value></data>
+  <data name="Dashboard_NoCourses" xml:space="preserve"><value>Вы пока не записаны ни на один курс. Выберите курс в каталоге.</value></data>
+  <data name="Dashboard_NoRecommendations" xml:space="preserve"><value>Рекомендаций пока нет.</value></data>
+  <data name="Dashboard_Open" xml:space="preserve"><value>Открыть</value></data>
+  <data name="Dashboard_Recommendations" xml:space="preserve"><value>Что дальше</value></data>
+  <data name="Dashboard_Reviews" xml:space="preserve"><value>Повторения</value></data>
+  <data name="Dashboard_ReviewsNote" xml:space="preserve"><value>Уроки, которые пора повторить</value></data>
+  <data name="Dashboard_Solved" xml:space="preserve"><value>Решено по сложности</value></data>
+  <data name="Dashboard_Submissions" xml:space="preserve"><value>Отправки за последние дни</value></data>
+  <data name="Dashboard_Title" xml:space="preserve"><value>Дашборд</value></data>
+  <data name="Dashboard_Total" xml:space="preserve"><value>Всего отправок:</value></data>
+  <data name="Data_BackedUp" xml:space="preserve"><value>Резервная копия сохранена: {0}</value></data>
+  <data name="Data_Backup" xml:space="preserve"><value>Создать резервную копию</value></data>
+  <data name="Data_BackupHeader" xml:space="preserve"><value>Резервная копия</value></data>
+  <data name="Data_BackupNote" xml:space="preserve"><value>Полная копия базы данных (прогресс, черновики, настройки).</value></data>
+  <data name="Data_BackupTitle" xml:space="preserve"><value>Резервная копия</value></data>
+  <data name="Data_Error" xml:space="preserve"><value>Ошибка: {0}</value></data>
+  <data name="Data_Export" xml:space="preserve"><value>Экспорт в JSON</value></data>
+  <data name="Data_ExportHeader" xml:space="preserve"><value>Экспорт и импорт прогресса</value></data>
+  <data name="Data_ExportNote" xml:space="preserve"><value>Прогресс можно перенести на другой компьютер в виде JSON-файла.</value></data>
+  <data name="Data_ExportTitle" xml:space="preserve"><value>Экспорт прогресса</value></data>
+  <data name="Data_Exported" xml:space="preserve"><value>Прогресс экспортирован: {0}</value></data>
+  <data name="Data_Import" xml:space="preserve"><value>Импорт из JSON</value></data>
+  <data name="Data_ImportButton" xml:space="preserve"><value>Импортировать</value></data>
+  <data name="Data_ImportConfirm" xml:space="preserve"><value>Данные из файла будут объединены с текущим прогрессом. Продолжить?</value></data>
+  <data name="Data_ImportTitle" xml:space="preserve"><value>Импорт прогресса</value></data>
+  <data name="Data_Imported" xml:space="preserve"><value>Импорт завершён. Обновлено уроков: {0}, добавлено отправок: {1}.</value></data>
+  <data name="Data_Location" xml:space="preserve"><value>Папка данных</value></data>
+  <data name="Data_Restore" xml:space="preserve"><value>Восстановить из копии</value></data>
+  <data name="Data_RestoreButton" xml:space="preserve"><value>Восстановить</value></data>
+  <data name="Data_RestoreConfirm" xml:space="preserve"><value>Текущие данные будут заменены содержимым резервной копии. Это действие нельзя отменить. Продолжить?</value></data>
+  <data name="Data_RestoreTitle" xml:space="preserve"><value>Восстановление из копии</value></data>
+  <data name="Data_Restored" xml:space="preserve"><value>Данные восстановлены.</value></data>
+  <data name="Depth_Deep" xml:space="preserve"><value>Глубоко</value></data>
+  <data name="Depth_Quick" xml:space="preserve"><value>Быстро</value></data>
+  <data name="Depth_Standard" xml:space="preserve"><value>Стандартно</value></data>
+  <data name="Difficulty_Easy" xml:space="preserve"><value>Лёгкий</value></data>
+  <data name="Difficulty_Expert" xml:space="preserve"><value>Эксперт</value></data>
+  <data name="Difficulty_Hard" xml:space="preserve"><value>Сложный</value></data>
+  <data name="Difficulty_Intro" xml:space="preserve"><value>Вводный</value></data>
+  <data name="Difficulty_Medium" xml:space="preserve"><value>Средний</value></data>
+  <data name="Duration_Ms" xml:space="preserve"><value>{0} мс</value></data>
+  <data name="Duration_S" xml:space="preserve"><value>{0} с</value></data>
+  <data name="Editor_DraftSaved" xml:space="preserve"><value>Черновик сохранён</value></data>
+  <data name="Editor_Name" xml:space="preserve"><value>Редактор кода</value></data>
+  <data name="Editor_Reset" xml:space="preserve"><value>Сбросить к исходному</value></data>
+  <data name="Editor_ResetDone" xml:space="preserve"><value>Код сброшен к исходному</value></data>
+  <data name="Editor_Run" xml:space="preserve"><value>Запустить</value></data>
+  <data name="Editor_RunTip" xml:space="preserve"><value>Запустить (Ctrl+Enter)</value></data>
+  <data name="Editor_Save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Editor_SaveTip" xml:space="preserve"><value>Сохранить черновик (Ctrl+S)</value></data>
+  <data name="Editor_Submit" xml:space="preserve"><value>Отправить</value></data>
+  <data name="Editor_SubmitTip" xml:space="preserve"><value>Отправить на проверку (Ctrl+Shift+Enter)</value></data>
+  <data name="Error_OpenLink" xml:space="preserve"><value>Не удалось открыть ссылку: {0}</value></data>
+  <data name="Error_Quiz" xml:space="preserve"><value>Не удалось проверить тест: {0}</value></data>
+  <data name="Error_Run" xml:space="preserve"><value>Ошибка запуска: {0}</value></data>
+  <data name="Error_Startup" xml:space="preserve"><value>Ошибка запуска приложения: {0}</value></data>
+  <data name="Error_Submit" xml:space="preserve"><value>Ошибка отправки: {0}</value></data>
+  <data name="Fact_Historical" xml:space="preserve"><value>История</value></data>
+  <data name="Fact_Internals" xml:space="preserve"><value>Под капотом</value></data>
+  <data name="Fact_Misconception" xml:space="preserve"><value>Типичное заблуждение</value></data>
+  <data name="Fact_Performance" xml:space="preserve"><value>Производительность</value></data>
+  <data name="Fact_RealWorld" xml:space="preserve"><value>На практике</value></data>
+  <data name="Fact_Security" xml:space="preserve"><value>Безопасность</value></data>
+  <data name="Goal_career" xml:space="preserve"><value>Сменить профессию или найти работу</value></data>
+  <data name="Goal_hobby" xml:space="preserve"><value>Для себя</value></data>
+  <data name="Goal_interview" xml:space="preserve"><value>Подготовка к собеседованию</value></data>
+  <data name="Goal_study" xml:space="preserve"><value>Учёба</value></data>
+  <data name="Hints_Button" xml:space="preserve"><value>Подсказка ({0}/{1})</value></data>
+  <data name="Hints_Header" xml:space="preserve"><value>Подсказка {0} из {1}</value></data>
+  <data name="Hints_None" xml:space="preserve"><value>Подсказок для этого задания нет.</value></data>
+  <data name="Isolation_Badge" xml:space="preserve"><value>Изоляция: {0}</value></data>
+  <data name="Isolation_Container" xml:space="preserve"><value>контейнер Docker</value></data>
+  <data name="Isolation_Limits" xml:space="preserve"><value>только лимиты процесса (не граница безопасности)</value></data>
+  <data name="Isolation_Linux" xml:space="preserve"><value>песочница bubblewrap</value></data>
+  <data name="Isolation_Mac" xml:space="preserve"><value>песочница sandbox-exec</value></data>
+  <data name="Isolation_Os" xml:space="preserve"><value>песочница ОС</value></data>
+  <data name="Kind_Algorithms" xml:space="preserve"><value>Алгоритмы</value></data>
+  <data name="Kind_ComputerScience" xml:space="preserve"><value>Computer Science</value></data>
+  <data name="Kind_Framework" xml:space="preserve"><value>Фреймворки</value></data>
+  <data name="Kind_Language" xml:space="preserve"><value>Языки программирования</value></data>
+  <data name="Kind_MachineLearning" xml:space="preserve"><value>Машинное обучение</value></data>
+  <data name="Lesson_BackToCourse" xml:space="preserve"><value>К курсу</value></data>
+  <data name="Lesson_CompletedBy" xml:space="preserve"><value>Пройден: {0}</value></data>
+  <data name="Lesson_Course" xml:space="preserve"><value>Навигация по курсу</value></data>
+  <data name="Lesson_Facts" xml:space="preserve"><value>Факты</value></data>
+  <data name="Lesson_JustCompleted" xml:space="preserve"><value>Урок пройден</value></data>
+  <data name="Lesson_MarkRead" xml:space="preserve"><value>Отметить как прочитанное</value></data>
+  <data name="Lesson_Meta" xml:space="preserve"><value>{0} · ~{1} мин</value></data>
+  <data name="Lesson_Next" xml:space="preserve"><value>Следующий урок</value></data>
+  <data name="Lesson_Objectives" xml:space="preserve"><value>Цели урока</value></data>
+  <data name="Lesson_ToggleNav" xml:space="preserve"><value>Показать или скрыть навигацию</value></data>
+  <data name="Level_0" xml:space="preserve"><value>Новичок</value></data>
+  <data name="Level_1" xml:space="preserve"><value>Базовый</value></data>
+  <data name="Level_2" xml:space="preserve"><value>Средний</value></data>
+  <data name="Level_3" xml:space="preserve"><value>Продвинутый</value></data>
+  <data name="Locked_Message" xml:space="preserve"><value>Урок заблокирован: сначала нужно пройти {0}. Открыть его всё равно?</value></data>
+  <data name="Locked_Title" xml:space="preserve"><value>Урок заблокирован</value></data>
+  <data name="Markdown_Image" xml:space="preserve"><value>[изображение: {0}]</value></data>
+  <data name="Markdown_OpenInEditor" xml:space="preserve"><value>Открыть в редакторе</value></data>
+  <data name="Markdown_Output" xml:space="preserve"><value>Вывод</value></data>
+  <data name="Mode_Challenge" xml:space="preserve"><value>Challenge</value></data>
+  <data name="Mode_Practice" xml:space="preserve"><value>Практика</value></data>
+  <data name="Mode_Quiz" xml:space="preserve"><value>Тест</value></data>
+  <data name="Mode_Theory" xml:space="preserve"><value>Теория</value></data>
+  <data name="Nav_Catalog" xml:space="preserve"><value>Каталог</value></data>
+  <data name="Nav_Dashboard" xml:space="preserve"><value>Дашборд</value></data>
+  <data name="Nav_Settings" xml:space="preserve"><value>Настройки</value></data>
+  <data name="Onboarding_Depth" xml:space="preserve"><value>Глубина изучения</value></data>
+  <data name="Onboarding_Goal" xml:space="preserve"><value>Цель</value></data>
+  <data name="Onboarding_Language" xml:space="preserve"><value>Язык или направление</value></data>
+  <data name="Onboarding_Later" xml:space="preserve"><value>Пропустить</value></data>
+  <data name="Onboarding_Level" xml:space="preserve"><value>Ваш уровень</value></data>
+  <data name="Onboarding_PickLanguage" xml:space="preserve"><value>Выберите доступный язык, чтобы продолжить.</value></data>
+  <data name="Onboarding_Start" xml:space="preserve"><value>Начать</value></data>
+  <data name="Onboarding_Subtitle" xml:space="preserve"><value>Расскажите о себе, чтобы мы подобрали маршрут. Всё хранится только на этом компьютере.</value></data>
+  <data name="Onboarding_Title" xml:space="preserve"><value>Добро пожаловать в DevAcademy</value></data>
+  <data name="Out_Compile" xml:space="preserve"><value>Вывод компилятора</value></data>
+  <data name="Out_Console" xml:space="preserve"><value>Консоль</value></data>
+  <data name="Out_Hints" xml:space="preserve"><value>Подсказки</value></data>
+  <data name="Out_NoRun" xml:space="preserve"><value>Запустите код, чтобы увидеть вывод.</value></data>
+  <data name="Out_NoSubmit" xml:space="preserve"><value>Отправьте решение, чтобы увидеть результаты тестов.</value></data>
+  <data name="Out_Stdin" xml:space="preserve"><value>Ввод (stdin)</value></data>
+  <data name="Out_Tests" xml:space="preserve"><value>Тесты</value></data>
+  <data name="Practice_HowTo" xml:space="preserve"><value>Напишите решение в редакторе, запустите его и отправьте на проверку.</value></data>
+  <data name="Quiz_Answer" xml:space="preserve"><value>Ответ</value></data>
+  <data name="Quiz_Best" xml:space="preserve"><value>Лучший результат: {0}%</value></data>
+  <data name="Quiz_Correct" xml:space="preserve"><value>Верно</value></data>
+  <data name="Quiz_ResultFailed" xml:space="preserve"><value>Тест не пройден: верно {0} из {1}</value></data>
+  <data name="Quiz_ResultPassed" xml:space="preserve"><value>Тест пройден: верно {0} из {1}</value></data>
+  <data name="Quiz_Retry" xml:space="preserve"><value>Пройти заново</value></data>
+  <data name="Quiz_Submit" xml:space="preserve"><value>Проверить</value></data>
+  <data name="Quiz_Threshold" xml:space="preserve"><value>Проходной порог: {0}%</value></data>
+  <data name="Quiz_Title" xml:space="preserve"><value>Тест</value></data>
+  <data name="Quiz_Wrong" xml:space="preserve"><value>Неверно</value></data>
+  <data name="RecReason_Continue" xml:space="preserve"><value>Вы уже начали этот урок</value></data>
+  <data name="RecReason_Next" xml:space="preserve"><value>Следующий доступный урок</value></data>
+  <data name="RecReason_Review" xml:space="preserve"><value>Пора повторить этот урок</value></data>
+  <data name="RecReason_Start" xml:space="preserve"><value>Первый урок вашего курса</value></data>
+  <data name="Rec_Continue" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="Rec_Next" xml:space="preserve"><value>Дальше</value></data>
+  <data name="Rec_Review" xml:space="preserve"><value>Повторение</value></data>
+  <data name="Rec_Start" xml:space="preserve"><value>Начать</value></data>
+  <data name="Req_Exercise" xml:space="preserve"><value>решить упражнение</value></data>
+  <data name="Req_Needed" xml:space="preserve"><value>Для завершения: {0}</value></data>
+  <data name="Req_Quiz" xml:space="preserve"><value>пройти тест (от {0}%)</value></data>
+  <data name="Req_Read" xml:space="preserve"><value>прочитать теорию</value></data>
+  <data name="Reset_Confirm" xml:space="preserve"><value>Сбросить</value></data>
+  <data name="Reset_Message" xml:space="preserve"><value>Ваш код будет заменён исходным шаблоном. Черновик будет потерян.</value></data>
+  <data name="Reset_Title" xml:space="preserve"><value>Сбросить код?</value></data>
+  <data name="Roadmap_Back" xml:space="preserve"><value>Каталог</value></data>
+  <data name="Roadmap_OpenAnyway" xml:space="preserve"><value>Открыть всё равно</value></data>
+  <data name="Roadmap_Progress" xml:space="preserve"><value>Пройдено {0} из {1}</value></data>
+  <data name="Roadmap_WhyLocked" xml:space="preserve"><value>Заблокирован: сначала {0}</value></data>
+  <data name="Run_Cancelled" xml:space="preserve"><value>Отменено</value></data>
+  <data name="Run_CompileError" xml:space="preserve"><value>Ошибка компиляции</value></data>
+  <data name="Run_ExitCode" xml:space="preserve"><value>Код выхода: {0}</value></data>
+  <data name="Run_InternalError" xml:space="preserve"><value>Внутренняя ошибка</value></data>
+  <data name="Run_MemoryLimitExceeded" xml:space="preserve"><value>Превышена память</value></data>
+  <data name="Run_OutputLimitExceeded" xml:space="preserve"><value>Слишком большой вывод</value></data>
+  <data name="Run_RuntimeError" xml:space="preserve"><value>Ошибка выполнения</value></data>
+  <data name="Run_RuntimeMissing" xml:space="preserve"><value>Среда не установлена</value></data>
+  <data name="Run_Success" xml:space="preserve"><value>Успешно</value></data>
+  <data name="Run_Timeout" xml:space="preserve"><value>Превышено время</value></data>
+  <data name="Runtime_Available" xml:space="preserve"><value>Доступна</value></data>
+  <data name="Runtime_Missing" xml:space="preserve"><value>Не найдена</value></data>
+  <data name="Runtime_Unsupported" xml:space="preserve"><value>Не поддерживается</value></data>
+  <data name="Runtimes_Detecting" xml:space="preserve"><value>Проверка...</value></data>
+  <data name="Runtimes_OpenInstall" xml:space="preserve"><value>Инструкция по установке</value></data>
+  <data name="Runtimes_Refresh" xml:space="preserve"><value>Проверить снова</value></data>
+  <data name="Scratch_Banner" xml:space="preserve"><value>Черновой редактор: код из примера. Он не привязан к упражнению и не сохраняется.</value></data>
+  <data name="Scratch_Close" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="Scratch_Title" xml:space="preserve"><value>Пример</value></data>
+  <data name="Section_examples" xml:space="preserve"><value>Примеры</value></data>
+  <data name="Section_mistakes" xml:space="preserve"><value>Частые ошибки</value></data>
+  <data name="Section_precise" xml:space="preserve"><value>Точнее</value></data>
+  <data name="Section_simple" xml:space="preserve"><value>Просто</value></data>
+  <data name="Section_summary" xml:space="preserve"><value>Итог</value></data>
+  <data name="Settings_Data" xml:space="preserve"><value>Данные</value></data>
+  <data name="Settings_General" xml:space="preserve"><value>Общие</value></data>
+  <data name="Settings_Profile" xml:space="preserve"><value>Профиль обучения</value></data>
+  <data name="Settings_ProfileSaved" xml:space="preserve"><value>Профиль сохранён</value></data>
+  <data name="Settings_Runtimes" xml:space="preserve"><value>Среды выполнения</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>Тема</value></data>
+  <data name="Solution_Button" xml:space="preserve"><value>Показать решение</value></data>
+  <data name="Solution_Confirm" xml:space="preserve"><value>Показать</value></data>
+  <data name="Solution_Message" xml:space="preserve"><value>Попробуйте сначала воспользоваться подсказками. Решение заменит содержимое редактора.</value></data>
+  <data name="Solution_Title" xml:space="preserve"><value>Показать решение?</value></data>
+  <data name="Source_Assessment" xml:space="preserve"><value>входная проверка</value></data>
+  <data name="Source_Exercise" xml:space="preserve"><value>упражнение</value></data>
+  <data name="Source_Imported" xml:space="preserve"><value>импорт</value></data>
+  <data name="Source_Quiz" xml:space="preserve"><value>тест</value></data>
+  <data name="Source_TheoryRead" xml:space="preserve"><value>прочитана теория</value></data>
+  <data name="State_Available" xml:space="preserve"><value>Доступен</value></data>
+  <data name="State_Completed" xml:space="preserve"><value>Пройден</value></data>
+  <data name="State_InProgress" xml:space="preserve"><value>В процессе</value></data>
+  <data name="State_Locked" xml:space="preserve"><value>Заблокирован</value></data>
+  <data name="Status_Planned" xml:space="preserve"><value>Планируется</value></data>
+  <data name="Tests_AllPassed" xml:space="preserve"><value>Все тесты пройдены: {0} из {1}</value></data>
+  <data name="Tests_Failed" xml:space="preserve"><value>Тесты не пройдены: {0} из {1}</value></data>
+  <data name="Tests_HiddenTitle" xml:space="preserve"><value>Скрытый тест {0}</value></data>
+  <data name="Theme_Dark" xml:space="preserve"><value>Тёмная</value></data>
+  <data name="Theme_Light" xml:space="preserve"><value>Светлая</value></data>
+  <data name="Theme_System" xml:space="preserve"><value>Системная</value></data>
+  <data name="Types_Button" xml:space="preserve"><value>Установить типы TypeScript</value></data>
+  <data name="Types_ConfirmButton" xml:space="preserve"><value>Установить</value></data>
+  <data name="Types_ConfirmMessage" xml:space="preserve"><value>Будут загружены пакеты npm с типами для TypeScript из сети в кэш приложения. Продолжить?</value></data>
+  <data name="Types_ConfirmTitle" xml:space="preserve"><value>Установка типов TypeScript</value></data>
+  <data name="Types_Description" xml:space="preserve"><value>Типы нужны для проверки TypeScript-заданий в офлайн-режиме. Для установки требуется сеть.</value></data>
+  <data name="Types_Error" xml:space="preserve"><value>Ошибка установки: {0}</value></data>
+  <data name="Types_Failure" xml:space="preserve"><value>Не удалось установить типы.</value></data>
+  <data name="Types_Running" xml:space="preserve"><value>Установка...</value></data>
+  <data name="Types_Success" xml:space="preserve"><value>Типы установлены.</value></data>
+  <data name="Types_Title" xml:space="preserve"><value>Типы TypeScript</value></data>
+  <data name="Verdict_CompileError" xml:space="preserve"><value>Ошибка компиляции</value></data>
+  <data name="Verdict_Error" xml:space="preserve"><value>Ошибка</value></data>
+  <data name="Verdict_Failed" xml:space="preserve"><value>Не пройдено</value></data>
+  <data name="Verdict_Passed" xml:space="preserve"><value>Пройдено</value></data>
+  <data name="Verdict_RuntimeMissing" xml:space="preserve"><value>Среда не установлена</value></data>
+  <data name="Status_Available" xml:space="preserve"><value>Доступен</value></data>
+  <data name="Quiz_HintSingle" xml:space="preserve"><value>Выберите один вариант</value></data>
+  <data name="Quiz_HintMultiple" xml:space="preserve"><value>Выберите все верные варианты</value></data>
+  <data name="Quiz_HintShort" xml:space="preserve"><value>Введите короткий ответ</value></data>
+  <data name="Quiz_HintNumeric" xml:space="preserve"><value>Введите число</value></data>
+  <data name="Roadmap_Review" xml:space="preserve"><value>Повторить</value></data>
+  <data name="Roadmap_Continue" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="Roadmap_Start" xml:space="preserve"><value>Начать</value></data>
+  <data name="Nav_Problems" xml:space="preserve"><value>Задачи</value></data>
+  <data name="Problems_Title" xml:space="preserve"><value>Задачи</value></data>
+  <data name="Problems_Difficulty" xml:space="preserve"><value>Сложность</value></data>
+  <data name="Problems_State" xml:space="preserve"><value>Статус</value></data>
+  <data name="Problems_AllDifficulties" xml:space="preserve"><value>Любая сложность</value></data>
+  <data name="Problems_AllStates" xml:space="preserve"><value>Все</value></data>
+  <data name="Problems_Solved" xml:space="preserve"><value>Решена</value></data>
+  <data name="Problems_Unsolved" xml:space="preserve"><value>Не решена</value></data>
+  <data name="Problems_Count" xml:space="preserve"><value>Задач: {0}</value></data>
+  <data name="Problems_Empty" xml:space="preserve"><value>Нет задач с такими фильтрами.</value></data>
+  <data name="Problems_Open" xml:space="preserve"><value>Открыть</value></data>
+  <data name="Lang_Label" xml:space="preserve"><value>Язык</value></data>
+  <data name="Runtime_MissingHint" xml:space="preserve"><value>Среда выполнения для {0} не найдена: запуск и отправка недоступны. {1}</value></data>
+  <data name="Runtime_MissingLabel" xml:space="preserve"><value>{0} (не установлен)</value></data>
+  <data name="Tests_DurationNote" xml:space="preserve"><value>Время каждого теста: реальное (wall time), включая запуск процесса.</value></data>
+  <data name="Complexity_Title" xml:space="preserve"><value>Сложность решения</value></data>
+  <data name="Complexity_Time" xml:space="preserve"><value>Время: {0}</value></data>
+  <data name="Complexity_Space" xml:space="preserve"><value>Память: {0}</value></data>
+  <data name="Editorial_Button" xml:space="preserve"><value>Разбор задачи</value></data>
+  <data name="Editorial_Heading" xml:space="preserve"><value>Разбор</value></data>
+  <data name="Editorial_Hide" xml:space="preserve"><value>Скрыть разбор</value></data>
+  <data name="Editorial_Title" xml:space="preserve"><value>Показать разбор?</value></data>
+  <data name="Editorial_Message" xml:space="preserve"><value>Разбор раскрывает решение. Задача ещё не решена. Показать разбор сейчас?</value></data>
+  <data name="Editorial_Confirm" xml:space="preserve"><value>Показать разбор</value></data>
+  <data name="Viz_Title" xml:space="preserve"><value>Визуализация сортировки</value></data>
+  <data name="Viz_Algorithm" xml:space="preserve"><value>Алгоритм</value></data>
+  <data name="Viz_Algo_Bubble" xml:space="preserve"><value>Пузырьковая</value></data>
+  <data name="Viz_Algo_Insertion" xml:space="preserve"><value>Вставками</value></data>
+  <data name="Viz_Algo_Selection" xml:space="preserve"><value>Выбором</value></data>
+  <data name="Viz_Algo_Merge" xml:space="preserve"><value>Слиянием</value></data>
+  <data name="Viz_Algo_Quick" xml:space="preserve"><value>Быстрая (Ломуто)</value></data>
+  <data name="Viz_Bars" xml:space="preserve"><value>Столбцы массива</value></data>
+  <data name="Viz_Play" xml:space="preserve"><value>Старт</value></data>
+  <data name="Viz_Pause" xml:space="preserve"><value>Пауза</value></data>
+  <data name="Viz_Step" xml:space="preserve"><value>Шаг</value></data>
+  <data name="Viz_Back" xml:space="preserve"><value>Назад</value></data>
+  <data name="Viz_Reset" xml:space="preserve"><value>Сначала</value></data>
+  <data name="Viz_Speed" xml:space="preserve"><value>Скорость</value></data>
+  <data name="Viz_Input" xml:space="preserve"><value>Массив</value></data>
+  <data name="Viz_InputHint" xml:space="preserve"><value>Числа через запятую, например 5, 2, 9, 1</value></data>
+  <data name="Viz_Apply" xml:space="preserve"><value>Применить</value></data>
+  <data name="Viz_Random" xml:space="preserve"><value>Случайный</value></data>
+  <data name="Viz_Position" xml:space="preserve"><value>Шаг {0} из {1}</value></data>
+  <data name="Viz_Comparisons" xml:space="preserve"><value>Сравнений: {0}</value></data>
+  <data name="Viz_Swaps" xml:space="preserve"><value>Обменов: {0}</value></data>
+  <data name="Viz_Writes" xml:space="preserve"><value>Записей: {0}</value></data>
+  <data name="Viz_StatusStart" xml:space="preserve"><value>Исходный массив.</value></data>
+  <data name="Viz_StatusCompare" xml:space="preserve"><value>Сравниваем элементы {0} и {1}.</value></data>
+  <data name="Viz_StatusSwap" xml:space="preserve"><value>Меняем местами элементы {0} и {1}.</value></data>
+  <data name="Viz_StatusWrite" xml:space="preserve"><value>Записываем значение {1} в позицию {0}.</value></data>
+  <data name="Viz_StatusSorted" xml:space="preserve"><value>Элемент {0} стоит на своём месте.</value></data>
+  <data name="Viz_StatusRange" xml:space="preserve"><value>Рабочий отрезок: от {0} до {1}.</value></data>
+  <data name="Viz_StatusPivot" xml:space="preserve"><value>Опорный элемент: позиция {0}.</value></data>
+  <data name="Viz_StatusDone" xml:space="preserve"><value>Массив отсортирован.</value></data>
+  <data name="Viz_ErrEmpty" xml:space="preserve"><value>Введите числа.</value></data>
+  <data name="Viz_ErrNotInt" xml:space="preserve"><value>Допустимы только целые числа, разделённые запятыми или пробелами.</value></data>
+  <data name="Viz_ErrLength" xml:space="preserve"><value>Длина массива должна быть от {0} до {1} элементов.</value></data>
+  <data name="Viz_ErrRange" xml:space="preserve"><value>Каждое число должно быть от {2} до {3}.</value></data>
+  <data name="Gd_Title" xml:space="preserve"><value>Градиентный спуск</value></data>
+  <data name="Gd_Function" xml:space="preserve"><value>Функция</value></data>
+  <data name="Gd_Optimizer" xml:space="preserve"><value>Оптимизатор</value></data>
+  <data name="Gd_Fn_quadratic" xml:space="preserve"><value>Квадратичная чаша</value></data>
+  <data name="Gd_Fn_rosenbrock" xml:space="preserve"><value>Функция Розенброка</value></data>
+  <data name="Gd_Fn_double-well" xml:space="preserve"><value>Две ямы (1D, невыпуклая)</value></data>
+  <data name="Gd_Opt_Gd" xml:space="preserve"><value>Обычный GD</value></data>
+  <data name="Gd_Opt_Momentum" xml:space="preserve"><value>Момент</value></data>
+  <data name="Gd_Opt_Adam" xml:space="preserve"><value>Adam</value></data>
+  <data name="Gd_Plot" xml:space="preserve"><value>График функции и путь итераций</value></data>
+  <data name="Gd_PlotHint" xml:space="preserve"><value>Нажмите на график, чтобы выбрать начальную точку. Зелёные кружки — минимумы, красная точка — текущий шаг.</value></data>
+  <data name="Gd_LossChart" xml:space="preserve"><value>История потерь</value></data>
+  <data name="Gd_LearningRate" xml:space="preserve"><value>Шаг обучения</value></data>
+  <data name="Gd_LrValue" xml:space="preserve"><value>lr = {0}</value></data>
+  <data name="Gd_Steps" xml:space="preserve"><value>Шагов</value></data>
+  <data name="Gd_StepsValue" xml:space="preserve"><value>{0} шагов</value></data>
+  <data name="Gd_Conditioning" xml:space="preserve"><value>Обусловленность</value></data>
+  <data name="Gd_Start" xml:space="preserve"><value>Старт: x</value></data>
+  <data name="Gd_ErrStart" xml:space="preserve"><value>Координаты — числа не больше {0} по модулю.</value></data>
+  <data name="Gd_Detail" xml:space="preserve"><value>шаг {0}: параметры ({1}), потери {2}, норма градиента {3}</value></data>
+  <data name="Gd_StatusRunning" xml:space="preserve"><value>Идёт спуск.</value></data>
+  <data name="Gd_StatusConverged" xml:space="preserve"><value>Сошлось на шаге {0}: градиент почти нулевой.</value></data>
+  <data name="Gd_StatusDiverged" xml:space="preserve"><value>Расходится (шаг {0}): потери растут без предела. Уменьшите шаг обучения.</value></data>
+  <data name="Gd_StatusMaxSteps" xml:space="preserve"><value>Лимит шагов исчерпан ({0}); градиент ещё не нулевой.</value></data>
+  <data name="Gd_HintStable" xml:space="preserve"><value>Для обычного GD на этой чаше устойчив шаг lr &lt; 2/L = {0}.</value></data>
+  <data name="Gd_HintUnstable" xml:space="preserve"><value>lr больше 2/L = {0}: обычный GD на этой чаше расходится.</value></data>
+  <data name="Py_Title" xml:space="preserve"><value>Python-окружения</value></data>
+  <data name="Py_Description" xml:space="preserve"><value>Приложение создаёт виртуальные окружения только в своей папке данных и никогда не трогает системный Python. Пакеты устанавливаются только по вашей команде и только в выбранное окружение.</value></data>
+  <data name="Py_Interpreters" xml:space="preserve"><value>Найденные интерпретаторы</value></data>
+  <data name="Py_Environments" xml:space="preserve"><value>Управляемые окружения</value></data>
+  <data name="Py_NoEnvironments" xml:space="preserve"><value>Окружений пока нет. Создайте первое ниже.</value></data>
+  <data name="Py_ActiveBadge" xml:space="preserve"><value>активное</value></data>
+  <data name="Py_Active" xml:space="preserve"><value>Для уроков используется окружение «{0}».</value></data>
+  <data name="Py_ActiveNone" xml:space="preserve"><value>Окружение не выбрано: уроки запускаются системным Python.</value></data>
+  <data name="Py_SetActive" xml:space="preserve"><value>Использовать в уроках</value></data>
+  <data name="Py_ClearActive" xml:space="preserve"><value>Системный Python</value></data>
+  <data name="Py_ActiveSet" xml:space="preserve"><value>Окружение «{0}» выбрано для уроков.</value></data>
+  <data name="Py_ActiveCleared" xml:space="preserve"><value>Уроки снова запускаются системным Python.</value></data>
+  <data name="Py_Delete" xml:space="preserve"><value>Удалить…</value></data>
+  <data name="Py_DeleteTitle" xml:space="preserve"><value>Удалить окружение</value></data>
+  <data name="Py_DeleteMessage" xml:space="preserve"><value>Окружение «{0}» и все установленные в него пакеты будут удалены с диска:
+{1}</value></data>
+  <data name="Py_DeleteButton" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Py_Deleted" xml:space="preserve"><value>Окружение «{0}» удалено.</value></data>
+  <data name="Py_CreateHeader" xml:space="preserve"><value>Создать окружение</value></data>
+  <data name="Py_Name" xml:space="preserve"><value>Имя</value></data>
+  <data name="Py_NameHint" xml:space="preserve"><value>например ml-basics</value></data>
+  <data name="Py_Tool" xml:space="preserve"><value>Инструмент</value></data>
+  <data name="Py_Interpreter" xml:space="preserve"><value>Интерпретатор</value></data>
+  <data name="Py_Create" xml:space="preserve"><value>Создать окружение</value></data>
+  <data name="Py_Creating" xml:space="preserve"><value>Создаю окружение…</value></data>
+  <data name="Py_Created" xml:space="preserve"><value>Окружение «{0}» создано.</value></data>
+  <data name="Py_NoInterpreter" xml:space="preserve"><value>Выберите интерпретатор Python.</value></data>
+  <data name="Py_PackagesHeader" xml:space="preserve"><value>Пакеты выбранного окружения</value></data>
+  <data name="Py_NoPackagesInstalled" xml:space="preserve"><value>Пакетов нет или список ещё не загружен.</value></data>
+  <data name="Py_InstallHeader" xml:space="preserve"><value>Установка пакетов</value></data>
+  <data name="Py_PackagesHint" xml:space="preserve"><value>numpy&gt;=2 (по одному на строку)</value></data>
+  <data name="Py_Install" xml:space="preserve"><value>Установить пакеты…</value></data>
+  <data name="Py_InstallFile" xml:space="preserve"><value>Из requirements.txt…</value></data>
+  <data name="Py_CancelInstall" xml:space="preserve"><value>Отменить</value></data>
+  <data name="Py_PickFile" xml:space="preserve"><value>Файл requirements.txt</value></data>
+  <data name="Py_NoPackages" xml:space="preserve"><value>Укажите хотя бы один пакет.</value></data>
+  <data name="Py_ConfirmTitle" xml:space="preserve"><value>Установить пакеты</value></data>
+  <data name="Py_ConfirmIntro" xml:space="preserve"><value>В окружение «{0}» будет выполнена команда:</value></data>
+  <data name="Py_ConfirmNetwork" xml:space="preserve"><value>Пакеты будут скачаны из интернета (PyPI) — это сетевая операция. Установка выполняется только в это окружение, не в системный Python.</value></data>
+  <data name="Py_ConfirmNotes" xml:space="preserve"><value>Замечания об ускорителях:</value></data>
+  <data name="Py_ConfirmButton" xml:space="preserve"><value>Скачать и установить</value></data>
+  <data name="Py_InstallDeclined" xml:space="preserve"><value>Установка отменена, ничего не запускалось.</value></data>
+  <data name="Py_Installing" xml:space="preserve"><value>Идёт установка…</value></data>
+  <data name="Py_InstallDone" xml:space="preserve"><value>Установка завершена.</value></data>
+  <data name="Py_InstallCancelled" xml:space="preserve"><value>Установка прервана.</value></data>
+  <data name="Py_Error" xml:space="preserve"><value>Ошибка: {0}</value></data>
+  <data name="Ml_Title" xml:space="preserve"><value>ML-ускорение</value></data>
+  <data name="Ml_Description" xml:space="preserve"><value>Что есть на этой машине и что видят ML-фреймворки. По умолчанию всё считается на CPU; ускоритель нужен только упражнениям, которые его явно требуют.</value></data>
+  <data name="Ml_System" xml:space="preserve"><value>{0} · {1} · {2} · ядер: {3} · ОЗУ: {4} ГБ</value></data>
+  <data name="Ml_Status_Available" xml:space="preserve"><value>доступно</value></data>
+  <data name="Ml_Status_NotAvailable" xml:space="preserve"><value>недоступно</value></data>
+  <data name="Ml_Status_NotInstalled" xml:space="preserve"><value>не установлено</value></data>
+  <data name="Ml_Status_Unknown" xml:space="preserve"><value>неизвестно</value></data>
+  <data name="Ml_ProbeHeader" xml:space="preserve"><value>Фреймворки в окружении</value></data>
+  <data name="Ml_ProbeNote" xml:space="preserve"><value>Проверка запускает Python выбранного окружения и импортирует только те из torch, tensorflow, jax, onnxruntime, которые в нём уже установлены. Ничего не скачивается.</value></data>
+  <data name="Ml_Environment" xml:space="preserve"><value>Окружение</value></data>
+  <data name="Ml_Probe" xml:space="preserve"><value>Проверить в окружении…</value></data>
+  <data name="Ml_Probing" xml:space="preserve"><value>Проверяю окружение «{0}»…</value></data>
+  <data name="Ml_ProbeDone" xml:space="preserve"><value>Окружение «{0}» проверено.</value></data>
+  <data name="Ml_NoFrameworks" xml:space="preserve"><value>В окружении «{0}» нет ML-фреймворков.</value></data>
+  <data name="Viz_Unknown" xml:space="preserve"><value>Неизвестная визуализация: {0}</value></data>
+  <data name="Settings_Ai" xml:space="preserve"><value>AI-провайдеры</value></data>
+  <data name="AiError_InvalidKey" xml:space="preserve"><value>Ключ API отклонён провайдером. Проверьте ключ и сохраните его заново. Ответ провайдера: {0}</value></data>
+  <data name="AiError_PermissionDenied" xml:space="preserve"><value>Нет доступа: у ключа недостаточно прав или регион/модель недоступны. Ответ провайдера: {0}</value></data>
+  <data name="AiError_ModelNotFound" xml:space="preserve"><value>Модель не найдена. Проверьте Model ID или обновите список моделей. Ответ провайдера: {0}</value></data>
+  <data name="AiError_RateLimited" xml:space="preserve"><value>Слишком много запросов (лимит частоты). Подождите и повторите. Ответ провайдера: {0}</value></data>
+  <data name="AiError_QuotaExceeded" xml:space="preserve"><value>Исчерпана квота или баланс на стороне провайдера. Ответ провайдера: {0}</value></data>
+  <data name="AiError_ProviderUnavailable" xml:space="preserve"><value>Сервис провайдера временно недоступен. Повторите позже. Ответ провайдера: {0}</value></data>
+  <data name="AiError_BadRequest" xml:space="preserve"><value>Провайдер отклонил запрос как некорректный. Ответ провайдера: {0}</value></data>
+  <data name="AiError_Network" xml:space="preserve"><value>Сетевая ошибка: не удалось связаться с провайдером. Проверьте подключение и адрес. Подробности: {0}</value></data>
+  <data name="AiError_Timeout" xml:space="preserve"><value>Провайдер не ответил вовремя. Повторите попытку. Подробности: {0}</value></data>
+  <data name="AiError_SecretStore" xml:space="preserve"><value>Хранилище секретов ОС недоступно или вернуло ошибку: {0}</value></data>
+  <data name="AiError_Cancelled" xml:space="preserve"><value>Операция отменена.</value></data>
+  <data name="AiError_Unexpected" xml:space="preserve"><value>Непредвиденная ошибка: {0}</value></data>
+  <data name="AiRefusal_AiDisabled" xml:space="preserve"><value>AI выключен. Включите его в Настройки → AI-провайдеры. Ничего не отправлено.</value></data>
+  <data name="AiRefusal_NoModelConfigured" xml:space="preserve"><value>Не выбрана модель. Выберите провайдера и модель в Настройки → AI-провайдеры. Ничего не отправлено.</value></data>
+  <data name="AiRefusal_UnknownProvider" xml:space="preserve"><value>Выбранный провайдер не настроен ({0}). Проверьте настройки AI. Ничего не отправлено.</value></data>
+  <data name="AiRefusal_SecretStoreUnavailable" xml:space="preserve"><value>Хранилище секретов ОС недоступно, ключ API использовать нельзя: {0}. Ничего не отправлено.</value></data>
+  <data name="AiRefusal_NoApiKey" xml:space="preserve"><value>Для выбранного провайдера не сохранён ключ API ({0}). Добавьте ключ в настройках AI. Ничего не отправлено.</value></data>
+  <data name="AiRefusal_SpendLimit" xml:space="preserve"><value>Достигнут приблизительный лимит расходов: {0} Измените лимит в настройках AI. Ничего не отправлено.</value></data>
+  <data name="AiRefusal_EmptyMessage" xml:space="preserve"><value>Сообщение пустое. Ничего не отправлено.</value></data>
+  <data name="AiScenario_Explain" xml:space="preserve"><value>Объяснить (AI Tutor)</value></data>
+  <data name="AiScenario_Debug" xml:space="preserve"><value>Помочь с ошибкой (Debug)</value></data>
+  <data name="AiScenario_Hint" xml:space="preserve"><value>Подсказка (Hint)</value></data>
+  <data name="AiScenario_CodeReview" xml:space="preserve"><value>Code review</value></data>
+  <data name="AiScenario_AlgorithmExplanation" xml:space="preserve"><value>Разбор алгоритма</value></data>
+  <data name="AiScenario_LanguageComparison" xml:space="preserve"><value>Сравнение языков</value></data>
+  <data name="AiScenario_ProjectMentor" xml:space="preserve"><value>Наставник по проекту</value></data>
+  <data name="AiScenario_InterviewSimulator" xml:space="preserve"><value>Interview (собеседование)</value></data>
+  <data name="AiScenario_LearningAdaptation" xml:space="preserve"><value>Адаптация обучения</value></data>
+  <data name="AiScenario_ModelTest" xml:space="preserve"><value>Проверка модели</value></data>
+  <data name="Ai_NoticeTitle" xml:space="preserve"><value>Что отправляется сторонним API</value></data>
+  <data name="Ai_Notice" xml:space="preserve"><value>Только по вашему явному действию: текст вашего вопроса, а при включённых переключателях ещё описание урока, ваш код и результаты тестов. Перед каждой отправкой вы видите точный текст. Скрытые тесты и эталонные решения никогда не передаются. Данные уходят выбранному провайдеру (для локального сервера Ollama / LM Studio остаются на вашем компьютере) и обрабатываются по его правилам. Ключи API хранятся только в хранилище секретов ОС, не в базе, не в файлах и не в логах. Ответ AI это только текст: он не меняет код и ничего не запускает сам. Без AI курс работает полностью.</value></data>
+  <data name="Ai_Enable" xml:space="preserve"><value>Включить AI</value></data>
+  <data name="Ai_EnableNote" xml:space="preserve"><value>По умолчанию AI выключен. Ничего не отправляется, пока вы не включите его, не выберете модель и не подтвердите отправку.</value></data>
+  <data name="Ai_SecretStoreUnavailable" xml:space="preserve"><value>Хранилище секретов ОС недоступно: {0}. Ключи API сохранить нельзя (открытого хранения нет). AI с провайдерами, требующими ключ, работать не будет.</value></data>
+  <data name="Ai_SaveFailed" xml:space="preserve"><value>Не удалось сохранить настройку: {0}</value></data>
+  <data name="Ai_Providers" xml:space="preserve"><value>Провайдеры</value></data>
+  <data name="Ai_Provider_Compatible" xml:space="preserve"><value>OpenAI-совместимый (Ollama / LM Studio)</value></data>
+  <data name="Ai_BaseUrl" xml:space="preserve"><value>Базовый URL</value></data>
+  <data name="Ai_BaseUrlApply" xml:space="preserve"><value>Применить адрес</value></data>
+  <data name="Ai_BaseUrlNote" xml:space="preserve"><value>Например, http://localhost:11434/v1 для Ollama или http://localhost:1234/v1 для LM Studio. Ключ (если он нужен) отправляется только на этот адрес.</value></data>
+  <data name="Ai_BaseUrlInvalid" xml:space="preserve"><value>Нужен абсолютный адрес http:// или https://.</value></data>
+  <data name="Ai_BaseUrlSaved" xml:space="preserve"><value>Адрес сохранён: {0}</value></data>
+  <data name="Ai_ApiKey" xml:space="preserve"><value>Ключ API</value></data>
+  <data name="Ai_KeyPlaceholder" xml:space="preserve"><value>Вставьте ключ (после сохранения не отображается)</value></data>
+  <data name="Ai_KeyDelete" xml:space="preserve"><value>Удалить ключ</value></data>
+  <data name="Ai_KeySaved" xml:space="preserve"><value>ключ сохранён</value></data>
+  <data name="Ai_KeyMissing" xml:space="preserve"><value>ключ не задан</value></data>
+  <data name="Ai_KeyOptional" xml:space="preserve"><value>ключ не обязателен</value></data>
+  <data name="Ai_KeySavedMsg" xml:space="preserve"><value>Ключ сохранён в хранилище секретов ОС.</value></data>
+  <data name="Ai_KeyRemovedMsg" xml:space="preserve"><value>Ключ удалён.</value></data>
+  <data name="Ai_CheckKey" xml:space="preserve"><value>Проверить ключ</value></data>
+  <data name="Ai_KeyValid" xml:space="preserve"><value>Ключ принят провайдером.</value></data>
+  <data name="Ai_KeyInvalid" xml:space="preserve"><value>Ключ не принят. {0}</value></data>
+  <data name="Ai_RefreshModels" xml:space="preserve"><value>Обновить список моделей</value></data>
+  <data name="Ai_Busy" xml:space="preserve"><value>Выполняется…</value></data>
+  <data name="Ai_Models" xml:space="preserve"><value>Модели</value></data>
+  <data name="Ai_ModelsCache" xml:space="preserve"><value>Список обновлён: {0} (моделей: {1})</value></data>
+  <data name="Ai_ModelsNever" xml:space="preserve"><value>Список ещё не загружался. Нажмите «Обновить список моделей».</value></data>
+  <data name="Ai_ModelsLoaded" xml:space="preserve"><value>Список моделей обновлён: {0}.</value></data>
+  <data name="Ai_ColId" xml:space="preserve"><value>Model ID</value></data>
+  <data name="Ai_ColName" xml:space="preserve"><value>Название</value></data>
+  <data name="Ai_ColContext" xml:space="preserve"><value>Контекст</value></data>
+  <data name="Ai_ColCaps" xml:space="preserve"><value>Возможности</value></data>
+  <data name="Ai_ColPrice" xml:space="preserve"><value>Цена за 1M токенов</value></data>
+  <data name="Ai_Price" xml:space="preserve"><value>вход {0} / выход {1}</value></data>
+  <data name="Ai_PriceNote" xml:space="preserve"><value>Цены показаны только если их публикует провайдер; это ориентир, а не счёт.</value></data>
+  <data name="Ai_Unknown" xml:space="preserve"><value>неизвестно</value></data>
+  <data name="Ai_Yes" xml:space="preserve"><value>да</value></data>
+  <data name="Ai_No" xml:space="preserve"><value>нет</value></data>
+  <data name="Ai_Cap_Text" xml:space="preserve"><value>текст</value></data>
+  <data name="Ai_Cap_Streaming" xml:space="preserve"><value>стриминг</value></data>
+  <data name="Ai_Cap_Tools" xml:space="preserve"><value>инструменты</value></data>
+  <data name="Ai_Cap_Structured" xml:space="preserve"><value>структурный вывод</value></data>
+  <data name="Ai_Cap_Multimodal" xml:space="preserve"><value>мультимодальность</value></data>
+  <data name="Ai_Cap_Reasoning" xml:space="preserve"><value>управление рассуждением</value></data>
+  <data name="Ai_CustomModel" xml:space="preserve"><value>Свой Model ID</value></data>
+  <data name="Ai_CustomModelHint" xml:space="preserve"><value>Любой ID модели, например имя из списка провайдера</value></data>
+  <data name="Ai_CustomModelNote" xml:space="preserve"><value>Текст используется как есть, без белого списка. «Проверить модель» отправляет крошечный запрос (до 16 токенов) и может стоить копейки.</value></data>
+  <data name="Ai_TestModel" xml:space="preserve"><value>Проверить модель</value></data>
+  <data name="Ai_ModelOk" xml:space="preserve"><value>Модель {0} отвечает ({1} мс){2}.</value></data>
+  <data name="Ai_TestTokens" xml:space="preserve"><value>, токенов: {0} / {1}</value></data>
+  <data name="Ai_Assignments" xml:space="preserve"><value>Модели по сценариям</value></data>
+  <data name="Ai_AssignmentsNote" xml:space="preserve"><value>Для каждого сценария можно выбрать своего провайдера и модель. «По умолчанию» берёт общую модель из первой строки. Автоматической подмены модели при ошибке нет.</value></data>
+  <data name="Ai_DefaultRow" xml:space="preserve"><value>Модель по умолчанию</value></data>
+  <data name="Ai_NotSelected" xml:space="preserve"><value>не выбрано</value></data>
+  <data name="Ai_UseDefault" xml:space="preserve"><value>по умолчанию</value></data>
+  <data name="Ai_ModelId" xml:space="preserve"><value>Model ID</value></data>
+  <data name="Ai_SaveAssignments" xml:space="preserve"><value>Сохранить назначения</value></data>
+  <data name="Ai_AssignNoModel" xml:space="preserve"><value>Укажите Model ID для строки «{0}».</value></data>
+  <data name="Ai_AssignSaved" xml:space="preserve"><value>Назначения сохранены.</value></data>
+  <data name="Ai_ContextLimits" xml:space="preserve"><value>Контекст и расходы</value></data>
+  <data name="Ai_AllowCode" xml:space="preserve"><value>Разрешить отправку моего исходного кода</value></data>
+  <data name="Ai_AllowCodeNote" xml:space="preserve"><value>Если выключено, код не попадает в запросы, даже если в панели наставника включён «мой код».</value></data>
+  <data name="Ai_MaxTokens" xml:space="preserve"><value>Макс. токенов ответа</value></data>
+  <data name="Ai_MonthlyLimit" xml:space="preserve"><value>Лимит за месяц, USD (≈)</value></data>
+  <data name="Ai_SessionLimit" xml:space="preserve"><value>Лимит за сессию, USD (≈)</value></data>
+  <data name="Ai_Default" xml:space="preserve"><value>по умолчанию</value></data>
+  <data name="Ai_NoLimit" xml:space="preserve"><value>без лимита</value></data>
+  <data name="Ai_LimitNote" xml:space="preserve"><value>Лимиты приблизительные: считаются по ценам, которые публикует провайдер, и не применяются, если цен нет. Авторитетен счёт провайдера.</value></data>
+  <data name="Ai_LimitInvalid" xml:space="preserve"><value>Лимит должен быть положительным числом (USD) или пустым.</value></data>
+  <data name="Ai_TokensInvalid" xml:space="preserve"><value>Макс. токенов: целое число от 1 до 200000 или пусто.</value></data>
+  <data name="Ai_LimitsSaved" xml:space="preserve"><value>Сохранено.</value></data>
+  <data name="Ai_History" xml:space="preserve"><value>История запросов AI</value></data>
+  <data name="Ai_HistoryNote" xml:space="preserve"><value>Только метаданные: время, провайдер, модель, сценарий, токены, ориентировочная стоимость и статус. Тексты вопросов и ответов не сохраняются.</value></data>
+  <data name="Ai_HistoryRefresh" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Ai_ClearHistory" xml:space="preserve"><value>Очистить историю AI</value></data>
+  <data name="Ai_ClearTitle" xml:space="preserve"><value>Очистить историю AI</value></data>
+  <data name="Ai_ClearMessage" xml:space="preserve"><value>Все записи о запросах к AI будут удалены. Это не отменить.</value></data>
+  <data name="Ai_ClearConfirm" xml:space="preserve"><value>Очистить</value></data>
+  <data name="Ai_Cleared" xml:space="preserve"><value>Удалено записей: {0}</value></data>
+  <data name="Ai_HistoryEmpty" xml:space="preserve"><value>Запросов пока не было.</value></data>
+  <data name="Ai_HColTime" xml:space="preserve"><value>Время</value></data>
+  <data name="Ai_HColProvider" xml:space="preserve"><value>Провайдер</value></data>
+  <data name="Ai_HColModel" xml:space="preserve"><value>Модель</value></data>
+  <data name="Ai_HColScenario" xml:space="preserve"><value>Сценарий</value></data>
+  <data name="Ai_HColTokens" xml:space="preserve"><value>Токены (вх / исх)</value></data>
+  <data name="Ai_HColCost" xml:space="preserve"><value>Стоимость ≈</value></data>
+  <data name="Ai_HColStatus" xml:space="preserve"><value>Статус</value></data>
+  <data name="Ai_StatusOk" xml:space="preserve"><value>ок</value></data>
+  <data name="Ai_StatusCancelled" xml:space="preserve"><value>отменён</value></data>
+  <data name="Ai_StatusError" xml:space="preserve"><value>ошибка ({0})</value></data>
+  <data name="Ai_StatusErrorPlain" xml:space="preserve"><value>ошибка</value></data>
+  <data name="Tutor_Title" xml:space="preserve"><value>AI-наставник</value></data>
+  <data name="Tutor_Ready" xml:space="preserve"><value>Выберите сценарий. Перед отправкой вы увидите точный текст запроса.</value></data>
+  <data name="Tutor_Off" xml:space="preserve"><value>AI выключен: урок работает без него. Если хотите помощи наставника, включите AI в настройках.</value></data>
+  <data name="Tutor_OffShort" xml:space="preserve"><value>выключен</value></data>
+  <data name="Tutor_OpenSettings" xml:space="preserve"><value>Открыть настройки AI</value></data>
+  <data name="Tutor_Explain" xml:space="preserve"><value>Объяснить</value></data>
+  <data name="Tutor_Debug" xml:space="preserve"><value>Помочь с ошибкой</value></data>
+  <data name="Tutor_Hint" xml:space="preserve"><value>Подсказка</value></data>
+  <data name="Tutor_Review" xml:space="preserve"><value>Code review</value></data>
+  <data name="Tutor_HintLevel" xml:space="preserve"><value>Уровень подсказки</value></data>
+  <data name="Tutor_Context" xml:space="preserve"><value>Что отправить вместе с вопросом</value></data>
+  <data name="Tutor_CtxLesson" xml:space="preserve"><value>урок</value></data>
+  <data name="Tutor_CtxCode" xml:space="preserve"><value>мой код</value></data>
+  <data name="Tutor_CtxResults" xml:space="preserve"><value>результаты тестов</value></data>
+  <data name="Tutor_CtxPrevious" xml:space="preserve"><value>прошлые попытки</value></data>
+  <data name="Tutor_CodeBlocked" xml:space="preserve"><value>Отправка кода выключена в настройках AI: «мой код» не будет передан.</value></data>
+  <data name="Tutor_QuestionHint" xml:space="preserve"><value>Ваш вопрос (необязательно)</value></data>
+  <data name="Tutor_PreviewTitle" xml:space="preserve"><value>Проверьте, что будет отправлено</value></data>
+  <data name="Tutor_PreviewSummary" xml:space="preserve"><value>Провайдер: {0} · модель: {1} · макс. ответ: {2} токенов · разделы: {3}</value></data>
+  <data name="Tutor_PreviewExact" xml:space="preserve"><value>Точный текст запроса</value></data>
+  <data name="Tutor_Send" xml:space="preserve"><value>Отправить</value></data>
+  <data name="Tutor_SkipPreview" xml:space="preserve"><value>Не спрашивать снова в этой сессии</value></data>
+  <data name="Tutor_Streaming" xml:space="preserve"><value>Ответ приходит…</value></data>
+  <data name="Tutor_StopButton" xml:space="preserve"><value>Остановить</value></data>
+  <data name="Tutor_Stopped" xml:space="preserve"><value>Остановлено. Показана полученная часть ответа.</value></data>
+  <data name="Tutor_Usage" xml:space="preserve"><value>Токены: вход {0}, выход {1}</value></data>
+  <data name="Tutor_TextOnly" xml:space="preserve"><value>Ответ AI это только текст: он не меняет ваш код и ничего не запускает. Он может ошибаться: проверяйте.</value></data>
+  <data name="Tutor_DefaultMessage_Explain" xml:space="preserve"><value>Объясни, пожалуйста, материал этого урока простыми словами.</value></data>
+  <data name="Tutor_DefaultMessage_Debug" xml:space="preserve"><value>Помоги разобраться, почему мой код не работает. Не давай готовое решение.</value></data>
+  <data name="Tutor_DefaultMessage_Hint" xml:space="preserve"><value>Дай подсказку для текущего задания, не раскрывая решение.</value></data>
+  <data name="Tutor_DefaultMessage_CodeReview" xml:space="preserve"><value>Проведи ревью моего кода.</value></data>
+  <data name="Tutor_DefaultMessage_AlgorithmExplanation" xml:space="preserve"><value>Объясни алгоритм из этого задания.</value></data>
+  <data name="Tutor_DefaultMessage_LanguageComparison" xml:space="preserve"><value>Сравни этот подход с другими языками.</value></data>
+  <data name="Tutor_DefaultMessage_ProjectMentor" xml:space="preserve"><value>Помоги спланировать мой проект.</value></data>
+  <data name="Tutor_DefaultMessage_InterviewSimulator" xml:space="preserve"><value>Проведи со мной тренировочное собеседование по теме урока.</value></data>
+  <data name="Tutor_DefaultMessage_LearningAdaptation" xml:space="preserve"><value>Подскажи, что мне изучать дальше.</value></data>
+  <data name="Nav_Projects" xml:space="preserve"><value>Проекты</value></data>
+  <data name="Term_ExitFormat" xml:space="preserve"><value>[процесс завершён, код выхода {0}]</value></data>
+  <data name="Term_StartFailed" xml:space="preserve"><value>Не удалось запустить терминал: {0}</value></data>
+  <data name="Ws_Title" xml:space="preserve"><value>Проекты</value></data>
+  <data name="Ws_Intro" xml:space="preserve"><value>Откройте любую папку или создайте проект из шаблона. Файлы остаются на вашем диске; приложение запоминает только список путей.</value></data>
+  <data name="Ws_NoSandbox" xml:space="preserve"><value>Без песочницы — ваш код запускается как обычная программа. Терминал — это ваша собственная оболочка с вашими правами и окружением. Ничего, что предложил ИИ, не выполняется автоматически.</value></data>
+  <data name="Ws_OpenFolder" xml:space="preserve"><value>Открыть папку…</value></data>
+  <data name="Ws_Open" xml:space="preserve"><value>Открыть</value></data>
+  <data name="Ws_Forget" xml:space="preserve"><value>Убрать из списка</value></data>
+  <data name="Ws_Recent" xml:space="preserve"><value>Недавние проекты</value></data>
+  <data name="Ws_RecentEmpty" xml:space="preserve"><value>Пока нет недавних проектов.</value></data>
+  <data name="Ws_Templates" xml:space="preserve"><value>Шаблоны проектов</value></data>
+  <data name="Ws_TemplatesHint" xml:space="preserve"><value>Шаблон копирует файлы в новую папку. Команды после создания только показываются — запускаете их вы сами.</value></data>
+  <data name="Ws_CreateFromTemplate" xml:space="preserve"><value>Создать</value></data>
+  <data name="Ws_Create" xml:space="preserve"><value>Создать</value></data>
+  <data name="Ws_NewProjectTitle" xml:space="preserve"><value>Новый проект: {0}</value></data>
+  <data name="Ws_ProjectNameHint" xml:space="preserve"><value>Имя проекта (латиница, цифры, - и _)</value></data>
+  <data name="Ws_PickFolder" xml:space="preserve"><value>Выберите папку проекта</value></data>
+  <data name="Ws_PickParentFolder" xml:space="preserve"><value>Выберите папку, в которой создать проект</value></data>
+  <data name="Ws_FolderMissing" xml:space="preserve"><value>Папка не найдена: {0}</value></data>
+  <data name="Ws_CloseProject" xml:space="preserve"><value>Закрыть проект</value></data>
+  <data name="Ws_Save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Ws_Saved" xml:space="preserve"><value>Сохранено: {0}</value></data>
+  <data name="Ws_SaveFailed" xml:space="preserve"><value>Не удалось сохранить {0}: {1}</value></data>
+  <data name="Ws_Split" xml:space="preserve"><value>Разделить</value></data>
+  <data name="Ws_Run" xml:space="preserve"><value>Запуск</value></data>
+  <data name="Ws_Test" xml:space="preserve"><value>Тесты</value></data>
+  <data name="Ws_PythonEnv" xml:space="preserve"><value>Окружение Python:</value></data>
+  <data name="Ws_PythonSystem" xml:space="preserve"><value>Системный Python</value></data>
+  <data name="Ws_PythonProjectVenv" xml:space="preserve"><value>Проектный .venv</value></data>
+  <data name="Ws_PythonManaged" xml:space="preserve"><value>Окружение приложения: {0}</value></data>
+  <data name="Ws_CreateVenv" xml:space="preserve"><value>Создать .venv</value></data>
+  <data name="Ws_InstallRequirements" xml:space="preserve"><value>Установить requirements.txt</value></data>
+  <data name="Ws_PostCreate" xml:space="preserve"><value>Команды шаблона (не запускаются автоматически):</value></data>
+  <data name="Ws_ToTerminal" xml:space="preserve"><value>В терминал</value></data>
+  <data name="Ws_NewFileShort" xml:space="preserve"><value>+ Файл</value></data>
+  <data name="Ws_NewFolderShort" xml:space="preserve"><value>+ Папка</value></data>
+  <data name="Ws_NewFile" xml:space="preserve"><value>Новый файл</value></data>
+  <data name="Ws_NewFileHint" xml:space="preserve"><value>Имя файла</value></data>
+  <data name="Ws_NewFolder" xml:space="preserve"><value>Новая папка</value></data>
+  <data name="Ws_NewFolderHint" xml:space="preserve"><value>Имя папки</value></data>
+  <data name="Ws_Rename" xml:space="preserve"><value>Переименовать</value></data>
+  <data name="Ws_RenameHint" xml:space="preserve"><value>Новое имя для «{0}»</value></data>
+  <data name="Ws_Delete" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Ws_Refresh" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Ws_ShowIgnored" xml:space="preserve"><value>Служебные папки</value></data>
+  <data name="Ws_FileSearch" xml:space="preserve"><value>Поиск файла по имени</value></data>
+  <data name="Ws_TextSearch" xml:space="preserve"><value>Поиск текста (Enter)</value></data>
+  <data name="Ws_Cancel" xml:space="preserve"><value>Отмена</value></data>
+  <data name="Ws_CloseTab" xml:space="preserve"><value>Закрыть вкладку</value></data>
+  <data name="Ws_NoFileOpen" xml:space="preserve"><value>Откройте файл двойным щелчком в дереве.</value></data>
+  <data name="Ws_Terminal" xml:space="preserve"><value>Терминал</value></data>
+  <data name="Ws_NewTerminal" xml:space="preserve"><value>Новый терминал</value></data>
+  <data name="Ws_KillTerminal" xml:space="preserve"><value>Прервать</value></data>
+  <data name="Ws_CloseTerminal" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="Ws_NoTerminal" xml:space="preserve"><value>Терминал не запущен. Нажмите «Новый терминал» или «Запуск».</value></data>
+  <data name="Ws_UnsavedTitle" xml:space="preserve"><value>Несохранённые изменения</value></data>
+  <data name="Ws_UnsavedMessage" xml:space="preserve"><value>Файл «{0}» изменён. Сохранить изменения?</value></data>
+  <data name="Ws_DontSave" xml:space="preserve"><value>Не сохранять</value></data>
+  <data name="Ws_GoToLine" xml:space="preserve"><value>Перейти к строке</value></data>
+  <data name="Ws_GoToLineHint" xml:space="preserve"><value>Номер строки (1–{0})</value></data>
+  <data name="Ws_Go" xml:space="preserve"><value>Перейти</value></data>
+  <data name="Ws_DeleteTitle" xml:space="preserve"><value>Удалить «{0}»?</value></data>
+  <data name="Ws_DeleteTrashMessage" xml:space="preserve"><value>«{0}» будет перемещён в корзину.</value></data>
+  <data name="Ws_DeletePermanentMessage" xml:space="preserve"><value>Корзина недоступна. «{0}» будет удалён НАВСЕГДА, восстановить его будет нельзя.</value></data>
+  <data name="Ws_DeleteDirtyNote" xml:space="preserve"><value>Несохранённые изменения в открытых вкладках будут потеряны.</value></data>
+  <data name="Ws_ToTrash" xml:space="preserve"><value>В корзину</value></data>
+  <data name="Ws_DeleteForever" xml:space="preserve"><value>Удалить навсегда</value></data>
+  <data name="Ws_TrashFailedTitle" xml:space="preserve"><value>Не удалось переместить в корзину</value></data>
+  <data name="Ws_TrashFailedMessage" xml:space="preserve"><value>«{0}» не удалось отправить в корзину. Удалить навсегда?</value></data>
+  <data name="Ws_ChangedOnDiskTitle" xml:space="preserve"><value>Файл изменён на диске</value></data>
+  <data name="Ws_ChangedOnDisk" xml:space="preserve"><value>Файл «{0}» изменён другой программой. Перечитать с диска?</value></data>
+  <data name="Ws_ChangedOnDiskDirty" xml:space="preserve"><value>Файл «{0}» изменён другой программой, а в редакторе есть несохранённые правки. Перечитать с диска (правки будут потеряны) или оставить свою версию?</value></data>
+  <data name="Ws_Reload" xml:space="preserve"><value>Перечитать</value></data>
+  <data name="Ws_KeepMine" xml:space="preserve"><value>Оставить мою</value></data>
+  <data name="Ws_DeletedOnDisk" xml:space="preserve"><value>Файл «{0}» удалён на диске.</value></data>
+  <data name="Ws_WatcherFailed" xml:space="preserve"><value>Не удалось следить за изменениями файлов: {0}</value></data>
+  <data name="Ws_OpenBinary" xml:space="preserve"><value>«{0}» — бинарный файл, он не открывается как текст.</value></data>
+  <data name="Ws_OpenTooLarge" xml:space="preserve"><value>«{0}» слишком большой для редактора.</value></data>
+  <data name="Ws_OpenNotUtf8" xml:space="preserve"><value>«{0}» не в кодировке UTF-8, открыть его нельзя.</value></data>
+  <data name="Ws_OpenMissing" xml:space="preserve"><value>Не удалось открыть «{0}».</value></data>
+  <data name="Ws_VenvExists" xml:space="preserve"><value>В проекте уже есть .venv.</value></data>
+  <data name="Ws_NoPython" xml:space="preserve"><value>Python не найден. Установите его или настройте окружение в Настройках.</value></data>
+  <data name="Ws_VenvTitle" xml:space="preserve"><value>Создать виртуальное окружение</value></data>
+  <data name="Ws_VenvMessage" xml:space="preserve"><value>Будет выполнена команда:
+{0}
+в папке {1}</value></data>
+  <data name="Ws_VenvCreating" xml:space="preserve"><value>Создаю .venv…</value></data>
+  <data name="Ws_VenvCreated" xml:space="preserve"><value>Окружение .venv создано.</value></data>
+  <data name="Ws_VenvFailed" xml:space="preserve"><value>Не удалось создать .venv: {0}</value></data>
+  <data name="Ws_NoRequirements" xml:space="preserve"><value>В проекте нет requirements.txt.</value></data>
+  <data name="Ws_InstallNeedsEnv" xml:space="preserve"><value>Выберите проектный .venv или окружение приложения: пакеты не ставятся в системный Python.</value></data>
+  <data name="Ws_InstallTitle" xml:space="preserve"><value>Установить зависимости</value></data>
+  <data name="Ws_InstallMessage" xml:space="preserve"><value>Команда будет введена в терминал и выполнена:
+{0}</value></data>
+  <data name="Ws_Install" xml:space="preserve"><value>Установить</value></data>
+  <data name="Ws_ShowIgnoredHint" xml:space="preserve"><value>Показывать .git, node_modules, .venv, target, bin, obj</value></data>
+  <data name="Catalog_Paths" xml:space="preserve"><value>Маршруты</value></data>
+  <data name="Catalog_PathMeta" xml:space="preserve"><value>Курсов: {0} · уроков: {1} · пройдено: {2}</value></data>
+  <data name="Catalog_OpenPath" xml:space="preserve"><value>Открыть маршрут</value></data>
+  <data name="Catalog_Comparisons" xml:space="preserve"><value>Сравнения</value></data>
+  <data name="Catalog_OpenComparison" xml:space="preserve"><value>Открыть сравнение</value></data>
+  <data name="Onboarding_Paths" xml:space="preserve"><value>Маршрут обучения</value></data>
+  <data name="Onboarding_PathsHint" xml:space="preserve"><value>Маршрут — готовая последовательность курсов к цели. Можно выбрать позже или вести несколько.</value></data>
+  <data name="Onboarding_NoPath" xml:space="preserve"><value>Без маршрута</value></data>
+  <data name="Onboarding_NoPathHint" xml:space="preserve"><value>Выберу курсы сам из каталога.</value></data>
+  <data name="Path_Goal" xml:space="preserve"><value>Цель: {0}</value></data>
+  <data name="Path_Follow" xml:space="preserve"><value>Вести этот маршрут</value></data>
+  <data name="Path_Unfollow" xml:space="preserve"><value>Перестать вести</value></data>
+  <data name="Path_LessonCredited" xml:space="preserve"><value>Засчитано по проверке знаний</value></data>
+  <data name="Path_LessonKnown" xml:space="preserve"><value>уже освоено</value></data>
+  <data name="Path_LessonShared" xml:space="preserve"><value>Общий урок с маршрутами: {0}</value></data>
+  <data name="Placement_Title" xml:space="preserve"><value>Проверка знаний: {0}</value></data>
+  <data name="Placement_Passed" xml:space="preserve"><value>Проверка пройдена. Засчитано уроков: {0}.</value></data>
+  <data name="Placement_PassedNothing" xml:space="preserve"><value>Проверка пройдена, новых уроков для зачёта нет.</value></data>
+  <data name="Placement_Failed" xml:space="preserve"><value>Проверка не пройдена. Прогресс не изменился, можно изучать уроки как обычно или попробовать снова.</value></data>
+  <data name="Placement_Offer" xml:space="preserve"><value>Есть проверка «{0}»: {1} вопросов, порог {2}%. При успехе будет засчитано уроков: {3}.</value></data>
+  <data name="Placement_Skip" xml:space="preserve"><value>Пропустить, если уже знаю</value></data>
+  <data name="Placement_Close" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="Path_CourseProgress" xml:space="preserve"><value>{0} из {1} уроков</value></data>
+  <data name="Path_CourseCredited" xml:space="preserve"><value>из них засчитано по проверке: {0}</value></data>
+  <data name="Path_AlternativesHint" xml:space="preserve"><value>Выберите один вариант. Невыбранные не требуются для маршрута.</value></data>
+  <data name="Path_AlternativesDefault" xml:space="preserve"><value>Пока не выбрано; по умолчанию: {0}.</value></data>
+  <data name="Path_StagePrerequisites" xml:space="preserve"><value>Основа</value></data>
+  <data name="Path_StageN" xml:space="preserve"><value>Этап {0}</value></data>
+  <data name="Path_Progress" xml:space="preserve"><value>Пройдено {0} из {1} уроков</value></data>
+  <data name="Path_Credited" xml:space="preserve"><value>Засчитано по проверке знаний: {0}</value></data>
+  <data name="Path_Known" xml:space="preserve"><value>Уже освоено ранее: {0}</value></data>
+  <data name="Path_NextStep" xml:space="preserve"><value>Следующий шаг</value></data>
+  <data name="Path_Finished" xml:space="preserve"><value>Маршрут пройден.</value></data>
+  <data name="Path_OpenNext" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="Path_Alternatives" xml:space="preserve"><value>Варианты на выбор</value></data>
+  <data name="Path_Graph" xml:space="preserve"><value>Зависимости курсов</value></data>
+  <data name="Path_NotChosen" xml:space="preserve"><value>Не выбран (не требуется)</value></data>
+  <data name="Path_Lessons" xml:space="preserve"><value>Уроки</value></data>
+  <data name="Path_OpenLesson" xml:space="preserve"><value>Открыть</value></data>
+  <data name="Path_OtherPaths" xml:space="preserve"><value>Другие ваши маршруты</value></data>
+  <data name="Comparison_Meta" xml:space="preserve"><value>Объектов: {0} · критериев: {1}</value></data>
+  <data name="Comparison_PickSubject" xml:space="preserve"><value>Объект сравнения</value></data>
+  <data name="Comparison_Verdict" xml:space="preserve"><value>Как выбирать</value></data>
+  <data name="Comparison_Sources" xml:space="preserve"><value>Источники</value></data>
+  <data name="Subject_Library" xml:space="preserve"><value>библиотека</value></data>
+  <data name="Subject_Framework" xml:space="preserve"><value>фреймворк</value></data>
+  <data name="Subject_Language" xml:space="preserve"><value>язык</value></data>
+  <data name="Subject_Runtime" xml:space="preserve"><value>среда выполнения</value></data>
+  <data name="Framework_Curriculum" xml:space="preserve"><value>Версия курса: {0}</value></data>
+  <data name="Framework_Deprecated" xml:space="preserve"><value>Устаревшее</value></data>
+  <data name="Framework_Migration" xml:space="preserve"><value>Заметки по миграции</value></data>
+  <data name="Framework_Docs" xml:space="preserve"><value>Документация</value></data>
+</root>

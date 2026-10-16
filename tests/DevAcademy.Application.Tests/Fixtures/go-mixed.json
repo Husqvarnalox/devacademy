@@ -1,0 +1,30 @@
+{"Time":"2026-10-16T07:01:14.73314+03:00","Action":"start","Package":"example.com/stats"}
+{"Time":"2026-10-16T07:01:15.022754+03:00","Action":"run","Package":"example.com/stats","Test":"TestMean"}
+{"Time":"2026-10-16T07:01:15.022858+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean","Output":"=== RUN   TestMean\n"}
+{"Time":"2026-10-16T07:01:15.023356+03:00","Action":"run","Package":"example.com/stats","Test":"TestMean/simple"}
+{"Time":"2026-10-16T07:01:15.023393+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/simple","Output":"=== RUN   TestMean/simple\n"}
+{"Time":"2026-10-16T07:01:15.023411+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/simple","Output":"--- PASS: TestMean/simple (0.00s)\n"}
+{"Time":"2026-10-16T07:01:15.023433+03:00","Action":"pass","Package":"example.com/stats","Test":"TestMean/simple","Elapsed":0}
+{"Time":"2026-10-16T07:01:15.023443+03:00","Action":"run","Package":"example.com/stats","Test":"TestMean/wrong"}
+{"Time":"2026-10-16T07:01:15.023463+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/wrong","Output":"=== RUN   TestMean/wrong\n"}
+{"Time":"2026-10-16T07:01:15.023471+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/wrong","Output":"    stats_test.go:19: Mean([1 2]) = 1.5, want 5\n"}
+{"Time":"2026-10-16T07:01:15.023484+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/wrong","Output":"--- FAIL: TestMean/wrong (0.00s)\n"}
+{"Time":"2026-10-16T07:01:15.023491+03:00","Action":"fail","Package":"example.com/stats","Test":"TestMean/wrong","Elapsed":0}
+{"Time":"2026-10-16T07:01:15.023497+03:00","Action":"run","Package":"example.com/stats","Test":"TestMean/single"}
+{"Time":"2026-10-16T07:01:15.023502+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/single","Output":"=== RUN   TestMean/single\n"}
+{"Time":"2026-10-16T07:01:15.023509+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean/single","Output":"--- PASS: TestMean/single (0.00s)\n"}
+{"Time":"2026-10-16T07:01:15.023514+03:00","Action":"pass","Package":"example.com/stats","Test":"TestMean/single","Elapsed":0}
+{"Time":"2026-10-16T07:01:15.023521+03:00","Action":"output","Package":"example.com/stats","Test":"TestMean","Output":"--- FAIL: TestMean (0.00s)\n"}
+{"Time":"2026-10-16T07:01:15.023527+03:00","Action":"fail","Package":"example.com/stats","Test":"TestMean","Elapsed":0}
+{"Time":"2026-10-16T07:01:15.023533+03:00","Action":"run","Package":"example.com/stats","Test":"TestSkip"}
+{"Time":"2026-10-16T07:01:15.023539+03:00","Action":"output","Package":"example.com/stats","Test":"TestSkip","Output":"=== RUN   TestSkip\n"}
+{"Time":"2026-10-16T07:01:15.023544+03:00","Action":"output","Package":"example.com/stats","Test":"TestSkip","Output":"    stats_test.go:25: later\n"}
+{"Time":"2026-10-16T07:01:15.02355+03:00","Action":"output","Package":"example.com/stats","Test":"TestSkip","Output":"--- SKIP: TestSkip (0.00s)\n"}
+{"Time":"2026-10-16T07:01:15.023559+03:00","Action":"skip","Package":"example.com/stats","Test":"TestSkip","Elapsed":0}
+{"Time":"2026-10-16T07:01:15.023565+03:00","Action":"run","Package":"example.com/stats","Test":"TestEmpty"}
+{"Time":"2026-10-16T07:01:15.02357+03:00","Action":"output","Package":"example.com/stats","Test":"TestEmpty","Output":"=== RUN   TestEmpty\n"}
+{"Time":"2026-10-16T07:01:15.023576+03:00","Action":"output","Package":"example.com/stats","Test":"TestEmpty","Output":"--- PASS: TestEmpty (0.00s)\n"}
+{"Time":"2026-10-16T07:01:15.023581+03:00","Action":"pass","Package":"example.com/stats","Test":"TestEmpty","Elapsed":0}
+{"Time":"2026-10-16T07:01:15.023587+03:00","Action":"output","Package":"example.com/stats","Output":"FAIL\n"}
+{"Time":"2026-10-16T07:01:15.023749+03:00","Action":"output","Package":"example.com/stats","Output":"FAIL\texample.com/stats\t0.290s\n"}
+{"Time":"2026-10-16T07:01:15.023976+03:00","Action":"fail","Package":"example.com/stats","Elapsed":0.291}

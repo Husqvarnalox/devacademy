@@ -1,0 +1,142 @@
+id: "csharp.first-steps.value-types-and-nullable"
+title: "Значимые и ссылочные типы, struct и class, nullable"
+goal: "Различать копирование значения и копирование ссылки, понимать Nullable<T> и аннотации nullable reference types."
+difficulty: "intro"
+estimatedMinutes: 40
+prerequisites:
+  - "csharp.first-steps.how-csharp-runs"
+objectives:
+  - "Объяснить разницу между значимыми и ссылочными типами при присваивании и передаче в метод."
+  - "Выбирать между struct и class и избегать изменяемых структур."
+  - "Использовать Nullable<T> (int?) и операторы ??, ?., is { } v."
+  - "Объяснить, что nullable reference types - аннотации компилятора, а не типы времени выполнения."
+masteryCriteria:
+  - "Вы объясняете, почему изменение копии struct не видно в оригинале, а изменение через вторую ссылку на class видно."
+  - "Вы пользуетесь ref для структуры и понимаете его смысл."
+  - "Вы читаете предупреждения о null и не отключаете их оператором ! без причины."
+related:
+  - "python.fundamentals.variables-and-input"
+  - "javascript.first-steps.values-and-equality"
+next: []
+tags:
+  - "csharp"
+  - "struct"
+  - "class"
+  - "nullable"
+  - "value-types"
+facts:
+  - kind: "internals"
+    text: "Переменная значимого типа содержит само значение, а переменная ссылочного типа - ссылку на объект. Поэтому присваивание копирует значение для struct и ссылку для class."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/struct"
+  - kind: "internals"
+    text: "Nullable reference types работают как статический анализ: компилятор отслеживает состояние null и выдаёт предупреждения. Аннотации не меняют поведение программы во время выполнения."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references"
+  - kind: "misconception"
+    text: "«Структуры всегда хранятся на стеке, классы - в куче» - упрощение. Структура-поле класса хранится внутри объекта в куче, а локальная переменная ссылочного типа сама лежит в кадре вызова; различие - в семантике копирования."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что выведет код: var a = new S { X = 1 }; var b = a; b.X = 2; Console.WriteLine(a.X); — если S это struct?"
+      options:
+        - "1"
+        - "2"
+        - "0"
+        - "Ошибка компиляции."
+      answer: 0
+      explanation: "b - независимая копия значения, поэтому a.X остаётся 1. Для class результат был бы 2."
+    - id: "q2"
+      type: "single"
+      prompt: "Что делает ключевое слово ref у параметра структуры?"
+      options:
+        - "Копирует структуру глубже."
+        - "Превращает структуру в класс."
+        - "Передаёт ссылку на переменную, поэтому изменения видны вызывающему."
+        - "Запрещает изменение."
+      answer: 2
+      explanation: "Параметр ref передаёт ссылку на переменную вызывающего. Присваивания и изменения внутри метода видны снаружи."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "string? и string - разные типы во время работы."
+        - "int? - структура Nullable<int> с HasValue и Value."
+        - "Предупреждение о null не мешает программе скомпилироваться."
+        - "Оператор ! проверяет значение на null во время работы."
+      answer:
+        - 1
+        - 2
+      explanation: "int? - это Nullable<int>, реальная структура. Аннотация string? существует для анализатора и не меняет тип во время работы."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой оператор возвращает значение справа, если слева null?"
+      answer:
+        - "??"
+      explanation: "Оператор объединения с null: a ?? b даёт b, когда a равно null."
+exercise:
+  id: "csharp.first-steps.value-types-and-nullable.exercise"
+  title: "Счёт со снимками"
+  prompt: |
+
+    Счёт хранит баланс - целое число (может быть отрицательным, суммы бывают больше 32 бит). Программа получает `n` и затем `n` команд (по одной в строке):
+
+    * `deposit X` - прибавить `X` к текущему балансу;
+    * `snapshot` - запомнить **копию** текущего счёта (предыдущий снимок заменяется);
+    * `restore` - заменить текущий счёт сохранённым снимком; если снимка ещё не было, вывести `error: no snapshot` и ничего не менять;
+    * `show` - вывести `current=<баланс> snapshot=<баланс снимка или none>`.
+
+    Изначально баланс равен `0`, снимка нет.
+
+    **Пример.** Команды `deposit 100`, `snapshot`, `deposit 50`, `show` дают
+
+    ```
+    current=150 snapshot=100
+    ```
+
+    **Что дано.** В заготовке счёт - `class Account`, и программа неверно обрабатывает `snapshot`: подумайте, что происходит при `snapshot = current`
+    для класса и для структуры, и как тип `Account?` выражает «снимка ещё нет».
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "В заготовке snapshot = current копирует ссылку: снимок и счёт - один объект. Нужна копия значения."
+    - "Если превратить class Account в struct Account, присваивание snapshot = current скопирует баланс, и дальнейшие депозиты снимок не изменят."
+    - "Тип Account? для структуры - Nullable<Account>: проверка snapshot is { } s даёт копию в s. Для restore без снимка выведите error: no snapshot."
+    - "Баланс храните в long, а при печати используйте ToString(CultureInfo.InvariantCulture). Строки show: current=... snapshot=... (none, если снимка нет)."
+  tests:
+    - id: "simple"
+      title: "Депозиты без снимков"
+      stdin: "4\ndeposit 100\nshow\ndeposit 50\nshow\n"
+      expected: "current=100 snapshot=none\ncurrent=150 snapshot=none\n"
+      hint: "Команда show печатает current=... snapshot=none, пока снимка не было."
+    - id: "snapshot"
+      title: "Снимок не меняется после депозита"
+      stdin: "4\ndeposit 100\nsnapshot\ndeposit 50\nshow\n"
+      expected: "current=150 snapshot=100\n"
+      hint: "Снимок должен хранить копию состояния. Если Account - класс, snapshot и current указывают на один объект, и снимок \"растёт\" вместе с текущим счётом."
+    - id: "restore"
+      title: "Восстановление из снимка"
+      stdin: "5\ndeposit 10\nsnapshot\ndeposit 5\nrestore\nshow\n"
+      expected: "current=10 snapshot=10\n"
+      hint: "restore копирует снимок обратно в current. Проверьте, что после этого дальнейшие депозиты не меняют снимок."
+    - id: "no-snapshot"
+      title: "restore без снимка (скрытый)"
+      stdin: "3\nrestore\ndeposit 3\nshow\n"
+      expected: "error: no snapshot\ncurrent=3 snapshot=none\n"
+      hidden: true
+      hint: "Если снимка нет (null), restore печатает error: no snapshot и ничего не меняет. Проверяйте Nullable через is { } или HasValue."
+    - id: "two-snapshots"
+      title: "Новый снимок заменяет старый, депозиты после restore (скрытый)"
+      stdin: "10\ndeposit 1\nsnapshot\ndeposit 1\nsnapshot\ndeposit 1\nrestore\ndeposit 10\nshow\nrestore\nshow\n"
+      expected: "current=12 snapshot=2\ncurrent=2 snapshot=2\n"
+      hidden: true
+      hint: "Снимок после restore остаётся прежним (2), а повторный restore возвращает 2 даже после новых депозитов."
+    - id: "negative"
+      title: "Отрицательные суммы и большие числа (скрытый)"
+      stdin: "8\ndeposit -5\nsnapshot\ndeposit 3000000000\nshow\ndeposit 3000000000\nshow\nrestore\nshow\n"
+      expected: "current=2999999995 snapshot=-5\ncurrent=5999999995 snapshot=-5\ncurrent=-5 snapshot=-5\n"
+      hidden: true
+      hint: "Суммы бывают отрицательными и больше 32 бит: храните баланс в long."

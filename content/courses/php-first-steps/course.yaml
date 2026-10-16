@@ -1,0 +1,10 @@
+id: "php-first-steps"
+version: "1.0.0"
+title: "PHP: первые шаги"
+description: "Вводный курс из двух уроков: как Zend Engine выполняет PHP-файл и как читать STDIN, затем массивы как упорядоченные хеш-таблицы и строгая типизация. Остальные темы трека PHP запланированы."
+languageId: "php"
+level: 0
+track: "php"
+lessons:
+  - "01-how-php-runs"
+  - "02-arrays-and-strict-types"

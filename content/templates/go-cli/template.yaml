@@ -1,0 +1,8 @@
+id: go-cli
+title: Go — консольная программа
+languageId: go
+description: >-
+  Минимальный модуль Go: go.mod, main.go с функцией Greet и тест в main_test.go.
+  Внешних зависимостей нет — «go run .» и «go test ./...» работают без сети.
+files: files
+postCreate: []

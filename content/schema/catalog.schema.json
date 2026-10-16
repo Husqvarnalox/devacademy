@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devacademy.local/schema/catalog.schema.json",
+  "title": "DevAcademy catalog.yaml",
+  "description": "Editor aid only. The C# ContentValidator is authoritative.",
+  "type": "object",
+  "required": ["tracks"],
+  "additionalProperties": false,
+  "properties": {
+    "tracks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "title"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["language", "framework", "algorithms", "computer-science", "machine-learning"] },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "languageId": { "type": "string" },
+          "status": { "enum": ["available", "planned"], "default": "available" },
+          "courses": { "type": "array", "items": { "type": "string" }, "description": "Course ids; an available track needs at least one." }
+        }
+      }
+    }
+  }
+}

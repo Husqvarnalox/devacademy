@@ -1,0 +1,146 @@
+id: "php.first-steps.arrays-and-strict-types"
+title: "Массивы как упорядоченные словари и declare(strict_types=1)"
+goal: "Понять, как устроен единственный тип array в PHP, как нормализуются ключи, и как строгая типизация меняет вызовы функций."
+difficulty: "intro"
+estimatedMinutes: 40
+prerequisites:
+  - "php.first-steps.how-php-runs"
+objectives:
+  - "Объяснить, что array в PHP - упорядоченная хеш-таблица, и описать нормализацию ключей."
+  - "Предсказывать поведение копирования массивов и ссылочных foreach."
+  - "Различать isset, ??, array_key_exists и нестрогое/строгое сравнение."
+  - "Описать действие declare(strict_types=1) и его границы."
+  - "Считать частоты слов в массиве и сортировать с сохранением ключей."
+masteryCriteria:
+  - "Вы объясняете, почему $a[\"1\"] и $a[1] - один элемент и какого типа ключ вернёт foreach."
+  - "Вы предсказываете результат [1,2,2] после двух foreach с ссылкой и без неё."
+  - "Вы пишете функцию со строгой типизацией и обрабатываете TypeError от числовых ключей."
+related:
+  - "python.fundamentals.dicts-and-sets"
+next: []
+tags:
+  - "php"
+  - "arrays"
+  - "strict_types"
+  - "hash-map"
+  - "sorting"
+facts:
+  - kind: "internals"
+    text: "Массив PHP - это упорядоченная карта, которая связывает значения с ключами; один тип array служит и списком, и словарём. Ключами могут быть только int и string, а строки вида \"8\" приводятся к целым."
+    sources:
+      - "https://www.php.net/manual/en/language.types.array.php"
+  - kind: "historical"
+    text: "До PHP 8.0 сортировка была неустойчивой: порядок равных элементов не определялся. Начиная с PHP 8.0 функции сортировки сохраняют исходный порядок равных элементов."
+    sources:
+      - "https://www.php.net/manual/en/function.sort.php"
+      - "https://wiki.php.net/rfc/stable_sorting"
+  - kind: "internals"
+    text: "Директива declare(strict_types=1) включает строгую проверку скалярных типов в вызовах функций, выполняемых из этого файла. Исключение составляет расширение int до float, которое разрешено и в строгом режиме."
+    sources:
+      - "https://www.php.net/manual/en/language.types.declarations.php#language.types.declarations.strict"
+  - kind: "misconception"
+    text: "«0 == \"a\" в PHP истинно» верно только для PHP 7 и старше. С PHP 8 при сравнении числа с нечисловой строкой число приводится к строке, и результат ложный."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какого типа будет ключ после $a[\"7\"] = \"x\"; foreach (array_keys($a) as $k)?"
+      options:
+        - "int"
+        - "string"
+        - "float"
+        - "Зависит от strict_types."
+      answer: 0
+      explanation: "Строка, похожая на каноническое десятичное целое, при использовании как ключ превращается в int. \"07\" осталось бы строкой."
+    - id: "q2"
+      type: "single"
+      prompt: "Что окажется в $a после $b = $a; $b[] = 3; если $a = [1, 2]?"
+      options:
+        - "[1, 2, 3]"
+        - "[1, 2]"
+        - "[3]"
+        - "Ошибка: массив нельзя копировать."
+      answer: 1
+      explanation: "Массивы в PHP присваиваются как значения (copy-on-write). Изменение $b не затрагивает $a."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно для declare(strict_types=1)?"
+      options:
+        - "Строка \"5\" для параметра int вызовет TypeError."
+        - "Директива действует на все файлы проекта сразу."
+        - "Целое число для параметра float допустимо."
+        - "Директиву можно писать в любом месте файла."
+      answer:
+        - 0
+        - 2
+      explanation: "Директива должна быть первой в файле и действует на вызовы из этого файла. \"5\" для int даёт TypeError, а int для float разрешён."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция проверяет наличие ключа, даже если его значение null?"
+      answer:
+        - "array_key_exists"
+        - "array_key_exists()"
+      explanation: "isset и ?? считают null отсутствием значения, а array_key_exists проверяет сам ключ."
+exercise:
+  id: "php.first-steps.arrays-and-strict-types.exercise"
+  title: "Частоты слов"
+  prompt: |
+
+    Программа читает весь стандартный ввод и считает, сколько раз встречается каждое слово. Слова - группы непробельных символов, разделённые любым числом пробелов, табуляций и переводов строк.
+    Регистр различается.
+
+    Выведите по строке `слово количество` для каждого различного слова. Порядок: по убыванию количества, а слова с одинаковым количеством - в порядке первого появления во вводе.
+    Если слов нет, ничего не выводите.
+
+    **Пример.** Ввод `b a c b a` даёт
+
+    ```
+    b 2
+    a 2
+    c 1
+    ```
+
+    **Требования.** В заготовке включён `declare(strict_types=1)`, а вывод строки делает функция `line(string $word, int $count): string`. Подумайте, какой тип ключа вернёт `foreach`
+    для слов вроде `42`, и что произойдёт при их передаче в эту функцию.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Прочитайте stream_get_contents(STDIN) и разбейте через preg_split('/\\s+/', $text, -1, PREG_SPLIT_NO_EMPTY): флаг убирает пустые элементы."
+    - "Счётчик: $counts[$w] = ($counts[$w] ?? 0) + 1;. Массив сохраняет порядок первого добавления ключа."
+    - "arsort($counts) сортирует по значению по убыванию и сохраняет ключи. Сортировка устойчива, поэтому равные счётчики остаются в порядке первого появления."
+    - "foreach отдаёт ключ \"42\" как int, а функция line требует string при strict_types=1. Передавайте (string) $word."
+  tests:
+    - id: "basic"
+      title: "Повторяющиеся слова"
+      stdin: "apple banana apple cherry apple banana\n"
+      expected: "apple 3\nbanana 2\ncherry 1\n"
+      hint: "Выведите слова по убыванию числа вхождений: apple 3, banana 2, cherry 1."
+    - id: "ties"
+      title: "Равные счётчики"
+      stdin: "b a c b a\n"
+      expected: "b 2\na 2\nc 1\n"
+      hint: "При равных счётчиках слова идут в порядке первого появления. Сортировка arsort в PHP 8 устойчивая, поэтому ничего дополнительно делать не нужно."
+    - id: "lines"
+      title: "Слова на нескольких строках"
+      stdin: "to be\nor not\nto be\n"
+      expected: "to 2\nbe 2\nor 1\nnot 1\n"
+      hint: "Разбивайте весь текст по /\\s+/, а не только первую строку."
+    - id: "numeric-keys"
+      title: "Числовые слова (скрытый)"
+      stdin: "1 01 1 007 007 007 42 42\n"
+      expected: "007 3\n1 2\n42 2\n01 1\n"
+      hidden: true
+      hint: "Слова \"1\" и \"42\" становятся целыми ключами массива. Под strict_types функция с параметром string примет их только после (string) $word."
+    - id: "case"
+      title: "Регистр различается (скрытый)"
+      stdin: "Go go GO go\n"
+      expected: "go 2\nGo 1\nGO 1\n"
+      hidden: true
+      hint: "Слова Go, go и GO считаются разными; сравнение чувствительно к регистру."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: ""
+      hidden: true
+      hint: "Для пустого ввода preg_split без PREG_SPLIT_NO_EMPTY вернёт массив с одной пустой строкой. Пустое слово считать нельзя."

@@ -1,0 +1,10 @@
+id: "javascript-first-steps"
+version: "1.0.0"
+title: "JavaScript: первые шаги"
+description: "Вводный курс из двух уроков: как движок V8 выполняет JavaScript и как читать stdin, затем значения, ссылки и разница между === и ==. Остальные темы трека JavaScript запланированы."
+languageId: "javascript"
+level: 0
+track: "javascript"
+lessons:
+  - "01-how-javascript-runs"
+  - "02-values-and-equality"

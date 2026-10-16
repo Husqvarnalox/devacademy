@@ -1,0 +1,12 @@
+id: "typescript-first-steps"
+version: "1.0.0"
+title: "TypeScript: первые шаги"
+description: "Вводный курс из двух уроков: как tsc и среда выполнения делят работу и почему типы стираются, затем структурная типизация, сужение типов и разница между any, unknown и never. Остальные темы трека TypeScript запланированы."
+languageId: "typescript"
+level: 1
+track: "typescript"
+requires:
+  - "javascript-first-steps"
+lessons:
+  - "01-how-typescript-runs"
+  - "02-structural-typing-and-narrowing"

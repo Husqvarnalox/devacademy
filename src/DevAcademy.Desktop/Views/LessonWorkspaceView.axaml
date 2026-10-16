@@ -1,0 +1,194 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:md="using:DevAcademy.Desktop.Markdown"
+             xmlns:views="using:DevAcademy.Desktop.Views"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.LessonWorkspaceView"
+             x:DataType="vm:LessonWorkspaceViewModel">
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding ActiveSession.RunCommand}" />
+    <KeyBinding Gesture="Cmd+Enter" Command="{Binding ActiveSession.RunCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+Enter" Command="{Binding ActiveSession.SubmitCommand}" />
+    <KeyBinding Gesture="Cmd+Shift+Enter" Command="{Binding ActiveSession.SubmitCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding ActiveSession.SaveDraftCommand}" />
+    <KeyBinding Gesture="Cmd+S" Command="{Binding ActiveSession.SaveDraftCommand}" />
+  </UserControl.KeyBindings>
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- Header -->
+    <Border Grid.Row="0" Classes="bar" Padding="12,8">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Content="☰" Command="{Binding ToggleNavCommand}" Classes="flat" AutomationProperties.Name="{loc:T Lesson_ToggleNav}" />
+          <Button Content="{loc:T Lesson_BackToCourse}" Command="{Binding BackToCourseCommand}" Classes="flat" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Title}" Classes="h2" TextTrimming="CharacterEllipsis" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border Classes="badge"><TextBlock Text="{Binding StateText}" FontSize="12" /></Border>
+            <TextBlock Text="{Binding MetaText}" Classes="caption" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CompletionText}" Classes="caption success" VerticalAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Content="{loc:T Lesson_MarkRead}" Command="{Binding MarkReadCommand}" Classes="accent" IsVisible="{Binding CanMarkRead}" />
+          <Button Command="{Binding NextLessonCommand}" Classes="accent" IsVisible="{Binding HasNextLesson}">
+            <TextBlock Text="{loc:T Lesson_Next}" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Body: layout columns/rows are arranged in code-behind (wide vs narrow) -->
+    <Grid Grid.Row="1" Name="Body">
+      <Border Name="NavPane" Classes="panel" CornerRadius="0" BorderThickness="0,0,1,0" IsVisible="{Binding IsNavVisible}">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="{loc:T Lesson_Course}" Classes="caption" Margin="12,10,12,4" />
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding NavItems}" Margin="6,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:LessonNavItemViewModel">
+                  <Button Command="{Binding OpenCommand}" Classes="navitem" Classes.current="{Binding IsCurrent}"
+                          AutomationProperties.Name="{Binding Title}">
+                    <Grid ColumnDefinitions="22,*">
+                      <TextBlock Text="{Binding Glyph}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource MutedText}" />
+                      <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" />
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+      <GridSplitter Name="NavSplitter" Background="Transparent" />
+
+      <!-- Center: theory / practice / quiz / challenge -->
+      <Grid Name="CenterPane" RowDefinitions="Auto,*,Auto">
+        <Border Classes="bar" IsVisible="{Binding ShowModeTabs}">
+          <StackPanel Orientation="Horizontal" Margin="8,0">
+            <Button Content="{loc:T Mode_Theory}" Classes="tab" Classes.active="{Binding IsTheoryMode}"
+                    Command="{Binding SelectModeCommand}" CommandParameter="{x:Static vm:LessonMode.Theory}" />
+            <Button Content="{loc:T Mode_Practice}" Classes="tab" Classes.active="{Binding IsPracticeMode}" IsVisible="{Binding HasPractice}"
+                    Command="{Binding SelectModeCommand}" CommandParameter="{x:Static vm:LessonMode.Practice}" />
+            <Button Content="{loc:T Mode_Quiz}" Classes="tab" Classes.active="{Binding IsQuizMode}" IsVisible="{Binding HasQuiz}"
+                    Command="{Binding SelectModeCommand}" CommandParameter="{x:Static vm:LessonMode.Quiz}" />
+            <Button Content="{loc:T Mode_Challenge}" Classes="tab" Classes.active="{Binding IsChallengeMode}" IsVisible="{Binding HasChallenge}"
+                    Command="{Binding SelectModeCommand}" CommandParameter="{x:Static vm:LessonMode.Challenge}" />
+          </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+          <!-- Theory -->
+          <ScrollViewer IsVisible="{Binding IsTheoryMode}">
+            <StackPanel Margin="28,20,28,32" Spacing="16" HorizontalAlignment="Left" MaxWidth="780">
+              <TextBlock Text="{Binding Goal}" Classes="muted" FontSize="15" TextWrapping="Wrap" />
+              <Border Classes="panel" Padding="14,10" IsVisible="{Binding HasObjectives}">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{loc:T Lesson_Objectives}" Classes="h3" />
+                  <ItemsControl ItemsSource="{Binding Objectives}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding StringFormat='•  {0}'}" TextWrapping="Wrap" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+              <md:MarkdownViewer Name="TheoryViewer" Markdown="{Binding TheoryMarkdown}"
+                                 LinkCommand="{Binding OpenLinkCommand}" SampleCommand="{Binding OpenSampleCommand}" />
+              <StackPanel Spacing="8" IsVisible="{Binding HasFacts}" Margin="0,16,0,0">
+                <TextBlock Text="{loc:T Lesson_Facts}" Classes="h2" />
+                <ItemsControl ItemsSource="{Binding Facts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FactViewModel">
+                      <Border Classes="panel" Padding="14,10" Margin="0,0,0,8">
+                        <StackPanel Spacing="4">
+                          <Border Classes="badge" HorizontalAlignment="Left"><TextBlock Text="{Binding KindText}" FontSize="12" /></Border>
+                          <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="14" />
+                          <ItemsControl ItemsSource="{Binding Sources}" IsVisible="{Binding HasSources}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:SourceLinkViewModel">
+                                <Button Command="{Binding OpenCommand}" Classes="flat" Padding="0" Cursor="Hand" ToolTip.Tip="{Binding Url}">
+                                  <TextBlock Text="{Binding Url}" Foreground="{DynamicResource AccentText}" TextDecorations="Underline" FontSize="12" TextWrapping="Wrap" />
+                                </Button>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+              <TextBlock Text="{Binding RequirementsText}" Classes="warn" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Message}" Classes="success" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Practice -->
+          <ScrollViewer IsVisible="{Binding IsPracticeMode}">
+            <StackPanel Margin="28,20,28,32" Spacing="12" HorizontalAlignment="Left" MaxWidth="780">
+              <TextBlock Text="{Binding Practice.Title}" Classes="h2" TextWrapping="Wrap" />
+              <md:MarkdownViewer Markdown="{Binding Practice.Prompt}" LinkCommand="{Binding OpenLinkCommand}" />
+              <TextBlock Text="{loc:T Practice_HowTo}" Classes="caption" TextWrapping="Wrap" />
+              <Border Name="ComplexityBlock" Classes="panel" Padding="14,10" IsVisible="{Binding HasComplexity}">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{loc:T Complexity_Title}" Classes="h3" />
+                  <TextBlock Text="{Binding ComplexityTime}" />
+                  <TextBlock Text="{Binding ComplexitySpace}" />
+                  <TextBlock Text="{Binding ComplexityExplanation}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding HasComplexityExplanation}" />
+                </StackPanel>
+              </Border>
+              <Button Name="EditorialButton" Content="{loc:T Editorial_Button}" Command="{Binding ShowEditorialCommand}" HorizontalAlignment="Left"
+                      IsVisible="{Binding CanShowEditorial}" />
+              <Border Name="EditorialBlock" Classes="panel" Padding="14,10" IsVisible="{Binding IsEditorialVisible}">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{loc:T Editorial_Heading}" Classes="h3" />
+                  <md:MarkdownViewer Markdown="{Binding EditorialMarkdown}" LinkCommand="{Binding OpenLinkCommand}" />
+                  <Button Content="{loc:T Editorial_Hide}" Command="{Binding HideEditorialCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+              </Border>
+              <TextBlock Text="{Binding RequirementsText}" Classes="warn" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Message}" Classes="success" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Quiz -->
+          <ScrollViewer IsVisible="{Binding IsQuizMode}">
+            <StackPanel Margin="28,20,28,32" Spacing="12" HorizontalAlignment="Left" MaxWidth="780">
+              <ContentControl Content="{Binding Quiz}" />
+              <TextBlock Text="{Binding Message}" Classes="success" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Challenge -->
+          <ScrollViewer IsVisible="{Binding IsChallengeMode}">
+            <StackPanel Margin="28,20,28,32" Spacing="12" HorizontalAlignment="Left" MaxWidth="780">
+              <TextBlock Text="{Binding ChallengeTitle}" Classes="h2" TextWrapping="Wrap" />
+              <TextBlock Text="{loc:T Challenge_Note}" Classes="caption" TextWrapping="Wrap" />
+              <md:MarkdownViewer Markdown="{Binding ChallengePrompt}" LinkCommand="{Binding OpenLinkCommand}" />
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+
+        <!-- AI tutor: collapsed by default, never blocks the lesson -->
+        <views:TutorPanelView Grid.Row="2" DataContext="{Binding Tutor}" />
+      </Grid>
+
+      <GridSplitter Name="MainSplitter" Background="Transparent" IsVisible="{Binding ShowSession}" />
+
+      <!-- Right: editor + output -->
+      <Grid Name="SessionPane" RowDefinitions="Auto,*" IsVisible="{Binding ShowSession}">
+        <Border Classes="bar" Padding="12,6" IsVisible="{Binding IsScratchActive}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Scratch_Banner}" Classes="warn" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <Button Grid.Column="1" Content="{loc:T Scratch_Close}" Command="{Binding CloseScratchCommand}" />
+          </Grid>
+        </Border>
+        <ContentControl Grid.Row="1" Content="{Binding ActiveSession}" />
+      </Grid>
+    </Grid>
+  </Grid>
+</UserControl>

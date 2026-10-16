@@ -1,0 +1,6 @@
+id: algo.sorting
+title: Sorting visualised
+goal: Watch comparison sorts work
+difficulty: medium
+estimatedMinutes: 15
+prerequisites: [algo.find-max]

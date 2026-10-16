@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DevAcademy.Application\DevAcademy.Application.csproj" />
+    <ProjectReference Include="..\DevAcademy.Domain\DevAcademy.Domain.csproj" />
+    <ProjectReference Include="..\DevAcademy.Content\DevAcademy.Content.csproj" />
+    <ProjectReference Include="..\DevAcademy.AI\DevAcademy.AI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <EmbeddedResource Include="Migrations\*.sql" LogicalName="Migrations/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
