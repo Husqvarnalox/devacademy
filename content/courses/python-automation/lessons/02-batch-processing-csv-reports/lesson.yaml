@@ -1,0 +1,159 @@
+id: python.automation.batch-processing-csv-reports
+title: "Пакетная обработка CSV: потоки, валидация, отчёты"
+goal: Обрабатывать большие CSV-файлы потоком с постоянной памятью, не падая на плохих строках, и выдавать агрегированный отчёт и отдельный отчёт об ошибках.
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [python.stdlib.json-csv-struct, python.automation.file-automation, python.stdlib.decimal-fractions-math-statistics-random, python.advanced.iterators-and-generators]
+related: [python.automation.file-automation, python.automation.logging-config-and-secrets]
+next: [python.automation.robust-http-clients]
+objectives:
+  - Читать CSV построчно через csv.reader/DictReader поверх файла или генератора, не загружая всё в память, и объяснить, что именно держится в памяти.
+  - Валидировать каждую строку и собирать ошибки с номером строки и полем вместо аварийного завершения.
+  - Агрегировать данные потоком (счётчики, суммы Decimal, группировка по ключу) и записывать результат в CSV и JSON атомарно.
+  - Правильно выбирать кодировку и обрабатывать BOM (utf-8-sig), открывая файлы с newline=''.
+  - Ограничивать объём накапливаемых ошибок и решать, когда плохая строка пропускается, а когда останавливает пакет.
+masteryCriteria:
+  - Вы показываете, что обработка файла в миллионы строк не требует памяти, пропорциональной размеру файла, и знаете, что ломает это свойство (list(), readlines(), read()).
+  - Ваш отчёт об ошибках позволяет исправить исходный файл без повторного запуска с отладчиком - в нём номер строки, поле и причина.
+  - Вы объясняете, почему деньги суммируют в Decimal, а не float, и почему отчёт детерминирован (сортировка ключей, фиксированный формат).
+tags: [python, automation, csv, streaming, validation, reports, decimal, encoding]
+facts:
+  - kind: internals
+    text: >-
+      csv.reader принимает любой итерируемый объект, возвращающий строки (файл, список, генератор) и читает его лениво, по записи за раз; запись может занимать несколько физических строк,
+      если поле в кавычках содержит перевод строки. Атрибут line_num читателя равен числу строк, прочитанных из источника.
+    sources:
+      - https://docs.python.org/3/library/csv.html#csv.csvreader.line_num
+      - https://docs.python.org/3/library/csv.html#csv.reader
+  - kind: internals
+    text: >-
+      Документация csv требует открывать файл с newline='', чтобы модуль сам обрабатывал окончания строк внутри полей. Кодировка utf-8-sig при чтении отбрасывает необязательную метку порядка байт (BOM),
+      которую часто добавляет Excel; обычная utf-8 оставляет её первым символом имени первого столбца.
+    sources:
+      - https://docs.python.org/3/library/csv.html
+      - https://docs.python.org/3/library/codecs.html#module-encodings.utf_8_sig
+  - kind: misconception
+    text: >-
+      «Конструктор Decimal отвергает плохой ввод исключением ValueError». Decimal('abc') поднимает decimal.InvalidOperation (подкласс ArithmeticError), а строки 'NaN' и 'Infinity' принимаются как допустимые значения;
+      их нужно отсекать проверкой is_finite().
+    sources:
+      - https://docs.python.org/3/library/decimal.html#decimal.Decimal.is_finite
+      - https://docs.python.org/3/library/decimal.html#decimal.Decimal
+  - kind: performance
+    text: >-
+      Потоковая обработка держит в памяти только текущую запись и агрегаты, поэтому расход памяти определяется числом различных ключей группировки, а не числом строк. Для проверки на уникальность идентификатора
+      по всему файлу нужно хранить множество виденных значений, и память растёт вместе с числом уникальных значений.
+    sources:
+      - https://docs.python.org/3/library/csv.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Какой вариант читает CSV с постоянной памятью?
+      options:
+        - "rows = list(csv.reader(f)); for r in rows: ..."
+        - "for r in csv.reader(f): ..."
+        - "data = f.read().splitlines(); for r in csv.reader(data): ..."
+        - "rows = f.readlines(); for r in csv.reader(rows): ..."
+      answer: 1
+      explanation: >-
+        csv.reader лениво берёт строки из файла. Остальные варианты сначала целиком загружают файл (или все записи) в память.
+    - id: q2
+      type: single
+      prompt: Что делает хороший пакетный обработчик, встретив строку с некорректной суммой?
+      options:
+        - "Падает с исключением и теряет результаты предыдущих строк"
+        - "Молча пропускает строку"
+        - "Записывает ошибку с номером строки, полем и причиной, продолжает работу и учитывает счётчики"
+        - "Заменяет сумму нулём"
+      answer: 2
+      explanation: >-
+        Пропуск без записи скрывает потерю данных, подмена нулём искажает итоги. Отчёт об ошибках позволяет исправить исходные данные.
+    - id: q3
+      type: single
+      prompt: Первый столбец называется '﻿id' при чтении файла. Что произошло?
+      options:
+        - "Файл повреждён"
+        - "Файл с BOM прочитан в кодировке utf-8; нужен encoding='utf-8-sig'"
+        - "csv не умеет читать заголовки"
+        - "Это нормальное имя столбца"
+      answer: 1
+      explanation: >-
+        Метка порядка байт кодируется тремя байтами и при декодировании utf-8 превращается в символ U+FEFF. Кодировка utf-8-sig её отбрасывает.
+    - id: q4
+      type: single
+      prompt: Почему суммы денег в отчёте считают через Decimal?
+      options:
+        - "Decimal быстрее float"
+        - "float не может точно представить многие десятичные дроби, и суммы дрейфуют"
+        - "Decimal занимает меньше памяти"
+        - "csv возвращает Decimal сам"
+      answer: 1
+      explanation: >-
+        Например, сумма десяти значений 0.1 во float не равна 1.0. Decimal хранит десятичные значения точно.
+    - id: q5
+      type: multiple
+      prompt: Что нарушает свойство «постоянная память» при обработке CSV? Выберите все.
+      options:
+        - "f.readlines()"
+        - "list(reader)"
+        - "накопление всех ошибок без ограничения, если плохих строк миллионы"
+        - "обновление словаря сумм по месяцам"
+      answer: [0, 1, 2]
+      explanation: >-
+        Словарь по месяцам растёт с числом различных ключей, а не строк. Остальное растёт пропорционально размеру входа, поэтому ошибки обычно усекают (счётчик остаётся полным).
+exercise:
+  id: python.automation.batch-processing-csv-reports.exercise
+  title: Потоковый CSV-отчёт с ошибками
+  prompt: |
+    В файле `csv_report.py` реализуйте обработку CSV с колонками `id,name,amount,date`.
+
+    1. `parse_row(row)` - принимает словарь строк, возвращает `{"id": int, "name": str, "amount": Decimal, "date": datetime.date}`. Правила: `id` - целое > 0; `name` - непустое после `strip()`; `amount` - конечное `Decimal` >= 0 не более чем с двумя знаками после запятой (`NaN`, `Infinity`, `-1`, `1.234` недопустимы); `date` - строго `YYYY-MM-DD`. Поля проверяются в таком порядке; первая проблема даёт `RowError(поле, сообщение)` (класс уже есть, поле - в `.field`).
+    2. `process_csv(lines, max_errors=1000)` - **потоково** читает итерируемый объект строк (например, генератор; нельзя делать `list(lines)`). Заголовок обязан быть `id,name,amount,date`, иначе `ValueError`; `﻿` в начале убирается. Возвращает `(summary, errors)`. `summary`: `rows_total`, `rows_ok`, `rows_bad`, `total` (строка с двумя знаками, сумма корректных `amount`), `by_month` (словарь `"YYYY-MM" -> сумма строкой`, ключи по возрастанию). `errors` - список `{"line": номер, "field": поле, "error": текст}`; `line` - номер строки источника (заголовок - 1; для записи на нескольких строках - последняя). Строка с лишними или недостающими полями - ошибка поля `"row"`. Пустые строки пропускаются. В `errors` не более `max_errors` записей, но `rows_bad` учитывает все плохие строки.
+    3. `write_reports(summary, errors, out_dir)` - создаёт каталог и записывает `summary.json` (`indent=2`, `sort_keys=True`, `ensure_ascii=False`, перевод строки в конце) и `errors.csv` (колонки `line,field,error`, заголовок есть всегда, `lineterminator="\n"`) в UTF-8. Запись через временный файл и `os.replace`; временных файлов не оставлять.
+    4. `run(in_path, out_dir)` - открывает файл (`utf-8-sig`, `newline=""`), обрабатывает, пишет отчёты, возвращает `summary`.
+
+    ```python
+    summary, errors = process_csv(["id,name,amount,date", "1,Ann,10.50,2024-01-05", "x,Bob,5,2024-01-06"])
+    # summary["rows_ok"] == 1; errors == [{"line": 3, "field": "id", "error": "..."}]
+    ```
+  entryFile: csv_report.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Постройте цепочку: валидация одной строки (parse_row) -> цикл по DictReader с try/except RowError -> счётчики -> запись отчётов. Ошибка в строке не должна прерывать цикл."
+    - "csv.DictReader(lines, restkey='__extra', restval=None): ключ '__extra' означает лишние поля, значение None - недостающие. Номер строки - reader.line_num, прочитанный после получения записи. BOM уберите из первой строки: lstrip('\\ufeff') в обёртке-генераторе."
+    - "Суммы: total = Decimal(0); by_month = defaultdict(Decimal); ключ месяца - date.isoformat()[:7]; форматирование f'{x:.2f}'. Amount: Decimal(raw), затем is_finite(), >= 0 и amount == amount.quantize(Decimal('0.01')); InvalidOperation ловите отдельно. Ошибки добавляйте в список только пока len(errors) < max_errors, но счётчик bad увеличивайте всегда."
+    - "write_reports: tmp = path.with_name(path.name + '.tmp'); записать в tmp, затем os.replace(tmp, path). errors.csv - csv.DictWriter(fh, fieldnames=['line','field','error'], lineterminator='\\n') с writeheader(); файл открывайте с newline=''. run: with open(path, encoding='utf-8-sig', newline='') as fh: process_csv(fh)."
+  tests:
+    - id: parse-row
+      title: parse_row - корректные и некорректные строки
+      hint: Проверьте поля по очереди; Decimal('abc') даёт InvalidOperation, а 'Infinity' нужно отсечь через is_finite(). Дата должна иметь ровно 10 символов.
+    - id: process-basic
+      title: process_csv - корректный файл
+      hint: Суммируйте Decimal, ключ месяца - первые 7 символов ISO-даты, итог форматируйте с двумя знаками.
+    - id: write-reports
+      title: write_reports - содержимое файлов
+      hint: summary.json - indent=2 с переводом строки в конце; errors.csv всегда с заголовком, значения с запятыми и кавычками экранирует csv.DictWriter; временных файлов не должно остаться.
+    - id: bad-rows
+      title: Неправильные строки не прерывают обработку (скрытый)
+      hidden: true
+      hint: Номер строки - reader.line_num (заголовок - 1, пустые строки тоже считаются). Строки с неверным числом полей - поле 'row'. Каждая плохая строка даёт одну ошибку - первую по порядку полей.
+    - id: bom-and-header
+      title: BOM, неверный заголовок, многострочное поле (скрытый)
+      hidden: true
+      hint: Уберите '﻿' из первой строки; пустой вход и неверный заголовок - ValueError. Запись с переводом строки внутри кавычек остаётся одной записью, line_num - последняя её строка.
+    - id: max-errors
+      title: Усечение списка ошибок (скрытый)
+      hidden: true
+      hint: Список errors ограничен max_errors, а rows_bad и rows_total считают все строки.
+    - id: streaming
+      title: Постоянная память на большом потоке (скрытый)
+      hidden: true
+      hint: Не вызывайте list(lines), readlines() и read(); перебирайте DictReader напрямую и храните только счётчики и словарь по месяцам.
+    - id: run-file
+      title: run - файл с BOM и CRLF, кириллица (скрытый)
+      hidden: true
+      hint: open(path, encoding='utf-8-sig', newline='') снимает BOM и позволяет csv обработать CRLF; отчёты пишите в UTF-8.

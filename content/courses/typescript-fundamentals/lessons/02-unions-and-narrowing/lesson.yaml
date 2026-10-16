@@ -1,0 +1,268 @@
+id: "typescript.fundamentals.unions-and-narrowing"
+title: "Объединения, литеральные типы и сужение"
+goal: "Описывать значение, которое бывает нескольких видов, сужать его проверками и защищаться от забытых вариантов проверкой исчерпываемости через never."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "typescript.fundamentals.inference-and-structure"
+objectives:
+  - "Объявлять объединения и объединения литеральных типов и объяснять, какие члены доступны до сужения."
+  - "Сужать тип проверками typeof, ===, in, instanceof и Array.isArray и назвать ловушку сужения по истинности."
+  - "Описывать данные дискриминированным объединением и разбирать их через switch."
+  - "Написать assertNever и объяснить, почему default: return 0 отключает проверку исчерпываемости."
+masteryCriteria:
+  - "Вы выбираете явное сравнение с undefined или null, когда допустимы 0 и пустая строка."
+  - "Вы разбираете дискриминированное объединение switch-ом с default: assertNever(...) и проверяете, что новый вариант ломает компиляцию."
+  - "Вы объясняете, почему сужение может пропасть внутри колбэка и как его сохранить."
+related:
+  - "typescript.first-steps.structural-typing-and-narrowing"
+next:
+  - "typescript.fundamentals.unknown-and-boundaries"
+tags:
+  - "typescript"
+  - "union-types"
+  - "narrowing"
+  - "discriminated-union"
+  - "never"
+facts:
+  - kind: "internals"
+    text: "Сужение типов строится на анализе потока управления: компилятор отслеживает проверки в коде (typeof, равенство, in, instanceof, присваивания) и уточняет тип в каждой точке программы. Это анализ при компиляции, во время работы никакой информации о типах нет."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/narrowing.html"
+  - kind: "misconception"
+    text: "«if (x) убирает только undefined и null». Он убирает также 0, пустую строку, false и NaN. Для чисел и строк, где эти значения законны, сравнивайте с undefined или null явно."
+  - kind: "realworld"
+    text: "Дискриминированные объединения - стандартный способ моделировать состояния и сообщения: состояние загрузки (idle, loading, success, error), действия редьюсера, события. Благодаря сужению по общему полю-литералу ни одно состояние не остаётся без обработки."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт при компиляции кода `function f(x: string | number) { return x.toFixed(1); }`?"
+      options:
+        - "Ошибка: у типа string нет метода toFixed, поэтому для объединения он недоступен."
+        - "Ошибка во время выполнения, если x окажется строкой."
+        - "Код скомпилируется, потому что у number есть toFixed."
+        - "Тип x автоматически сузится до number."
+      answer: 0
+      explanation: "Для объединения доступны только члены, общие для всех видов. Ошибка TS2339 появляется при компиляции, а чтобы вызвать toFixed, нужно сначала сузить x проверкой typeof x === 'number'."
+    - id: "q2"
+      type: "single"
+      prompt: "Функция label(count: number | undefined) возвращает count ? `в наличии: ${count}` : 'нет данных'. Что она вернёт для count = 0?"
+      options:
+        - "в наличии: 0"
+        - "нет данных"
+        - "Ошибку компиляции."
+        - "undefined"
+      answer: 1
+      explanation: "0 ложно, поэтому проверка по истинности отбрасывает его вместе с undefined. Чтобы отличить 0 от отсутствия значения, нужно сравнивать явно: count !== undefined."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие из проверок сужают тип переменной x: string | string[] | undefined?"
+      options:
+        - "Array.isArray(x)"
+        - "typeof x === 'string'"
+        - "x === undefined"
+        - "x.length > 0"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Первые три проверки распознаются компилятором. Выражение x.length > 0 само ничего не сужает и даже не компилируется: x может быть undefined (TS18048)."
+    - id: "q4"
+      type: "single"
+      prompt: "В Shape добавили новый вариант, а в функции area с `default: return assertNever(s)` ветку для него не написали. Что скажет компилятор?"
+      options:
+        - "Ничего: assertNever сработает только при запуске."
+        - "Ошибку в вызове assertNever(s): значение нового варианта нельзя передать параметру типа never."
+        - "Предупреждение о неиспользованном варианте, но код скомпилируется."
+        - "Ошибку в объявлении Shape."
+      answer: 1
+      explanation: "В default значение s уже не never, потому что новый вариант не разобран. Вызов assertNever(s) перестаёт компилироваться, и компилятор указывает на функцию, которую нужно дополнить."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется общее поле с уникальным литеральным значением в каждом варианте дискриминированного объединения (например, kind)? Одно слово."
+      answer:
+        - "дискриминант"
+        - "дискриминатор"
+        - "discriminant"
+        - "discriminator"
+        - "тег"
+        - "tag"
+      explanation: "Дискриминант (дискриминатор, тег) позволяет сузить объединение до одного варианта простым сравнением."
+exercise:
+  id: "typescript.fundamentals.unions-and-narrowing.exercise"
+  title: "Фигуры и значения: switch без default"
+  prompt: |
+    В `src/shapes.ts` объявлены тип `Shape` (три вида фигур), функция `assertNever` и тип `Input` - объединение значений. Нужно реализовать три функции.
+
+    * `area(s: Shape): number` - площадь (круг `Math.PI * r * r`, прямоугольник `w * h`, квадрат `side * side`).
+    * `describe(s: Shape): string` - `круг r=2`, `прямоугольник 3x4`, `квадрат 5`.
+    * `formatInput(v: Input): string`: строка - в одинарных кавычках (`'abc'`), число - `toFixed(2)`, `true`/`false` - `да`/`нет`, `null` - `null`, `undefined` - `нет значения`, массив строк - `[a, b]` (элементы через запятую с пробелом).
+
+    **Требования к типам.** `area` и `describe` должны разбирать `Shape` через `switch (s.kind)` с `default: return assertNever(s)`. Скрытый тест добавляет в копию вашего кода новый вариант `Shape` и требует, чтобы компиляция упала: ветка `default: return 0` его не пройдёт. Ещё одна скрытая проверка вызывает функции неправильно (неизвестный `kind`, объект вместо `Input`) и требует ошибок компиляции. Для `formatInput` помните про ловушку истинности: `''`, `0`, `false` и пустой массив - законные значения.
+
+    Проверка типов - это настоящий `tsc --strict` над вашим кодом. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/shapes.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "Начните с switch (s.kind) и трёх case: \"circle\", \"rect\", \"square\". Внутри case TypeScript уже знает, какие поля есть у s."
+    - "В конце switch напишите default: return assertNever(s). Если вы добавите вариант в Shape и не обработаете его, здесь появится ошибка компиляции - так и должно быть."
+    - "formatInput: сначала if (v === null), if (v === undefined), затем typeof v === \"string\", \"number\", \"boolean\". Оставшийся случай - массив, у него есть join. Не используйте if (v): '' и 0 тогда перестанут работать."
+    - "Строки результата: `круг r=${s.r}`, `прямоугольник ${s.w}x${s.h}`, `квадрат ${s.side}`; для массива `[${v.join(\", \")}]`; для числа v.toFixed(2)."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "area-basic"
+      title: "area: круг, прямоугольник, квадрат"
+      match: "area > круг*"
+      hint: "Площадь круга - Math.PI * r * r."
+    - id: "describe-basic"
+      title: "describe: текстовые описания"
+      match: "describe > текстовые*"
+      hint: "Формат: круг r=2, прямоугольник 3x4, квадрат 5."
+    - id: "format-basic"
+      title: "formatInput: строка, число, логическое"
+      match: "formatInput > строка*"
+      hint: "Строка - в одинарных кавычках, число - toFixed(2), логическое - да/нет."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Shape и Input должны остаться точными объединениями, а сигнатуры - без any. Проверка вызывает функции с неизвестным kind и объектом вместо Input и ждёт ошибки компиляции."
+    - id: "exhaustive"
+      title: "Новый вариант Shape ломает компиляцию (скрытый)"
+      match: "исчерпываемость*"
+      hidden: true
+      hint: "В default вызовите assertNever(s) вместо возврата значения по умолчанию. Тогда необработанный вариант не пройдёт проверку типов."
+    - id: "format-falsy"
+      title: "formatInput: ложные значения и массив (скрытый)"
+      match: "formatInput > null*"
+      hidden: true
+      hint: "null и undefined проверяйте явно (=== null, === undefined). Не используйте if (v) для строк и чисел: '' и 0 допустимы."
+    - id: "format-falsy2"
+      title: "formatInput: пустая строка, ноль, false, пустой массив (скрытый)"
+      match: "formatInput > ложные*"
+      hidden: true
+      hint: "'' даёт '', 0 даёт 0.00, false даёт нет, [] даёт []."
+    - id: "area-zero"
+      title: "area: нулевые размеры и неизвестный вид (скрытый)"
+      match: "area > нулевые*"
+      hidden: true
+      hint: "Нулевой радиус или сторона даёт площадь 0."
+    - id: "area-unknown"
+      title: "area: неизвестный вид во время работы (скрытый)"
+      match: "area > неизвестный*"
+      hidden: true
+      hint: "default должен вызывать assertNever(s): она бросает исключение для значения, которого не должно быть."
+challenge:
+  id: "typescript.fundamentals.unions-and-narrowing.challenge"
+  title: "Состояние загрузки и редьюсер"
+  prompt: |
+    В `src/state.ts` заданы типы `State` (idle, loading, success, error) и `Action` (fetch, resolve, reject, reset). Реализуйте три функции.
+
+    **`reducer(state, action)`** возвращает новое состояние:
+    * `fetch`: из `idle` и `success` - `loading` с `startedAt = at` и `retries: 0`; из `error` - `loading` с тем же `retries`, что был в ошибке; во время загрузки состояние **не меняется** (вернуть тот же объект).
+    * `resolve`: из `loading` - `success` с **копией** `data` и `loadedAt = at`; из остальных состояний - то же состояние.
+    * `reject`: из `loading` - `error` с `message` и `retries` на единицу больше, чем у `loading`; из остальных - то же состояние.
+    * `reset`: всегда `{ status: "idle" }`.
+
+    **`isBusy(state)`** - `true` только при загрузке. **`summary(state)`**: `ожидание`; `загрузка с <startedAt>`; `готово: <n> эл.`; `ошибка (попытка <retries>): <message>`.
+
+    **Требования к типам.** `reducer` разбирает `action` через `switch (action.type)`, а `summary` разбирает `state` через `switch (state.status)`; в обоих `default: return assertNever(...)`. Скрытые тесты добавляют в копию кода новый вариант `State` и новый вариант `Action` и требуют, чтобы компиляция упала: ветки `default: return state` и `default: return ""` их не пройдут. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` в вашем коде запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/state.ts"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Структура reducer: switch (action.type) с четырьмя case. Внутри case \"fetch\" проверьте state.status === \"loading\" и верните state; иначе соберите новый объект loading."
+    - "retries для fetch: state.status === \"error\" ? state.retries : 0 - в ветке error TypeScript знает, что поле retries есть."
+    - "resolve и reject проверяйте тернарным оператором: state.status === \"loading\" ? { новое состояние } : state. Данные копируйте: [...action.data]."
+    - "summary: switch (state.status) с case для каждого из четырёх статусов и default: return assertNever(state). Для сообщения об ошибке: `ошибка (попытка ${state.retries}): ${state.message}`."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "fetch"
+      title: "reducer: fetch"
+      match: "reducer > fetch*"
+      hint: "Из error retries переносится в loading, из idle и success начинается с 0."
+    - id: "resolve"
+      title: "reducer: resolve"
+      match: "reducer > resolve завершает*"
+      hint: "Результат: { status: \"success\", data, loadedAt: at }."
+    - id: "summary"
+      title: "summary: все состояния"
+      match: "isBusy и summary > summary*"
+      hint: "Четыре формата строк описаны в условии."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "State и Action должны остаться дискриминированными объединениями, функции - принимать именно их."
+    - id: "exhaustive-state"
+      title: "Новый вариант State ломает компиляцию (скрытый)"
+      match: "исчерпываемость > новый вариант State*"
+      hidden: true
+      hint: "В summary в default вызовите assertNever(state), а не возвращайте значение по умолчанию."
+    - id: "exhaustive-action"
+      title: "Новый вариант Action ломает компиляцию (скрытый)"
+      match: "исчерпываемость > новый вариант Action*"
+      hidden: true
+      hint: "В reducer в default вызовите assertNever(action)."
+    - id: "fetch-loading"
+      title: "fetch во время загрузки: тот же объект (скрытый)"
+      match: "reducer > fetch во время*"
+      hidden: true
+      hint: "Верните state без изменений - toBe проверяет идентичность объекта."
+    - id: "ignored"
+      title: "resolve и reject вне загрузки игнорируются (скрытый)"
+      match: "reducer > resolve вне*"
+      hidden: true
+      hint: "Если state.status !== \"loading\", возвращайте state."
+    - id: "reject"
+      title: "reject: retries растёт (скрытый)"
+      match: "reducer > reject увеличивает*"
+      hidden: true
+      hint: "retries в error равен state.retries + 1."
+    - id: "reset"
+      title: "reset из любого состояния (скрытый)"
+      match: "reducer > reset*"
+      hidden: true
+      hint: "Всегда { status: \"idle\" }."
+    - id: "copy"
+      title: "data копируется (скрытый)"
+      match: "reducer > данные*"
+      hidden: true
+      hint: "[...action.data] защищает от изменений исходного массива."

@@ -60,6 +60,7 @@ internal sealed class TemplateDto
     public string? Description { get; set; }
     public string? Files { get; set; }
     public List<string>? PostCreate { get; set; }
+    public Dictionary<string, string>? Scripts { get; set; }
 }
 
 internal sealed class LessonDto

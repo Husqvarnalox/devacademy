@@ -274,11 +274,11 @@ public static class ContentValidator
     private static void CheckRequirements(Exercise ex, string path, string label, Action<string, string> error, Action<string, string> warn)
     {
         var usesPython = ex.AllVariants.Any(v => v.LanguageId == "python");
-        var usesJavaScript = ex.AllVariants.Any(v => v.LanguageId == "javascript");
+        var usesJavaScript = ex.AllVariants.Any(v => v.LanguageId is "javascript" or "typescript");
         if ((ex.Requires is { HasPython: true } || ex.Accelerator != AcceleratorNeed.None) && !usesPython)
             error(path, $"{label}: 'requires.python/packages' and 'accelerator' only apply to Python exercises, but no variant is python");
         if (ex.Requires is { HasNode: true } && !usesJavaScript)
-            error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript exercises, but no variant is javascript");
+            error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript/typescript exercises, but no variant is javascript or typescript");
         if (ex.Command is { UsesNodeTool: true } && ex.Requires is not { HasNode: true })
             error(path, $"{label}: command.tool needs requires.npmPackages");
         if (ex.Requires is { } req)

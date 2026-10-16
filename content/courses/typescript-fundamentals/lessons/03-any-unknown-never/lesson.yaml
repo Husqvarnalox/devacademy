@@ -1,0 +1,200 @@
+id: "typescript.fundamentals.unknown-and-boundaries"
+title: "any, unknown, never и проверка данных на границах"
+goal: "Принимать данные извне как unknown, проверять их руками через предикаты и превращать в точные типы, не прибегая к any и приведениям."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "typescript.fundamentals.unions-and-narrowing"
+objectives:
+  - "Объяснить разницу между any, unknown и never и выбрать подходящий тип для данных извне."
+  - "Написать функции-предикаты v is T и объяснить, почему компилятор не проверяет их честность."
+  - "Проверить значение типа unknown по полям и вернуть результат дискриминированным объединением."
+  - "Обработать значение в catch (тип unknown) и вызов функции с типом never."
+masteryCriteria:
+  - "Вы принимаете JSON.parse и сетевые данные как unknown и не присваиваете им типы через as."
+  - "Вы пишете предикаты, которые проверяют вид значения до конца, включая элементы массивов."
+  - "Вы объясняете, почему тип interface User не защищает от неверных данных во время работы."
+related:
+  - "typescript.first-steps.structural-typing-and-narrowing"
+next:
+  - "typescript.fundamentals.interfaces-and-aliases"
+tags:
+  - "typescript"
+  - "unknown"
+  - "type-guards"
+  - "validation"
+  - "never"
+facts:
+  - kind: "internals"
+    text: "Типы стираются при компиляции, поэтому данные, пришедшие во время работы (JSON, сеть, файлы), TypeScript проверить не может. Тип User описывает ожидание программиста, а не гарантию; гарантию даёт код проверки на границе программы."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/types-from-types.html"
+  - kind: "misconception"
+    text: "«v is User в сигнатуре означает, что компилятор проверил User». Он только поверит сигнатуре: тело предиката может вернуть true для чего угодно, и ошибки не будет. Честность предиката обеспечивают тесты."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates"
+  - kind: "realworld"
+    text: "Библиотеки схем (zod, valibot и подобные) строят проверку из описания схемы и выводят из неё тип. По сути они автоматизируют то, что вы пишете в этом уроке: unknown на входе, проверка, точный тип на выходе."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#unknown"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт с кодом `const u: unknown = 5; const n: number = u;` при компиляции?"
+      options:
+        - "Ошибка TS2322: тип unknown нельзя присвоить типу number."
+        - "Код скомпилируется, как и с any."
+        - "Тип u автоматически сузится до number."
+        - "Ошибка появится только во время выполнения."
+      answer: 0
+      explanation: "В отличие от any, unknown не присваивается ничему, кроме unknown и any. Сначала значение нужно проверить, например typeof u === 'number'."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой тип имеет переменная e в `try { ... } catch (e) { ... }` при включённом strict?"
+      options:
+        - "Error"
+        - "any"
+        - "unknown"
+        - "string | Error"
+      answer: 2
+      explanation: "Флаг useUnknownInCatchVariables входит в strict: бросить можно что угодно, поэтому перед чтением e.message нужна проверка e instanceof Error."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Пусть x имеет тип unknown. Какие из выражений скомпилируются?"
+      options:
+        - "typeof x === \"string\" && x.length > 0"
+        - "x.length"
+        - "String(x)"
+        - "const s: string = x"
+      answer:
+        - 0
+        - 2
+      explanation: "После typeof x === 'string' x уже строка, а String принимает любые значения. Обращение к члену (TS18046) и присваивание в string (TS2322) без проверки запрещены."
+    - id: "q4"
+      type: "single"
+      prompt: "Функция `function isUser(v: unknown): v is User { return true; }` скомпилируется. Что это значит?"
+      options:
+        - "Компилятор проверил, что любое значение является User."
+        - "Компилятор доверяет сигнатуре предиката, поэтому честность тела - ваша ответственность."
+        - "Это ошибка: тело предиката обязано содержать typeof."
+        - "Предикат сработает только для классов."
+      answer: 1
+      explanation: "Предикат - обещание. Компилятор не анализирует тело, поэтому ложный предикат даёт неверные типы без единой ошибки. Проверяйте предикаты тестами."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой тип у функции, которая всегда бросает исключение и никогда не возвращает управление? Одно слово."
+      answer:
+        - "never"
+      explanation: "Тип never означает, что значения не бывает; он подходит под любой ожидаемый тип, поэтому return fail('...') допустимо в функции, возвращающей число."
+exercise:
+  id: "typescript.fundamentals.unknown-and-boundaries.exercise"
+  title: "Разбор пользователя из JSON без any и as"
+  prompt: |
+    В `src/parse.ts` лежит заготовка: тип `User`, результат `ParseResult`, функция `fail` (тип `never`) и шесть функций, которые нужно реализовать. Все данные извне принимаются как `unknown`.
+
+    * `isRecord(v)` - объект, не `null` и не массив. `isStringArray(v)` - массив, все элементы которого строки.
+    * `parseUser(input)` проверяет поля `id` (целое число), `name` (непустая строка), `email` (строка или `null`), `tags` (массив строк). Для первой проблемы возвращает `{ ok: false, error }`, где `error` содержит имя поля (`поле id: ...`); не объект - `ожидался объект`. Лишние поля отбрасываются, `tags` копируется.
+    * `parseUserJson(text)` - `JSON.parse` в `try/catch`; ошибка синтаксиса даёт `{ ok: false, error: "некорректный JSON" }`.
+    * `describeError(e: unknown)`: `Error` - его `message`, строка - она сама, иначе `неизвестная ошибка: ` и `String(e)`.
+    * `expectUser(input)` возвращает пользователя или вызывает `fail(error)`.
+
+    **Требования к типам.** Запрещены `any` и приведения вроде `input as User`. Проверка типов - настоящий `tsc --strict`; скрытые проверки требуют, чтобы читать `value` без проверки `ok` было ошибкой, а все параметры границ принимали `unknown`. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` в вашем коде запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/parse.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "Начните с предикатов: isRecord - typeof v === \"object\" && v !== null && !Array.isArray(v); isStringArray - Array.isArray(v) && v.every(item => typeof item === \"string\")."
+    - "В parseUser после проверки isRecord(input) достаньте поля деструктуризацией: const { id, name, email, tags } = input. Каждое из них имеет тип unknown, и его надо проверить до использования."
+    - "Проверяйте по одному полю и сразу возвращайте ошибку: if (typeof id !== \"number\" || !Number.isInteger(id)) return { ok: false, error: \"поле id: ...\" }. После всех проверок типы полей уже точные, as не нужен."
+    - "parseUserJson: let data: unknown; try { data = JSON.parse(text); } catch { return ... }; return parseUser(data). expectUser: const r = parseUser(input); return r.ok ? r.value : fail(r.error)."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "is-record"
+      title: "isRecord: объекты и не объекты"
+      match: "предикаты > isRecord*"
+      hint: "null и массивы - не записи."
+    - id: "is-string-array"
+      title: "isStringArray: только массивы строк"
+      match: "предикаты > isStringArray*"
+      hint: "Проверьте и сам массив, и каждый элемент."
+    - id: "parse-valid"
+      title: "parseUser: корректный объект"
+      match: "parseUser > корректный*"
+      hint: "Результат: { ok: true, value: { id, name, email, tags } }."
+    - id: "parse-email-null"
+      title: "parseUser: email может быть null"
+      match: "parseUser > email*"
+      hint: "email допустим как строка и как null."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Параметры границ принимают unknown, ParseResult остаётся объединением. Проверка требует ошибок компиляции при чтении value без проверки ok."
+    - id: "parse-extra"
+      title: "parseUser: лишние поля отбрасываются (скрытый)"
+      match: "parseUser > лишние*"
+      hidden: true
+      hint: "Собирайте новый объект из проверенных полей, а не возвращайте input."
+    - id: "parse-not-object"
+      title: "parseUser: не объект (скрытый)"
+      match: "parseUser > не объект*"
+      hidden: true
+      hint: "null, массив, число, строка и undefined дают ok: false."
+    - id: "parse-fields"
+      title: "parseUser: ошибка называет поле (скрытый)"
+      match: "parseUser > каждое поле*"
+      hidden: true
+      hint: "Целое число для id, непустая строка для name, массив строк для tags; в error упомяните имя поля."
+    - id: "parse-missing"
+      title: "parseUser: отсутствующие поля (скрытый)"
+      match: "parseUser > отсутствующие*"
+      hidden: true
+      hint: "Если tags нет вовсе, isStringArray(undefined) должен вернуть false."
+    - id: "parse-copy"
+      title: "parseUser: tags копируется (скрытый)"
+      match: "parseUser > результат*"
+      hidden: true
+      hint: "Верните tags: [...tags], чтобы изменения исходного массива не затрагивали результат."
+    - id: "json-valid"
+      title: "parseUserJson: корректный JSON (скрытый)"
+      match: "parseUserJson > разбирает*"
+      hidden: true
+      hint: "Результат такой же, как у parseUser для распарсенного значения."
+    - id: "json-invalid"
+      title: "parseUserJson: некорректный JSON (скрытый)"
+      match: "parseUserJson > некорректный*"
+      hidden: true
+      hint: "JSON.parse бросает исключение на плохом тексте и на пустой строке: оберните его в try/catch."
+    - id: "json-shape"
+      title: "parseUserJson: JSON неверной формы (скрытый)"
+      match: "parseUserJson > корректный JSON*"
+      hidden: true
+      hint: "Синтаксически верный JSON ('[]', 'null') всё равно должен пройти parseUser."
+    - id: "describe-error"
+      title: "describeError (скрытый)"
+      match: "describeError и expectUser > describeError*"
+      hidden: true
+      hint: "Error: e.message; строка: она сама; остальное: 'неизвестная ошибка: ' + String(e)."
+    - id: "expect-user"
+      title: "expectUser (скрытый)"
+      match: "describeError и expectUser > expectUser*"
+      hidden: true
+      hint: "При ошибке вызовите fail(r.error): сообщение должно называть поле."

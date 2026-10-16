@@ -15,6 +15,9 @@ public sealed class FakeTerminalSession(TerminalStartOptions options) : ITermina
     public int? ProcessId => null;
     public event Action? Changed { add { } remove { } }
     public event Action? Exited;
+    public event Action<string>? Output;
+    /// <summary>Simulates the process printing <paramref name="text"/>.</summary>
+    public void Emit(string text) => Output?.Invoke(text);
     public void Write(string text) => Written.Add(text);
     public void Resize(int cols, int rows) { }
     public void Kill() { IsRunning = false; ExitCode = 137; Exited?.Invoke(); }

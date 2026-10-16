@@ -51,6 +51,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         _debugHost.Breakpoints.Changed += key => { if (!_restoring) _ = SaveSessionAsync(); };
         Search = new WorkspaceSearchViewModel(Root, () => Explorer.ShowIgnored);
         Language = ProjectRunProfiles.DetectLanguage(Root);
+        RefreshNodeProject();
         var first = new EditorGroupViewModel { IsActive = true };
         Groups.Add(first);
         _activeGroup = first;
@@ -660,6 +661,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     public async Task HandleChangesAsync(IReadOnlyList<FileChange> changes)
     {
         if (_disposed) return;
+        if (changes.Any(c => NodeProjectFiles.Contains(Path.GetFileName(c.FullPath), StringComparer.Ordinal))) RefreshNodeProject();
         Explorer.RefreshDirectories(changes.SelectMany(c =>
             c.Kind is ChangeKind.Renamed && c.OldPath is not null
                 ? new[] { Path.GetDirectoryName(c.FullPath), Path.GetDirectoryName(c.OldPath) }
@@ -739,6 +741,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     {
         tab ??= ActiveTerminal;
         if (tab is null) return;
+        if (ReferenceEquals(tab, _devTerminal)) DetachDevTerminal();
         var index = Terminals.IndexOf(tab);
         Terminals.Remove(tab);
         tab.Dispose();
@@ -749,7 +752,8 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     /// <summary>Types <paramref name="text"/> into the active running terminal (starting one when needed). The text is visible there like anything the user types.</summary>
     public bool SendToTerminal(string text, bool execute)
     {
-        var tab = ActiveTerminal is { IsRunning: true } t ? t : NewTerminal();
+        // A running dev server owns its terminal: typing "npm test" there would feed the server's stdin.
+        var tab = ActiveTerminal is { IsRunning: true } t && !IsDevTerminal(t) ? t : NewTerminal();
         if (tab is null) return false;
         tab.Session.Write(execute ? text + "\r" : text);
         return true;
@@ -858,6 +862,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         _watcher?.Dispose();
         if (Notebook is { } nb) { Notebook = null; _ = nb.DisposeAsync().AsTask(); }
         Debug.Dispose();
+        DisposeDev();
         foreach (var t in Terminals.ToList()) t.Dispose();
         Terminals.Clear();
     }

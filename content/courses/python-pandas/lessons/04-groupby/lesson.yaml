@@ -1,0 +1,172 @@
+id: "python.pandas.groupby"
+title: "groupby: split-apply-combine"
+goal: "Агрегировать, преобразовывать и сводить данные по группам, различать agg, transform и apply и не терять строки с пропусками в ключе."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "python.pandas.selection-and-assignment"
+  - "python.numpy.reductions-and-axis"
+related:
+  - "python.pandas.reading-and-cleaning"
+next:
+  - "python.pandas.joins-and-reshaping"
+objectives:
+  - "Описать три шага split-apply-combine и выбрать между agg, transform и apply по нужной форме результата."
+  - "Писать именованные агрегаты agg(name=(column, func)) и сортировать результат."
+  - "Использовать transform для долей, z-оценок и значений группы в каждой строке с сохранением индекса."
+  - "Управлять параметрами dropna, sort и observed и сверять итог по группам с общим итогом."
+masteryCriteria:
+  - "region_summary включает группу NaN и сортирует регионы по убыванию выручки."
+  - "add_share считает долю региона через transform и сохраняет индекс и порядок строк."
+  - "top_product находит продукт с максимальной выручкой в каждом регионе, включая NaN-регион."
+tags:
+  - "pandas"
+  - "groupby"
+  - "aggregation"
+  - "transform"
+  - "named-aggregation"
+requires:
+  packages:
+    - "pandas>=3.0"
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Руководство pandas описывает groupby как split-apply-combine и различает агрегацию (одна строка на группу), преобразование (результат того же размера, что и вход) и фильтрацию; именованные агрегаты задаются как agg(имя=(столбец, функция))."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/groupby.html"
+  - kind: "misconception"
+    text: "«groupby считает все строки». Параметр dropna=True (по умолчанию) исключает группы, где ключ равен NaN; чтобы сохранить их, нужно dropna=False."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/groupby.html"
+  - kind: "internals"
+    text: "В примечаниях к выпуску 3.0.0 сказано, что поведение groupby с observed=False исправлено так, что для нескольких ключей неиспользованные группы передаются в применяемую функцию, как и для одного ключа; значение по умолчанию параметра observed при этом не менялось."
+    sources:
+      - "https://pandas.pydata.org/docs/whatsnew/v3.0.0.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой метод вернёт столбец суммарной выручки региона ТОГО ЖЕ размера, что и исходная таблица?"
+      options:
+        - "df.groupby('region')['revenue'].sum()"
+        - "df.groupby('region')['revenue'].transform('sum')"
+        - "df.groupby('region')['revenue'].agg('sum')"
+        - "df.groupby('region')['revenue'].size()"
+      answer: 1
+      explanation: "transform сохраняет индекс и размер исходных данных; sum и agg дают строку на группу."
+    - id: "q2"
+      type: "single"
+      prompt: "В таблице 100 строк, у 7 из них region = NaN. Сколько строк учтёт df.groupby('region').size().sum() по умолчанию?"
+      options:
+        - "100"
+        - "93"
+        - "7"
+        - "0"
+      answer: 1
+      explanation: "dropna=True по умолчанию исключает группу NaN; для всех 100 строк нужен dropna=False."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно?"
+      options:
+        - "count не считает NaN, size считает все строки группы"
+        - "Именованный агрегат пишется как agg(total=('revenue', 'sum'))"
+        - "apply всегда быстрее встроенных агрегатов"
+        - "sort=False сохраняет порядок первого появления ключей"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "apply, как правило, медленнее встроенных методов."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой параметр groupby включает группу с NaN в ключе? Ответ - имя параметра."
+      answer:
+        - "dropna"
+        - "dropna=False"
+      explanation: "groupby(key, dropna=False) сохраняет группу NaN."
+exercise:
+  id: "python.pandas.groupby.exercise"
+  title: "Сводка продаж по регионам"
+  prompt: |
+    В файле `group_task.py` реализуйте три функции. Рядом с проверкой лежит `sales.csv` (240 продаж; столбцы
+    `sale_id, region, product, channel, qty, revenue`); у части продаж регион пропущен. Ничего не печатайте.
+
+    1. `region_summary(df)` - сводка с индексом `region`; столбцы по порядку `orders` (число продаж), `units` (сумма `qty`), `revenue` (сумма), `avg_ticket` (средний `revenue`); строки по убыванию `revenue`. Строки с пропущенным регионом образуют группу `NaN` и не должны теряться.
+    2. `add_share(df)` - копия с новым столбцом `region_share`: `revenue` строки, делённая на суммарный `revenue` её региона (пропущенный регион - одна группа). Индекс и порядок строк сохраните.
+    3. `top_product(df)` - Series с индексом `region` (по возрастанию, `NaN` последним) и именем `product`: для каждого региона продукт с наибольшей суммарной выручкой.
+
+    Тесты сравнивают результаты через `pandas.testing` и проверяют контрольные суммы.
+  entryFile: "group_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "region_summary: именованные агрегаты agg(orders=(...), ...) дают нужные имена столбцов; затем sort_values по revenue по убыванию."
+    - "Группа NaN по умолчанию отбрасывается. У groupby есть параметр dropna, который это меняет; он нужен и в region_summary, и в add_share."
+    - "add_share: groupby(...)['revenue'].transform('sum') возвращает столбец исходного размера и индекса; поделите на него. top_product: сначала сумма по паре (region, product), затем idxmax внутри региона."
+    - "Заготовка: total = df.groupby('region', dropna=False)['revenue'].transform('sum'); для top_product: sums = df.groupby(['region', 'product'], dropna=False)['revenue'].sum().reset_index(); best = sums.loc[sums.groupby('region', dropna=False)['revenue'].idxmax()]."
+  tests:
+    - id: "summary-basic"
+      title: "region_summary: столбцы, порядок и значения"
+      hint: "Столбцы orders, units, revenue, avg_ticket; сортировка по revenue по убыванию."
+    - id: "share-basic"
+      title: "add_share: доли региона дают 1"
+      hint: "Новый столбец region_share добавляется в копию; входной df не меняется."
+    - id: "top-basic"
+      title: "top_product на файле"
+      hint: "Суммируйте выручку по паре (region, product), а не берите одну самую большую продажу."
+    - id: "summary-nan-region"
+      title: "region_summary не теряет NaN-регион (скрытый)"
+      hidden: true
+      hint: "Итог по группам должен совпасть с общим: нужен dropna=False."
+    - id: "share-nan-index"
+      title: "add_share: NaN-регион и сохранение индекса (скрытый)"
+      hidden: true
+      hint: "Если у строк с пропущенным регионом получился NaN, добавьте dropna=False. Используйте transform, а не merge/apply с потерей порядка."
+    - id: "top-product-nan"
+      title: "top_product: NaN-регион (скрытый)"
+      hidden: true
+      hint: "NaN-регион - тоже группа; а сумма по продукту, а не максимальная одиночная продажа, определяет победителя."
+    - id: "summary-sums"
+      title: "region_summary: суммы выручки (скрытый)"
+      hidden: true
+      hint: "На равных значениях выручки итог региона - сумма, а не максимум или первое значение."
+challenge:
+  id: "python.pandas.groupby.challenge"
+  title: "z-оценки и топ-N внутри групп"
+  prompt: |
+    В файле `rank_task.py` реализуйте две функции. Рядом с проверкой лежит тот же `sales.csv`. Без циклов по строкам.
+
+    1. `zscore_within_region(df)` - Series с индексом `df`: `(revenue - среднее региона) / std региона` (`ddof=1`). Пропущенный регион - отдельная группа. У группы из одной строки `std` не определено - результат `NaN`.
+    2. `top_n_per_region(df, n)` - DataFrame со столбцами `sale_id, region, revenue`: `n` продаж с наибольшей выручкой в каждом регионе (включая `NaN`-регион). При равной выручке раньше идёт меньший `sale_id`. Порядок: `region` по возрастанию (`NaN` последним), внутри региона `revenue` по убыванию; индекс `0..k-1`.
+  entryFile: "rank_task.py"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "harness"
+  harness: "challenge/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "z-оценка группы выражается через два transform: среднее и std группы, оба того же размера, что и столбец."
+    - "Для топ-N не нужен apply: сначала отсортируйте всю таблицу по нужным ключам (в том числе по sale_id для разрешения ничьих), затем возьмите groupby(...).head(n)."
+    - "sort_values принимает список столбцов и список направлений; na_position='last' ставит NaN в конец. Не забудьте dropna=False в groupby и reset_index(drop=True)."
+  tests:
+    - id: "z-basic"
+      title: "z-оценки внутри региона"
+      hint: "std с ddof=1 - значение по умолчанию у pandas."
+    - id: "top-basic"
+      title: "top_n_per_region: форма результата"
+      hint: "По n строк в каждом регионе; индекс 0..k-1."
+    - id: "z-nan-group"
+      title: "NaN-регион и группа из одной строки (скрытый)"
+      hidden: true
+      hint: "Строки без региона считаются одной группой (dropna=False); у группы из одной строки std NaN."
+    - id: "top-order-ties-nan"
+      title: "порядок, ничьи и NaN-регион (скрытый)"
+      hidden: true
+      hint: "Сортируйте по [region, revenue, sale_id] с направлениями [True, False, True] и na_position='last'."
+    - id: "top-n-large"
+      title: "n больше размера групп (скрытый)"
+      hidden: true
+      hint: "head(n) возвращает всё, если строк меньше n."

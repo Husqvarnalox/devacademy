@@ -1,0 +1,7 @@
+^D
+> demo-app@0.1.0 dev
+> node --watch --experimental-strip-types src/server.ts
+
+[1G[0K(node:40573) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Server listening on http://localhost:3000

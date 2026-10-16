@@ -74,6 +74,23 @@ public class VitestReportTests
     }
 
     [Fact]
+    public void RealTypeCheckFailureCarriesTscDiagnosticsOnceAndMapsToCases()
+    {
+        // Captured from vitest 5 running a TypeScript exercise whose hidden typecheck.test.ts reports tsc 7 diagnostics.
+        var report = JUnitReportParser.Parse(Fx.Read("vitest-typecheck.xml"))!;
+        var compile = report.Tests.Single(t => t.Name == "типы > код проходит tsc --strict");
+        Assert.Equal(ReportedOutcome.Failed, compile.Outcome);
+        Assert.Contains("src/geometry.ts(4,26): error TS7006: Parameter 'a' implicitly has an 'any' type.", compile.Message);
+        // vitest repeats the message in the failure body; it must not be shown twice
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(compile.Message!, "tsc нашёл ошибки типов:"));
+
+        var precise = Assert.Single(CommandCaseMatcher.Select(report.Tests, "типы > типы точные*"));
+        Assert.Contains("TS2578", precise.Message);
+        Assert.Equal(ReportedOutcome.Failed, precise.Outcome);
+        Assert.Single(CommandCaseMatcher.Select(report.Tests, "типы > код проходит tsc*"));
+    }
+
+    [Fact]
     public void SyntaxErrorInLearnerCodeIsOneFailedTestNamedAfterTheFile()
     {
         var report = JUnitReportParser.Parse(Fx.Read("vitest-syntax-error.xml"))!;

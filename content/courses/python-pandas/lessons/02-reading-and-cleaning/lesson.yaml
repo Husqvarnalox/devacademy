@@ -1,0 +1,136 @@
+id: "python.pandas.reading-and-cleaning"
+title: "Чтение и очистка данных: read_csv, пропуски, дубликаты"
+goal: "Читать CSV с явными типами, датами и маркерами пропусков, различать NaN, None и pd.NA и осознанно выбирать политику обработки пропусков и дубликатов."
+difficulty: "easy"
+estimatedMinutes: 75
+prerequisites:
+  - "python.pandas.series-and-dataframe"
+related:
+  - "python.numpy.dtypes-and-casting"
+next:
+  - "python.pandas.selection-and-assignment"
+objectives:
+  - "Прочитать CSV с dtype, parse_dates и na_values и объяснить, что ломается без каждого из них."
+  - "Различать NaN, None и pd.NA, проверять пропуски через isna и знать, почему int64 с пропусками становится float64."
+  - "Сравнить dropna, fillna общей статистикой и fillna статистикой группы и выбрать подходящее."
+  - "Удалять дубликаты, сбрасывать индекс и приводить типы, не изменяя исходный DataFrame."
+masteryCriteria:
+  - "load_orders читает sku строкой с ведущими нулями, order_date как datetime и превращает N/A и - в NaN."
+  - "missing_report возвращает число пропусков по столбцам, где они есть, по убыванию."
+  - "clean_orders удаляет дубликаты и неполные строки, приводит qty к int64, сбрасывает индекс и не меняет вход."
+  - "fill_price заполняет пропуски медианой цены того же товара, а не общей медианой."
+tags:
+  - "pandas"
+  - "read_csv"
+  - "missing-data"
+  - "cleaning"
+  - "dtypes"
+requires:
+  packages:
+    - "pandas>=3.0"
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Согласно документации pandas, read_csv по умолчанию распознаёт как пропуски набор стандартных строк (в том числе пустую ячейку, NA, N/A, NaN, null); дополнительные маркеры задаются параметром na_values, а keep_default_na=False отключает стандартный набор."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/io.html"
+  - kind: "internals"
+    text: "Для пропусков в pandas есть несколько представлений: NaN в вещественных столбцах и pd.NA для nullable dtype вроде Int64; проверять их нужно через isna / notna, а не через ==."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/missing_data.html"
+  - kind: "misconception"
+    text: "«fillna средним безопасен». Заполнение общей статистикой уменьшает разброс и стирает различия между группами; статистика внутри группы (groupby + transform) обычно ближе к реальности, но выбор политики остаётся решением аналитика."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/missing_data.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт при pd.read_csv без dtype, если столбец sku содержит значение 00393?"
+      options:
+        - "Значение останется строкой '00393'"
+        - "Значение станет числом 393, ведущие нули потеряются"
+        - "pandas выдаст ошибку"
+        - "Значение станет NaN"
+      answer: 1
+      explanation: "Если весь столбец состоит из цифр, он читается как число; для сохранения нулей нужен dtype={'sku': 'str'}."
+    - id: "q2"
+      type: "single"
+      prompt: "Чему равно float('nan') == float('nan')?"
+      options:
+        - "True"
+        - "False"
+        - "pd.NA"
+        - "Ошибка"
+      answer: 1
+      explanation: "NaN не равен самому себе; для проверки используйте pd.isna."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Столбец int64 не может содержать NaN, поэтому пропуск превращает его в float64"
+        - "Nullable dtype Int64 позволяет хранить целые числа и pd.NA в одном столбце"
+        - "drop_duplicates() после удаления строк перенумерует индекс сам"
+        - "errors='coerce' в pd.to_numeric превращает нечисловые значения в NaN"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "drop_duplicates сохраняет исходные метки индекса; сбросить их нужно через reset_index(drop=True)."
+    - id: "q4"
+      type: "numeric"
+      prompt: "В Series [1.0, NaN, 3.0, NaN] вызвали s.count() и len(s). Чему равна разность len(s) - s.count()?"
+      answer: 2
+      tolerance: 0
+      explanation: "count не учитывает NaN (2 значения), len равен 4; разность равна числу пропусков."
+exercise:
+  id: "python.pandas.reading-and-cleaning.exercise"
+  title: "Загрузка и очистка заказов"
+  prompt: |
+    В файле `clean_task.py` реализуйте четыре функции. Рядом с проверкой лежит файл `orders_raw.csv` (125 строк; столбцы
+    `order_id, customer_id, order_date, sku, product, qty, unit_price, status`); в нём есть маркеры пропусков `N/A` и `-`,
+    пустые цены и пять полных дубликатов. Ничего не печатайте и не изменяйте входные DataFrame.
+
+    1. `load_orders(path)` - прочитать CSV: `order_date` - дата (datetime), `sku` - строка (ведущие нули нужны), `N/A` и `-` - пропуски.
+    2. `missing_report(df)` - Series с числом пропусков по столбцам, только для столбцов, где они есть, по убыванию.
+    3. `clean_orders(df)` - вернуть копию без полных дубликатов (остаётся первая строка) и без строк с пропуском в `qty` или `unit_price`; `qty` - `int64`; индекс `0..n-1`.
+    4. `fill_price(df)` - вернуть копию, где пропуски `unit_price` заполнены **медианой цены того же `product`**.
+
+    Тесты сравнивают результаты через `pandas.testing`.
+  entryFile: "clean_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "load_orders: все три требования выражаются параметрами read_csv; про каждый столбец и маркер подумайте отдельно (dtype, parse_dates, na_values)."
+    - "missing_report строится из df.isna().sum(); затем оставьте положительные значения и отсортируйте по убыванию. clean_orders: drop_duplicates, dropna с subset, astype и reset_index(drop=True); каждый метод возвращает новый объект."
+    - "fill_price: медиана по группе, выровненная по исходному индексу, получается через groupby('product')['unit_price'].transform('median'); её передайте в fillna. Не берите общую медиану столбца."
+    - "Заготовка: pd.read_csv(path, dtype={'sku': 'str'}, parse_dates=['order_date'], na_values=['N/A', '-']); fill_price: out = df.copy(); out['unit_price'] = out['unit_price'].fillna(out.groupby('product')['unit_price'].transform('median'))."
+  tests:
+    - id: "load-dtypes"
+      title: "load_orders: форма и типы"
+      hint: "order_date должен быть datetime, qty - float64 с NaN на местах N/A и -."
+    - id: "missing-report"
+      title: "missing_report: qty и unit_price"
+      hint: "Нужны только столбцы с пропусками (qty 13, unit_price 9), по убыванию."
+    - id: "clean-basic"
+      title: "clean_orders на файле"
+      hint: "Порядок: дубликаты, строки без qty/unit_price, int64, сброс индекса."
+    - id: "load-leading-zeros"
+      title: "sku хранится строкой (скрытый)"
+      hidden: true
+      hint: "Без dtype={'sku': 'str'} значение 00393 читается как число 393."
+    - id: "na-markers"
+      title: "маркеры N/A и - (скрытый)"
+      hidden: true
+      hint: "Маркер '-' не входит в стандартный список; добавьте его в na_values."
+    - id: "clean-dedupe-index-input"
+      title: "дубликаты, индекс и неизменность входа (скрытый)"
+      hidden: true
+      hint: "Не меняйте входной DataFrame: drop_duplicates и dropna возвращают копии. Индекс сбросьте reset_index(drop=True)."
+    - id: "fill-price-by-product"
+      title: "fill_price использует медиану группы (скрытый)"
+      hidden: true
+      hint: "transform('median') возвращает Series того же индекса, что и столбец; fillna(общая медиана) даст другое число."

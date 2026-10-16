@@ -1,0 +1,162 @@
+id: python.automation.logging-config-and-secrets
+title: "Логирование, конфигурация и секреты"
+goal: Делать скрипты наблюдаемыми и настраиваемыми - структурные JSON-логи, конфигурация из файла и окружения с понятным приоритетом и проверкой, а секреты никогда не хранятся в коде и не попадают в журнал.
+difficulty: hard
+estimatedMinutes: 100
+prerequisites: [python.stdlib.subprocess-and-logging, python.stdlib.json-csv-struct, python.advanced.dunder-methods-and-dataclasses, python.automation.scheduling-and-long-running-jobs]
+related: [python.automation.robust-http-clients, python.automation.batch-processing-csv-reports]
+next: [python.automation.web-data-extraction-ethics]
+objectives:
+  - Настроить logging для разных окружений (уровни, обработчики, форматтеры) и выводить записи одной строкой JSON с дополнительными полями.
+  - Загружать конфигурацию из значений по умолчанию, файла (tomllib) и переменных окружения с приоритетом default < файл < окружение и собирать все ошибки валидации сразу.
+  - Объяснить, почему секреты не хранят в коде и репозитории, и работать с ними через переменные окружения или хранилище секретов.
+  - "Не допускать утечки секретов в журналы: тип-обёртка со скрытым repr, фильтр маскирования, очистка traceback."
+  - Разбирать .env-файлы и понимать их границы (локальная разработка, не продакшен-хранилище).
+masteryCriteria:
+  - Вы показываете, что repr конфигурации, сообщение об ошибке валидации и запись журнала с исключением не содержат значения токена.
+  - Вы объясняете приоритет источников конфигурации и проверяете его тестом.
+  - Вы знаете, что фильтр маскирования - вторая линия обороны, а первая - не передавать секреты туда, где их могут записать.
+tags: [python, automation, logging, json, configuration, secrets, tomllib, dotenv, security]
+facts:
+  - kind: internals
+    text: >-
+      Уровни logging имеют числовые значения: DEBUG 10, INFO 20, WARNING 30, ERROR 40, CRITICAL 50. Корневой логгер по умолчанию пропускает записи уровня WARNING и выше. Логгер и обработчик
+      имеют каждый свой уровень, поэтому запись должна пройти оба порога. Фильтры (logging.Filter, метод filter) можно навесить на логгер или на обработчик и использовать для изменения записи.
+    sources:
+      - https://docs.python.org/3/library/logging.html#logging-levels
+      - https://docs.python.org/3/library/logging.html#filter-objects
+  - kind: internals
+    text: >-
+      Документация logging прямо описывает структурное логирование: сообщение можно сериализовать в JSON собственным форматтером, а дополнительные поля передавать через аргумент extra.
+      Ключи extra не должны совпадать с атрибутами LogRecord; конфликт приводит к исключению KeyError.
+    sources:
+      - https://docs.python.org/3/howto/logging-cookbook.html#implementing-structured-logging
+      - https://docs.python.org/3/library/logging.html#logging.Logger.debug
+  - kind: internals
+    text: >-
+      Модуль tomllib (стандартная библиотека с версии 3.11) только читает TOML: loads разбирает строку, load - двоичный файл; записи нет. Ошибки синтаксиса поднимают tomllib.TOMLDecodeError.
+      Числа и логические значения в TOML типизированы, в отличие от переменных окружения, значения которых всегда строки.
+    sources:
+      - https://docs.python.org/3/library/tomllib.html
+      - https://docs.python.org/3/library/os.html#os.environ
+  - kind: security
+    text: >-
+      Руководство OWASP по логированию относит пароли, токены доступа, ключи и другие секреты к данным, которые не должны попадать в журналы. Утечки через журналы
+      опасны потому, что журналы копируются в системы сбора, доступные куда большему кругу людей, чем исходная программа.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html
+  - kind: real-world
+    text: >-
+      Методология Twelve-Factor App рекомендует хранить конфигурацию, различающуюся между окружениями (адреса баз, учётные данные), в переменных окружения, а не в коде. Файлы .env и пакет python-dotenv
+      (сторонний, в курсе не запускается) - распространённое удобство для локальной разработки, но не замена хранилищу секретов в продакшене.
+    sources:
+      - https://12factor.net/config
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Какой приоритет источников конфигурации обычно считают правильным?
+      options:
+        - "переменные окружения < файл < значения по умолчанию"
+        - "значения по умолчанию < файл < переменные окружения (и аргументы командной строки)"
+        - "файл < значения по умолчанию < окружение"
+        - "приоритета нет, выигрывает последний прочитанный файл"
+      answer: 1
+      explanation: >-
+        Более специфичный и более «поздний» источник переопределяет общий: умолчания - базис, файл - настройка окружения, переменные окружения и аргументы позволяют изменить значение при запуске без правки файла.
+    - id: q2
+      type: single
+      prompt: Почему нельзя логировать f"запрос с токеном {token}" и надеяться «потом замаскируем»?
+      options:
+        - "Это медленно"
+        - "Секрет уже попал в запись; фильтр маскирования - запасная линия защиты, а надёжно - не передавать секрет в журнал вообще"
+        - "logging запрещает f-строки"
+        - "Токены нельзя печатать никогда, даже в консоль на своём компьютере"
+      answer: 1
+      explanation: >-
+        Любой обработчик, который успел получить запись до фильтра, увидит секрет. Фильтр полезен как страховка, но настоящая мера - не включать секреты в сообщения и использовать обёртку Secret.
+    - id: q3
+      type: single
+      prompt: Что выведет print(Secret("abc")), если класс переопределяет __str__ и __repr__ так, чтобы скрывать значение?
+      options:
+        - "abc"
+        - "***"
+        - "Secret('abc')"
+        - "None"
+      answer: 1
+      explanation: >-
+        Скрытие в __str__ и __repr__ защищает от случайной печати и логирования (в том числе repr конфигурации). Получить значение можно только явно, например методом reveal().
+    - id: q4
+      type: single
+      prompt: Значение APP_DEBUG приходит из окружения как строка "false". Что будет при bool("false")?
+      options:
+        - "False"
+        - "True - непустая строка истинна; нужно разбирать допустимые слова явно"
+        - "TypeError"
+        - "None"
+      answer: 1
+      explanation: >-
+        Любая непустая строка приводится к True. Булевы значения из окружения разбирают по явному списку слов (1/true/yes/on и 0/false/no/off) и сообщают об ошибке для остального.
+    - id: q5
+      type: multiple
+      prompt: Что можно безопасно хранить в репозитории? Выберите все.
+      options:
+        - "config.example.toml с вымышленными значениями"
+        - ".env с реальными паролями"
+        - "код, читающий os.environ['APP_API_TOKEN']"
+        - "файл .gitignore, исключающий локальный .env"
+      answer: [0, 2, 3]
+      explanation: >-
+        В репозитории хранят пример конфигурации, код и правила игнорирования. Реальные секреты (в том числе в .env) в репозиторий не попадают: история Git хранит их вечно.
+exercise:
+  id: python.automation.logging-config-and-secrets.exercise
+  title: Загрузчик конфигурации и фильтр секретов
+  prompt: |
+    В файле `appconfig.py` реализуйте:
+
+    1. `parse_dotenv(text)` - разбор `.env`: пустые строки и комментарии `#` пропускаются, допустим префикс `export `, `KEY=VALUE` с ключом `[A-Za-z_][A-Za-z0-9_]*` (иначе `ValueError` с номером строки). Значение в двойных кавычках - внутри разворачиваются `\n`, `\"`, `\\`; в одинарных - как есть; без кавычек - до ` #` (комментарий в конце), без пробелов по краям. Повтор ключа - побеждает последний.
+    2. `Secret(value)` - `repr` даёт `Secret(***)`, `str` даёт `***`, значение отдаёт `reveal()`; `==` только между `Secret` с одинаковым значением.
+    3. `load_config(file_text, env, *, prefix="APP_")` -> `Config(log_level, port, debug, api_token)`. Приоритет: значения по умолчанию < файл (TOML-текст, пусто или `None` допустимо) < переменные окружения (`APP_PORT` и т.д.; остальные переменные игнорируются). Правила полей описаны в docstring. Все проблемы собираются в один `ConfigError` (`.problems` - строки `имя: описание` по порядку параметров, затем неизвестные ключи/переменные); значения (особенно токен) в сообщения не попадают. Некорректный TOML - `ConfigError(["file: ..."])`.
+    4. `JsonFormatter(include_time=False)` - одна запись = одна строка JSON (`level`, `logger`, `message`, поля из `extra`, `exc` при исключении, `time` при `include_time=True`), `sort_keys=True`, `ensure_ascii=False`, `default=str`.
+    5. `RedactingFilter(secrets, mask="***")` - фильтр, маскирующий значения секретов в сообщении, в `extra`-полях (по имени: password, token, secret, authorization, api_key и т.п., а также значения типа `Secret`) и в тексте traceback.
+
+    ```python
+    cfg = load_config('port = 9000', {"APP_API_TOKEN": "t0k"})
+    cfg.port, cfg.api_token      # (9000, Secret(***))
+    ```
+  entryFile: appconfig.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Делайте по частям. Secret и ConfigError - несколько строк. Основная работа - load_config: сначала соберите словари from_file и from_env, потом пройдите по полям по порядку: источник -> преобразование -> значение или проблема."
+    - "Для каждого поля заведите функцию-преобразователь, поднимающую ValueError с понятным текстом; в load_config ловите ValueError и добавляйте f'{name}: {exc}' в problems. Неизвестные ключи: из файла - все, которых нет в известных; из env - с нужным префиксом, но без известного имени (prefix обрезается, имя в нижний регистр)."
+    - "Bool: bool(\"false\") истинно - разбирайте слова явно; порт: isinstance(value, bool) отсеките до int (True - это int). Фильтр: record.msg = record.getMessage(); record.args = (); для extra-полей перебирайте record.__dict__, пропуская стандартные атрибуты LogRecord (множество из LogRecord(...).__dict__)."
+    - "Traceback: if record.exc_info and not record.exc_text: record.exc_text = logging.Formatter().formatException(record.exc_info), затем замените секреты в exc_text. Форматтер, увидев готовый exc_text, не форматирует исключение заново. JsonFormatter: payload.update по extra-полям; если ключ в RESERVED - 'extra.' + ключ."
+  tests:
+    - id: dotenv
+      title: parse_dotenv - кавычки, комментарии, ошибки
+      hint: Разбирайте построчно с partition('='); в двойных кавычках разворачивайте escape-последовательности, в одинарных - нет; ошибки содержат номер строки.
+    - id: precedence
+      title: Приоритет default < файл < окружение
+      hint: Сначала значение из env, затем из файла, затем умолчание; префикс отсекайте и приводите имя к нижнему регистру; log_level приводится к верхнему.
+    - id: json-formatter
+      title: JsonFormatter - одна строка JSON
+      hint: Берите message через record.getMessage(), extra-поля - из record.__dict__ за вычетом стандартных атрибутов; sort_keys=True, ensure_ascii=False.
+    - id: config-errors
+      title: Сбор всех ошибок, секрет не в сообщениях (скрытый)
+      hidden: true
+      hint: Не прерывайтесь на первой ошибке; порядок проблем - как у параметров, затем неизвестные; в тексте проблемы значение параметра не повторяйте.
+    - id: secret
+      title: Secret и Config не раскрывают значение (скрытый)
+      hidden: true
+      hint: Переопределите __repr__ и __str__; dataclass использует repr полей, поэтому repr Config тоже скрыт; Config - frozen=True.
+    - id: redact
+      title: RedactingFilter - сообщение, extra, traceback (скрытый)
+      hidden: true
+      hint: record.getMessage() подставит args; затем заменяйте секреты; имя extra-поля проверяйте в нижнем регистре на вхождение подстрок; не забудьте exc_text.
+    - id: formatter-edge
+      title: JsonFormatter - время, исключение, конфликт имён, default=str (скрытый)
+      hidden: true
+      hint: Время из record.created в UTC с миллисекундами; traceback в поле exc одной строкой JSON; конфликтующее extra-поле получает префикс extra.

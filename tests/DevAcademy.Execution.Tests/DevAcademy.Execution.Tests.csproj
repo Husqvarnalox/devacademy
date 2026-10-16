@@ -16,4 +16,5 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup><Using Include="Xunit" /></ItemGroup>
+  <ItemGroup><None Include="Fixtures\devserver\*.log" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

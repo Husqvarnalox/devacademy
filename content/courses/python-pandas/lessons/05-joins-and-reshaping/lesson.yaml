@@ -1,0 +1,174 @@
+id: "python.pandas.joins-and-reshaping"
+title: "Объединение и reshape: merge, concat, pivot_table, melt"
+goal: "Объединять таблицы без потери и размножения строк, проверять связь ключей и преобразовывать данные между длинным и широким видом."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "python.pandas.groupby"
+related:
+  - "python.pandas.series-and-dataframe"
+next:
+  - "python.pandas.performance-and-memory"
+objectives:
+  - "Выбрать how для merge и объяснить, какие строки теряет inner и сохраняет left."
+  - "Предотвратить размножение строк через validate='many_to_one' и найти несовпавшие ключи через indicator=True."
+  - "Отличать concat (склейка, выравнивание по индексу) от merge (соединение по ключу)."
+  - "Выбирать между pivot и pivot_table и разворачивать таблицу обратно через melt."
+masteryCriteria:
+  - "join_orders сохраняет все заказы и порядок, а при неуникальном ключе клиентов бросает MergeError."
+  - "find_orphans возвращает уникальные order_id заказов без клиента."
+  - "revenue_pivot агрегирует суммы с fill_value=0, а unpivot возвращает длинную таблицу в заданном порядке."
+tags:
+  - "pandas"
+  - "merge"
+  - "join"
+  - "concat"
+  - "pivot_table"
+  - "melt"
+requires:
+  packages:
+    - "pandas>=3.0"
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Согласно руководству pandas, параметр validate метода merge проверяет тип связи (one_to_one, one_to_many, many_to_one, many_to_many) и бросает MergeError при нарушении, а indicator=True добавляет столбец _merge со значениями both, left_only и right_only."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/merging.html"
+  - kind: "misconception"
+    text: "«pivot и pivot_table - одно и то же». pivot только переставляет значения и бросает ValueError при повторяющихся парах индекс-столбец, а pivot_table агрегирует их функцией aggfunc (по умолчанию среднее)."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/reshaping.html"
+  - kind: "real-world"
+    text: "Потеря строк при inner join и размножение строк при неуникальном ключе - частые источники тихих ошибок в аналитике; простая защита - сверка числа строк и контрольной суммы до и после объединения."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/merging.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "orders (3 строки) merge customers по cid с how='inner'; клиента одного заказа в customers нет. Сколько строк в результате?"
+      options:
+        - "3"
+        - "2"
+        - "1"
+        - "0"
+      answer: 1
+      explanation: "inner оставляет только совпавшие ключи: заказ без клиента пропадает."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой параметр merge бросит MergeError, если в customers повторяется ключ, а ожидалась связь многие-к-одному?"
+      options:
+        - "indicator=True"
+        - "validate='many_to_one'"
+        - "suffixes=('_x', '_y')"
+        - "how='left'"
+      answer: 1
+      explanation: "validate проверяет уникальность ключа в нужной стороне."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно?"
+      options:
+        - "pivot бросает ошибку, если пара (index, columns) встречается дважды"
+        - "pivot_table по умолчанию складывает значения"
+        - "concat(axis=1) выравнивает таблицы по индексу"
+        - "indicator=True добавляет столбец _merge"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "По умолчанию pivot_table берёт среднее (aggfunc='mean'), а не сумму."
+    - id: "q4"
+      type: "numeric"
+      prompt: "У orders 2 строки (клиенты a и b), в customers три строки, и ключ a повторяется. Сколько строк в orders.merge(customers, on='cid', how='left')?"
+      answer: 3
+      tolerance: 0
+      explanation: "Заказ клиента a встретит две пары: 2 + 1 = 3 строки."
+exercise:
+  id: "python.pandas.joins-and-reshaping.exercise"
+  title: "Клиенты, сироты и сводная выручка"
+  prompt: |
+    В файле `join_task.py` реализуйте четыре функции. Рядом с проверкой лежат `orders.csv` (180 заказов: `order_id, customer_id, amount`)
+    и `customers.csv` (30 клиентов: `customer_id, name, country, segment`); у части заказов клиента в справочнике нет. Ничего не печатайте.
+
+    1. `join_orders(orders, customers)` - добавить к каждому заказу `name`, `country`, `segment`; заказы без клиента сохранить, порядок заказов сохранить. Если `customer_id` в `customers` не уникален, должен возникнуть `pandas.errors.MergeError` (используйте проверку самого `merge`).
+    2. `find_orphans(orders, customers)` - отсортированный список уникальных `order_id` заказов, чьего клиента нет в справочнике.
+    3. `revenue_pivot(joined)` - сумма `amount`: строки `country`, столбцы `segment`, пустые комбинации заполнить `0`.
+    4. `unpivot(wide)` - вернуть сводную в длинный вид со столбцами `country, segment, revenue`, отсортировав по `country`, затем `segment`; индекс `0..k-1`.
+  entryFile: "join_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "join_orders: нужен левый merge по customer_id. Чтобы проверка связи сработала, задайте у merge параметр validate."
+    - "find_orphans: merge с indicator=True добавит столбец _merge; нужные строки имеют значение left_only. Уберите дубли справочника по ключу, чтобы они не влияли на ответ."
+    - "revenue_pivot: используйте pivot_table с aggfunc='sum' и fill_value=0 (обычный pivot отказался бы при повторяющихся парах). unpivot: reset_index, затем melt с id_vars='country', потом sort_values и reset_index(drop=True)."
+    - "Заготовка: orders.merge(customers, on='customer_id', how='left', validate='many_to_one'); joined.pivot_table(index='country', columns='segment', values='amount', aggfunc='sum', fill_value=0)."
+  tests:
+    - id: "join-basic"
+      title: "join_orders: столбцы и число строк"
+      hint: "Столбцы: order_id, customer_id, amount, name, country, segment; строк столько же, сколько заказов."
+    - id: "orphans-basic"
+      title: "find_orphans на файле"
+      hint: "Сироты - заказы, чей customer_id отсутствует в customers."
+    - id: "pivot-basic"
+      title: "revenue_pivot на файле"
+      hint: "Строки country, столбцы segment, значения - суммы amount."
+    - id: "join-keeps-unmatched"
+      title: "join_orders не теряет заказы без клиента (скрытый)"
+      hidden: true
+      hint: "Inner join уберёт такие заказы. Нужен how='left'."
+    - id: "join-validate"
+      title: "join_orders ловит дубль ключа (скрытый)"
+      hidden: true
+      hint: "validate='many_to_one' бросает MergeError, если ключ повторяется в customers."
+    - id: "orphans-unique"
+      title: "find_orphans не зависит от дублей в справочнике (скрытый)"
+      hidden: true
+      hint: "drop_duplicates по customer_id перед merge или isin: оба варианта не размножают заказы."
+    - id: "pivot-aggregates-fills"
+      title: "revenue_pivot: агрегирование и fill_value (скрытый)"
+      hidden: true
+      hint: "Несколько заказов в клетке нужно сложить; пустая клетка - 0, а не NaN."
+    - id: "unpivot-roundtrip"
+      title: "unpivot: длинный вид и порядок (скрытый)"
+      hidden: true
+      hint: "После melt отсортируйте по [country, segment] и сбросьте индекс."
+challenge:
+  id: "python.pandas.joins-and-reshaping.challenge"
+  title: "Отчёт по клиентам, включая клиентов без заказов"
+  prompt: |
+    В файле `report_task.py` реализуйте две функции. Рядом с проверкой лежат те же `orders.csv` и `customers.csv`.
+
+    1. `customer_report(orders, customers)` - одна строка на клиента из `customers`, **включая клиентов без заказов**. Столбцы: `customer_id, country, orders` (число заказов, целое), `revenue` (сумма `amount`, `0.0` если заказов нет). Заказы клиентов, которых нет в справочнике, в отчёт не входят. Порядок: `revenue` по убыванию, при равенстве `customer_id` по возрастанию; индекс `0..k-1`. Дубли в справочнике не должны размножать строки (можно бросить ошибку).
+    2. `merge_summary(orders, customers)` - словарь `{"both": ..., "orders_only": ..., "customers_only": ...}`: число заказов с клиентом, число заказов без клиента и число клиентов без единого заказа (обычные `int`).
+  entryFile: "report_task.py"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "harness"
+  harness: "challenge/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Сначала агрегируйте заказы по клиенту (groupby), потом присоедините итог к справочнику клиентов; ведущей должна быть таблица customers."
+    - "После left-merge клиенты без заказов получат NaN в orders и revenue. Заполните их нулями и верните orders к целому типу."
+    - "merge_summary: outer merge с indicator=True и подсчёт значений столбца _merge; клиентов считайте по уникальным customer_id справочника."
+  tests:
+    - id: "report-basic"
+      title: "customer_report: форма и контрольная сумма"
+      hint: "Строк ровно по числу клиентов; сумма revenue равна сумме заказов известных клиентов."
+    - id: "summary-basic"
+      title: "merge_summary на файлах"
+      hint: "Три числа: both, orders_only, customers_only."
+    - id: "report-zero-orders"
+      title: "клиенты без заказов и сироты (скрытый)"
+      hidden: true
+      hint: "Клиент без заказов: orders = 0, revenue = 0.0. Заказ неизвестного клиента в отчёт не входит."
+    - id: "summary-small"
+      title: "merge_summary: небольшой пример (скрытый)"
+      hidden: true
+      hint: "customers_only считает клиентов, а orders_only - заказы."
+    - id: "report-duplicate-customers"
+      title: "дубли клиентов (скрытый)"
+      hidden: true
+      hint: "validate='one_to_one' или 'many_to_one' на нужной стороне превратит тихое размножение в явную ошибку."

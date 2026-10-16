@@ -1,0 +1,179 @@
+id: "typescript.fundamentals.generics"
+title: "Обобщения: параметры типа и ограничения"
+goal: "Писать универсальные функции и типы, в которых тип результата следует за типом входа, и ограничивать параметры типа через extends и keyof."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "typescript.fundamentals.interfaces-and-aliases"
+objectives:
+  - "Объявлять обобщённые функции и типы и объяснять, как компилятор выводит параметры типа."
+  - "Ограничивать параметр типа через extends и связывать ключ с объектом через K extends keyof T и T[K]."
+  - "Задавать значения по умолчанию для параметров типа."
+  - "Узнавать параметр типа, который встречается один раз, как скрытое приведение типа."
+masteryCriteria:
+  - "Вы заменяете any на параметр типа так, чтобы результат зависел от входа."
+  - "Вы выбираете ограничение (extends), а не приведение, когда нужен доступ к членам параметра типа."
+  - "Вы объясняете, почему function make<T>(): T небезопасна."
+related:
+  - "typescript.fundamentals.interfaces-and-aliases"
+next:
+  - "typescript.fundamentals.utility-types"
+tags:
+  - "typescript"
+  - "generics"
+  - "keyof"
+  - "constraints"
+facts:
+  - kind: "internals"
+    text: "Параметры типа существуют только при компиляции. Во время работы нет ни T, ни K: обобщённая функция превращается в обычную, поэтому внутри нельзя спросить «чему равен T» (typeof T, new T()). Нужную информацию передают значением: функцией, классом, строкой-меткой."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/generics.html"
+  - kind: "misconception"
+    text: "«Обобщение - это любой тип, как any». На самом деле T один и тот же в пределах вызова: first<T>(xs: T[]): T вернёт ровно тот тип, который был у элементов, а any такую связь разрывает."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/generics.html#generic-types"
+  - kind: "historical"
+    text: "Модификатор const для параметров типа (function f<const T>) появился в TypeScript 5.0 и избавил от необходимости писать as const в каждом вызове."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-0.html#const-type-parameters"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что скажет компилятор о `function len<T>(x: T) { return x.length; }`?"
+      options:
+        - "Ничего: у любого значения есть length."
+        - "Ошибка TS2339: у T нет свойства length."
+        - "Предупреждение: нужен any."
+        - "Ошибка только при вызове len(5)."
+      answer: 1
+      explanation: "Про неограниченный T известно только, что он существует. Нужно ограничение: <T extends { length: number }>."
+    - id: "q2"
+      type: "single"
+      prompt: "Дано `function get<T, K extends keyof T>(o: T, k: K): T[K]`. Каков тип выражения `get({ a: 1, b: 'x' }, 'b')`?"
+      options:
+        - "string"
+        - "number | string"
+        - "'b'"
+        - "unknown"
+      answer: 0
+      explanation: "K выводится как 'b', а T['b'] - это string."
+    - id: "q3"
+      type: "single"
+      prompt: "Дано `function same<T>(a: T, b: T): T`. Что произойдёт при вызове `same(1, 'x')`?"
+      options:
+        - "T выведется как string | number, всё скомпилируется."
+        - "Ошибка TS2345: 'x' нельзя присвоить параметру типа 1."
+        - "Ошибка только во время выполнения."
+        - "T выведется как unknown."
+      answer: 1
+      explanation: "Для первого аргумента T становится 1 (число), и второй не подходит. Явная запись same<string | number>(1, 'x') скомпилируется."
+    - id: "q4"
+      type: "multiple"
+      prompt: "В каких сигнатурах параметр типа связывает вход и выход?"
+      options:
+        - "function f<T>(xs: T[]): T"
+        - "function f<T>(): T"
+        - "function f<T, K extends keyof T>(o: T, k: K): T[K]"
+        - "function f<T>(x: unknown): T"
+      answer:
+        - 0
+        - 2
+      explanation: "Во втором и четвёртом вариантах T нельзя вывести из входа: вызов f() даёт unknown, а f<User>() - то же, что приведение as User."
+    - id: "q5"
+      type: "short"
+      prompt: "Какое ключевое слово ограничивает параметр типа, например `<T ___ { length: number }>`? Одно слово."
+      answer:
+        - "extends"
+      explanation: "Ограничение записывается через extends: подойдут только типы, совместимые с указанным."
+exercise:
+  id: "typescript.fundamentals.generics.exercise"
+  title: "Универсальные коллекции и Result"
+  prompt: |
+    В `src/collections.ts` типы везде заменены на `any`. Сделайте функции обобщёнными так, чтобы тип результата зависел от типа входа.
+
+    * `Result<T, E = Error>` - добавьте для `E` значение по умолчанию.
+    * `first(xs)` - первый элемент или `undefined`; для `number[]` тип результата `number | undefined`.
+    * `pluck(items, key)` - значения поля; `key` ограничен ключами элемента (`K extends keyof T`), результат `T[K][]`.
+    * `groupBy(items, keyOf)` - `Map` из ключа в группу, ключи в порядке первого появления; ключ может быть любого типа (`boolean`, `0`, `""`).
+    * `ok(value)` возвращает `Result<T, never>`, `err(error)` - `Result<never, E>`; `mapResult(r, f)` преобразует значение успешного результата и пропускает ошибку; `unwrapOr(r, fallback)` возвращает значение или запасное (включая `0` и `""`).
+
+    Проверка типов - настоящий `tsc --strict`. Скрытая проверка сравнивает **точные** выведенные типы результатов и требует ошибок компиляции для `pluck(users, "email")`, `unwrapOr(ok(1), "ноль")` и `Result<number>` с ошибкой-строкой, поэтому `any` и приведения `as` не помогут. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/collections.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "Начните с first<T>(xs: readonly T[]): T | undefined и pluck<T, K extends keyof T>(items: readonly T[], key: K): T[K][]. Тело pluck - items.map(item => item[key])."
+    - "groupBy<T, K>(items: readonly T[], keyOf: (item: T) => K): Map<K, T[]>. Внутри: const groups = new Map<K, T[]>(); для каждого элемента найдите группу через groups.get(key) и добавьте элемент, создав группу при необходимости. Проверяйте bucket === undefined, а не if (bucket)."
+    - "ok<T>(value: T): Result<T, never>, err<E>(error: E): Result<never, E>. Сначала добавьте E = Error в тип Result, иначе Result<number> не скомпилируется."
+    - "mapResult<T, U, E>(r: Result<T, E>, f: (value: T) => U): Result<U, E>: если r.ok, верните { ok: true, value: f(r.value) }, иначе r. unwrapOr<T, E>(r: Result<T, E>, fallback: T): T - тернарный оператор по r.ok, без || (иначе пропадут 0 и пустая строка)."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "first-basic"
+      title: "first: первый элемент и пустой массив"
+      match: "first > первый*"
+      hint: "xs[0] для пустого массива даёт undefined."
+    - id: "pluck-basic"
+      title: "pluck: значения поля"
+      match: "pluck > значения*"
+      hint: "items.map(item => item[key])."
+    - id: "group-basic"
+      title: "groupBy: группировка и порядок"
+      match: "groupBy > группирует*"
+      hint: "Map помнит порядок вставки ключей."
+    - id: "result-basic"
+      title: "ok и err"
+      match: "Result > ok и err*"
+      hint: "Форма результата: { ok: true, value } и { ok: false, error }."
+    - id: "types-precise"
+      title: "Точные выведенные типы (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Результаты должны зависеть от входа: first даёт T | undefined, pluck - T[K][], groupBy - Map<K, T[]>, ok - Result<T, never>. any и as не подходят."
+    - id: "first-falsy"
+      title: "first: ложные элементы (скрытый)"
+      match: "first > ложные*"
+      hidden: true
+      hint: "Не используйте || и if (x): 0, '' и false - законные элементы."
+    - id: "pluck-edge"
+      title: "pluck: пустой массив и undefined в поле (скрытый)"
+      match: "pluck > пустой*"
+      hidden: true
+      hint: "Значение undefined в поле сохраняется в результате."
+    - id: "group-keys"
+      title: "groupBy: ключи boolean, 0 и пустая строка (скрытый)"
+      match: "groupBy > ключи*"
+      hidden: true
+      hint: "Ищите группу через Map.get и сравнивайте результат с undefined, а не по истинности."
+    - id: "group-empty"
+      title: "groupBy: пустой вход (скрытый)"
+      match: "groupBy > пустой*"
+      hidden: true
+      hint: "Для пустого входа Map пуст; входной массив менять нельзя."
+    - id: "map-result"
+      title: "mapResult: только для успеха (скрытый)"
+      match: "Result > mapResult*"
+      hidden: true
+      hint: "Функцию f вызывайте только когда r.ok === true; ошибку верните как есть."
+    - id: "unwrap-or"
+      title: "unwrapOr: нулевые значения (скрытый)"
+      match: "Result > unwrapOr*"
+      hidden: true
+      hint: "r.ok ? r.value : fallback - без || и ??."

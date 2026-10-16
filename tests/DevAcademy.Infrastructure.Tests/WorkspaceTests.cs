@@ -339,11 +339,111 @@ public class TemplateTests
     }
 
     [Fact]
-    public void Shipped_templates_are_valid_and_cover_four_languages()
+    public void Shipped_templates_are_valid_and_cover_the_expected_stacks()
     {
         var set = Content();
-        Assert.Equal(["go-cli", "node-cli", "python-cli", "rust-cli"], set.Templates.Select(t => t.Id).Order());
-        Assert.Equal(["go", "javascript", "python", "rust"], set.Templates.Select(t => t.LanguageId).Order());
+        Assert.Equal(["express-api-ts", "go-cli", "nestjs-api", "node-cli", "python-cli", "react-vite-ts", "rust-cli", "vue-vite-ts"], set.Templates.Select(t => t.Id).Order());
+        Assert.Equal(["go", "javascript", "python", "rust", "typescript", "typescript", "typescript", "typescript"], set.Templates.Select(t => t.LanguageId).Order());
+    }
+
+    private static string[] WebTemplates => ["react-vite-ts", "express-api-ts", "vue-vite-ts", "nestjs-api"];
+
+    [Fact]
+    public void Web_templates_declare_dev_test_build_that_exist_in_package_json_and_have_a_russian_readme()
+    {
+        var set = Content();
+        foreach (var id in WebTemplates)
+        {
+            var t = set.Templates.Single(x => x.Id == id);
+            Assert.Equal(["build", "dev", "test"], t.ScriptMap.Keys.Order());
+            using var pkg = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(t.FilesDirectory, "package.json")));
+            var scripts = pkg.RootElement.GetProperty("scripts");
+            foreach (var (_, script) in t.ScriptMap) Assert.True(scripts.TryGetProperty(script, out _), $"{id}: package.json has no script '{script}'");
+            var readme = File.ReadAllText(Path.Combine(t.FilesDirectory, "README.md"));
+            Assert.Matches("[А-Яа-я]{4}", readme);
+            Assert.Contains("npm install", readme);
+        }
+    }
+
+    [Fact]
+    public void Web_templates_pin_exact_versions_and_postCreate_is_only_a_single_displayed_install_command()
+    {
+        var set = Content();
+        foreach (var id in WebTemplates)
+        {
+            var t = set.Templates.Single(x => x.Id == id);
+            Assert.Equal(["npm install"], t.PostCreate);
+            using var pkg = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(t.FilesDirectory, "package.json")));
+            foreach (var section in new[] { "dependencies", "devDependencies" })
+                if (pkg.RootElement.TryGetProperty(section, out var deps))
+                    foreach (var d in deps.EnumerateObject())
+                        Assert.Matches(@"^\d+\.\d+\.\d+$", d.Value.GetString()!);
+            // no lifecycle script runs anything at install time
+            var scripts = pkg.RootElement.GetProperty("scripts").EnumerateObject().Select(p => p.Name).ToList();
+            Assert.DoesNotContain(scripts, n => n is "preinstall" or "install" or "postinstall" or "prepare");
+        }
+    }
+
+    [Fact]
+    public void Web_templates_instantiate_without_running_anything_or_needing_the_network()
+    {
+        var set = Content();
+        using var parent = new TempDir();
+        foreach (var id in WebTemplates)
+        {
+            var r = TemplateInstaller.Instantiate(set.Templates.Single(x => x.Id == id), parent.Path, "demo-" + id);
+            Assert.True(r.Ok, r.Error);
+            Assert.Equal(["npm install"], r.PostCreate);
+            Assert.False(Directory.Exists(Path.Combine(r.ProjectPath!, "node_modules")));
+            Assert.False(File.Exists(Path.Combine(r.ProjectPath!, "package-lock.json")));
+            Assert.Contains("\"name\": \"demo-" + id + "\"", File.ReadAllText(Path.Combine(r.ProjectPath!, "package.json")));
+        }
+    }
+
+    // Explicit-only: needs the network (npm registry) and takes a minute or two. DEVACADEMY_ALLOW_NETWORK_INSTALL=1 dotnet test --filter Web_templates_install
+    [Fact]
+    public async Task Web_templates_install_test_and_build_for_real()
+    {
+        if (Environment.GetEnvironmentVariable("DEVACADEMY_ALLOW_NETWORK_INSTALL") != "1")
+            Assert.Skip("explicit-only: set DEVACADEMY_ALLOW_NETWORK_INSTALL=1 to run npm install/test/build for each web template in a temp dir");
+        var npm = FindOnPath(OperatingSystem.IsWindows() ? "npm.cmd" : "npm");
+        if (npm is null) { Assert.Skip("npm not found on PATH"); return; }
+        var set = Content();
+        using var parent = new TempDir();
+        foreach (var id in WebTemplates)
+        {
+            var r = TemplateInstaller.Instantiate(set.Templates.Single(x => x.Id == id), parent.Path, "it-" + id);
+            Assert.True(r.Ok, r.Error);
+            foreach (var args in new[] { "install", "run build", "test" })
+            {
+                var (code, output) = await RunNpmAsync(npm, args, r.ProjectPath!);
+                Assert.True(code == 0, $"{id}: npm {args} exited {code}\n{output}");
+                Console.WriteLine($"{id}: npm {args} ok");
+            }
+        }
+    }
+
+    private static string? FindOnPath(string file) =>
+        (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(d => Path.Combine(d, file)).FirstOrDefault(File.Exists);
+
+    private static async Task<(int Code, string Output)> RunNpmAsync(string npm, string args, string cwd)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo(npm, args)
+        {
+            WorkingDirectory = cwd,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        psi.Environment["CI"] = "1";
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        var stdout = p.StandardOutput.ReadToEndAsync();
+        var stderr = p.StandardError.ReadToEndAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        await p.WaitForExitAsync(cts.Token);
+        var text = await stdout + await stderr;
+        return (p.ExitCode, text.Length > 4000 ? text[^4000..] : text);
     }
 
     [Fact]

@@ -1,0 +1,144 @@
+id: "python.pandas.series-and-dataframe"
+title: "Series и DataFrame: индекс, dtype, выравнивание"
+goal: "Понимать, как устроены Series и DataFrame, выбирать данные по меткам и позициям и предсказывать результат арифметики с выравниванием по индексу."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "python.numpy.ndarray-vs-list"
+  - "python.numpy.dtypes-and-casting"
+related:
+  - "python.numpy.broadcasting"
+  - "python.numpy.views-and-copies"
+next:
+  - "python.pandas.reading-and-cleaning"
+objectives:
+  - "Назвать составные части Series и DataFrame (значения, index, columns, dtype) и получить их из объекта."
+  - "Различать loc (метки, правая граница среза включается) и iloc (позиции, правая граница не включается) и объяснить, когда они расходятся."
+  - "Предсказать результат a + b для Series с разными индексами: объединение меток, NaN и смену dtype на float64."
+  - "Выбрать нужное правило сложения: fill_value, позиционное сложение через to_numpy() или предварительный reindex."
+masteryCriteria:
+  - "align_sum складывает Series по меткам, считая отсутствующую метку нулём, и не оставляет NaN."
+  - "add_by_position складывает по позициям при разном порядке меток и бросает ValueError при разной длине."
+  - "label_and_position и slice_by_labels возвращают верные значения на нестандартном числовом индексе."
+tags:
+  - "pandas"
+  - "series"
+  - "dataframe"
+  - "index"
+  - "alignment"
+requires:
+  packages:
+    - "pandas>=3.0"
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Согласно руководству pandas, бинарные операции между объектами pandas выравнивают данные по меткам индекса (и столбцов); метки, присутствующие только с одной стороны, дают пропуск."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/basics.html"
+  - kind: "misconception"
+    text: "«Срез s.loc[a:b] устроен как срез списка». Срез по меткам включает обе границы, а срез по позициям iloc исключает правую; об этом прямо сказано в руководстве по индексированию."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/indexing.html"
+  - kind: "real-world"
+    text: "В pandas 3.0 строки по умолчанию получают выделенный dtype str вместо object, а пропуск в нём представляется как NaN (из примечаний к выпуску 3.0.0). Код, проверявший dtype == object, нужно пересмотреть."
+    sources:
+      - "https://pandas.pydata.org/docs/whatsnew/v3.0.0.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно количество NaN в a + b, если a = Series([1, 2, 3], index=['x', 'y', 'z']), b = Series([10, 20, 30], index=['y', 'z', 'w'])?"
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "4"
+      answer: 2
+      explanation: "Метки x и w есть только по одной стороне: две пары не нашлись, получаются два NaN. Сумма по y и z считается."
+    - id: "q2"
+      type: "single"
+      prompt: "s = Series([5, 6, 7, 8], index=[10, 20, 30, 40]). Что вернёт s.loc[20:30]?"
+      options:
+        - "Только элемент с меткой 20"
+        - "Элементы с метками 20 и 30"
+        - "Элементы с метками 20, 30 и 40"
+        - "KeyError"
+      answer: 1
+      explanation: "Срез loc по меткам включает правую границу."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Результат Series + Series выравнивается по меткам индекса"
+        - "После фильтрации s[s > 5] метка 0 может отсутствовать, и тогда s.loc[0] даст KeyError"
+        - "Столбцы одного DataFrame обязаны иметь один и тот же dtype"
+        - "Чтобы сложить по позициям, можно сложить массивы to_numpy()"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "У каждого столбца DataFrame свой dtype; остальное верно."
+    - id: "q4"
+      type: "short"
+      prompt: "Каким dtype станет результат сложения двух int64-Series с несовпавшими метками (без fill_value)? Ответ - имя dtype."
+      answer:
+        - "float64"
+      explanation: "NaN нельзя хранить в int64, поэтому результат приводится к float64."
+exercise:
+  id: "python.pandas.series-and-dataframe.exercise"
+  title: "Сложение по меткам и по позициям, loc и iloc"
+  prompt: |
+    В файле `series_task.py` реализуйте четыре функции. pandas 3.x и NumPy 2.x доступны; ничего не печатайте.
+
+    1. `align_sum(a, b)` - сложить две Series **по меткам**, считая отсутствующую метку нулём. В результате не должно быть `NaN`.
+    2. `add_by_position(a, b)` - сложить две Series одинаковой длины **по позициям**; индекс результата - индекс `a`. При разной длине бросьте `ValueError`.
+    3. `label_and_position(s, label, pos)` - вернуть кортеж `(значение по метке label, значение по позиции pos)`.
+    4. `slice_by_labels(s, start, stop)` - вернуть часть `s` от метки `start` до метки `stop` включительно.
+
+    Тесты сравнивают результат через `pandas.testing`.
+
+    **Пример.**
+
+    ```python
+    a = pd.Series([1, 2, 3], index=["x", "y", "z"])
+    b = pd.Series([10, 20, 30], index=["y", "z", "w"])
+    align_sum(a, b)        # w 30.0, x 1.0, y 12.0, z 23.0
+    add_by_position(a, b)  # x 11, y 22, z 33
+    ```
+  entryFile: "series_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Обычный a + b выравнивает метки и даёт NaN для непарных. У Series есть метод сложения, который умеет подставлять значение для отсутствующей пары."
+    - "align_sum: a.add(b, fill_value=0). add_by_position: сложение по позициям выполняется над массивами; результат оберните обратно в Series с индексом a."
+    - "label_and_position: s.loc[label] и s.iloc[pos] - два разных обращения; на индексе [30, 10, 20] метка 10 и позиция 0 указывают на разные элементы. slice_by_labels - это s.loc[start:stop]."
+    - "Заготовка: def align_sum(a, b): return a.add(b, fill_value=0); def add_by_position(a, b): проверьте len, затем pd.Series(a.to_numpy() + b.to_numpy(), index=a.index)."
+  tests:
+    - id: "align-basic"
+      title: "align_sum: частично пересекающиеся метки"
+      hint: "Метки w и x есть только в одной Series; они должны остаться со своим значением, а не стать NaN."
+    - id: "label-position-basic"
+      title: "label_and_position на строковом индексе"
+      hint: "Верните кортеж из двух значений: loc по метке и iloc по позиции."
+    - id: "slice-basic"
+      title: "slice_by_labels: срез включает правую границу"
+      hint: "Срез по меткам s.loc['b':'c'] включает обе границы."
+    - id: "align-disjoint"
+      title: "align_sum: индексы не пересекаются (скрытый)"
+      hidden: true
+      hint: "Результат - объединение меток. Если вы использовали обычное +, получите NaN во всех строках."
+    - id: "position-other-order"
+      title: "add_by_position: другой порядок меток (скрытый)"
+      hidden: true
+      hint: "Обычное + выровняет a['a'] с b['a']. Нужно сложить значения по позициям, взяв to_numpy(), и сохранить индекс a. Не забудьте ValueError при разной длине."
+    - id: "label-not-position"
+      title: "метка и позиция расходятся (скрытый)"
+      hidden: true
+      hint: "На индексе [30, 10, 20] метка 10 - это вторая строка, а позиция 0 - первая. Используйте loc и iloc явно, а не s[...]."
+    - id: "slice-inclusive-int"
+      title: "срез по меткам на числовом индексе (скрытый)"
+      hidden: true
+      hint: "Для числового индекса s[20:40] трактуется как срез по позициям и даст пустой результат. Используйте s.loc[20:40]: он включает обе границы."

@@ -1,0 +1,212 @@
+id: python.automation.scheduling-and-long-running-jobs
+title: "Расписание и долгоживущие задачи"
+goal: Запускать задачи по расписанию так, чтобы они не перекрывались, корректно останавливались по сигналу и продолжали работу с контрольной точки после сбоя.
+difficulty: hard
+estimatedMinutes: 100
+prerequisites: [python.automation.file-automation, python.stdlib.datetime-and-time, python.advanced.context-managers, python.automation.robust-http-clients]
+related: [python.automation.logging-config-and-secrets, python.stdlib.subprocess-and-logging]
+next: [python.automation.logging-config-and-secrets]
+objectives:
+  - Выбирать между циклом внутри программы (time, sched) и планировщиком операционной системы (cron, launchd, systemd timers, Task Scheduler) и называть компромиссы.
+  - Предотвращать перекрытие запусков файлом блокировки с O_EXCL и распознавать устаревшую блокировку (по возрасту и по состоянию процесса).
+  - Рассчитывать расписание без дрейфа (слоты start + k*interval) и не накапливать долг пропущенных запусков.
+  - Останавливать задачу по SIGINT/SIGTERM через флаг, который выставляет обработчик, и корректно завершать текущую единицу работы.
+  - Сохранять контрольные точки атомарно и продолжать обработку после сбоя, понимая семантику «минимум один раз».
+masteryCriteria:
+  - Вы объясняете, почему обработчик сигнала только выставляет флаг, а работа завершается в основном цикле.
+  - Вы показываете тестом с внедряемыми часами, что периодический запуск не дрейфует и не догоняет пропущенные слоты.
+  - Вы описываете, что произойдёт при падении процесса между обработкой элемента и сохранением контрольной точки, и как сделать обработчик безопасным к повтору.
+tags: [python, automation, scheduling, cron, signals, lock-file, checkpoint, idempotency]
+facts:
+  - kind: internals
+    text: >-
+      Обработчики сигналов Python всегда выполняются в главном потоке главного интерпретатора, даже если сигнал получен другим потоком, и signal.signal() можно вызывать только из главного потока.
+      Обработчик запускается между байткодами интерпретатора, поэтому в нём стоит делать минимум (выставить флаг), а основную работу выполнять в обычном коде.
+    sources:
+      - https://docs.python.org/3/library/signal.html#signals-and-threads
+      - https://docs.python.org/3/library/signal.html#execution-of-python-signal-handlers
+  - kind: internals
+    text: >-
+      Флаг os.O_EXCL в сочетании с os.O_CREAT заставляет os.open завершиться ошибкой (FileExistsError в Python), если файл уже существует; проверка и создание выполняются как одна атомарная операция,
+      в отличие от последовательности os.path.exists и open. Поэтому O_EXCL применяют для файлов блокировки.
+    sources:
+      - https://docs.python.org/3/library/os.html#os.open
+      - https://docs.python.org/3/library/os.html#os.O_EXCL
+  - kind: internals
+    text: >-
+      Модуль sched предоставляет универсальный планировщик событий: sched.scheduler(timefunc, delayfunc) по умолчанию использует time.monotonic и time.sleep, а события добавляются через enter и enterabs.
+      Он работает в одном потоке и не переживает перезапуск процесса, поэтому для расписаний «раз в сутки» чаще используют планировщик ОС.
+    sources:
+      - https://docs.python.org/3/library/sched.html
+      - https://docs.python.org/3/library/time.html#time.monotonic
+  - kind: real-world
+    text: >-
+      Таймеры systemd (systemd.timer) задаются парами юнитов .timer и .service; параметр Persistent=true запускает пропущенную из-за выключения машины задачу при следующем старте.
+      На macOS периодические задачи описываются property list-файлами для launchd, в Windows - Task Scheduler. Их выбор зависит от платформы развёртывания, а не от языка скрипта.
+    sources:
+      - https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html
+      - https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html
+  - kind: misconception
+    text: >-
+      «Файл блокировки гарантирует, что задача не выполняется дважды». Если процесс аварийно завершился, файл остаётся, и без обнаружения устаревшей блокировки следующие запуски будут отклоняться вечно;
+      с другой стороны, слишком агрессивное удаление «старой» блокировки запустит вторую копию, пока первая ещё работает. Нужны и таймаут, и проверка живости процесса.
+    sources:
+      - https://docs.python.org/3/library/os.html#os.kill
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Почему обработчик сигнала должен только выставлять флаг?
+      options:
+        - "Python запрещает вызывать функции из обработчика"
+        - "Обработчик прерывает основной код в произвольный момент; безопасно лишь запомнить факт сигнала, а завершить работу аккуратно можно в основном цикле"
+        - "Флаг быстрее исключения"
+        - "Обработчик не может читать файлы"
+      answer: 1
+      explanation: >-
+        Обработчик выполняется между инструкциями основного кода, например в середине записи файла. Долгая или небезопасная работа в нём создаёт гонки; безопаснее завершить текущую единицу работы и выйти из цикла.
+    - id: q2
+      type: single
+      prompt: Чем расписание start + k*interval лучше, чем «sleep(interval) после каждого запуска»?
+      options:
+        - "Оно проще в коде"
+        - "Оно не дрейфует: длительность задачи не сдвигает последующие запуски"
+        - "Оно не требует часов"
+        - "Оно запускает задачу чаще"
+      answer: 1
+      explanation: >-
+        При sleep(interval) каждый цикл длится interval + время задачи, и моменты запуска постепенно уезжают. Слоты от фиксированной точки отсчёта этого избегают.
+    - id: q3
+      type: single
+      prompt: "Процесс записал контрольную точку {\"done\": 5}, затем упал. Что произойдёт при перезапуске?"
+      options:
+        - "Обработка начнётся с нуля"
+        - "Обработка продолжится с шестого элемента (индекс 5)"
+        - "Скрипт проигнорирует точку"
+        - "Будет поднята ошибка деления"
+      answer: 1
+      explanation: >-
+        done - число успешно обработанных элементов. Если же процесс упал после обработки элемента, но до сохранения точки, этот элемент обработается повторно - поэтому обработчик должен быть идемпотентным.
+    - id: q4
+      type: single
+      prompt: Когда лучше использовать cron / systemd timer / Task Scheduler вместо бесконечного цикла в скрипте?
+      options:
+        - "Когда задача выполняется раз в сутки и должна пережить перезагрузку машины и сбой процесса"
+        - "Никогда"
+        - "Когда нужен частый опрос каждые 100 мс"
+        - "Только на Windows"
+      answer: 0
+      explanation: >-
+        Планировщик ОС запускает свежий процесс по расписанию, перезапускает после перезагрузки и освобождает память между запусками. Внутренний цикл уместен, когда нужно состояние между итерациями или частый опрос.
+    - id: q5
+      type: multiple
+      prompt: Какие признаки говорят, что файл блокировки устарел? Выберите все.
+      options:
+        - "Записанный в нём процесс не существует"
+        - "С момента записи прошло больше заданного предела времени"
+        - "Файл просто существует"
+        - "Содержимое файла нельзя разобрать - блокировку нужно удалять автоматически без проверки"
+      answer: [0, 1]
+      explanation: >-
+        Существование файла само по себе означает «блокировка есть». Непонятное содержимое безопаснее считать занятой блокировкой и разбираться вручную: файл мог быть только что создан другим процессом и ещё не записан.
+exercise:
+  id: python.automation.scheduling-and-long-running-jobs.exercise
+  title: Блокировка запуска и контрольные точки
+  prompt: |
+    В файле `jobs.py` реализуйте инструменты для долгоживущей задачи. Тесты внедряют часы, `pid` и `is_alive`, поэтому ничего не ждут и не зависят от реальных процессов.
+
+    1. `LockFile(path, *, stale_after=3600.0, now=time.time, pid=os.getpid, is_alive=default_is_alive)` - файл блокировки против перекрывающихся запусков.
+       * `acquire()` создаёт файл атомарно (`os.open(..., os.O_CREAT | os.O_EXCL | os.O_WRONLY)`) и записывает `"<pid> <now>\n"`.
+       * Если файл уже есть, он **устарел**, когда `now() - записанное_время > stale_after` или `is_alive(записанный_pid)` ложно. Устаревший файл удаляется и блокировка берётся заново. Иначе - `LockHeldError`. Содержимое, которое не удаётся разобрать как `"<int> <float>"`, - тоже `LockHeldError`, файл не трогать.
+       * `release()` удаляет файл только если блокировку взял этот объект; повторный вызов безопасен.
+       * Контекстный менеджер освобождает блокировку и при исключении.
+    2. `next_run_time(start, interval, now)` - ближайший момент `start + k*interval` (`k >= 0`) **строго позже** `now`; если `now < start` - `start`.
+    3. `save_checkpoint(path, state)` - атомарно записывает JSON (во временный файл `path + ".tmp"`, затем `os.replace`); `load_checkpoint(path, default=None)` - читает JSON, при отсутствии файла возвращает `default`, повреждённый JSON - `ValueError`.
+    4. `process_with_checkpoint(items, handler, checkpoint_path)` - обрабатывает `items` по порядку, вызывая `handler(item)`. После **каждого** успешного элемента сохраняет `{"done": n}`. Повторный запуск продолжает с места остановки. Исключение `handler` пробрасывается, контрольная точка остаётся на последнем успешном элементе. Недопустимая точка (не словарь, нет целого `done`, `done` вне `0..len(items)`) - `ValueError`, файл не перезаписывается. Возвращает число элементов, обработанных в этом запуске.
+
+    ```python
+    next_run_time(100, 10, 137)   # 140
+    process_with_checkpoint(list("abc"), print, "cp.json")   # печатает a b c, возвращает 3; повторно - 0
+    ```
+  entryFile: jobs.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Ничего не переписывайте с нуля: lock - это os.open с O_EXCL и ветка except FileExistsError; расписание - арифметика; контрольная точка - пара функций save/load и цикл с сохранением после каждого успеха."
+    - "acquire: try: self._create() except FileExistsError: прочитайте файл, разберите text.split() в int и float (ValueError -> LockHeldError); устарел, если self._now() - stamp > stale_after или not self._is_alive(pid); тогда os.unlink и повторное создание, иначе LockHeldError. Флаг self._held выставляйте только после успешного создания."
+    - "next_run_time: if now < start: return start; return start + ((now - start) // interval + 1) * interval. save_checkpoint: json.dump в open(path + '.tmp', 'w'), затем os.replace(tmp, path). load_checkpoint: except FileNotFoundError -> default; except json.JSONDecodeError -> ValueError."
+    - "process_with_checkpoint: state = load_checkpoint(path, {'done': 0}); проверьте isinstance(state, dict), тип int у state.get('done') и диапазон; затем for index in range(done, len(items)): handler(items[index]); save_checkpoint(path, {'done': index + 1}); считайте processed. Сохранение - после handler, а не до него."
+  tests:
+    - id: lock-basic
+      title: LockFile - взять, отказ второму, освободить
+      hint: Второй acquire при живом владельце - LockHeldError; release чужого объекта (не взявшего блокировку) файл не удаляет.
+    - id: lock-context
+      title: with освобождает блокировку, в том числе при исключении
+      hint: Реализуйте __enter__ через acquire и __exit__ через release; __exit__ возвращает False, чтобы исключение не гасилось.
+    - id: next-run
+      title: next_run_time - слоты без дрейфа
+      hint: Если now ровно на границе слота, следующий запуск - следующий слот (строго позже now).
+    - id: checkpoint-io
+      title: save_checkpoint / load_checkpoint
+      hint: Пишите в path + '.tmp' и переименовывайте через os.replace; после операций временных файлов быть не должно.
+    - id: lock-stale
+      title: Устаревшая блокировка и непонятное содержимое (скрытый)
+      hidden: true
+      hint: Устарела по возрасту или из-за мёртвого pid - перехватить; свежая и живая - LockHeldError; непонятное содержимое - LockHeldError без удаления файла.
+    - id: resume
+      title: Продолжение после сбоя (скрытый)
+      hidden: true
+      hint: "Сохраняйте {'done': index + 1} после каждого успешного handler; при исключении точка остаётся прежней, и при перезапуске упавший элемент обрабатывается снова."
+    - id: checkpoint-invalid
+      title: Недопустимая контрольная точка (скрытый)
+      hidden: true
+      hint: Проверьте тип словаря, int у done и диапазон 0..len(items); повреждённый файл не перезаписывайте.
+      hidden: true
+challenge:
+  id: python.automation.scheduling-and-long-running-jobs.challenge
+  title: Периодический запуск и остановка по сигналу
+  prompt: |
+    В файле `runner.py` реализуйте:
+
+    1. `GracefulStop(signals=(SIGINT, SIGTERM))` - флаг остановки. `requested` (по умолчанию `False`), `signum` (`None`). `handle(signum, frame=None)` только запоминает сигнал и выставляет флаг. `install()` ставит `handle` на все сигналы и запоминает прежние обработчики, `uninstall()` их восстанавливает; контекстный менеджер вызывает `install` при входе и `uninstall` при выходе.
+    2. `run_periodically(job, interval, *, now, sleep, should_stop, start=None)` - запускает `job()` в моменты `origin + k*interval`, где `origin` - `start` или `now()` на входе.
+       * Первый запуск сразу. Перед каждым запуском проверяется `should_stop()`.
+       * После запуска: если `should_stop()` уже истинно, выйти без ожидания; иначе `sleep(...)` до ближайшего слота **строго позже** текущего `now()`. Если `job` работала дольше `interval`, пропущенные слоты не догоняются.
+       * Возвращает число запусков. `interval <= 0` - `ValueError`.
+
+    `now` и `sleep` внедряются: тесты используют виртуальное время.
+  entryFile: runner.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Разделите на два независимых куска: класс-флаг и чистая функция цикла. Цикл не знает про сигналы - только про should_stop()."
+    - "GracefulStop.install: self._previous[sig] = signal.signal(sig, self.handle) для каждого сигнала; uninstall: signal.signal(sig, прежний). handle не делает ничего, кроме двух присваиваний."
+    - "run_periodically: origin = now() if start is None else start; while not should_stop(): job(); runs += 1; if should_stop(): break; current = now(); target = origin + ((current - origin) // interval + 1) * interval (если current < origin - target = origin); sleep(target - current)."
+    - "Проверка interval <= 0 - в начале функции, до первого should_stop(). Не пересчитывайте origin внутри цикла, иначе расписание поплывёт."
+  tests:
+    - id: periodic-basic
+      title: Запуски по слотам без дрейфа
+      hint: Задача идёт 3 с при interval=10, значит пауза после каждой - 7 с; считайте слот от origin, а не от конца задачи.
+    - id: skip-missed
+      title: Пропущенные слоты не догоняются
+      hint: Если задача закончилась в момент 25, следующий слот - 30; запуски в 10 и 20 не нужны.
+    - id: stop-flag
+      title: Остановка во время запуска
+      hint: После job проверьте should_stop(); если истинно - выйдите без sleep. Флаг handle выставляет без вызова остальной логики.
+    - id: signal-install
+      title: Установка и восстановление обработчиков (скрытый)
+      hidden: true
+      hint: signal.signal возвращает прежний обработчик - сохраните его и верните в uninstall.
+    - id: interval-validation
+      title: Проверка interval (скрытый)
+      hidden: true
+      hint: interval <= 0 - ValueError; проверка до первого вызова should_stop().
+    - id: start-origin
+      title: Параметр start задаёт начало сетки слотов (скрытый)
+      hidden: true
+      hint: start в будущем задаёт origin слотов, но первый запуск всё равно выполняется сразу; не пересчитывайте origin внутри цикла.

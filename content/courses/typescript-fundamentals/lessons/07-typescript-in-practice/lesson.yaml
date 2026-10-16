@@ -1,0 +1,179 @@
+id: "typescript.fundamentals.in-practice"
+title: "TypeScript на практике: tsconfig, стирание типов, enum и .d.ts"
+goal: "Настроить строгость компилятора, понимать, что остаётся от типов во время работы, писать код в стираемом подмножестве TypeScript и описывать JavaScript-код файлами объявлений."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "typescript.fundamentals.utility-types"
+objectives:
+  - "Назвать флаги, которые не входят в strict, и объяснить, что дают noUncheckedIndexedAccess и exactOptionalPropertyTypes."
+  - "Объяснить стирание типов и почему as и interface не существуют во время работы."
+  - "Заменить enum объектом as const и объединением значений, а свойства-параметры - обычными полями."
+  - "Написать .d.ts для JavaScript-файла и объяснить, чем объявление отличается от проверенного кода."
+masteryCriteria:
+  - "Вы пишете код, который Node запускает удалением типов, без enum, namespace и свойств-параметров."
+  - "Вы обрабатываете undefined при чтении по индексу и отражаете его в сигнатурах."
+  - "Вы описываете типы чужого JavaScript точными сигнатурами, а не any."
+related:
+  - "typescript.first-steps.how-typescript-runs"
+next: []
+tags:
+  - "typescript"
+  - "tsconfig"
+  - "type-erasure"
+  - "declaration-files"
+  - "enum"
+facts:
+  - kind: "internals"
+    text: "Node при запуске .ts-файла не проверяет типы: он вырезает аннотации и выполняет оставшийся JavaScript. Поэтому ошибки типов нужно ловить отдельно (tsc --noEmit в проверках и CI), а синтаксис с поведением (enum, namespace с кодом, свойства-параметры) для такого режима недопустим."
+    sources:
+      - "https://nodejs.org/api/typescript.html"
+  - kind: "historical"
+    text: "Флаг erasableSyntaxOnly появился в TypeScript 5.8 (март 2025), чтобы компилятор сам сообщал о конструкциях, которые не работают при запуске удалением типов. В TypeScript 7 компилятор переписан на нативный код; в проверенных примерах курса диагностика осталась совместимой."
+    sources:
+      - "https://www.typescriptlang.org/tsconfig/#erasableSyntaxOnly"
+      - "https://github.com/microsoft/TypeScript"
+  - kind: "realworld"
+    text: "Файлы @types/... в npm (DefinitelyTyped) - это .d.ts-описания для пакетов на JavaScript, которые поддерживает сообщество. Если пакет не имеет типов, вы пишете объявление сами; ошибка в нём не обнаруживается компилятором."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Включён только флаг strict. Скомпилируется ли код `const xs: number[] = []; const a: number = xs[0];`?"
+      options:
+        - "Да: noUncheckedIndexedAccess не входит в strict, поэтому xs[0] имеет тип number."
+        - "Нет: xs[0] имеет тип number | undefined."
+        - "Нет: пустой массив нельзя индексировать."
+        - "Да, но только если массив не пуст."
+      answer: 0
+      explanation: "noUncheckedIndexedAccess нужно включать отдельно. Без него чтение по индексу считается безопасным, и ошибка проявится только во время работы."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет `const n = \"5\" as unknown as number; console.log(typeof n);`?"
+      options:
+        - "\"number\""
+        - "\"string\""
+        - "Ошибка компиляции."
+        - "\"unknown\""
+      answer: 1
+      explanation: "Приведение типа меняет только то, что знает компилятор. Значение осталось строкой."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие конструкции Node 22 не сможет выполнить при запуске .ts-файла удалением типов?"
+      options:
+        - "enum Color { Red }"
+        - "constructor(public x: number) {}"
+        - "interface User { name: string }"
+        - "const n = value as number;"
+      answer:
+        - 0
+        - 1
+      explanation: "enum и свойство-параметр требуют преобразования кода. Интерфейсы и приведения просто вырезаются."
+    - id: "q4"
+      type: "single"
+      prompt: "Что означает ошибка TS7016 `Could not find a declaration file for module './lib.js'`?"
+      options:
+        - "Файл lib.js не существует."
+        - "У модуля нет типов, и он неявно any; нужно описать его в .d.ts."
+        - "В файле lib.js синтаксическая ошибка."
+        - "Нужно отключить strict."
+      answer: 1
+      explanation: "Рядом с lib.js создают lib.d.ts с точными сигнатурами. Отключать strict или заглушать модуль через any не стоит."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой флаг tsconfig (с TypeScript 5.8) запрещает синтаксис, который нельзя просто стереть, например enum? Введите название флага."
+      answer:
+        - "erasableSyntaxOnly"
+      explanation: "erasableSyntaxOnly делает ошибкой enum, namespace с кодом и свойства-параметры (TS1294)."
+exercise:
+  id: "typescript.fundamentals.in-practice.exercise"
+  title: "Код для запуска без сборки: Status, списки, Options и legacy-math"
+  prompt: |
+    Проект проверяется строгим `tsc` (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `erasableSyntaxOnly`, `verbatimModuleSyntax`), а затем запускается самим Node удалением типов. Приведите его в порядок.
+
+    * `src/status.ts`: замените `enum Status` объектом `as const` и одноимённым типом-объединением значений; реализуйте `isStatus` и `label` (`Активен`, `Заблокирован`, `Ожидает`, с `switch` и проверкой исчерпываемости). В `Counter` уберите свойство-параметр.
+    * `src/list.ts`: `nth` и `lastOf` могут вернуть `undefined`; `head` принимает непустой кортеж `[T, ...T[]]` и возвращает `T`; `withRetries(o, n)` при `n === undefined` убирает ключ `retries` целиком; `retriesOf` возвращает `retries` или `3` (ноль допустим).
+    * `vendor/legacy-math.d.ts`: опишите типы JavaScript-файла рядом (`VERSION: string`, `clamp(n, lo, hi)`, `mean(xs)`) вместо `any`. Файл `src/stats.ts` менять не нужно.
+
+    Скрытые проверки: точные типы (`Status` - объединение литералов, `nth` - `T | undefined`, `clamp("5", 1, 10)` не компилируется), а также запуск `node --experimental-strip-types` над вашими файлами: `enum` или свойство-параметр уронят этот запуск. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` в вашем коде запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/status.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Status: const Status = { Active: \"active\", Blocked: \"blocked\", Pending: \"pending\" } as const; затем type Status = (typeof Status)[keyof typeof Status]. isStatus: Object.values(Status).some(s => s === v)."
+    - "Counter: объявите поле value: number; в конструкторе напишите this.value = value; вместо constructor(public value). nth и lastOf: поменяйте тип результата на T | undefined; head: параметр readonly [T, ...T[]]."
+    - "withRetries: const { retries: _old, ...rest } = o; верните n === undefined ? rest : { ...rest, retries: n }. Присваивать retries: undefined нельзя, а ключ должен исчезнуть. retriesOf: o.retries ?? 3."
+    - "legacy-math.d.ts: export const VERSION: string; export function clamp(n: number, lo: number, hi: number): number; export function mean(xs: readonly number[]): number;"
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc (strict и дополнительные флаги)"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: TS1294 - нестираемый синтаксис, TS7016 и несоответствия типов - в объявлениях."
+    - id: "status-basic"
+      title: "Status и label"
+      match: "Status > значения*"
+      hint: "Значения: active, blocked, pending."
+    - id: "counter"
+      title: "Counter"
+      match: "Counter > значение*"
+      hint: "increment возвращает новый Counter."
+    - id: "list-nth"
+      title: "nth: внутри и вне массива"
+      match: "списки > nth*"
+      hint: "xs[i] для индекса вне массива даёт undefined."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Status - объединение литералов; nth и lastOf возвращают T | undefined; head принимает непустой кортеж; clamp и mean имеют точные типы в .d.ts."
+    - id: "strip-types"
+      title: "Запуск Node удалением типов (скрытый)"
+      match: "запуск без сборки*"
+      hidden: true
+      hint: "Уберите enum и свойства-параметры: Node выполняет только то, что остаётся после удаления аннотаций."
+    - id: "status-label"
+      title: "label для каждого статуса (скрытый)"
+      match: "Status > label для*"
+      hidden: true
+      hint: "Активен, Заблокирован, Ожидает."
+    - id: "status-unknown"
+      title: "label: неизвестное значение (скрытый)"
+      match: "Status > label: неизвестное*"
+      hidden: true
+      hint: "default: return assertNever(s) бросает исключение для значения вне Status."
+    - id: "list-last"
+      title: "lastOf и head (скрытый)"
+      match: "списки > lastOf*"
+      hidden: true
+      hint: "lastOf([0]) возвращает 0, а не undefined."
+    - id: "options-retries"
+      title: "withRetries: ключ исчезает (скрытый)"
+      match: "Options > withRetries: значение*"
+      hidden: true
+      hint: "Деструктуризация с rest убирает ключ из копии."
+    - id: "options-zero"
+      title: "retriesOf: 0 допустим (скрытый)"
+      match: "Options > retriesOf*"
+      hidden: true
+      hint: "Используйте ??, а не ||."
+    - id: "legacy"
+      title: "legacy-math через типизированные обёртки (скрытый)"
+      match: "legacy-math*"
+      hidden: true
+      hint: "stats.ts уже написан; ему нужны только корректные объявления."

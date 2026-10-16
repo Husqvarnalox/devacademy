@@ -60,6 +60,23 @@ public class NodeToolContentTests
     }
 
     [Fact]
+    public void TypeScriptVitestExerciseLoadsCleanAndResolvesToTheNodeTool()
+    {
+        var r = Load(Yaml().Replace("languageId: javascript", "languageId: typescript").Replace("requires: { node: \">=22\", npmPackages: [vitest, jsdom, react] }", "requires: { node: \">=22\", npmPackages: [vitest, typescript] }"));
+        Assert.DoesNotContain(r.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var ex = r.Content.FindLesson("py.vars")!.Exercise!;
+        Assert.Equal("typescript", ex.LanguageId);
+        Assert.True(ex.NeedsNodeEnvironment);
+        Assert.Null(CommandPolicy.Resolve("typescript", ex.Command!, out var argv));
+        Assert.Equal(["node", "node_modules/vitest/vitest.mjs", "run", "--configLoader=runner", "--reporter=default", "--reporter=junit", "--outputFile=report.xml"], argv);
+    }
+
+    [Fact]
+    public void TypeScriptCannotCombineToolWithAContentSuppliedRun() =>
+        Assert.Contains(Load(Yaml(run: "    run: [\"node\", \"x.js\"]\n").Replace("languageId: javascript", "languageId: typescript")).Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error);
+
+    [Fact]
     public void UnknownToolIsRejected() => Assert.True(HasError(Load(Yaml(tool: "jest")), "jest"));
 
     [Theory]

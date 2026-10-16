@@ -1,0 +1,13 @@
+id: react-vite-ts
+title: React + Vite + TypeScript (Vitest, Testing Library)
+languageId: typescript
+description: >-
+  Одностраничное приложение React 19 на Vite 8 и TypeScript с тестами Vitest + Testing Library (jsdom).
+  Версии закреплены точно. После создания нажмите «В терминал» у «npm install» и Enter: нужна сеть.
+files: files
+scripts:
+  dev: dev
+  test: test
+  build: build
+postCreate:
+  - npm install

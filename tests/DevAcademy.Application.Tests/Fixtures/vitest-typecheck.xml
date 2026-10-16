@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="11" failures="9" errors="0" time="0.076476792">
+    <testsuite name="tests/behaviour.test.ts" timestamp="2026-10-16T11:25:27.037Z" hostname="MacBook-Pro.local" tests="9" failures="7" errors="0" skipped="0" time="0.005998584">
+        <testcase classname="tests/behaviour.test.ts" name="distance &gt; расстояние от (0,0) до (3,4) равно 5" time="0.002561167">
+            <failure message="expected +0 to be 5 // Object.is equality" type="AssertionError">
+AssertionError: expected +0 to be 5 // Object.is equality
+
+- Expected
++ Received
+
+- 5
++ 0
+
+ ❯ tests/behaviour.test.ts:6:54
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="distance &gt; симметрично и работает с отрицательными координатами" time="0.000357">
+            <failure message="expected +0 to be 5 // Object.is equality" type="AssertionError">
+AssertionError: expected +0 to be 5 // Object.is equality
+
+- Expected
++ Received
+
+- 5
++ 0
+
+ ❯ tests/behaviour.test.ts:11:28
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="centroid &gt; средняя точка трёх вершин" time="0.000716875">
+            <failure message="expected undefined to deeply equal { x: 2, y: 1 }" type="AssertionError">
+AssertionError: expected undefined to deeply equal { x: 2, y: 1 }
+
+- Expected:
+{
+  &quot;x&quot;: 2,
+  &quot;y&quot;: 1,
+}
+
++ Received:
+undefined
+
+ ❯ tests/behaviour.test.ts:19:72
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="centroid &gt; пустой список даёт undefined" time="0.00009625">
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="centroid &gt; принимает массив только для чтения и не меняет его" time="0.000303917">
+            <failure message="expected undefined to deeply equal { x: 2, y: 3 }" type="AssertionError">
+AssertionError: expected undefined to deeply equal { x: 2, y: 3 }
+
+- Expected:
+{
+  &quot;x&quot;: 2,
+  &quot;y&quot;: 3,
+}
+
++ Received:
+undefined
+
+ ❯ tests/behaviour.test.ts:26:27
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="translate &gt; сдвигает точку" time="0.000543375">
+            <failure message="expected { x: 1, y: 2 } to deeply equal { x: 11, y: +0 }" type="AssertionError">
+AssertionError: expected { x: 1, y: 2 } to deeply equal { x: 11, y: +0 }
+
+- Expected
++ Received
+
+  {
+-   &quot;x&quot;: 11,
+-   &quot;y&quot;: 0,
++   &quot;x&quot;: 1,
++   &quot;y&quot;: 2,
+  }
+
+ ❯ tests/behaviour.test.ts:32:47
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="translate &gt; возвращает новый объект и не меняет исходный" time="0.000317">
+            <failure message="expected { x: 1, y: 1 } not to be { x: 1, y: 1 } // Object.is equality" type="AssertionError">
+AssertionError: expected { x: 1, y: 1 } not to be { x: 1, y: 1 } // Object.is equality
+
+Compared values have no visual difference.
+
+ ❯ tests/behaviour.test.ts:37:19
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="nearest &gt; находит ближайшую точку" time="0.000153375">
+            <failure message="expected undefined to deeply equal { x: 1, y: 1 }" type="AssertionError">
+AssertionError: expected undefined to deeply equal { x: 1, y: 1 }
+
+- Expected:
+{
+  &quot;x&quot;: 1,
+  &quot;y&quot;: 1,
+}
+
++ Received:
+undefined
+
+ ❯ tests/behaviour.test.ts:45:42
+            </failure>
+        </testcase>
+        <testcase classname="tests/behaviour.test.ts" name="nearest &gt; для пустого списка даёт undefined" time="0.000256542">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/typecheck.test.ts" timestamp="2026-10-16T11:25:27.039Z" hostname="MacBook-Pro.local" tests="2" failures="2" errors="0" skipped="0" time="0.070478208">
+        <testcase classname="tests/typecheck.test.ts" name="типы &gt; код проходит tsc --strict" time="0.034689041">
+            <failure message="tsc нашёл ошибки типов:
+src/geometry.ts(4,26): error TS7006: Parameter &apos;a&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(4,29): error TS7006: Parameter &apos;b&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(9,26): error TS7006: Parameter &apos;points&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,27): error TS7006: Parameter &apos;p&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,30): error TS7006: Parameter &apos;dx&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,34): error TS7006: Parameter &apos;dy&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(19,25): error TS7006: Parameter &apos;points&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(19,33): error TS7006: Parameter &apos;target&apos; implicitly has an &apos;any&apos; type." type="TypeCheckError">
+TypeCheckError: tsc нашёл ошибки типов:
+src/geometry.ts(4,26): error TS7006: Parameter &apos;a&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(4,29): error TS7006: Parameter &apos;b&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(9,26): error TS7006: Parameter &apos;points&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,27): error TS7006: Parameter &apos;p&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,30): error TS7006: Parameter &apos;dx&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,34): error TS7006: Parameter &apos;dy&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(19,25): error TS7006: Parameter &apos;points&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(19,33): error TS7006: Parameter &apos;target&apos; implicitly has an &apos;any&apos; type.
+            </failure>
+        </testcase>
+        <testcase classname="tests/typecheck.test.ts" name="типы &gt; типы точные: проверки использования" time="0.035235333">
+            <failure message="Типы слишком слабые или неверные (any, as, неточная сигнатура). tsc сообщил:
+checks/precision.ts(9,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(11,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(13,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(23,43): error TS2339: Property &apos;x&apos; does not exist on type &apos;never&apos;.
+checks/precision.ts(25,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(27,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+src/geometry.ts(4,26): error TS7006: Parameter &apos;a&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(4,29): error TS7006: Parameter &apos;b&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(9,26): error TS7006: Parameter &apos;points&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,27): error TS7006: Parameter &apos;p&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,30): error TS7006: Parameter &apos;dx&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,34): error TS7006: Parameter &apos;dy&apos; implicitly has an &apos;any&apos; type.
+... и ещё 2 строк" type="TypeCheckError">
+TypeCheckError: Типы слишком слабые или неверные (any, as, неточная сигнатура). tsc сообщил:
+checks/precision.ts(9,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(11,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(13,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(23,43): error TS2339: Property &apos;x&apos; does not exist on type &apos;never&apos;.
+checks/precision.ts(25,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+checks/precision.ts(27,1): error TS2578: Unused &apos;@ts-expect-error&apos; directive.
+src/geometry.ts(4,26): error TS7006: Parameter &apos;a&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(4,29): error TS7006: Parameter &apos;b&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(9,26): error TS7006: Parameter &apos;points&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,27): error TS7006: Parameter &apos;p&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,30): error TS7006: Parameter &apos;dx&apos; implicitly has an &apos;any&apos; type.
+src/geometry.ts(14,34): error TS7006: Parameter &apos;dy&apos; implicitly has an &apos;any&apos; type.
+... и ещё 2 строк
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>

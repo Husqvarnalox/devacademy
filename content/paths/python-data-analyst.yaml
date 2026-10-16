@@ -1,0 +1,12 @@
+id: python-data-analyst
+title: Python для аналитика данных
+description: "Путь от основ языка к анализу таблиц. Сначала «Основы Python», затем «NumPy: массивы и векторизация» (предварительно проходится и «Продвинутый Python» как зависимость курса), затем «pandas: анализ табличных данных»: Series и DataFrame, чтение и очистка, выбор и присваивание, группировка, объединение и reshape, производительность и память. Визуализация, EDA, Polars и Parquet пока запланированы и в путь не входят."
+goal: general
+targets: [python-pandas]
+stages:
+  - title: Основы языка
+    courses: [python-fundamentals, python-advanced]
+  - title: NumPy
+    courses: [python-numpy]
+  - title: pandas
+    courses: [python-pandas]

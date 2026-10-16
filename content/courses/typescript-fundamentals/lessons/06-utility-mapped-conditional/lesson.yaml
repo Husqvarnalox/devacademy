@@ -1,0 +1,289 @@
+id: "typescript.fundamentals.utility-types"
+title: "Утилитарные, отображаемые и условные типы"
+goal: "Строить новые типы из существующих утилитарными типами и понимать, как устроены отображаемые и условные типы, чтобы читать и писать несложные из них самостоятельно."
+difficulty: "hard"
+estimatedMinutes: 80
+prerequisites:
+  - "typescript.fundamentals.generics"
+objectives:
+  - "Применять Partial, Required, Readonly, Pick, Omit, Record, ReturnType и Awaited и знать их ограничения."
+  - "Писать отображаемые типы с модификаторами readonly, ? и переименованием ключей через as."
+  - "Писать условные типы с infer и объяснять распределение по объединениям."
+  - "Проверять сложные типы утверждениями о тождестве типов, а не на глаз."
+masteryCriteria:
+  - "Вы выбираете Pick вместо Omit, когда нужна проверка имён ключей."
+  - "Вы объясняете, почему Partial и Readonly поверхностные."
+  - "Вы пишете ElementOf, Mutable или PickByType и проверяете их примерами."
+related:
+  - "typescript.fundamentals.generics"
+next:
+  - "typescript.fundamentals.in-practice"
+tags:
+  - "typescript"
+  - "utility-types"
+  - "mapped-types"
+  - "conditional-types"
+facts:
+  - kind: "internals"
+    text: "Утилитарные типы не магия, а обычные псевдонимы: Partial<T> определён как { [P in keyof T]?: T[P] }, Pick - как { [P in K]: T[P] }, Omit - как Pick<T, Exclude<keyof T, K>>. Их определения лежат в стандартной библиотеке TypeScript, и по ним удобно учиться."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/utility-types.html"
+  - kind: "misconception"
+    text: "«Omit<T, K> проверит, что K - ключи T». Нет: K у Omit имеет ограничение keyof any, поэтому опечатка проходит молча. Pick, наоборот, требует K extends keyof T."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/utility-types.html#omittype-keys"
+  - kind: "realworld"
+    text: "Условные и отображаемые типы лежат в основе вывода типов в библиотеках: из схемы валидации выводится тип данных, из описания маршрутов - тип клиента. Разобравшись с infer и as в отображаемых типах, вы сможете читать их исходный код."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/conditional-types.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт при компиляции `type A = Omit<User, \"nme\">`, если в User нет поля nme?"
+      options:
+        - "Ошибка TS2344: nme не является ключом User."
+        - "Скомпилируется: Omit не проверяет имена, и ничего не будет убрано."
+        - "Тип станет never."
+        - "Скомпилируется, но поля User исчезнут."
+      answer: 1
+      explanation: "У Omit ограничение на K слабое (keyof any), поэтому опечатка проходит незамеченной. Pick<User, 'nme'> дал бы TS2344."
+    - id: "q2"
+      type: "single"
+      prompt: "Дано `type Dist<T> = T extends string ? 's' : 'o'`. Чему равен `Dist<string | number>`?"
+      options:
+        - "'s'"
+        - "'o'"
+        - "'s' | 'o'"
+        - "never"
+      answer: 2
+      explanation: "Условный тип над голым параметром типа распределяется по объединению: string даёт 's', number даёт 'o', результаты объединяются."
+    - id: "q3"
+      type: "single"
+      prompt: "Пусть `interface U { id: number; addr: { city: string } }`. Скомпилируется ли `const p: Partial<U> = { addr: {} }`?"
+      options:
+        - "Да: Partial делает необязательными и вложенные поля."
+        - "Нет: ошибка TS2741, во вложенном объекте поле city по-прежнему обязательно."
+        - "Нет: Partial нельзя применять к вложенным объектам."
+        - "Да, но addr получит тип never."
+      answer: 1
+      explanation: "Partial поверхностный: делает необязательным сам addr, но не поля внутри него."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие из типов равны `number`?"
+      options:
+        - "Awaited<Promise<Promise<number>>>"
+        - "ReturnType<() => number>"
+        - "ReturnType<() => Promise<number>>"
+        - "Awaited<ReturnType<() => Promise<number>>>"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "ReturnType от функции с промисом даёт Promise<number>. Awaited разворачивает промис, в том числе вложенный."
+    - id: "q5"
+      type: "short"
+      prompt: "Какое слово внутри условного типа объявляет «захваченный» тип, например `T extends (infer E)[] ? E : never`? Одно слово."
+      answer:
+        - "infer"
+      explanation: "infer объявляет переменную типа, которую компилятор выводит при сопоставлении (здесь - тип элемента массива)."
+exercise:
+  id: "typescript.fundamentals.utility-types.exercise"
+  title: "Mutable, ElementOf, PickByType и типизированные pickKeys/omitKeys/merge"
+  prompt: |
+    В `src/transform.ts` лежат заглушки пяти типов и трёх функций.
+
+    **Типы.**
+    * `Mutable<T>` - убрать `readonly` у всех полей. `Nullable<T>` - каждому полю добавить `| null`.
+    * `ElementOf<T>` - тип элемента массива (в том числе `readonly`-массива и кортежа); для не массива `never`; для `string[] | number[]` - `string | number`.
+    * `PickByType<T, V>` - оставить только поля, значения которых подходят под `V` (отображаемый тип с `as`).
+    * `Resolved<F>` - тип значения, которым завершается `async`-функция `F`.
+
+    **Функции.**
+    * `pickKeys(obj, keys)` - новый объект только с указанными ключами, которые есть в `obj`; тип результата `Pick<T, K>`.
+    * `omitKeys(obj, keys)` - копия без указанных ключей; тип результата `Omit<T, K>`.
+    * `merge(base, patch)` - новый объект: поля `base`, поверх них поля `patch`, значение которых не `undefined`; тип `patch` - `Partial<T>`. `0`, `""`, `false` и `null` применяются.
+
+    Ключи в `pickKeys`/`omitKeys` ограничены ключами объекта (`K extends keyof T`): `pickKeys(user, ["phone"])` не должен компилироваться. Скрытая проверка сравнивает точные типы утверждениями `Equal<A, B>`. Внутри реализаций допустимо одно приведение к `Pick<T, K>`/`Omit<T, K>`, но сигнатуры должны остаться точными. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/transform.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "Mutable<T> = { -readonly [K in keyof T]: T[K] }; Nullable<T> = { [K in keyof T]: T[K] | null }; Resolved<F> = Awaited<ReturnType<F>>."
+    - "ElementOf<T> = T extends readonly (infer U)[] ? U : never. Параметр T здесь «голый», поэтому для объединения массивов тип распределится сам. PickByType<T, V> = { [K in keyof T as T[K] extends V ? K : never]: T[K] }."
+    - "pickKeys<T extends object, K extends keyof T>(obj: T, keys: readonly K[]): Pick<T, K>. Внутри: пустой результат с приведением к Pick<T, K>, затем for (const key of keys) if (key in obj) result[key] = obj[key]. omitKeys: копия через { ...obj } и delete."
+    - "merge<T extends object>(base: T, patch: Partial<T>): T: скопируйте base, пройдите по ключам patch и записывайте значение, только если оно !== undefined (не по истинности: 0 и \"\" должны применяться)."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "pick-basic"
+      title: "pickKeys: нужные ключи"
+      match: "pickKeys > оставляет*"
+      hint: "Результат содержит только перечисленные ключи."
+    - id: "omit-basic"
+      title: "omitKeys: убирает ключи"
+      match: "omitKeys > убирает*"
+      hint: "Скопируйте объект и удалите перечисленные ключи."
+    - id: "merge-basic"
+      title: "merge: patch перекрывает base"
+      match: "merge > значения*"
+      hint: "Поля patch перекрывают поля base."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Утверждения Equal<A, B> проверяют Mutable, Nullable, PickByType, ElementOf, Resolved и результаты функций; pickKeys(user, [\"phone\"]) обязан не компилироваться."
+    - id: "pick-pure"
+      title: "pickKeys: не мутирует и не создаёт лишнего (скрытый)"
+      match: "pickKeys > не изменяет*"
+      hidden: true
+      hint: "Создайте новый объект и копируйте только перечисленные ключи."
+    - id: "pick-undefined"
+      title: "pickKeys: undefined и отсутствующие ключи (скрытый)"
+      match: "pickKeys > ключ со значением*"
+      hidden: true
+      hint: "Проверка key in obj различает «ключ есть со значением undefined» и «ключа нет»."
+    - id: "omit-copy"
+      title: "omitKeys: возвращает копию (скрытый)"
+      match: "omitKeys > возвращает*"
+      hidden: true
+      hint: "Даже при пустом списке ключей верните новый объект."
+    - id: "merge-undefined"
+      title: "merge: undefined не затирает (скрытый)"
+      match: "merge > undefined*"
+      hidden: true
+      hint: "Пропускайте значения patch, равные undefined."
+    - id: "merge-falsy"
+      title: "merge: 0, пустая строка, false, null (скрытый)"
+      match: "merge > 0*"
+      hidden: true
+      hint: "Сравнивайте с undefined явно, а не по истинности."
+    - id: "merge-pure"
+      title: "merge: исходные объекты не меняются (скрытый)"
+      match: "merge > исходные*"
+      hidden: true
+      hint: "Начните с копии base: { ...base }."
+challenge:
+  id: "typescript.fundamentals.utility-types.challenge"
+  title: "Комбинаторы проверок с выводом типа"
+  prompt: |
+    В `src/guards.ts` лежит заготовка мини-библиотеки проверок, которая работает как zod, только маленькая: из простых проверок `Guard<T>` собирают проверки сложных данных, а **тип данных выводится из самой проверки**.
+
+    ```ts
+    const userGuard = obj({ id: num(), tags: arr(str()), nick: optional(str()) });
+    type User = Infer<typeof userGuard>;   // { id: number; tags: string[]; nick: string | undefined }
+    ```
+
+    Реализуйте и типизируйте точно:
+    * `Infer<G>` - тип, который проверяет `Guard<T>` (условный тип с `infer`); для не-`Guard` - `never`.
+    * `str()`, `num()` (конечное число), `bool()`.
+    * `literal(value)` - `Guard<L>` с точным литеральным типом (`literal("admin")` - `Guard<"admin">`; параметр типа с `const`).
+    * `arr(g)` - `Guard<T[]>`, проверяет каждый элемент. `optional(g)` - `Guard<T | undefined>`.
+    * `oneOf(...variants)` - подходит любой вариант; тип - объединение типов вариантов (`Infer<T[number]>`).
+    * `obj(shape)` - `Guard<{ [K in keyof S]: Infer<S[K]> }>`: значение - объект (не `null` и не массив), каждое поле проходит свою проверку, лишние поля допустимы; отсутствующее поле проверяется как `undefined`, а унаследованные свойства (`constructor`, `toString`) полями не считаются.
+
+    Скрытые проверки сравнивают точные выведенные типы (`Equal<A, B>`) и требуют ошибок компиляции при неверном использовании (`arr(5)`, `obj({ id: 5 })`). Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` в вашем коде запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/guards.ts"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "Infer<G> = G extends Guard<infer T> ? T : never. Простые проверки - обычные функции, возвращающие предикат: (v): v is string => typeof v === \"string\". Для num добавьте Number.isFinite."
+    - "arr<T>(item: Guard<T>): Guard<T[]> - Array.isArray(v) && v.every(x => item(x)). optional<T>(g: Guard<T>): Guard<T | undefined> - v === undefined || g(v). literal<const L extends string | number | boolean>(value: L): Guard<L> - v === value."
+    - "oneOf<const T extends readonly Guard<unknown>[]>(...variants: T): Guard<Infer<T[number]>> - variants.some(g => g(v)). Для пустого списка some вернёт false, как и нужно."
+    - "obj<S extends Record<string, Guard<unknown>>>(shape: S): Guard<{ [K in keyof S]: Infer<S[K]> }>. Внутри: объект ли v; затем Object.entries(shape).every(([key, g]) => g(значение поля)), где значение берётся только если Object.hasOwn(v, key), иначе undefined."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "simple"
+      title: "str, num, bool"
+      match: "простые проверки > str*"
+      hint: "typeof x === \"string\" / \"number\" / \"boolean\"."
+    - id: "arr"
+      title: "arr проверяет каждый элемент"
+      match: "составные проверки > arr*"
+      hint: "Array.isArray(v) && v.every(...)."
+    - id: "obj-basic"
+      title: "obj: подходящий объект и лишние поля"
+      match: "obj > принимает*"
+      hint: "Проверяются только поля из shape."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Infer<typeof userGuard> должен совпасть с точным объектным типом; any и as не помогут."
+    - id: "num-finite"
+      title: "num отвергает NaN и бесконечности (скрытый)"
+      match: "простые проверки > num*"
+      hidden: true
+      hint: "Number.isFinite(v) после проверки typeof."
+    - id: "literal"
+      title: "literal: строгое сравнение (скрытый)"
+      match: "простые проверки > literal*"
+      hidden: true
+      hint: "v === value, без приведения типов."
+    - id: "optional"
+      title: "optional: undefined, но не null (скрытый)"
+      match: "составные проверки > optional*"
+      hidden: true
+      hint: "v === undefined || g(v)."
+    - id: "one-of"
+      title: "oneOf (скрытый)"
+      match: "составные проверки > oneOf*"
+      hidden: true
+      hint: "variants.some(g => g(v)); пустой список ничего не принимает."
+    - id: "obj-missing"
+      title: "obj: отсутствующие поля (скрытый)"
+      match: "obj > отсутствующее*"
+      hidden: true
+      hint: "Отсутствующее поле проверяется как undefined: optional его пропустит, str - нет."
+    - id: "obj-not-object"
+      title: "obj: не объекты (скрытый)"
+      match: "obj > не объекты*"
+      hidden: true
+      hint: "null, массивы, примитивы и функции отвергаются."
+    - id: "obj-nested"
+      title: "obj: вложенные объекты (скрытый)"
+      match: "obj > вложенные*"
+      hidden: true
+      hint: "obj возвращает обычный Guard и может быть значением в другом obj."
+    - id: "obj-empty"
+      title: "obj: пустая форма (скрытый)"
+      match: "obj > пустая*"
+      hidden: true
+      hint: "Пустая форма принимает любой объект, но не null."
+    - id: "obj-inherited"
+      title: "obj: унаследованные свойства (скрытый)"
+      match: "obj > унаследованные*"
+      hidden: true
+      hint: "Object.hasOwn(v, key) отличает собственное поле от унаследованного."

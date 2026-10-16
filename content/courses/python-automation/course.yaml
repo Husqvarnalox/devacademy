@@ -1,0 +1,20 @@
+id: python-automation
+version: 1.0.0
+title: "Автоматизация на Python"
+description: >-
+  Практический курс по надёжной автоматизации на стандартной библиотеке: организатор файлов с сухим прогоном и идемпотентностью,
+  потоковая обработка больших CSV с отчётом об ошибках, HTTP-клиенты с таймаутами, повторами, ограничением частоты и предохранителем,
+  планирование и долгоживущие задачи с блокировками и контрольными точками, логирование, конфигурация и секреты, а также
+  этичное извлечение данных из HTML с учётом robots.txt. Сторонние библиотеки (requests, httpx, BeautifulSoup, Playwright, APScheduler)
+  описаны только концептуально и явно помечены. Курс учит исключительно корректной автоматизации: без обхода защит и несанкционированного доступа.
+languageId: python
+level: 3
+track: python
+requires: [python-stdlib]
+lessons:
+  - 01-file-automation
+  - 02-batch-processing-csv-reports
+  - 03-robust-http-clients
+  - 04-scheduling-and-long-running-jobs
+  - 05-logging-config-and-secrets
+  - 06-web-data-extraction-ethics

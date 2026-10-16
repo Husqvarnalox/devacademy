@@ -1,0 +1,187 @@
+id: "typescript.fundamentals.interfaces-and-aliases"
+title: "interface и type, readonly, индексы и satisfies"
+goal: "Выбирать между interface и type, ограничивать изменяемость и необязательность полей, безопасно работать со словарями и проверять значения оператором satisfies."
+difficulty: "medium"
+estimatedMinutes: 65
+prerequisites:
+  - "typescript.fundamentals.unknown-and-boundaries"
+objectives:
+  - "Назвать отличия interface от type: слияние объявлений, extends и пересечение, область применения."
+  - "Применять readonly и необязательные поля и объяснять, что readonly поверхностный и существует только при компиляции."
+  - "Работать с сигнатурами индекса и Record с учётом noUncheckedIndexedAccess."
+  - "Использовать satisfies, чтобы проверить значение и сохранить его точный тип."
+masteryCriteria:
+  - "Вы описываете таблицы и конфигурации через satisfies, а не аннотацию, когда нужны имена ключей."
+  - "Вы обрабатываете undefined при чтении из словаря и массива и не приводите его типом."
+  - "Вы объясняете, почему readonly не защищает от изменения через изменяемый тип."
+related:
+  - "typescript.first-steps.structural-typing-and-narrowing"
+next:
+  - "typescript.fundamentals.generics"
+tags:
+  - "typescript"
+  - "interface"
+  - "readonly"
+  - "satisfies"
+  - "index-signature"
+facts:
+  - kind: "internals"
+    text: "readonly и ? существуют только в системе типов: после стирания типов остаётся обычное свойство. Поэтому readonly не мешает изменить объект через ссылку с изменяемым типом, а оператор satisfies вообще не оставляет следов в выходном коде."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/objects.html#readonly-properties"
+  - kind: "historical"
+    text: "Оператор satisfies появился в TypeScript 4.9 (ноябрь 2022). Он решил давнюю дилемму: аннотация проверяет значение, но стирает его точный тип, а вывод сохраняет тип, но ничего не проверяет."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html#the-satisfies-operator"
+  - kind: "misconception"
+    text: "«interface и type - разные миры». Для описания формы объекта они взаимозаменяемы, структурная совместимость одинакова. Практическое различие: слияние объявлений у interface и возможность назвать любой тип у type."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#differences-between-type-aliases-and-interfaces"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В одном файле дважды объявлен `type Config = { ... }` (с разными полями). Что скажет компилятор?"
+      options:
+        - "Типы сольются в один."
+        - "Ошибка TS2300: повторяющийся идентификатор."
+        - "Второе объявление молча заменит первое."
+        - "Предупреждение, но код скомпилируется."
+      answer: 1
+      explanation: "Сливаются только interface. Псевдонимы type с одинаковым именем - ошибка TS2300 (Duplicate identifier)."
+    - id: "q2"
+      type: "single"
+      prompt: "Дан `interface Box { readonly items: string[] }` и `const b: Box = { items: [] }`. Какое из выражений даст ошибку компиляции?"
+      options:
+        - "b.items.push('x')"
+        - "b.items = []"
+        - "b.items.length"
+        - "b.items[0]"
+      answer: 1
+      explanation: "readonly запрещает заменить само свойство (TS2540), но не изменяет тип массива: push скомпилируется. Для защиты содержимого нужен readonly string[]."
+    - id: "q3"
+      type: "single"
+      prompt: "Каким будет `keyof typeof ROUTES` для `const ROUTES: Record<string, string> = { home: '/', user: '/u' }`?"
+      options:
+        - "'home' | 'user'"
+        - "string"
+        - "never"
+        - "'/' | '/u'"
+      answer: 1
+      explanation: "Аннотация заменяет тип значения на Record<string, string>, и имена ключей теряются. Через satisfies тип остался бы 'home' | 'user'."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Включён noUncheckedIndexedAccess. Для `d: Record<string, number>` и `xs: number[]` какие выражения имеют тип `number | undefined`?"
+      options:
+        - "d[\"a\"]"
+        - "xs[0]"
+        - "xs.length"
+        - "Object.keys(d).length"
+      answer:
+        - 0
+        - 1
+      explanation: "Чтение по индексу и по строковому ключу может вернуть undefined. length и результат Object.keys всегда числа."
+    - id: "q5"
+      type: "short"
+      prompt: "Какое ключевое слово проверяет значение на соответствие типу, но сохраняет его выведенный, более точный тип? Одно слово."
+      answer:
+        - "satisfies"
+      explanation: "Оператор satisfies (TypeScript 4.9+) проверяет значение, не заменяя его тип, в отличие от аннотации."
+exercise:
+  id: "typescript.fundamentals.interfaces-and-aliases.exercise"
+  title: "Настройки, маршруты и счётчик слов"
+  prompt: |
+    В `src/settings.ts` лежат заготовки: интерфейс `Settings`, таблица маршрутов `ROUTES` и пять функций.
+
+    **Типы.** `Settings`: `name` и `limits` только для чтения (значения внутри `limits` тоже менять нельзя - `Readonly<Record<string, number>>`), `theme` необязательна. `ROUTES` замените аннотацию на `satisfies Record<string, string>`: `RouteName` должен стать `"home" | "user" | "post"`, а `buildUrl("about")` - ошибкой компиляции.
+
+    **Функции.**
+    * `buildUrl(name, params)` подставляет значения вместо `:ключ` в шаблоне (`/users/:id` и `{ id: 42 }` дают `/users/42`); значения `0` и `""` - тоже значения; неизвестные `:ключи` остаются как есть.
+    * `resolveTheme(s)` - тема или `"light"`. `withTheme(s, theme)` возвращает новый объект и не меняет исходный.
+    * `limitOf(s, key)` - лимит или `0`; нулевой лимит должен остаться нулём.
+    * `countBy(words)` - сколько раз встретилось каждое слово. Слово `"constructor"` не должно ломать подсчёт: используйте `Map`.
+
+    Проверка типов - настоящий `tsc --strict` (включая `noUncheckedIndexedAccess`). Скрытая проверка требует ошибок компиляции в нужных местах (запись в `readonly`, неизвестный маршрут), поэтому ослабить типы не получится. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/settings.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "В Settings допишите readonly перед name и limits, а у theme поставьте ? после имени. Для limits тип Readonly<Record<string, number>> запрещает и запись в значения."
+    - "Уберите аннотацию у ROUTES и добавьте после литерала satisfies Record<string, string>. RouteName = keyof typeof ROUTES тогда сам станет объединением трёх имён."
+    - "buildUrl: ROUTES[name].replace(/:(\\w+)/g, (whole, key: string) => ...) и внутри params[key]; undefined проверяйте явно (=== undefined), а не через if (value), иначе пропадут 0 и пустая строка."
+    - "countBy: const counts = new Map<string, number>(); counts.set(w, (counts.get(w) ?? 0) + 1); в конце Object.fromEntries(counts). limitOf: s.limits[key] ?? 0 (а не ||: ноль должен остаться нулём)."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику: файл, строка и код ошибки TSxxxx есть у каждой строки."
+    - id: "build-basic"
+      title: "buildUrl: маршрут без параметров"
+      match: "buildUrl > маршрут*"
+      hint: "home - это \"/\"; у ROUTES три ключа: home, user, post."
+    - id: "build-params"
+      title: "buildUrl: подстановка параметров"
+      match: "buildUrl > подставляет*"
+      hint: "Замените :id и :postId значениями из params."
+    - id: "theme-basic"
+      title: "resolveTheme и withTheme"
+      match: "настройки > resolveTheme*"
+      hint: "Тема по умолчанию - light."
+    - id: "count-basic"
+      title: "countBy: подсчёт слов"
+      match: "countBy > считает*"
+      hint: "Результат - объект слово -> количество."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "readonly у name и limits, необязательная theme, ROUTES через satisfies. Проверка требует ошибок компиляции при записи в readonly и при неизвестном маршруте."
+    - id: "build-falsy"
+      title: "buildUrl: нулевое и пустое значения (скрытый)"
+      match: "buildUrl > нулевой*"
+      hidden: true
+      hint: "Сравнивайте с undefined явно: 0 и \"\" - допустимые значения параметра."
+    - id: "build-unknown"
+      title: "buildUrl: неизвестные ключи остаются (скрытый)"
+      match: "buildUrl > неизвестные*"
+      hidden: true
+      hint: "Если params[key] === undefined, верните исходный фрагмент :key."
+    - id: "with-theme"
+      title: "withTheme не мутирует вход (скрытый)"
+      match: "настройки > withTheme*"
+      hidden: true
+      hint: "Верните { ...s, theme } - новый объект."
+    - id: "limit-of"
+      title: "limitOf: значение или 0 (скрытый)"
+      match: "настройки > limitOf: значение*"
+      hidden: true
+      hint: "Используйте ?? 0: оператор || заменил бы и нулевой лимит."
+    - id: "limit-zero"
+      title: "limitOf: нулевой лимит (скрытый)"
+      match: "настройки > limitOf: нулевой*"
+      hidden: true
+      hint: "?? срабатывает только на undefined и null, а не на 0."
+    - id: "count-empty"
+      title: "countBy: пустой список (скрытый)"
+      match: "countBy > пустой*"
+      hidden: true
+      hint: "Для пустого списка результат - пустой объект."
+    - id: "count-proto"
+      title: "countBy: служебные имена (скрытый)"
+      match: "countBy > не изменяет*"
+      hidden: true
+      hint: "Не используйте обычный объект как счётчик: counts[\"constructor\"] найдёт функцию из прототипа. Накапливайте в Map."

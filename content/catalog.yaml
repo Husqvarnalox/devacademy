@@ -9,7 +9,7 @@ tracks:
       что происходит внутри интерпретатора, и проверяется запуском вашего кода.
     languageId: python
     status: available
-    courses: [python-fundamentals, python-advanced, python-stdlib, python-numpy, python-concurrency]
+    courses: [python-fundamentals, python-advanced, python-stdlib, python-numpy, python-pandas, python-concurrency, python-automation]
   - id: javascript
     kind: language
     title: JavaScript
@@ -30,10 +30,13 @@ tracks:
       TypeScript как статически типизированная надстройка над JavaScript: структурная система типов,
       вывод типов, union и generic-типы, сужение типов, конфигурация tsconfig. Типы стираются при
       компиляции, поэтому трек отдельно объясняет границу между проверкой типов и поведением во время выполнения.
-      Сейчас в треке доступен только вводный курс из двух уроков (запуск кода и ввод-вывод плюс одна ключевая особенность языка); остальные темы запланированы.
+      Два курса: «TypeScript: первые шаги» (запуск кода, структурная типизация, сужение, unknown против any) и «TypeScript: система типов на практике»
+      (вывод и аннотации, объединения и сужение, проверка данных на границах, interface и type, satisfies, обобщения, утилитарные и отображаемые типы,
+      строгие настройки tsconfig, стирание типов и файлы объявлений). Упражнения проверяют и поведение, и сами типы: tsc --strict запускается над кодом ученика.
+      Декораторы, продвинутая типовая арифметика, работа с фреймворками и сборка проектов пока не входят в трек.
     languageId: typescript
     status: available
-    courses: [typescript-first-steps]
+    courses: [typescript-first-steps, typescript-fundamentals]
   - id: php
     kind: language
     title: PHP

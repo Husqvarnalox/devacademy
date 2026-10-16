@@ -1,0 +1,14 @@
+id: typescript-developer
+title: TypeScript-разработчик
+description: "Путь от первых шагов в JavaScript к точным типам на практике. «JavaScript: первые шаги» и «JavaScript: основы языка», затем «TypeScript: первые шаги» (как типы стираются, структурная типизация, сужение) и «TypeScript: система типов на практике» (вывод, объединения и сужение, unknown и проверка данных, interface и type, обобщения, утилитарные типы, строгие настройки tsconfig). Упражнения последнего курса проверяют настоящим tsc, поэтому нужны npm-пакеты курсов (Настройки - Среды выполнения). Фреймворки, декораторы и сборка проектов не входят."
+goal: general
+targets: [typescript-fundamentals]
+stages:
+  - title: Первые шаги в JavaScript
+    courses: [javascript-first-steps]
+  - title: Основы языка
+    courses: [javascript-fundamentals]
+  - title: Первые шаги в TypeScript
+    courses: [typescript-first-steps]
+  - title: Система типов на практике
+    courses: [typescript-fundamentals]

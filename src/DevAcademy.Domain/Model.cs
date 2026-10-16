@@ -333,7 +333,8 @@ public sealed record LearnerProfile(
 /// <summary>
 /// A project template loaded from <c>content/templates/&lt;id&gt;</c>. <see cref="FilesDirectory"/> is an absolute
 /// directory copied verbatim (with <c>{{name}}</c> substituted in text files). <see cref="PostCreate"/> commands are
-/// only ever displayed to the user; the application never runs them.
+/// only ever displayed to the user; the application never runs them. <see cref="Scripts"/> maps the workspace button
+/// ("dev", "test", "build") to a <c>package.json</c> script name of the template's files (Node templates only).
 /// </summary>
 public sealed record ProjectTemplate(
     string Id,
@@ -341,4 +342,8 @@ public sealed record ProjectTemplate(
     string LanguageId,
     string Description,
     string FilesDirectory,
-    IReadOnlyList<string> PostCreate);
+    IReadOnlyList<string> PostCreate,
+    IReadOnlyDictionary<string, string>? Scripts = null)
+{
+    public IReadOnlyDictionary<string, string> ScriptMap { get; } = Scripts ?? new Dictionary<string, string>();
+}

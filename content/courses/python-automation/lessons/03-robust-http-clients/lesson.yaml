@@ -1,0 +1,216 @@
+id: python.automation.robust-http-clients
+title: "Надёжные HTTP-клиенты: таймауты, повторы, лимиты"
+goal: Строить клиент, который переживает сбои сети и перегрузку сервера - с таймаутами, повторами с экспоненциальной задержкой и джиттером, уважением к Retry-After, ограничением частоты и предохранителем - и проверять его без сети.
+difficulty: hard
+estimatedMinutes: 110
+prerequisites: [python.stdlib.datetime-and-time, python.advanced.functions-as-objects, python.advanced.context-managers, python.automation.batch-processing-csv-reports]
+related: [python.automation.scheduling-and-long-running-jobs, python.automation.web-data-extraction-ethics]
+next: [python.automation.scheduling-and-long-running-jobs]
+objectives:
+  - Различать классы статусов HTTP и решать, какие ответы и исключения можно повторять.
+  - Объяснить идемпотентность методов и почему POST без ключа идемпотентности автоматически не повторяют.
+  - Реализовать повтор с экспоненциальной задержкой и полным джиттером, учитывающий Retry-After (секунды и HTTP-дата) и общий бюджет попыток.
+  - Реализовать ограничитель частоты «корзина токенов» и описать работу предохранителя (closed, open, half-open).
+  - Тестировать сетевой код без сети через внедряемые send, sleep, clock и rng.
+masteryCriteria:
+  - Вы показываете тестом, что при 503, 503, 200 клиент делает три вызова и спит ровно по расписанию задержек, не используя настоящий sleep.
+  - Вы объясняете, почему без таймаута запрос может висеть бесконечно и почему повтор без джиттера создаёт «грозовое стадо».
+  - "Вы знаете, когда повтор вредит: неидемпотентные операции, 4xx-ошибки клиента, перегруженный сервер без предохранителя."
+tags: [python, automation, http, retries, backoff, jitter, rate-limiting, circuit-breaker, rfc9110, testing]
+facts:
+  - kind: internals
+    text: >-
+      RFC 9110 делит коды статуса на классы: 1xx информационные, 2xx успешные, 3xx перенаправления, 4xx ошибки клиента, 5xx ошибки сервера. Метод считается идемпотентным, если эффект нескольких одинаковых запросов
+      такой же, как одного; идемпотентны PUT, DELETE и все безопасные методы (GET, HEAD, OPTIONS, TRACE), а POST - нет.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods
+      - https://www.rfc-editor.org/rfc/rfc9110.html#name-status-codes
+  - kind: internals
+    text: >-
+      Код 429 Too Many Requests определён в RFC 6585: клиент отправил слишком много запросов за заданное время; ответ может содержать заголовок Retry-After.
+      По RFC 9110 значение Retry-After - либо дата в формате HTTP-date, либо целое число секунд ожидания.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc6585#section-4
+      - https://www.rfc-editor.org/rfc/rfc9110.html#name-retry-after
+  - kind: real-world
+    text: >-
+      Блог архитектуры AWS описывает «полный джиттер»: задержка выбирается случайно от 0 до min(cap, base * 2**attempt). Случайность разводит повторы разных клиентов по времени и снижает пиковую нагрузку на восстанавливающийся сервис.
+    sources:
+      - https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+  - kind: real-world
+    text: >-
+      Сторонняя библиотека requests (не входит в стандартную библиотеку и не установлена в этом курсе) по умолчанию не ограничивает время ожидания: её документация рекомендует почти всегда передавать параметр timeout.
+      Библиотека httpx по умолчанию применяет таймаут 5 секунд. Стандартный urllib.request.urlopen принимает параметр timeout в секундах; без него используется глобальный таймаут сокетов (по умолчанию бесконечный).
+    sources:
+      - https://requests.readthedocs.io/en/latest/user/quickstart/#timeouts
+      - https://www.python-httpx.org/advanced/timeouts/
+      - https://docs.python.org/3/library/urllib.request.html#urllib.request.urlopen
+  - kind: misconception
+    text: >-
+      «Повтор всегда повышает надёжность». Повтор неидемпотентного запроса (например, POST платежа) после потерянного ответа может выполнить операцию дважды, а повторы клиентов против перегруженного сервера усугубляют перегрузку.
+      Поэтому повторяют только идемпотентные запросы и ограниченное число раз, а при серии сбоев размыкают предохранитель.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Какие ответы сервера уместно повторять автоматически (для GET)?
+      options:
+        - "404 Not Found и 401 Unauthorized"
+        - "429, 502, 503, 504"
+        - "200 OK с пустым телом"
+        - "Любой код 4xx"
+      answer: 1
+      explanation: >-
+        429 и 5xx сигнализируют о временной проблеме на стороне сервера или лимите. 4xx вроде 404 и 401 не исправятся повтором того же запроса.
+    - id: q2
+      type: single
+      prompt: Почему POST по умолчанию не повторяют автоматически?
+      options:
+        - "POST медленнее GET"
+        - "POST не идемпотентен: повтор после потерянного ответа может выполнить операцию дважды"
+        - "У POST нет тела ответа"
+        - "Потому что так сказано в документации urllib"
+      answer: 1
+      explanation: >-
+        Если ответ потерялся, клиент не знает, выполнена ли операция. Для POST повтор безопасен только при ключе идемпотентности, который сервер умеет проверять.
+    - id: q3
+      type: single
+      prompt: Зачем в задержку повтора добавляют случайность (джиттер)?
+      options:
+        - "Чтобы тест был недетерминированным"
+        - "Чтобы клиенты не повторяли запросы одновременно и не создавали новый пик нагрузки"
+        - "Чтобы увеличить задержку вдвое"
+        - "Это требование RFC 9110"
+      answer: 1
+      explanation: >-
+        Без случайности все клиенты, упавшие в один момент, повторяют запрос синхронно («грозовое стадо»). Джиттер распределяет повторы по времени.
+    - id: q4
+      type: single
+      prompt: "Сервер ответил 429 с заголовком \"Retry-After: 30\". Что делает правильный клиент?"
+      options:
+        - "Повторяет немедленно"
+        - "Ждёт не меньше 30 секунд (если это укладывается в бюджет ожидания), иначе сдаётся и сообщает об ошибке"
+        - "Игнорирует заголовок и использует собственную задержку 1 с"
+        - "Отправляет запрос в 10 потоков"
+      answer: 1
+      explanation: >-
+        Retry-After - явное указание сервера. Если оно превышает допустимый бюджет, лучше вернуть ошибку, чем висеть неопределённо долго.
+    - id: q5
+      type: multiple
+      prompt: Что нужно внедрять в сетевой код, чтобы тесты были быстрыми и детерминированными? Выберите все.
+      options:
+        - "функцию отправки запроса (send)"
+        - "функцию ожидания (sleep)"
+        - "источник случайных чисел (rng) и часы (now / clock)"
+        - "реальный сервер на localhost"
+      answer: [0, 1, 2]
+      explanation: >-
+        Фейковые send, sleep, rng и часы позволяют воспроизводить сбои, не тратить время на ожидание и проверять точные задержки. Реальный сервер делает тест медленным и нестабильным (а в песочнице сеть вообще запрещена).
+exercise:
+  id: python.automation.robust-http-clients.exercise
+  title: Повторы, Retry-After и корзина токенов
+  prompt: |
+    В файле `resilient.py` заготовлены `Request(method, url, headers)` и `Response(status, headers, body)`. Реализуйте:
+
+    1. `parse_retry_after(value, now)` - `value` - строка заголовка или `None`; `now` - aware `datetime`. Целое число секунд (`"120"`) -> `120.0`; HTTP-дата (`"Wed, 21 Oct 2015 07:28:00 GMT"`, разбор `email.utils.parsedate_to_datetime`) -> число секунд до неё, не меньше `0.0`; `None`, пустая строка, мусор, отрицательное или дробное значение -> `None`.
+    2. `backoff_delay(attempt, base=0.5, cap=30.0, rng=random.random)` - полный джиттер: `rng() * min(cap, base * 2**attempt)`; `attempt` начинается с 0. Не должно переполняться при `attempt=1000`.
+    3. `send_with_retry(send, request, *, sleep, max_attempts=4, base=0.5, cap=30.0, max_retry_after=60.0, rng=random.random, now=None)` - вызывает `send(request)` до `max_attempts` раз **всего**. Повторяются только идемпотентные методы (регистр не важен), остальные - одна попытка. Повтор при `TimeoutError` / `ConnectionError` и при статусах из `RETRYABLE_STATUSES`. Перед повтором `sleep(delay)`: если у ответа есть `Retry-After` (имя заголовка без учёта регистра) - его значение, иначе `backoff_delay(номер_повтора, base, cap, rng)`; если `Retry-After` больше `max_retry_after`, вернуть ответ немедленно. После последней попытки вернуть последний ответ или поднять последнее исключение. Другие исключения не перехватываются. `max_attempts < 1` - `ValueError`. `now` - функция без аргументов, возвращающая aware `datetime` (по умолчанию текущее UTC время).
+    4. `TokenBucket(rate, capacity, clock)` - начинается полным; токены накапливаются со скоростью `rate` в секунду, не выше `capacity`. `try_acquire(n=1)` -> `bool`; `wait_time(n=1)` -> секунды до наличия `n` токенов (`0.0`, если уже есть); `acquire(n=1, *, sleep)` ждёт через `sleep(wait_time(n))`. `rate <= 0`, `capacity <= 0` или `n > capacity` в `acquire` - `ValueError`.
+
+    Никакого реального `sleep` и сети: тесты передают фейковые `send`, `sleep`, `rng`, часы.
+
+    ```python
+    server = [Response(503), Response(503), Response(200)]       # фейковый сервер
+    send_with_retry(lambda r: server.pop(0), Request("GET", "u"), sleep=print, rng=lambda: 1.0)
+    # печатает 0.5 и 1.0, возвращает Response(status=200, ...)
+    ```
+  entryFile: resilient.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Разделите ответственность: parse_retry_after и backoff_delay - чистые функции; send_with_retry только решает, повторять ли, и сколько ждать. Цикл for attempt in range(attempts), где attempts = max_attempts для идемпотентных методов и 1 для остальных."
+    - "Внутри цикла: try: response = send(request) except (TimeoutError, ConnectionError): если это последняя попытка - raise, иначе sleep(backoff_delay(attempt, ...)) и continue. Ответ вернуть сразу, если статус не из RETRYABLE_STATUSES или попытка последняя. Заголовок ищите перебором: key.lower() == 'retry-after'."
+    - "parse_retry_after: value.strip().isdigit() (и isascii()) -> float(int(value)); иначе parsedate_to_datetime(value) в try/except (TypeError, ValueError); если у результата нет tzinfo - добавьте UTC; верните max(0.0, (when - now).total_seconds()). Ограничьте степень: 2 ** min(attempt, 60)."
+    - "TokenBucket: храните self._tokens (float) и self._last; в _refill: now = clock(); tokens = min(capacity, tokens + (now - last) * rate); last = now. try_acquire: сначала _refill, затем сравнение tokens >= n и вычитание. wait_time: (n - tokens) / rate. acquire: while not self.try_acquire(n): sleep(self.wait_time(n))."
+  tests:
+    - id: retry-after-parse
+      title: parse_retry_after - секунды, дата, мусор
+      hint: Только цифры - секунды; иначе пробуйте HTTP-дату; всё непонятное (включая '-5' и '1.5') даёт None; прошедшая дата даёт 0.0.
+    - id: backoff
+      title: backoff_delay - рост и потолок
+      hint: При rng=1.0 значения 0.5, 1.0, 2.0, ... упираются в cap; при rng=0.5 результат вдвое меньше.
+    - id: retry-basic
+      title: Повторы при 503 до успеха
+      hint: Три вызова send и две паузы - перед каждым повтором вызывается sleep(backoff_delay(номер_повтора)), номер начинается с 0.
+    - id: token-bucket
+      title: TokenBucket - накопление и ёмкость
+      hint: Корзина начинается полной; пополнение пропорционально прошедшему времени и ограничено capacity.
+    - id: retry-after-header
+      title: Retry-After в секундах и датой, слишком длинное ожидание (скрытый)
+      hidden: true
+      hint: Имя заголовка сравнивайте без учёта регистра; используйте значение сервера вместо backoff; если оно больше max_retry_after, верните ответ без sleep.
+    - id: non-idempotent
+      title: POST не повторяется, DELETE повторяется (скрытый)
+      hidden: true
+      hint: Число попыток для неидемпотентного метода равно 1, для остальных - max_attempts; регистр метода не важен.
+    - id: exhaustion
+      title: Исчерпание попыток (скрытый)
+      hidden: true
+      hint: Между N попытками ровно N-1 пауза; после последней попытки верните последний ответ (для статусов) или поднимите исключение.
+    - id: non-retryable
+      title: 404 и посторонние исключения не повторяются (скрытый)
+      hidden: true
+      hint: Перехватывайте только TimeoutError и ConnectionError; проверьте max_attempts < 1.
+    - id: token-bucket-acquire
+      title: acquire и wait_time (скрытый)
+      hidden: true
+      hint: acquire вызывает sleep(wait_time(n)) в цикле; для n больше capacity поднимите ValueError, иначе цикл не завершится.
+challenge:
+  id: python.automation.robust-http-clients.challenge
+  title: Предохранитель (circuit breaker)
+  prompt: |
+    В файле `breaker.py` реализуйте `CircuitBreaker(failure_threshold=3, reset_timeout=30.0, clock=time.monotonic, failure_types=(Exception,))` и исключение `CircuitOpenError`.
+
+    * Состояния: `"closed"` - вызовы идут; `"open"` - вызовы отклоняются `CircuitOpenError`, функция **не вызывается**; `"half_open"` - после `reset_timeout` секунд с момента размыкания разрешён пробный вызов.
+    * В `closed` считаются сбои **подряд**; при `failure_threshold` сбоях предохранитель размыкается. Успех обнуляет счётчик и замыкает предохранитель.
+    * В `half_open` успех замыкает, сбой размыкает снова и перезапускает таймер с текущего момента.
+    * Сбоем считается исключение из `failure_types`; оно пробрасывается наружу. Исключения других типов тоже пробрасываются, но состояние не меняют.
+    * `state` - свойство, вычисляется по `clock()` (никаких потоков и таймеров). `failure_threshold < 1` или `reset_timeout <= 0` - `ValueError`.
+    * `call(fn, *args, **kwargs)` возвращает результат `fn`.
+  entryFile: breaker.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Достаточно двух полей: self._failures и self._opened_at (None, пока замкнут). Состояние вычисляйте по ним и по clock(), а не храните отдельно."
+    - "state: _opened_at is None -> 'closed'; clock() - _opened_at >= reset_timeout -> 'half_open'; иначе 'open'. В call сначала возьмите state: для 'open' сразу поднимите CircuitOpenError."
+    - "try: result = fn(...) except self.failure_types: если был half_open - self._opened_at = clock(); иначе увеличьте _failures и при достижении порога поставьте _opened_at = clock(); затем raise. После успеха обнулите _failures и _opened_at."
+    - "except self.failure_types не ловит остальные исключения - они пролетят мимо, не меняя состояние. Не используйте голый except."
+  tests:
+    - id: open-after-threshold
+      title: Размыкание после серии сбоев
+      hint: Считайте сбои подряд; при достижении failure_threshold запомните момент размыкания.
+    - id: open-rejects
+      title: В состоянии open функция не вызывается
+      hint: Проверьте state до вызова fn и поднимите CircuitOpenError, не обращаясь к зависимости.
+    - id: half-open-success
+      title: Пробный вызов после таймаута замыкает
+      hint: Через reset_timeout state равен half_open; успех обнуляет сбои и _opened_at.
+    - id: half-open-failure
+      title: Сбой пробного вызова размыкает заново (скрытый)
+      hidden: true
+      hint: В half_open любой сбой сразу размыкает и обновляет момент размыкания по текущим часам.
+    - id: success-resets
+      title: Успех обнуляет счётчик сбоев (скрытый)
+      hidden: true
+      hint: Нужны сбои подряд; успешный вызов обнуляет _failures.
+    - id: failure-types
+      title: failure_types и проверка параметров (скрытый)
+      hidden: true
+      hint: except self.failure_types ловит только перечисленные типы; прочие исключения не меняют состояние.

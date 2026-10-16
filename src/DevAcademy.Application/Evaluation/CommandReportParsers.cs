@@ -55,12 +55,17 @@ public static class JUnitReportParser
             {
                 message = (string?)problem?.Attribute("message") ?? failureAttribute;
                 var body = problem?.Value.Trim();
-                if (!string.IsNullOrEmpty(body) && body != message) message = string.IsNullOrEmpty(message) ? body : message + "\n" + body;
+                // Vitest repeats the message at the head of the body ("Error: <message>" plus a stack or a diff): keep the longer text once.
+                if (!string.IsNullOrEmpty(body) && body != message)
+                    message = string.IsNullOrEmpty(message) || Collapse(body).Contains(Collapse(message), StringComparison.Ordinal) ? body : message + "\n" + body;
             }
             tests.Add(new ReportedTest(name, fullName, (string?)tc.Attribute("classname") ?? "", outcome, message));
         }
         return new ParsedReport(tests);
     }
+
+    // XML attribute normalization turns the message's line breaks into spaces while the element body keeps them, so compare ignoring whitespace layout.
+    private static string Collapse(string text) => System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
 }
 
 /// <summary>
@@ -136,4 +141,5 @@ public static class GoTestJsonParser
         var text = string.Join("\n", lines).Trim();
         return text.Length == 0 ? null : text;
     }
+
 }

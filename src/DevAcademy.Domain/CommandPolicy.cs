@@ -45,8 +45,11 @@ public static class CommandPolicy
         },
         ["--no-file-parallelism", "--silent", "--passWithNoTests", "--globals"]);
 
+    /// <summary>Languages whose command exercises may use node-environment tools. TypeScript exercises run Vitest too (it strips types itself); type-checking is done by the hidden tests, which run the pinned <c>tsc</c> from the same environment.</summary>
+    private static bool UsesNodeEnvironment(string languageId) => languageId is "javascript" or "typescript";
+
     public static NodeTool? FindNodeTool(string languageId, string? tool) =>
-        languageId == "javascript" && string.Equals(tool, Vitest.Name, StringComparison.Ordinal) ? Vitest : null;
+        UsesNodeEnvironment(languageId) && string.Equals(tool, Vitest.Name, StringComparison.Ordinal) ? Vitest : null;
 
     /// <summary>Tool names allowed as argv[0] for the language (empty = the language has no command support).</summary>
     public static IReadOnlyList<string> AllowedTools(string languageId) => languageId switch
@@ -91,7 +94,7 @@ public static class CommandPolicy
     public static string? CheckTool(string languageId, string? toolName, IReadOnlyList<string> args)
     {
         if (FindNodeTool(languageId, toolName) is not { } tool)
-            return $"command.tool '{toolName}' is not allowed for '{languageId}' (allowed: {(languageId == "javascript" ? Vitest.Name : "none")})";
+            return $"command.tool '{toolName}' is not allowed for '{languageId}' (allowed: {(UsesNodeEnvironment(languageId) ? Vitest.Name : "none")})";
         foreach (var arg in args)
         {
             if (string.IsNullOrWhiteSpace(arg) || arg.Contains('\0') || arg.Contains('\n')) return "command.args has an empty or invalid argument";

@@ -216,7 +216,7 @@ Markdown cells; narrow windows show one subject at a time with a picker (heurist
 A separate top-level screen ("Проекты") for real projects, deliberately **not** the sandboxed lesson runner.
 
 * **Projects** are plain user-chosen directories or are created from `content/templates/<id>/template.yaml`
-  (`ProjectTemplate`; python-cli, node-cli, go-cli, rust-cli). `TemplateInstaller` copies files and substitutes
+  (`ProjectTemplate`; python-cli, node-cli, go-cli, rust-cli, and the Node web templates react-vite-ts, vue-vite-ts, express-api-ts, nestjs-api). `TemplateInstaller` copies files and substitutes
   `{{name}}`; `postCreate` commands are only displayed (a button types them into a terminal without Enter).
   SQLite (migration 0003) stores only the recent-path list and a per-project session JSON (open tabs, active tab,
   chosen Python env) — never file contents.
@@ -235,7 +235,22 @@ A separate top-level screen ("Проекты") for real projects, deliberately *
   that skips binary/large files.
 * Python projects: env selector (system, project `.venv`, managed envs from the Python Environment Manager); creating
   `.venv` and installing `requirements.txt` happen only after a confirmation showing the exact command.
-* Web preview and an `IWorkspaceRunner` with sandbox limits remain future work.
+* **Node web templates**: `template.yaml` may carry `scripts: {dev, test, build}` (package.json script names). The content loader
+  checks offline that every named script exists in the template's `package.json` and that each `postCreate` entry is a single line
+  (a newline typed into a terminal would execute it). `postCreate: [npm install]` is typed without Enter; the user's Enter is the consent
+  (it needs the network). Versions are pinned exactly; the Vue template pins TypeScript 6 because `vue-tsc` has no TypeScript 7 JS API.
+* **JS/TS buttons** (`ProjectWorkspaceViewModel.Node.cs`): when the project has a `package.json`, a row shows Install / Dev / Test / Build
+  for the package manager read from the lockfile (`JsProjects.Detect`: pnpm-lock.yaml, yarn.lock, package-lock.json; then the
+  `packageManager` field; fallback npm). Buttons are disabled when the script is missing (`dev` falls back to `start`). Install asks for
+  confirmation showing the exact command; each click types a visible `<pm> run <script>` and nothing runs in the background.
+* **Dev server**: Dev opens a dedicated terminal tab (so Test/Build never type into the server's stdin). `ITerminalSession.Output` exposes
+  the raw decoded output; `DevServerUrlDetector` strips ANSI, looks only at complete lines and recognises local http(s) URLs
+  (localhost, 127.0.0.1, 0.0.0.0 mapped to localhost, [::1]) from Vite, Express, Nest, Next. The first URL shows "Открыть в браузере" and a
+  "Порт N: слушает" indicator (derived from output and process liveness; no port probing). Stop sends Ctrl+C to that terminal.
+* **Web preview** is a separate module behind `IWebPreview` (`Services/WebPreview.cs`). Implemented: `SystemBrowserWebPreview` (default
+  browser through `ILauncherService`, loopback http(s) URLs only). **Planned, not implemented:** an embedded native webview in its own
+  window/panel as another `IWebPreview`; the main UI never becomes a WebView.
+* An `IWorkspaceRunner` with sandbox limits remains future work.
 
 ## 15. Python Environment Manager and ML Runtime Manager — Implemented
 

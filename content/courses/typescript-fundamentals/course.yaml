@@ -1,0 +1,21 @@
+id: typescript-fundamentals
+version: 1.0.0
+title: "TypeScript: система типов на практике"
+description: >-
+  Продолжение «TypeScript: первые шаги». Семь уроков о том, как писать точные типы: аннотации и вывод, структурная типизация, объединения
+  и сужение, unknown и проверка данных на границах, interface и type, satisfies, обобщения, утилитарные и отображаемые типы, строгие
+  настройки tsconfig, стирание типов и файлы объявлений. Каждое упражнение проверяет и поведение (Vitest), и сами типы: настоящий
+  tsc --strict запускается над вашим кодом, а скрытые проверки требуют, чтобы неверные вызовы не компилировались, поэтому «залатать» ошибку
+  словами any и as не получится. Для проверок нужно один раз установить пакеты курсов (Настройки - Среды выполнения).
+languageId: typescript
+level: 2
+track: typescript
+requires: [javascript-fundamentals, typescript-first-steps]
+lessons:
+  - 01-inference-and-structural-typing
+  - 02-unions-and-narrowing
+  - 03-any-unknown-never
+  - 04-interfaces-types-satisfies
+  - 05-generics
+  - 06-utility-mapped-conditional
+  - 07-typescript-in-practice

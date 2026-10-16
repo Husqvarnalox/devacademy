@@ -1,0 +1,13 @@
+id: nestjs-api
+title: NestJS 12 API (без Nest CLI)
+languageId: typescript
+description: >-
+  Минимальное приложение NestJS 12: модуль, контроллер, сервис и e2e-тест на @nestjs/testing + node:test.
+  Сборка обычным tsc (ESM, декораторы), Nest CLI не нужен. Нужен Node 22.15 или новее. Установка требует сети.
+files: files
+scripts:
+  dev: dev
+  test: test
+  build: build
+postCreate:
+  - npm install

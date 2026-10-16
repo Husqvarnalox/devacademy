@@ -1,0 +1,140 @@
+id: "python.pandas.selection-and-assignment"
+title: "Выбор, фильтрация и присваивание: маски, query, Copy-on-Write"
+goal: "Выбирать строки булевыми масками и query, изменять значения одним присваиванием через loc и понимать, почему цепочечное присваивание не работает в pandas 3."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "python.pandas.series-and-dataframe"
+  - "python.numpy.views-and-copies"
+related:
+  - "python.pandas.reading-and-cleaning"
+next:
+  - "python.pandas.groupby"
+objectives:
+  - "Строить составные булевы маски с &, |, ~ и скобками, использовать isin, between и query с @-переменными."
+  - "Менять часть таблицы одним присваиванием df.loc[mask, col] = value и объяснить, почему df[mask][col] = value не меняет df."
+  - "Описать семантику Copy-on-Write в установленной версии pandas: выбор ведёт себя как копия, b = a не копирует."
+  - "Писать функции, которые возвращают новый DataFrame и не изменяют входной."
+masteryCriteria:
+  - "select_orders возвращает строки по региону, количеству и статусу в исходном порядке."
+  - "bulk_discount и cancel_orders меняют нужные строки в копии и оставляют вход неизменным."
+  - "expensive использует query со строгим сравнением и возвращает только order_id и total."
+tags:
+  - "pandas"
+  - "boolean-mask"
+  - "loc"
+  - "query"
+  - "copy-on-write"
+  - "chained-assignment"
+requires:
+  packages:
+    - "pandas>=3.0"
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Согласно примечаниям к выпуску pandas 3.0.0 и руководству по Copy-on-Write, любой метод или индексация, возвращающие новый DataFrame или Series, ведут себя как копия; цепочечное присваивание больше не изменяет исходный объект, а SettingWithCopyWarning удалён."
+    sources:
+      - "https://pandas.pydata.org/docs/whatsnew/v3.0.0.html"
+      - "https://pandas.pydata.org/docs/user_guide/copy_on_write.html"
+  - kind: "misconception"
+    text: "«df[df.a > 1]['b'] = 0 иногда работает». До pandas 3.0 результат зависел от того, вернул ли выбор представление или копию, и именно поэтому существовал SettingWithCopyWarning; в 3.0 такая цепочка не меняет исходную таблицу вообще."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/copy_on_write.html"
+  - kind: "real-world"
+    text: "Руководство по индексированию рекомендует объединять булевы маски операторами &, | и ~ и брать каждое сравнение в скобки: ключевые слова and/or не поддерживаются для Series."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/indexing.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что делает df[df['a'] > 1]['b'] = 0 в pandas 3.0?"
+      options:
+        - "Меняет b в исходном df у строк с a > 1"
+        - "Не меняет df и выдаёт предупреждение ChainedAssignmentError"
+        - "Бросает KeyError"
+        - "Заменяет весь столбец b нулями"
+      answer: 1
+      explanation: "Результат df[mask] ведёт себя как копия; присваивание идёт в неё, а исходная таблица остаётся прежней."
+    - id: "q2"
+      type: "single"
+      prompt: "Какое выражение корректно выбирает строки, где qty >= 10 и region == 'north'?"
+      options:
+        - "df[df.qty >= 10 and df.region == 'north']"
+        - "df[(df.qty >= 10) & (df.region == 'north')]"
+        - "df[df.qty >= 10 & df.region == 'north']"
+        - "df[df.qty >= 10, df.region == 'north']"
+      answer: 1
+      explanation: "Нужны оператор & и скобки вокруг каждого сравнения."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно для pandas 3.0 (Copy-on-Write)?"
+      options:
+        - "Изменение результата df[mask] не меняет df"
+        - "После df2 = df изменение df2.loc[0, 'a'] = 1 видно и в df"
+        - "Защитный .copy() нужен после каждого выбора, иначе df испортится"
+        - "df.assign(c=...) возвращает новый DataFrame и не меняет df"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "df2 = df - тот же объект. Защитный copy() для безопасности не нужен."
+    - id: "q4"
+      type: "short"
+      prompt: "Каким префиксом в строке query подставляется внешняя переменная Python? Ответ - один символ."
+      answer:
+        - "@"
+      explanation: "df.query('qty > @limit') берёт limit из окружения Python."
+exercise:
+  id: "python.pandas.selection-and-assignment.exercise"
+  title: "Отбор заказов и безопасные изменения"
+  prompt: |
+    В файле `select_task.py` реализуйте четыре функции. Рядом с проверкой лежит `orders.csv` (160 заказов; столбцы
+    `order_id, customer_id, region, product, qty, unit_price, status`). Ничего не печатайте; **входной DataFrame менять нельзя**.
+
+    1. `select_orders(df, regions, min_qty)` - строки, где `region` входит в `regions`, `qty >= min_qty` и `status != "cancelled"`; порядок сохранить.
+    2. `bulk_discount(df)` - копия, где `unit_price` умножена на `0.9` у строк со `status == "shipped"` и `qty >= 10`.
+    3. `cancel_orders(df, ids)` - копия, где `status = "cancelled"` у заказов с `order_id` из `ids`.
+    4. `expensive(df, threshold)` - DataFrame со столбцами `order_id` и `total` (`= qty * unit_price`) для заказов с `total` **строго больше** `threshold`; порядок сохранить.
+
+    Тесты сравнивают результаты через `pandas.testing`.
+  entryFile: "select_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Составная маска: каждое сравнение в скобках, объединение через & и ~; для принадлежности множеству есть isin."
+    - "Для bulk_discount и cancel_orders сначала сделайте копию (out = df.copy()), затем меняйте out одним присваиванием out.loc[маска, 'столбец'] = ...; цепочка out[маска]['столбец'] = ... ничего не изменит."
+    - "expensive: добавьте столбец total через assign, отфильтруйте query('total > @threshold') (или маской) и оставьте два столбца."
+    - "Заготовка: mask = (out['status'] == 'shipped') & (out['qty'] >= 10); out.loc[mask, 'unit_price'] = out.loc[mask, 'unit_price'] * 0.9."
+  tests:
+    - id: "select-basic"
+      title: "select_orders на файле"
+      hint: "Три условия через &, каждое в скобках; результат сохраняет исходный индекс."
+    - id: "discount-basic"
+      title: "bulk_discount на файле"
+      hint: "Цена уменьшается только у shipped-заказов с qty >= 10."
+    - id: "cancel-basic"
+      title: "cancel_orders на файле"
+      hint: "Меняется только status у строк с order_id из списка."
+    - id: "expensive-basic"
+      title: "expensive на файле"
+      hint: "Нужны только order_id и total; порядок исходный."
+    - id: "select-small"
+      title: "select_orders: порядок и скобки (скрытый)"
+      hidden: true
+      hint: "Если получили лишние строки, проверьте скобки и приоритет операторов: & сильнее >=."
+    - id: "discount-effect-input"
+      title: "bulk_discount меняет результат, но не вход (скрытый)"
+      hidden: true
+      hint: "df[mask]['unit_price'] = ... не изменит ничего. Используйте out.loc[mask, 'unit_price'] = ... на копии."
+    - id: "cancel-input-intact"
+      title: "cancel_orders не мутирует вход (скрытый)"
+      hidden: true
+      hint: "Присваивание на самом df изменит вызывающий код. Работайте с df.copy()."
+    - id: "expensive-boundary"
+      title: "expensive: строгая граница (скрытый)"
+      hidden: true
+      hint: "total == threshold не проходит: нужен оператор >, а не >=."

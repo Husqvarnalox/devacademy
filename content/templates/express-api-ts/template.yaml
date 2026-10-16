@@ -1,0 +1,13 @@
+id: express-api-ts
+title: Express 5 API на TypeScript (Node, node:test)
+languageId: typescript
+description: >-
+  REST API на Express 5. TypeScript запускается самим Node (type stripping), без tsx и сборки; типы проверяет tsc,
+  тесты на встроенном node:test и fetch. Нужен Node 22.15 или новее. Установка зависимостей требует сети.
+files: files
+scripts:
+  dev: dev
+  test: test
+  build: build
+postCreate:
+  - npm install

@@ -872,4 +872,16 @@
   <data name="Nb_OpenFailed" xml:space="preserve"><value>Не удалось открыть блокнот {0}: {1}</value></data>
   <data name="Nb_UnsavedMessage" xml:space="preserve"><value>Блокнот {0} содержит несохранённые изменения. Сохранить?</value></data>
   <data name="Ws_InvalidName" xml:space="preserve"><value>Недопустимое имя файла.</value></data>
+  <data name="Ws_NodeManager" xml:space="preserve"><value>Менеджер пакетов: {0}</value></data>
+  <data name="Ws_NodeInstall" xml:space="preserve"><value>Установить пакеты</value></data>
+  <data name="Ws_NodeInstallMessage" xml:space="preserve"><value>Команда будет введена в терминал и выполнена. Установка скачивает пакеты из сети:
+{0}</value></data>
+  <data name="Ws_NodeDev" xml:space="preserve"><value>Dev-сервер</value></data>
+  <data name="Ws_NodeStop" xml:space="preserve"><value>Остановить (Ctrl+C)</value></data>
+  <data name="Ws_NodeTest" xml:space="preserve"><value>Тесты</value></data>
+  <data name="Ws_NodeBuild" xml:space="preserve"><value>Сборка</value></data>
+  <data name="Ws_OpenInBrowser" xml:space="preserve"><value>Открыть в браузере</value></data>
+  <data name="Ws_DevStopped" xml:space="preserve"><value>Dev-сервер не запущен</value></data>
+  <data name="Ws_DevStarting" xml:space="preserve"><value>Dev-сервер запускается…</value></data>
+  <data name="Ws_DevListening" xml:space="preserve"><value>Порт {0}: слушает</value></data>
 </root>

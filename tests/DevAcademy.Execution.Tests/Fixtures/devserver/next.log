@@ -1,0 +1,11 @@
+^D
+> dev
+> next dev
+
+[1G[0K[1m[38;2;173;127;168m▲ Next.js 16.4.2[39m[22m (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.10:3000
+[32m[1m✓[22m[39m Ready in 178ms
+[32m[1m✓[22m[39m Running next.config took 6ms
+
+[32m[1m✓[22m[39m Generated AGENTS.md for AI agents. Set `agentRules: false` in next.config to disable.

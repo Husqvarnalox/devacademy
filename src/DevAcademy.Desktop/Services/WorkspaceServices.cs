@@ -26,6 +26,9 @@ public sealed class WorkspaceServices(
     /// <summary>Starts Jupyter kernels for notebooks and installs ipykernel on request. Tests replace it with a fake.</summary>
     public INotebookKernelService Notebooks { get; set; } = new NotebookKernelService();
 
+    /// <summary>Where "open in browser" for a dev server goes. Null means the system browser through the launcher.</summary>
+    public IWebPreview? WebPreview { get; set; }
+
     /// <summary>Whether the file watcher is started for opened projects (tests that call the change handler directly switch it off).</summary>
     public bool WatchFiles { get; set; } = true;
 }

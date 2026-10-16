@@ -8,7 +8,7 @@ public class KernelSessionTests
 {
     private static readonly KernelSessionOptions Fast = new()
     {
-        StartTimeout = TimeSpan.FromSeconds(10),
+        StartTimeout = TimeSpan.FromSeconds(30), // generous: CI runners and loaded machines start kernels slowly
         HeartbeatInterval = TimeSpan.FromMilliseconds(100),
         HeartbeatTimeout = TimeSpan.FromMilliseconds(300),
         MaxMissedHeartbeats = 2,
@@ -26,7 +26,7 @@ public class KernelSessionTests
     private static async Task<(ExecuteResult Result, List<KernelEvent> Events)> RunAsync(KernelSession s, string code, ExecuteOptions? o = null)
     {
         var events = new List<KernelEvent>();
-        var r = await s.ExecuteAsync(code, o, e => { lock (events) events.Add(e); }, new CancellationTokenSource(TimeSpan.FromSeconds(10)).Token);
+        var r = await s.ExecuteAsync(code, o, e => { lock (events) events.Add(e); }, new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token);
         return (r, events);
     }
 

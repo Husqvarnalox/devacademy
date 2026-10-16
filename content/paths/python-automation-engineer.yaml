@@ -1,0 +1,16 @@
+id: python-automation-engineer
+title: "Python: инженер по автоматизации"
+description: >-
+  Путь от основ языка до надёжных скриптов автоматизации: «Основы Python», «Python: продвинутый уровень», «Python: стандартная библиотека»
+  и «Автоматизация на Python» - файлы, CSV-отчёты, HTTP-клиенты с повторами, планирование, логирование, конфигурация и этичное извлечение данных.
+goal: general
+targets: [python-automation]
+stages:
+  - title: Основа
+    courses: [python-fundamentals]
+  - title: Язык глубже
+    courses: [python-advanced]
+  - title: Стандартная библиотека
+    courses: [python-stdlib]
+  - title: Автоматизация
+    courses: [python-automation]

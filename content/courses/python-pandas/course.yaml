@@ -1,0 +1,28 @@
+id: python-pandas
+version: 1.0.0
+title: "pandas: анализ табличных данных"
+description: >-
+  Шесть уроков о работе с таблицами в pandas 3.x: Series и DataFrame, индекс и выравнивание по меткам, чтение CSV с явными типами и маркерами пропусков,
+  политики обработки пропусков и дубликатов, булевы маски и присваивание через loc с семантикой Copy-on-Write, группировка (agg, transform, apply, dropna),
+  объединение и reshape (merge с validate и indicator, concat, pivot_table, melt), векторизация, память и категориальный dtype, цепочки методов.
+  Polars и DuckDB упоминаются только как идея ленивых вычислений и колоночного хранения и не запускаются. Каждый урок содержит запускаемые примеры и упражнение
+  с автоматической проверкой через pandas.testing; данные синтетические, небольшие, лежат рядом с проверкой. Нужен pandas 3.x и NumPy 2.x в выбранном окружении Python.
+languageId: python
+level: 3
+track: python
+requires: [python-numpy]
+framework:
+  id: pandas
+  version: "3.0"
+  docs: [https://pandas.pydata.org/docs/]
+  compatibility: "Python >= 3.11, NumPy >= 1.26 (по примечаниям к выпуску pandas 3.0.0); курс проверен на pandas 3.0.6, Python 3.14, NumPy 2.5"
+  migrationNotes: |
+    В pandas 3.0 Copy-on-Write включён всегда: результат индексации ведёт себя как копия, цепочечное присваивание (`df[mask]["col"] = x`) не меняет исходный объект,
+    а `SettingWithCopyWarning` удалён. Строки по умолчанию получают dtype `str` вместо `object`. Курс написан под эти правила; для pandas 2.x примеры могут вести себя иначе.
+lessons:
+  - 01-series-and-dataframe
+  - 02-reading-and-cleaning
+  - 03-selection-and-assignment
+  - 04-groupby
+  - 05-joins-and-reshaping
+  - 06-performance-and-memory

@@ -1,0 +1,172 @@
+id: "typescript.fundamentals.inference-and-structure"
+title: "Аннотации, вывод типов и структурная типизация"
+goal: "Понимать, где типы стоит писать, а где доверять выводу, и как TypeScript сопоставляет типы по форме, включая проверку лишних свойств."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "typescript.first-steps.structural-typing-and-narrowing"
+objectives:
+  - "Различать аннотацию и вывод типа и выбирать, что писать явно (параметры, границы модуля), а что оставить компилятору."
+  - "Объяснить расширение литералов: почему const n = 42 имеет тип 42, let m = 42 - number, а поле объекта - string."
+  - "Объяснить структурную совместимость и случаи, когда она не работает (private-члены)."
+  - "Предсказать, когда сработает проверка лишних свойств: только для свежего литерала объекта."
+  - "Писать сигнатуры, не ослабляя типы словами any и as."
+masteryCriteria:
+  - "Вы аннотируете параметры функций и оставляете выводу локальные переменные и тела функций."
+  - "Вы предсказываете, на какой из двух вызовов norm({ x: 1, y: 2, label: 'A' }) и norm(переменная) компилятор ответит ошибкой."
+  - "Вы объявляете параметр как readonly T[], если функция массив не меняет."
+  - "Вы проверяете выведенный тип присваиванием к Equal<...>, а не догадываетесь о нём."
+related:
+  - "typescript.first-steps.how-typescript-runs"
+next:
+  - "typescript.fundamentals.unions-and-narrowing"
+tags:
+  - "typescript"
+  - "type-inference"
+  - "structural-typing"
+  - "excess-property-checks"
+facts:
+  - kind: "internals"
+    text: "Совместимость типов в TypeScript структурная: значение подходит, если у него есть все нужные члены. Номинальное поведение появляется у классов с private/protected-членами: два класса с одинаковыми приватными полями несовместимы, потому что объявления раздельные."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/type-compatibility.html"
+  - kind: "internals"
+    text: "Проверка лишних свойств (excess property checks) применяется к свежим литералам объектов. Литерал, прошедший через переменную, уже не свежий, и лишние свойства в нём допускаются."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/objects.html#excess-property-checks"
+  - kind: "misconception"
+    text: "«Аннотация : number гарантирует число». Аннотации стираются при компиляции, а значение из JSON, формы или сети проверяется только кодом. Тип описывает ожидание компилятора, а не проверку во время работы."
+  - kind: "realworld"
+    text: "Практическое правило, которому следует большинство кодовых баз: аннотировать параметры и публичные возвращаемые значения, а локальные переменные и колбэки оставлять выводу и контекстной типизации. Так сигнатуры остаются стабильным контрактом, а тело функции можно менять свободно."
+    sources:
+      - "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#type-annotations-on-variables"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какие типы выведет компилятор для `const n = 42;` и `let m = 42;`?"
+      options:
+        - "n: number, m: number"
+        - "n: 42, m: number"
+        - "n: 42, m: 42"
+        - "n: number, m: 42"
+      answer: 1
+      explanation: "const не может быть переназначена, поэтому тип сужается до литерала 42. let получает широкий тип number, потому что значение позже могут заменить другим числом."
+    - id: "q2"
+      type: "single"
+      prompt: "Дана функция norm(p: { x: number; y: number }). Какой вызов даст ошибку компиляции?"
+      options:
+        - "const p = { x: 1, y: 2, label: 'A' }; norm(p);"
+        - "norm({ x: 1, y: 2, label: 'A' });"
+        - "norm(new Vec(1, 2)), где у класса Vec есть поля x и y"
+        - "Оба первых вызова дают ошибку."
+      answer: 1
+      explanation: "Проверка лишних свойств срабатывает на свежем литерале, который передан напрямую (TS2353). Объект из переменной уже не свежий, поэтому лишнее поле label допустимо."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что компилятор выводит сам, без аннотации, при включённом strict?"
+      options:
+        - "Возвращаемый тип функции function double(x: number) { return x * 2; }"
+        - "Тип параметра x в function f(x) { return x; }"
+        - "Тип параметра s в ['a', 'b'].map(s => s.length)"
+        - "Тип переменной в const total = items.length"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Параметр обычной функции без контекста вывести нельзя: strict включает noImplicitAny, и function f(x) даёт ошибку TS7006. Возвращаемый тип, параметр колбэка (контекстная типизация) и тип по инициализатору выводятся."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему класс B с приватным полем `private secret = 1` нельзя присвоить переменной типа A, если A объявлен так же и тоже с `private secret = 1`?"
+      options:
+        - "Потому что у классов разные имена."
+        - "Потому что private-члены сравниваются по месту объявления, поэтому такие классы несовместимы."
+        - "Потому что TypeScript запрещает присваивать экземпляры разных классов."
+        - "Потому что private стирается и тип становится any."
+      answer: 1
+      explanation: "Для публичных членов действует структурное сравнение, но приватные и защищённые члены совпадают только если объявлены в одном и том же месте. Сообщение компилятора: Types have separate declarations of a private property."
+exercise:
+  id: "typescript.fundamentals.inference-and-structure.exercise"
+  title: "Геометрия без any"
+  prompt: |
+    В файле `src/geometry.ts` четыре функции для точек на плоскости. Заготовка не компилируется (у параметров нет типов), а функции возвращают заглушки.
+
+    Реализуйте:
+
+    * `distance(a, b)` - евклидово расстояние между двумя точками;
+    * `centroid(points)` - средняя точка списка (среднее по `x` и по `y`); для пустого списка `undefined`;
+    * `translate(p, dx, dy)` - **новая** точка, сдвинутая на `(dx, dy)`; исходный объект не менять;
+    * `nearest(points, target)` - ближайшая к `target` точка из списка или `undefined`, если список пуст.
+
+    Опишите форму точки один раз (`interface Point2D { x: number; y: number }`) и используйте её в сигнатурах. Функции, которые список только читают, должны принимать `readonly Point2D[]`.
+
+    **Как проверяется.** Кнопка «Проверить» запускает Vitest. Среди проверок есть настоящая проверка типов: `tsc --strict` над вашим кодом (случай «код проходит tsc») и скрытая проверка точности типов. Она пытается вызвать ваши функции неправильно (строка вместо числа, лишнее поле в литерале, `.x` у результата, который может быть `undefined`) и требует, чтобы компилятор такие вызовы отверг. Сигнатуры с `any` проходят первую проверку, но проваливают вторую. Комментарии `@ts-ignore`, `@ts-nocheck` и `@ts-expect-error` в вашем коде запрещены.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/geometry.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "typescript"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 40
+  hints:
+    - "Начните с типа точки: interface Point2D { x: number; y: number }. Дальше добавьте его к параметрам: distance(a: Point2D, b: Point2D)."
+    - "Возвращаемые типы: distance - number, translate - Point2D, а centroid и nearest могут вернуть undefined, поэтому их тип Point2D | undefined. Массивы, которые функции не меняют, объявите как readonly Point2D[]."
+    - "distance: Math.hypot(a.x - b.x, a.y - b.y). centroid: если points.length === 0, верните undefined; иначе просуммируйте x и y в цикле for...of и поделите на длину. translate: { x: p.x + dx, y: p.y + dy } - это новый объект."
+    - "nearest: заведите best: Point2D | undefined и bestDistance = Infinity, в цикле считайте distance(p, target) и обновляйте best, когда расстояние меньше. После цикла верните best. any и as не нужны."
+  tests:
+    - id: "types-compile"
+      title: "Код проходит tsc --strict"
+      match: "типы > код проходит tsc*"
+      hint: "Прочитайте диагностику tsc: у каждой ошибки есть файл, строка и код TSxxxx. TS7006 значит, что у параметра нет типа."
+    - id: "distance-basic"
+      title: "distance: расстояние (0,0) - (3,4)"
+      match: "distance > расстояние от*"
+      hint: "Math.hypot(dx, dy) считает корень из суммы квадратов."
+    - id: "centroid-basic"
+      title: "centroid: средняя точка"
+      match: "centroid > средняя точка*"
+      hint: "Среднее по x и по y считается отдельно: сумма координат, делённая на число точек."
+    - id: "translate-basic"
+      title: "translate: сдвиг точки"
+      match: "translate > сдвигает точку"
+      hint: "Результат - { x: p.x + dx, y: p.y + dy }."
+    - id: "types-precise"
+      title: "Типы точные (скрытый)"
+      match: "типы > типы точные*"
+      hidden: true
+      hint: "Найдите в сигнатурах any и приведения as. Проверка вызывает функции неправильно и требует ошибки компиляции: нужны number вместо any, Point2D вместо object, readonly Point2D[] для чтения, Point2D | undefined для результата, который может отсутствовать."
+    - id: "distance-edge"
+      title: "distance: симметрия и отрицательные координаты (скрытый)"
+      match: "distance > симметрично*"
+      hidden: true
+      hint: "Расстояние не зависит от порядка аргументов, а разности возводятся в квадрат (Math.hypot делает это сам)."
+    - id: "centroid-empty"
+      title: "centroid: пустой список и readonly-массив (скрытый)"
+      match: "centroid > пустой*"
+      hidden: true
+      hint: "Для пустого списка верните undefined до деления на длину."
+    - id: "centroid-readonly"
+      title: "centroid: замороженный массив (скрытый)"
+      match: "centroid > принимает массив*"
+      hidden: true
+      hint: "Не меняйте входной массив и объекты в нём: ни sort, ни push, ни присваивания полей."
+    - id: "translate-pure"
+      title: "translate: исходная точка не меняется (скрытый)"
+      match: "translate > возвращает новый*"
+      hidden: true
+      hint: "Верните новый литерал объекта, а не изменённый p."
+    - id: "nearest-all"
+      title: "nearest: ближайшая точка и пустой список (скрытый)"
+      match: "nearest*"
+      hidden: true
+      hint: "Сравнивайте расстояния до target, а не координаты; для пустого списка возвращайте undefined."

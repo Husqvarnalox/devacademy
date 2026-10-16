@@ -1,4 +1,5 @@
 using DevAcademy.Application.Evaluation;
+using DevAcademy.Application.Node;
 using DevAcademy.Content;
 using DevAcademy.Domain;
 using DevAcademy.Execution;
@@ -74,5 +75,35 @@ public class CommandCourseTests
         var report = await Grade(ex, ex.Starter.Append(fake).ToList());
         Assert.NotEqual(Verdict.Passed, report.Status);
         Assert.Contains(report.Cases, c => !c.Passed);
+    }
+
+    /// <summary>
+    /// TypeScript exercises are graded by vitest, and the hidden typecheck.test.ts spawns the pinned tsc (and Node type stripping) from inside
+    /// the OS sandbox. This proves the sandbox lets that happen and that type errors are reported as failed cases with tsc diagnostics.
+    /// </summary>
+    [Theory]
+    [InlineData("typescript.fundamentals.unions-and-narrowing", false)]
+    [InlineData("typescript.fundamentals.in-practice", true)]
+    public async Task TypeScriptExerciseIsTypeCheckedByTscInsideTheSandbox(string lessonId, bool starterDoesNotCompile)
+    {
+        await TestSupport.RequireAsync("javascript");
+        var env = NodeEnvironmentService.FindRepositoryEnvironment();
+        if (env is null) Assert.Skip("node content environment not installed (make node-env)");
+        var ex = Load(lessonId);
+        var service = new ExerciseEvaluationService(TestSupport.Runner, node: new NodeEnvironmentService(new SystemToolRunner(), env));
+
+        var solved = await service.EvaluateAsync(ex, ex.Solution, CancellationToken.None, IsolationLevel.OsSandbox);
+        Assert.True(solved.Status == Verdict.Passed, Describe(solved));
+        Assert.Equal(ex.Tests.Count, solved.PassedCount);
+
+        var starter = await service.EvaluateAsync(ex, ex.Starter, CancellationToken.None, IsolationLevel.OsSandbox);
+        Assert.NotEqual(Verdict.Passed, starter.Status);
+        Assert.NotEqual(Verdict.Error, starter.Status);
+        Assert.NotEqual(Verdict.RuntimeMissing, starter.Status);
+        var types = Assert.Single(starter.Cases, c => c.TestId == "types-compile");
+        Assert.Equal(!starterDoesNotCompile, types.Passed);
+        if (starterDoesNotCompile) Assert.Contains("error TS", types.Message); // tsc ran inside the sandbox and its diagnostics reached the learner
+        // the precision check (@ts-expect-error lines must still error) also runs tsc in the sandbox and fails on weak starter types
+        Assert.Contains(starter.Cases, c => c.TestId == "types-precise" || c.TestId == "exhaustive");
     }
 }

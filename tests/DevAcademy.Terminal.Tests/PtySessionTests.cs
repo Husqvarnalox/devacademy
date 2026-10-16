@@ -46,6 +46,17 @@ public class PtySessionTests
     }
 
     [Fact]
+    public async Task Output_event_delivers_raw_decoded_text_including_escape_sequences_and_multibyte_characters()
+    {
+        RequireUnix();
+        using var s = Start();
+        var seen = new System.Text.StringBuilder();
+        s.Output += t => { lock (seen) seen.Append(t); };
+        s.Write("printf '\\033[1mbold\\033[0m \\342\\236\\234 done\\n'\n");
+        Assert.True(await WaitAsync(() => { lock (seen) return seen.ToString().Contains("\u001B[1mbold\u001B[0m \u279C done", StringComparison.Ordinal); }), seen.ToString());
+    }
+
+    [Fact]
     public async Task Working_directory_and_terminal_environment_are_set()
     {
         RequireUnix();

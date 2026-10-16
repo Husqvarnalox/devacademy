@@ -1,0 +1,141 @@
+id: "python.pandas.performance-and-memory"
+title: "Производительность и память: векторизация, category, цепочки"
+goal: "Заменять построчные циклы векторными выражениями, измерять и сокращать память таблицы и собирать преобразования в читаемые цепочки методов."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "python.pandas.groupby"
+  - "python.numpy.ndarray-vs-list"
+related:
+  - "python.pandas.joins-and-reshaping"
+  - "python.numpy.dtypes-and-casting"
+seeAlso:
+  - "Polars: выражения и ленивые вычисления (курс пока не написан)"
+  - "DuckDB: SQL по файлам и Parquet (курс пока не написан)"
+objectives:
+  - "Объяснить, почему apply(axis=1) и iterrows медленнее векторных операций, и подобрать замену (np.where, np.select, map)."
+  - "Измерять память через memory_usage(deep=True) и сокращать её через category и узкие целые типы, проверяя границы."
+  - "Собирать преобразования в цепочку query, assign, groupby, agg, не изменяя входной DataFrame."
+  - "Описать идеи ленивых вычислений и колоночного хранения и когда они нужны, не утверждая заранее, что один инструмент быстрее."
+masteryCriteria:
+  - "add_cost считает стоимость без apply, iterrows и itertuples и совпадает с эталоном."
+  - "shrink переводит малокардинальные строки в category, сужает целые, сокращает память минимум вдвое и не меняет значения."
+  - "memory_bytes возвращает int по memory_usage(deep=True)."
+  - "site_report строит отчёт цепочкой методов и учитывает только строки со state == ok."
+tags:
+  - "pandas"
+  - "performance"
+  - "vectorization"
+  - "memory"
+  - "category"
+  - "method-chaining"
+requires:
+  packages:
+    - "pandas>=3.0"
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "performance"
+    text: "Руководство pandas по производительности рекомендует по возможности использовать векторные операции вместо построчных циклов и apply, а по масштабированию - уменьшать типы данных и использовать категориальные типы; конкретный выигрыш зависит от данных, поэтому его измеряют на своих данных."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/enhancingperf.html"
+      - "https://pandas.pydata.org/docs/user_guide/scale.html"
+  - kind: "internals"
+    text: "Категориальный dtype в pandas хранит массив уникальных категорий и целочисленные коды; присвоить значение, которого нет в категориях, нельзя без их расширения."
+    sources:
+      - "https://pandas.pydata.org/docs/user_guide/categorical.html"
+  - kind: "real-world"
+    text: "Polars и DuckDB - независимые проекты, реализующие ленивые вычисления и колоночную обработку (Polars как библиотека DataFrame, DuckDB как встраиваемая аналитическая SQL-СУБД). Курс не сравнивает их скорость с pandas: сравнение корректно только на ваших данных и версиях."
+    sources:
+      - "https://pola.rs/"
+      - "https://duckdb.org/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Сколько раз вызовется функция f при df.apply(f, axis=1) для таблицы из 1000 строк?"
+      options:
+        - "1"
+        - "1000"
+        - "Число столбцов"
+        - "Зависит от генератора случайных чисел"
+      answer: 1
+      explanation: "apply с axis=1 вызывает функцию по одному разу на каждую строку."
+    - id: "q2"
+      type: "single"
+      prompt: "Почему memory_usage() без deep=True недооценивает размер строкового столбца?"
+      options:
+        - "Не учитывает индекс"
+        - "Считает только буфер с указателями, а не сами строки"
+        - "Считает только числовые столбцы"
+        - "Округляет до мегабайтов"
+      answer: 1
+      explanation: "deep=True дополнительно учитывает размер самих объектов-строк."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Для каких столбцов category обычно даёт заметный выигрыш?"
+      options:
+        - "Статус заказа с тремя возможными значениями на миллион строк"
+        - "Уникальный идентификатор заказа"
+        - "Код региона из нескольких десятков значений"
+        - "Свободный текст комментария"
+      answer:
+        - 0
+        - 2
+      explanation: "Выигрыш есть при малой доле уникальных значений; для уникальных идентификаторов и свободного текста его нет."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется режим, при котором запрос описывается целиком и выполняется оптимизированным планом (как в Polars lazy)? Ответ - одно слово по-английски."
+      answer:
+        - "lazy"
+      explanation: "Ленивые (lazy) вычисления откладывают выполнение, пока не потребуется результат, и позволяют оптимизировать план."
+exercise:
+  id: "python.pandas.performance-and-memory.exercise"
+  title: "Стоимость, сжатие таблицы и отчёт цепочкой"
+  prompt: |
+    В файле `perf_task.py` реализуйте четыре функции. Рядом с проверкой лежит `sensors.csv` (700 показаний; столбцы
+    `reading_id, ts, sensor_id, site, state, temp_c, load_pct`). Ничего не печатайте, входной DataFrame не менять.
+
+    1. `add_cost(df)` - копия со столбцом `cost` (float64) = `load_pct * ставка(state)`, плюс `2.0` для `site == "warehouse"`. Ставки: `ok` 0.10, `warn` 0.15, `fault` 0.30. **Без** `apply`, `iterrows`, `itertuples` (проверка на таблице в 35 000 строк).
+    2. `shrink(df)` - новая таблица: строковые столбцы с долей уникальных `nunique/len <= 0.5` стали `category`, целые столбцы сужены через `pd.to_numeric(..., downcast="integer")`; остальные (в том числе вещественные) без изменений; значения те же.
+    3. `memory_bytes(df)` - полный размер таблицы в байтах как `int`, включая содержимое строк.
+    4. `site_report(df)` - цепочкой методов: строки со `state == "ok"`, `temp_f = temp_c * 9 / 5 + 32`, по `site`: `readings` (число строк) и `mean_temp_f` (среднее, округление до 2 знаков). Столбцы `site, readings, mean_temp_f`; строки по `site` по возрастанию; индекс `0..k-1`.
+  entryFile: "perf_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "add_cost: ставку по состоянию получите подстановкой по словарю (Series.map), условие склада - через np.where; дальше обычная арифметика столбцов."
+    - "shrink: пройдите по столбцам; для строковых проверьте долю nunique/len и astype('category'), для целых используйте pd.to_numeric(..., downcast='integer'). Работайте с копией."
+    - "memory_bytes: df.memory_usage(deep=True) возвращает Series по столбцам и индексу; суммируйте и приведите к int. site_report: query, assign (с lambda), groupby, agg с именованными агрегатами, round({'mean_temp_f': 2}), reset_index."
+    - "Заготовка: out['cost'] = out['load_pct'] * out['state'].map({'ok': 0.1, 'warn': 0.15, 'fault': 0.3}) + np.where(out['site'] == 'warehouse', 2.0, 0.0)."
+  tests:
+    - id: "cost-basic"
+      title: "add_cost на небольшой таблице"
+      hint: "Склад добавляет 2.0 к стоимости; ставка зависит от state."
+    - id: "shrink-dtypes"
+      title: "shrink: типы столбцов"
+      hint: "site, state, sensor_id - category; reading_id (0..699) - int16."
+    - id: "memory-basic"
+      title: "memory_bytes возвращает int по deep"
+      hint: "int(df.memory_usage(deep=True).sum())."
+    - id: "report-basic"
+      title: "site_report на файле"
+      hint: "Только state == 'ok'; среднее округляется до 2 знаков; столбцы site, readings, mean_temp_f."
+    - id: "cost-vectorized"
+      title: "add_cost без apply, iterrows, itertuples (скрытый)"
+      hidden: true
+      hint: "Эти методы запрещены в проверке. Используйте map, np.where, np.select или арифметику столбцов."
+    - id: "shrink-memory-values"
+      title: "shrink сокращает память вдвое и не меняет значения (скрытый)"
+      hidden: true
+      hint: "Проверьте, что вы не изменили входной df и что значения после перехода к category те же."
+    - id: "shrink-unique-strings"
+      title: "shrink не трогает столбцы с большой долей уникальных (скрытый)"
+      hidden: true
+      hint: "Порог включительный: nunique/len <= 0.5 - category; больше - оставить как есть."
+    - id: "report-only-ok"
+      title: "site_report учитывает только ok (скрытый)"
+      hidden: true
+      hint: "Фильтруйте до группировки; сайт без ok-показаний в отчёте не появляется."

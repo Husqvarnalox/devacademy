@@ -100,9 +100,40 @@ public static class ContentLoader
                 { Error(rel, "'files' must stay inside the template directory"); continue; }
                 if (!Directory.Exists(filesDir) || !Directory.EnumerateFileSystemEntries(filesDir).Any())
                 { Error(rel, $"files directory '{filesRel}' is missing or empty"); continue; }
-                result.Add(new ProjectTemplate(dto.Id!, dto.Title!, dto.LanguageId!, dto.Description ?? "", filesDir, dto.PostCreate ?? []));
+                if (!ValidateTemplateCommands(dto, rel, filesDir)) continue;
+                result.Add(new ProjectTemplate(dto.Id!, dto.Title!, dto.LanguageId!, dto.Description ?? "", filesDir, dto.PostCreate ?? [], dto.Scripts));
             }
             return result;
+        }
+
+        /// <summary>Offline checks only. postCreate is typed into a terminal without Enter, so one entry must be one line; declared scripts must exist in the template's package.json.</summary>
+        private bool ValidateTemplateCommands(TemplateDto dto, string rel, string filesDir)
+        {
+            var ok = true;
+            foreach (var c in dto.PostCreate ?? [])
+                if (string.IsNullOrWhiteSpace(c) || c.Contains('\n') || c.Contains('\r'))
+                { Error(rel, "'postCreate' entries must be non-empty single-line commands (they are typed into a terminal and never executed by the app)"); ok = false; }
+            if (dto.Scripts is not { Count: > 0 } scripts) return ok;
+
+            var pkg = Path.Combine(filesDir, "package.json");
+            HashSet<string> declared = [];
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(pkg));
+                if (doc.RootElement.TryGetProperty("scripts", out var s) && s.ValueKind == System.Text.Json.JsonValueKind.Object)
+                    foreach (var p in s.EnumerateObject()) declared.Add(p.Name);
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException or UnauthorizedAccessException)
+            { Error(rel, "'scripts' needs a readable package.json in the template files"); return false; }
+
+            foreach (var (button, script) in scripts)
+            {
+                if (button is not ("dev" or "test" or "build")) { Error(rel, $"unknown 'scripts' key '{button}' (allowed: dev, test, build)"); ok = false; }
+                else if (!declared.Contains(script)) { Error(rel, $"scripts.{button} refers to '{script}', which is not in the template's package.json scripts"); ok = false; }
+            }
+            foreach (var required in new[] { "dev", "test", "build" })
+                if (!scripts.ContainsKey(required)) { Error(rel, $"'scripts' must define '{required}'"); ok = false; }
+            return ok;
         }
 
         private T? Read<T>(string absolutePath) where T : class

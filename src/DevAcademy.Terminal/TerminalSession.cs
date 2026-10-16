@@ -30,6 +30,8 @@ public interface ITerminalSession : IDisposable
     event Action? Changed;
     /// <summary>The process ended (raised on a background thread, once).</summary>
     event Action? Exited;
+    /// <summary>Raw decoded text the process printed, escape sequences included (raised on a background thread, in order). For passive observers such as dev-server URL detection.</summary>
+    event Action<string>? Output;
     /// <summary>Sends text to the process as typed input (no newline is added).</summary>
     void Write(string text);
     void Resize(int cols, int rows);
@@ -75,6 +77,7 @@ public sealed class PtyTerminalSession : ITerminalSession
 
     public event Action? Changed;
     public event Action? Exited;
+    public event Action<string>? Output;
 
     public static PtyTerminalSession Start(TerminalStartOptions o)
     {
@@ -106,6 +109,8 @@ public sealed class PtyTerminalSession : ITerminalSession
     private void ReadLoop()
     {
         var buffer = new byte[16 * 1024];
+        var decoder = Encoding.UTF8.GetDecoder();
+        var chars = new char[buffer.Length + 4];
         try
         {
             while (true)
@@ -115,6 +120,11 @@ public sealed class PtyTerminalSession : ITerminalSession
                 lock (Screen.SyncRoot) Screen.Feed(buffer.AsSpan(0, n));
                 FlushReplies();
                 Changed?.Invoke();
+                if (Output is { } output)
+                {
+                    var count = decoder.GetChars(buffer, 0, n, chars, 0);
+                    if (count > 0) output(new string(chars, 0, count));
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or System.ComponentModel.Win32Exception)

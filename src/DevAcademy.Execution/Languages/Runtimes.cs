@@ -77,7 +77,7 @@ internal static class NodeProbe
     }
 }
 
-internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntime
+internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntime, ICommandRuntime
 {
     private const string TscHint = "Install the TypeScript compiler for type-checking: npm install -g typescript (https://www.typescriptlang.org/download).";
 
@@ -117,6 +117,13 @@ internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntim
             };
         return node with { Notes = $"Type-checking with tsc ({tscVersion}) is enabled. {Stripping} {node.Notes}", InstallHint = null };
     }
+
+    /// <summary>Test commands run on plain node (Vitest from the node content environment); type-checking is part of the tests.</summary>
+    public string CommandTool => "node";
+
+    public BuildPlan CreateCommandPlan(string workingDirectory, IReadOnlyList<string> argv, RuntimeStatus status) =>
+        new([], new ProcessSpec(status.ExecutablePath!, argv.Skip(1).ToList(), workingDirectory,
+            new Dictionary<string, string> { ["NO_COLOR"] = "1" }));
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
