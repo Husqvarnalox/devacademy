@@ -1,0 +1,22 @@
+id: security-fundamentals
+version: 1.0.0
+title: Основы безопасности приложений
+description: >-
+  Защитный взгляд на безопасность: модель угроз STRIDE и принципы проектирования, хранение паролей (соль, PBKDF2, scrypt, сравнение за постоянное время),
+  HMAC и токены JWT с обязательной строгой проверкой, защита от инъекций (команды, пути; SQL - в курсе по базам данных), контекстное кодирование вывода и XSS,
+  сессии, cookie и CSRF, контроль доступа (RBAC, ABAC, IDOR) и работа с секретами, случайностью и зависимостями. Упражнения выполняются на Python
+  стандартной библиотеки: вы пишете проверяющие и защитные компоненты (модель угроз, верификатор токена, резолвер путей, экранирование, аудитор cookie,
+  вычислитель политик, редактор логов), а не эксплойты. Каждый пример теории проверен запуском (Python 3.14).
+languageId: python
+level: 3
+track: security
+requires: [python-fundamentals]
+lessons:
+  - 01-threat-modelling-and-principles
+  - 02-hashing-and-password-storage
+  - 03-message-authentication-and-tokens
+  - 04-injection-defences
+  - 05-output-encoding-and-xss
+  - 06-sessions-csrf-and-cookies
+  - 07-access-control
+  - 08-secrets-randomness-and-dependencies

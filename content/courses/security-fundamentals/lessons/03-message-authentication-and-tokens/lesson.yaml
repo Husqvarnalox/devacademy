@@ -1,0 +1,256 @@
+id: security.fundamentals.message-authentication-and-tokens
+title: "Аутентификация сообщений и токены: HMAC и строгая проверка JWT"
+goal: "Проверять целостность и происхождение сообщений через HMAC и писать верификатор JWT HS256, который отвергает alg=none, чужой алгоритм и просроченные токены."
+difficulty: hard
+estimatedMinutes: 120
+prerequisites: [security.fundamentals.password-storage]
+related: [python.stdlib.json-csv-struct, networking.fundamentals.tls-and-diagnostics]
+next: [security.fundamentals.injection-defences]
+seeAlso:
+  - "Асимметричные подписи (RS256, ES256, EdDSA), JWE, OAuth 2.0 и OpenID Connect (в курсе только упоминаются)"
+objectives:
+  - Объяснить, что даёт MAC (целостность и подлинность при общем секрете) и чего он не даёт (секретности, неотказуемости).
+  - Объяснить концептуально, почему схема hash(key + message) небезопасна (удлинение сообщения), и чем её заменяет HMAC.
+  - Разобрать JWT на заголовок, нагрузку и подпись и вычислить подпись HS256 по правилам RFC 7515.
+  - Назвать ловушки alg=none и подмены алгоритма и сформулировать, что должен отвергать верификатор.
+  - Реализовать строгую проверку JWT и ротацию ключей по kid.
+masteryCriteria:
+  - Ваш верификатор подтверждает вектор из RFC 7515 приложение A.1 и отвергает токен в момент exp.
+  - Вы проверяете alg по белому списку из одного значения и делаете это до проверки подписи; значения none, None, hs256, RS256 отвергаются.
+  - Вы считаете подпись по исходным частям токена и сравниваете через hmac.compare_digest.
+  - Вы проверяете подпись раньше срока и не доверяете нагрузке до проверки подписи.
+  - В задаче с kid вы используете kid только как ключ поиска среди доверенных ключей и отвергаете отозванные ключи.
+tags: [security, hmac, jwt, tokens, hs256, key-rotation, kid]
+facts:
+  - kind: internals
+    text: >-
+      HMAC определён в RFC 2104: два прохода хеша с ключом (внутренний и внешний), которые устраняют слабость наивной схемы H(key || message). Сама наивная схема на хешах семейства
+      Меркла - Дамгора (MD5, SHA-1, SHA-2) уязвима для атаки удлинения сообщения: зная хеш и длину секрета, можно вычислить хеш расширенного сообщения, не зная секрета.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc2104
+  - kind: internals
+    text: >-
+      JWT (RFC 7519) - это JWS в компактной сериализации (RFC 7515): три части base64url, разделённые точками - заголовок, нагрузка, подпись. Для HS256 подпись равна
+      HMAC-SHA-256 от ASCII-строки BASE64URL(заголовок) + "." + BASE64URL(нагрузка). В приложении A.1 RFC 7515 дан готовый вектор с ключом и подписью.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc7519
+      - https://www.rfc-editor.org/rfc/rfc7515
+  - kind: security
+    text: >-
+      RFC 8725 (JWT Best Current Practices) требует, чтобы библиотеки позволяли вызывающему коду задать допустимые алгоритмы и отвергали остальные,
+      а значение "none" не принималось, если приложение его явно не разрешило. Там же описаны атаки подмены алгоритма (когда открытый ключ используется как секрет HMAC) и требование проверять срок действия.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc8725
+  - kind: real-world
+    text: >-
+      RFC 7519 определяет утверждение exp: текущее время должно быть строго раньше срока, то есть при now >= exp токен недействителен; утверждение nbf: токен нельзя принимать раньше этого момента.
+      Разницу часов между серверами допускается компенсировать небольшим допуском, но в упражнении он равен нулю.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc7519
+  - kind: misconception
+    text: >-
+      «Нагрузка JWT зашифрована». Нет: base64url - кодировка, не шифрование. Любой может прочитать нагрузку JWS, подпись лишь не позволяет её изменить. Секретные данные в такой токен класть нельзя.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc7519
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что гарантирует корректная проверка HMAC-тега сообщения?"
+      options:
+        - "Что сообщение никто не прочитал"
+        - "Что сообщение не изменено и создано тем, кто знает общий ключ"
+        - "Что отправитель не сможет отрицать отправку перед третьей стороной"
+        - "Что сообщение пришло только один раз"
+      answer: 1
+      explanation: >-
+        MAC даёт целостность и подлинность при общем секрете. Секретности нет (сообщение открыто), неотказуемости нет (получатель тоже знает ключ и мог бы создать тег), защиты от повтора тоже нет - нужны nonce или срок.
+    - id: q2
+      type: single
+      prompt: "Почему вместо sha256(key + message) используют HMAC?"
+      options:
+        - "HMAC короче"
+        - "Для хешей Меркла - Дамгора из хеша key+message можно вычислить хеш расширенного сообщения, не зная ключа (удлинение сообщения), а HMAC этого не допускает"
+        - "sha256 нельзя применять к ключам"
+        - "HMAC всегда быстрее"
+      answer: 1
+      explanation: >-
+        Состояние внутренней функции сжатия можно восстановить из готового хеша и продолжить вычисление. Двухслойная конструкция HMAC прячет это состояние.
+    - id: q3
+      type: multiple
+      prompt: "Что должен отвергать строгий верификатор JWT HS256? Выберите все."
+      options:
+        - "Токен с alg=none и пустой подписью"
+        - "Токен с alg=RS256, подписанный HMAC с ключом сервера"
+        - "Токен с верной подписью, у которого now >= exp"
+        - "Токен с верной подписью и exp в будущем"
+      answer: [0, 1, 2]
+      explanation: >-
+        Алгоритм проверяется по белому списку и ещё до подписи; срок действия обязателен. Четвёртый токен - обычный действительный.
+    - id: q4
+      type: single
+      prompt: "Почему подпись нужно проверять раньше, чем доверять полям нагрузки (exp, sub, роли)?"
+      options:
+        - "Это ускоряет работу"
+        - "Пока подпись не проверена, нагрузку мог составить кто угодно, и решения на её основе принимать нельзя"
+        - "Нагрузка зашифрована и нечитаема"
+        - "Так требует формат base64url"
+      answer: 1
+      explanation: >-
+        Нагрузка до проверки подписи - недоверенный ввод. Нужна лишь минимальная обработка заголовка, чтобы выбрать алгоритм и ключ.
+    - id: q5
+      type: single
+      prompt: "Для чего нужен kid в заголовке и как им правильно пользоваться?"
+      options:
+        - "Это имя пользователя, его можно подставлять в SQL-запрос"
+        - "Это подсказка, какой из доверенных ключей использовать; его используют только как ключ поиска в заранее заданном наборе ключей"
+        - "Это пароль для подписи"
+        - "Это алгоритм подписи"
+      answer: 1
+      explanation: >-
+        kid приходит от недоверенной стороны. Его нельзя ни подставлять в запросы или пути без обработки, ни использовать, чтобы выбрать ключ вне доверенного набора.
+exercise:
+  id: security.fundamentals.message-authentication-and-tokens.exercise
+  title: "Строгий верификатор JWT HS256"
+  prompt: |
+    Реализуйте в `main.py` строгую проверку JWT с алгоритмом HS256, используя только стандартную библиотеку (`hmac`, `hashlib`, `base64`, `json`).
+
+    **Ввод.** Первая строка - ключ в **base64url без `=`** (так записан ключ `k` в JWK; в приложении A.1 RFC 7515 именно такой). Далее строки `<now> <токен>`: `now` - целое «текущее время» (секунды), токен - всё остальное в строке. Для каждой строки выведите одну строку: `VALID` или `REJECT <причина>`.
+
+    **Проверки выполняются строго в этом порядке; первая сработавшая определяет причину:**
+
+    1. `malformed` - токен не состоит ровно из трёх частей, разделённых `.`; в любой части есть символ вне алфавита base64url (`A-Za-z0-9_-`, в том числе `=`, пробелы и не-ASCII); длина непустой части даёт остаток 1 при делении на 4; заголовок или нагрузка пусты (подпись может быть пустой - это решит шаг 4);
+    2. `bad-header` - заголовок после декодирования не является UTF-8 JSON-объектом;
+    3. `unsupported-alg` - поле `alg` отсутствует или не равно строке ровно `HS256` (`none`, `None`, `hs256`, `RS256`, список и всё прочее);
+    4. `bad-signature` - HMAC-SHA256 ключом от ASCII-строки `<часть1>.<часть2>` (в том виде, как пришла) не совпал с подписью по `hmac.compare_digest`; пустая подпись - тоже `bad-signature`;
+    5. `bad-payload` - нагрузка не является UTF-8 JSON-объектом;
+    6. `missing-exp` - в нагрузке нет `exp`;
+    7. `bad-claim` - `exp` (или `nbf`, если он есть) не число; `true` и `false` числами не считаются, дробные числа допустимы;
+    8. `expired` - `now >= exp`;
+    9. `not-yet-valid` - есть `nbf` и `now < nbf`.
+
+    Если ни одна проверка не сработала, выводится `VALID`.
+
+    **Почему так.** Алгоритм задаётся белым списком из одного значения и проверяется до подписи (RFC 8725); подпись проверяется раньше, чем вы доверяете нагрузке; срок действия обязателен.
+
+    **Соглашения:** время дискретно и задано явно (вы не читаете часы); допуск на расхождение часов равен нулю; других полей (`iss`, `aud`, `typ`) проверять не нужно.
+
+    **Пример.** Для вектора RFC 7515 A.1 (ключ `AyM1Sys...`) с `now = 1300819379` ответ `VALID`, а с `now = 1300819380` - `REJECT expired`, потому что в нагрузке `exp = 1300819380`.
+  entryFile: main.py
+  evaluation: io
+  hints:
+    - "Разбейте задачу на маленькие функции: `well_formed(token)` возвращает три части или None, `json_object(part)` декодирует часть в словарь или None, затем `verify` идёт по шагам 1-9 и возвращает первую причину."
+    - "Для base64url добавьте паддинг при декодировании: `part + '=' * (-len(part) % 4)`. Алфавит проверяйте регулярным выражением `[A-Za-z0-9_-]*` через fullmatch, длину - `len(part) % 4 == 1`."
+    - "Подпись: `hmac.digest(key, (p0 + '.' + p1).encode('ascii'), 'sha256')` и `hmac.compare_digest(expected, decoded_signature)`. Пустую подпись сразу превращайте в b''."
+    - "Типы claim-ов: `isinstance(x, (int, float)) and not isinstance(x, bool)`. Порядок важен: сначала missing-exp, затем bad-claim, потом expired, потом not-yet-valid."
+  tests:
+    - id: rfc7515-a1
+      title: "Вектор RFC 7515, приложение A.1 (HS256)"
+      stdin: "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow\n1300819379 eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n1300819380 eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n"
+      expected: "VALID\nREJECT expired\n"
+      compare: trim
+      hint: "Ключ приходит в base64url; сигнатура считается по строке 'заголовок.полезная_нагрузка' ровно в том виде, как она пришла. В момент exp токен уже недействителен: now >= exp."
+    - id: valid-and-tampered
+      title: "Верный токен, подмена полезной нагрузки, неверный ключ"
+      stdin: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYWxsb3J5IiwiZXhwIjoyMDAwfQ.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.3LPCmin5eZZZKglv4c_iv32UQB0DoC9nphLamGyDT2Q\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1As\n"
+      expected: "VALID\nREJECT bad-signature\nREJECT bad-signature\nREJECT bad-signature\n"
+      compare: trim
+      hint: "Подпись считается по исходным base64url-частям, а не по перекодированному JSON. Изменение любого символа даёт bad-signature."
+    - id: time-claims
+      title: "exp и nbf относительно заданного now"
+      stdin: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY\n1999 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDB9.k1Q_fapwieckFjaWmwYi-qVhk51aeBCul-z_PQ6FQrQ\n2000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDB9.k1Q_fapwieckFjaWmwYi-qVhk51aeBCul-z_PQ6FQrQ\n2001 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDB9.k1Q_fapwieckFjaWmwYi-qVhk51aeBCul-z_PQ6FQrQ\n99 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDAsIm5iZiI6MTAwfQ.jo6tD3vK3zQUba6_OhVfw-ZxGV4Q3vY7CHUE39Amr1w\n100 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDAsIm5iZiI6MTAwfQ.jo6tD3vK3zQUba6_OhVfw-ZxGV4Q3vY7CHUE39Amr1w\n500 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ4In0.I-cBwS2A2-OD8vZJbn4w3M2ReN_bbgzRWWAxzpq0zYg\n"
+      expected: "VALID\nREJECT expired\nREJECT expired\nREJECT not-yet-valid\nVALID\nREJECT missing-exp\n"
+      compare: trim
+      hint: "Просрочен при now >= exp. До nbf токен не действует при now < nbf (равенство - уже можно). Отсутствие exp - отдельная причина missing-exp."
+    - id: alg-pitfalls
+      title: "alg=none, смена алгоритма и регистр (скрытый)"
+      stdin: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY\n1000 eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjIwMDB9.\n1000 eyJhbGciOiJub25lIn0.eyJleHAiOjIwMDB9.XJJCSoQG1rEh-yriR74cIKyKBANSRRyEqH9Vxr1AaxQ\n1000 eyJhbGciOiJOb25lIn0.eyJleHAiOjIwMDB9.wf4dwVopAsybIjLgxBxIMCZjMgM76LzRuu-729ogKAU\n1000 eyJhbGciOiJoczI1NiJ9.eyJleHAiOjIwMDB9.W0EjIr7nnrNvHS-cdOoE9Ac4JLJcvbSPXR6mUCtnJrQ\n1000 eyJhbGciOiJIUzM4NCJ9.eyJleHAiOjIwMDB9.nIz7ASRxtFk_UXtRr7bQricVfGfSzkMs4VABqKLcPFM\n1000 eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjIwMDB9.zvVrS5s-jjWp0lbSV0WI1Eom9aacLSkQukJOpiFnfrw\n1000 eyJ0eXAiOiJKV1QifQ.eyJleHAiOjIwMDB9.5W9zZ4cFUxvFxPIKFdnuSRnBeTIkTHS-9671w2j7SCE\n1000 eyJhbGciOlsiSFMyNTYiXX0.eyJleHAiOjIwMDB9.mEUlyrybmtHFa1_GgDCpv_YExqY4Vl8qmzpkcJq9Udw\n"
+      expected: "REJECT unsupported-alg\nREJECT unsupported-alg\nREJECT unsupported-alg\nREJECT unsupported-alg\nREJECT unsupported-alg\nREJECT unsupported-alg\nREJECT unsupported-alg\nREJECT unsupported-alg\n"
+      compare: trim
+      hidden: true
+      hint: "Единственное допустимое значение - строка ровно 'HS256'. Всё остальное, включая none, None, hs256, RS256, список и отсутствие поля, - unsupported-alg, причём ещё до проверки подписи."
+    - id: malformed
+      title: "Структурно некорректные токены (скрытый)"
+      stdin: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY\n1000 abc\n1000 a.b\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs.x\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs=\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs \n1000 .eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs\n1000 Q.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs\n1000 Ж.eyJzdWIiOiJhbGljZSIsImV4cCI6MjAwMH0.QJwLFGh0l5v6niK-oQA9DbDnldOmj637haa6R0MQ1Zs\n1000 \n"
+      expected: "REJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\nREJECT malformed\n"
+      compare: trim
+      hidden: true
+      hint: "malformed: не три части, символ вне алфавита base64url (в том числе '=', пробел, не-ASCII), пустой заголовок или нагрузка, длина части с остатком 1 по модулю 4. Пустая подпись допустима на этом шаге (дальше будет bad-signature)."
+    - id: claims-and-order
+      title: "Типы claim-ов, bad-payload, bad-header и порядок проверок (скрытый)"
+      stdin: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOiI5OTk5OTk5OTk5In0.oLlvej1ytID1fQnOxXZRG8DHPd-q6evS5qHViTYkwNQ\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOnRydWV9.aLe6oIGrxPkSa_3tWvxjsVbyxTC4ky5mE5DXjxg_ZiA\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDAsIm5iZiI6IjAifQ.DOsiyjvl9Hk4wVkFPKYl2yYsSovrkyggbp3rsIeKPLs\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDAuNX0.rmRXZaWF9p_neLBkIW52M9KcExk79kRvmB6CK3yE0No\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.WzEsMl0.UnVrkgPBds2H3LcKR1sIlVSWmiYy7LdO20_JPsyFICY\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGpzb24.pjibvby1zku6MmzImL1sWOc_bH7V6ynJpxnsRjcTGmI\n1000 e2Jyb2tlbg.eyJleHAiOjIwMDB9.J7WgTPmzyz_rjALpOme5t1guyfbxqDabayshIHg5Yjk\n1000 WzFd.eyJleHAiOjIwMDB9.D5uEZW5A0vo22f7ES6fhslPq_3MgYza5WcYCt0-OsWU\n5000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDB9.kSxUtlCRMEmqK43hAMjjFO72uRk4d34d5BoLl74kaQY\n5000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDB9.k1Q_fapwieckFjaWmwYi-qVhk51aeBCul-z_PQ6FQrQ\n"
+      expected: "REJECT bad-claim\nREJECT bad-claim\nREJECT bad-claim\nVALID\nREJECT bad-payload\nREJECT bad-payload\nREJECT bad-header\nREJECT bad-header\nREJECT bad-signature\nREJECT expired\n"
+      compare: trim
+      hidden: true
+      hint: "exp и nbf должны быть числами (bool не число). Подпись проверяется раньше срока: просроченный токен с неверной подписью - bad-signature. Заголовок не JSON-объект - bad-header, нагрузка не объект - bad-payload."
+challenge:
+  id: security.fundamentals.message-authentication-and-tokens.challenge
+  title: "Ротация ключей: kid, активные, выведенные и отозванные ключи"
+  prompt: |
+    Расширьте верификатор из упражнения до **набора ключей** с идентификаторами `kid` и тремя статусами. Это типичная ротация: новые токены подписывает активный ключ, токены, выпущенные ранее, доживают на выведенном, скомпрометированный ключ отзывается.
+
+    **Ввод.** Первая строка: `k`. Далее `k` строк `<kid> <ключ_base64url> <статус>`, где статус - `active`, `retired` или `revoked`. Далее строки `<now> <токен>` (как в упражнении).
+
+    **Вывод** - по строке на токен: `VALID kid=<kid>` или `REJECT <причина>`.
+
+    **Порядок проверок** тот же, что в упражнении, но между шагами 3 и 4 добавляется выбор ключа:
+
+    * `missing-kid` - в заголовке нет `kid`, он не строка или пуст;
+    * `unknown-kid` - такого `kid` нет в наборе;
+    * `revoked-kid` - ключ имеет статус `revoked` (токен отвергается до проверки подписи).
+
+    Затем подпись проверяется **ключом, выбранным по kid** (статусы `active` и `retired` проверяют одинаково). Ключ не угадывают перебором и не берут из токена: `kid` - лишь ключ поиска в доверенном наборе.
+
+    **Соглашения:** остальные шаги и причины - `malformed`, `bad-header`, `unsupported-alg`, `bad-signature`, `bad-payload`, `missing-exp`, `bad-claim`, `expired`, `not-yet-valid` - работают как в упражнении. Допуска по времени нет.
+
+    **Пример.** Токен с `kid=k2` (статус `retired`), подписанный ключом k2, при `exp` в будущем даёт `VALID kid=k2`; тот же токен, подписанный ключом k3, даёт `REJECT bad-signature`.
+  entryFile: main.py
+  evaluation: io
+  starter: challenge/starter
+  solution: challenge/solution
+  hints:
+    - "Ключи удобно хранить в словаре `kid -> (байты ключа, статус)`. Поиск по строке не требует ни SQL, ни путей: так kid остаётся данными."
+    - "После шага `unsupported-alg` проверьте `kid`: тип str и не пусто, наличие в словаре, статус revoked. Всё это - до вычисления HMAC."
+    - "Подпись считайте ключом выбранного kid. Токен, подписанный другим ключом, чем заявлено в kid, даёт bad-signature."
+    - "Остальную часть (нагрузка, exp, nbf) переиспользуйте из упражнения без изменений; в успешном ответе добавьте `kid=...`."
+  tests:
+    - id: active-retired-revoked
+      title: "Активный, выведенный и отозванный ключи"
+      stdin: "3\nk3 a2V5LWFjdGl2ZS14eHh4eHh4eHh4eHh4eHh4eHh4eHh4 active\nk2 a2V5LXJldGlyZWQteXl5eXl5eXl5eXl5eXl5eXl5eXl5 retired\nk1 a2V5LXJldm9rZWQtenp6enp6enp6enp6enp6enp6eno revoked\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjIwMDB9.uupzbAfACFJPei_4aGgCBXOSfiRKNPXMEQlFWc1cvXI\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyIn0.eyJleHAiOjIwMDB9.RYCnfWv0EXOKyAMaz2vTU4N7XFbYqHDdUCNU5ubErcs\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJleHAiOjIwMDB9.50H5c9mt0fjiRC-babteKOcCG--GdnQ0nrEBPuD6a8Y\n"
+      expected: "VALID kid=k3\nVALID kid=k2\nREJECT revoked-kid\n"
+      compare: trim
+      hint: "retired всё ещё проверяет подпись (льготный период после ротации), revoked отвергается сразу - до проверки подписи."
+    - id: kid-problems
+      title: "Нет kid, неизвестный kid, kid не от того ключа"
+      stdin: "3\nk3 a2V5LWFjdGl2ZS14eHh4eHh4eHh4eHh4eHh4eHh4eHh4 active\nk2 a2V5LXJldGlyZWQteXl5eXl5eXl5eXl5eXl5eXl5eXl5 retired\nk1 a2V5LXJldm9rZWQtenp6enp6enp6enp6enp6enp6eno revoked\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwMDB9.hLsAnq4XMaiXgtIo5ojXZdo49P3KRGDO3reb7yDbKwI\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ims5In0.eyJleHAiOjIwMDB9.plbPpt9IyJjuBf_g_c-9lAtOUFWNU0qSofAf9Cqwb_I\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjIwMDB9.JWPz64zZHxVesRvJfeqZy0fpgFR9Q8fROMCt1vYkN_I\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyIn0.eyJleHAiOjIwMDB9.SlUo3TPwf0_B_NtWuARLJxtAFp4kPYvjzvNCkHgP2i0\n"
+      expected: "REJECT missing-kid\nREJECT unknown-kid\nREJECT bad-signature\nREJECT bad-signature\n"
+      compare: trim
+      hint: "kid только выбирает один из доверенных ключей: токен, подписанный другим ключом, чем заявлено в kid, - bad-signature."
+    - id: claims-with-kid
+      title: "Сроки действия работают как раньше"
+      stdin: "3\nk3 a2V5LWFjdGl2ZS14eHh4eHh4eHh4eHh4eHh4eHh4eHh4 active\nk2 a2V5LXJldGlyZWQteXl5eXl5eXl5eXl5eXl5eXl5eXl5 retired\nk1 a2V5LXJldm9rZWQtenp6enp6enp6enp6enp6enp6eno revoked\n2000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjIwMDB9.uupzbAfACFJPei_4aGgCBXOSfiRKNPXMEQlFWc1cvXI\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjIwMDAsIm5iZiI6MTUwMH0.kEzT7H5jRkAu_p5nD5MXuIvYMJ0mmV6a--0X3A4ty8w\n1999 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyIn0.eyJleHAiOjIwMDB9.RYCnfWv0EXOKyAMaz2vTU4N7XFbYqHDdUCNU5ubErcs\n"
+      expected: "REJECT expired\nREJECT not-yet-valid\nVALID kid=k2\n"
+      compare: trim
+      hint: "После выбора ключа остальные проверки те же: подпись, нагрузка, exp и nbf."
+    - id: kid-weird
+      title: "kid странного вида и порядок проверок (скрытый)"
+      stdin: "3\nk3 a2V5LWFjdGl2ZS14eHh4eHh4eHh4eHh4eHh4eHh4eHh4 active\nk2 a2V5LXJldGlyZWQteXl5eXl5eXl5eXl5eXl5eXl5eXl5 retired\nk1 a2V5LXJldm9rZWQtenp6enp6enp6enp6enp6enp6eno revoked\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ii4uLy4uL2V0Yy9wYXNzd2QifQ.eyJleHAiOjIwMDB9.1rcEb_ad_VK54n0gzrlu0CYcK0UApqcRR24-PfqzwyI\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IiJ9.eyJleHAiOjIwMDB9.5HzFy81MHBg938ikdtpGCA53bwYENTAPKqwLt5T3FJ4\n1000 eyJhbGciOiJIUzI1NiIsImtpZCI6M30.eyJleHAiOjIwMDB9.S0-3RYOzYVK3VZ5mG-pXw2xrh_z4SBpCULi3i3ieLBY\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJleHAiOjIwMDB9.V3HPo7k6VrPi5zjXf3HjlD6OjxWK-y-ANGB98jTlFRg\n1000 eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoiazMifQ.eyJleHAiOjIwMDB9.EdD1ieu4TWPvS-lm_GwdMCpmg4bYNfqzXJOMFqn0BeE\n1000 eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCIsImtpZCI6Ims5In0.eyJleHAiOjIwMDB9.Jj5JKs6lzxZRQmbLzW2PDKq6z6QiROF9wEhjXKoJ2oU\n"
+      expected: "REJECT unknown-kid\nREJECT missing-kid\nREJECT missing-kid\nREJECT revoked-kid\nREJECT unsupported-alg\nREJECT unsupported-alg\n"
+      compare: trim
+      hidden: true
+      hint: "Пустой kid и kid не строка - missing-kid. Строка вида пути - просто неизвестный kid (ищем в словаре, никуда её не подставляем). Отозванный ключ отвергается даже при верной подписи другим ключом. alg проверяется раньше kid."
+    - id: all-rejections
+      title: "Остальные причины отказа (скрытый)"
+      stdin: "3\nk3 a2V5LWFjdGl2ZS14eHh4eHh4eHh4eHh4eHh4eHh4eHh4 active\nk2 a2V5LXJldGlyZWQteXl5eXl5eXl5eXl5eXl5eXl5eXl5 retired\nk1 a2V5LXJldm9rZWQtenp6enp6enp6enp6enp6enp6eno revoked\n1000 x.y\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJzdWIiOjF9.Kwg7t-mizSl33hSh8qn7aFQs9cMwV0btPpAcu-JPK0U\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOiIxIn0.op2fggkb894CACJ9dsFsR-k1wQxD1zRUoxtzzKTcxE8\n3000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjIwMDB9.uupzbAfACFJPei_4aGgCBXOSfiRKNPXMEQlFWc1cvXI\n3000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjIwMDB9.JWPz64zZHxVesRvJfeqZy0fpgFR9Q8fROMCt1vYkN_I\n1000 eyJhbGciOiJIUzI1NiIsImtpZCI6ImszIn0.WzFd.azum3tAhtZuQgDVTbZysCt3tLrulkLSYmQIBeAb7psE\n"
+      expected: "REJECT malformed\nREJECT missing-exp\nREJECT bad-claim\nREJECT expired\nREJECT bad-signature\nREJECT bad-payload\n"
+      compare: trim
+      hidden: true
+      hint: "Порядок: malformed, bad-header, unsupported-alg, kid, bad-signature, bad-payload, missing-exp, bad-claim, expired, not-yet-valid."
+    - id: rotation-story
+      title: "Ротация: старые токены доживают, новые подписываются новым ключом (скрытый)"
+      stdin: "3\nk3 a2V5LWFjdGl2ZS14eHh4eHh4eHh4eHh4eHh4eHh4eHh4 active\nk2 a2V5LXJldGlyZWQteXl5eXl5eXl5eXl5eXl5eXl5eXl5 retired\nk1 a2V5LXJldm9rZWQtenp6enp6enp6enp6enp6enp6eno revoked\n1000 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyIn0.eyJleHAiOjE1MDB9.ncmQDtDtTsZWqPmG1n1s0Pfai97aC4Fovm7K5G1rqP0\n1600 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsyIn0.eyJleHAiOjE1MDB9.ncmQDtDtTsZWqPmG1n1s0Pfai97aC4Fovm7K5G1rqP0\n1600 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImszIn0.eyJleHAiOjkwMDB9.5iF6XzruBXOLw93hYlDRHzm112gVnIWpQvUbFJukDW8\n1600 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImsxIn0.eyJleHAiOjkwMDB9.aoM6fNc83Z0XrE78qmudrVBEtlwKtJwu6Jv8wkA5jN0\n"
+      expected: "VALID kid=k2\nREJECT expired\nVALID kid=k3\nREJECT revoked-kid\n"
+      compare: trim
+      hidden: true
+      hint: "Выведенный ключ проверяет подпись, но срок действия никто не отменял: токен k2 после exp просрочен."

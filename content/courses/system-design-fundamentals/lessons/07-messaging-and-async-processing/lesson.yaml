@@ -1,0 +1,336 @@
+id: "system-design.fundamentals.messaging-and-async-processing"
+title: "Очереди и логи сообщений: партиции, группы потребителей, повторные доставки"
+goal: "Отличать очередь сообщений от журнала (лога) с партициями и смещениями, объяснять доставку at-least-once, группы потребителей, обратное давление и очереди недоставленных сообщений."
+difficulty: "hard"
+estimatedMinutes: 100
+prerequisites:
+  - "system-design.fundamentals.consistency-and-idempotency"
+related:
+  - "python.concurrency.concurrency-models"
+  - "os.fundamentals.ipc-and-io"
+  - "python.concurrency.async-sync-primitives"
+next:
+  - "system-design.fundamentals.designing-a-url-shortener"
+seeAlso:
+  - "Outbox-паттерн и транзакционная публикация событий"
+  - "Сжатие журнала по ключу (log compaction) и потоковая обработка с окнами"
+objectives:
+  - "Объяснить, зачем нужна асинхронная обработка, и сравнить очередь (сообщение удаляется после обработки) с журналом (сообщения хранятся, потребитель держит смещение)."
+  - "Описать партиции, ключ партиционирования, порядок внутри партиции и смещения (offsets) в духе Kafka."
+  - "Показать, почему фиксация смещения до и после обработки даёт at-most-once и at-least-once."
+  - "Смоделировать группу потребителей: назначение партиций, ребалансировку и повторную доставку после сбоя."
+  - "Описать обратное давление (back-pressure), повторные попытки и очередь недоставленных сообщений (DLQ)."
+masteryCriteria:
+  - "Вы объясняете, почему порядок гарантируется только внутри партиции и как ключ определяет партицию."
+  - "Вы по описанию сбоя определяете, будут ли потери или дубликаты, в зависимости от момента фиксации смещения."
+  - "Вы объясняете, почему в группе число активных потребителей не больше числа партиций."
+  - "Вы описываете, когда сообщение уходит в DLQ и почему обработчик должен быть идемпотентным."
+tags:
+  - "system-design"
+  - "messaging"
+  - "kafka"
+  - "queues"
+  - "log"
+  - "partitions"
+  - "consumer-groups"
+  - "dlq"
+  - "back-pressure"
+facts:
+  - kind: "internals"
+    text: "В Kafka тема (topic) делится на партиции; каждая партиция - упорядоченный неизменяемый журнал, где сообщение имеет смещение (offset). Порядок гарантируется только внутри партиции. Сообщения с одним ключом по умолчанию попадают в одну партицию."
+    sources:
+      - "https://kafka.apache.org/documentation/#intro_concepts_and_terms"
+  - kind: "internals"
+    text: "Потребители Kafka объединяются в группы: каждая партиция читается ровно одним потребителем группы, а при входе или выходе участника происходит ребалансировка. Смещения фиксируются (commit) группой; после сбоя потребитель продолжает с последнего зафиксированного смещения."
+    sources:
+      - "https://kafka.apache.org/documentation/#intro_consumers"
+  - kind: "internals"
+    text: "Семантика доставки определяется порядком обработки и фиксации смещения: зафиксировать смещение до обработки значит рисковать потерей (at-most-once), после обработки - дубликатами при сбое (at-least-once). Kafka описывает также режим exactly-once внутри Kafka через идемпотентный продюсер и транзакции."
+    sources:
+      - "https://kafka.apache.org/documentation/#design_deliverysemantics"
+  - kind: "real-world"
+    text: "В Amazon SQS стандартная очередь доставляет сообщения минимум один раз, возможны дубликаты и нарушение порядка, поэтому обработчик должен быть идемпотентным. Очередь недоставленных сообщений (DLQ) принимает сообщения, которые не удалось обработать за заданное число попыток."
+    sources:
+      - "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues-at-least-once-delivery.html"
+      - "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html"
+  - kind: "performance"
+    text: "Без ограничения очередь превращает перегрузку в рост задержки и памяти. Отказ части запросов раньше (load shedding) и ограниченные очереди сохраняют предсказуемость сервиса."
+    sources:
+      - "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В чём главное отличие журнала (Kafka-подобного) от классической очереди?"
+      options:
+        - "Сообщения хранятся и могут быть прочитаны повторно; потребитель держит своё смещение"
+        - "Журнал быстрее, потому что не использует диск"
+        - "В журнале нет порядка сообщений"
+        - "Журнал нельзя масштабировать"
+      answer: 0
+      explanation: "В журнале сообщения не удаляются при чтении: разные группы читают независимо, а потребитель может вернуться к более раннему смещению."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Тема имеет 4 партиции, в группе 6 потребителей. Сколько потребителей получат партиции (будут активны)?"
+      answer: 4
+      tolerance: 0
+      explanation: "Партиция читается одним потребителем группы, значит, активных не больше числа партиций. Остальные два простаивают как резерв."
+    - id: "q3"
+      type: "single"
+      prompt: "Потребитель зафиксировал смещение, затем упал при обработке сообщения. Что произойдёт после перезапуска?"
+      options:
+        - "Сообщение будет обработано повторно"
+        - "Сообщение будет потеряно (at-most-once)"
+        - "Все сообщения будут обработаны заново с начала"
+        - "Ничего не изменится"
+      answer: 1
+      explanation: "Смещение уже сдвинуто за сообщение, поэтому после перезапуска чтение начнётся со следующего: сообщение потеряно. Чтобы получить at-least-once, смещение фиксируют после обработки."
+    - id: "q4"
+      type: "single"
+      prompt: "Как гарантировать, что события одного заказа обрабатываются в порядке их создания?"
+      options:
+        - "Использовать id заказа как ключ партиционирования"
+        - "Использовать случайный ключ"
+        - "Увеличить число партиций"
+        - "Ничего не нужно, порядок глобальный"
+      answer: 0
+      explanation: "Сообщения с одним ключом попадают в одну партицию, а порядок гарантируется внутри партиции."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что помогает справиться с перегрузкой в асинхронной системе? Выберите все верные."
+      options:
+        - "Ограниченная очередь и отказ принимать сверх предела (back-pressure)"
+        - "Очередь недоставленных сообщений для «ядовитых» сообщений"
+        - "Идемпотентный обработчик, чтобы повторы были безопасны"
+        - "Бесконечная очередь без ограничений"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Бесконечная очередь не решает перегрузку, а переносит её в рост задержки и памяти. Остальное - стандартные приёмы."
+exercise:
+  id: "system-design.fundamentals.messaging-and-async-processing.exercise"
+  title: "Партиционированный журнал, группа потребителей и повторные доставки"
+  prompt: |
+    Смоделируйте журнал из `P` партиций и одну группу потребителей: назначение партиций, ребалансировку, зафиксированные смещения и повторную доставку после сбоя.
+
+    **Формат ввода.** Первая строка: `P`. Далее команды:
+
+    * `PRODUCE <p> <value>` - добавить сообщение в конец партиции `p` (смещения с `0`);
+    * `JOIN <c>` / `LEAVE <c>` - потребитель `c` вошёл в группу / вышел корректно;
+    * `CRASH <c>` - потребитель `c` упал;
+    * `POLL <c> <n>` - потребитель `c` обрабатывает не более `n` сообщений;
+    * `COMMIT <c>` - потребитель `c` фиксирует свои текущие позиции.
+
+    **Вывод.**
+
+    * `REBALANCE c1=[0,2] c2=[1]` после каждого `JOIN`, `LEAVE` и `CRASH`: потребители по алфавиту, список партиций без пробелов; если в группе никого нет - `REBALANCE -`;
+    * для каждого обработанного сообщения строка `<c> p<p>@<offset> <value>` и суффикс ` REDELIVERY`, если это сообщение уже обрабатывалось ранее;
+    * в конце: `committed p0=<..> p1=<..> ...`, `lag p0=<..> ...` (длина партиции минус зафиксированное смещение) и `processed=<N> redelivered=<R>`.
+
+    **Соглашения симулятора:**
+
+    * Назначение (стратегия round-robin): потребители сортируются по имени; партиция `p` достаётся потребителю с индексом `p mod M` (`M` - число потребителей). Потребителей может быть больше партиций - лишние получают `[]`.
+    * Для каждой партиции есть общее для группы зафиксированное смещение `committed` (изначально `0`) и текущая позиция чтения `position` (следующее смещение для чтения). После ребалансировки позиции всех партиций сбрасываются на `committed`.
+    * **Фиксация при отзыве:** перед ребалансировкой по `JOIN` и `LEAVE` позиции всех назначенных партиций фиксируются (`committed = position`) - так делает корректный клиент. При `CRASH` позиции партиций упавшего потребителя **не** фиксируются: они откатываются к последнему `committed`, а остальные партиции фиксируются как при `JOIN`.
+    * `POLL c n`: потребитель по возрастанию номера своих партиций читает с текущей позиции, сдвигая позицию на 1 за сообщение, пока не обработано `n` сообщений или нет данных; пустая партиция пропускается. `POLL` ничего не фиксирует.
+    * `COMMIT c`: для каждой партиции потребителя `committed = position`.
+    * Сообщение «уже обрабатывалось», если пара (партиция, смещение) уже была выведена ранее любым потребителем.
+    * Время и случайные числа не используются.
+
+    **Пример.** `P = 3`; `PRODUCE 0 a`, `PRODUCE 1 b`, `PRODUCE 2 c`, `PRODUCE 0 d`; `JOIN c1`, `JOIN c2` (`c1=[0,2] c2=[1]`); `POLL c1 2` даёт `p0@0 a` и `p0@1 d`; `COMMIT c1`; `POLL c1 2` даёт `p2@0 c`; `CRASH c1` откатывает `p2` к `committed = 0`, и `c2` получает все партиции; `POLL c2 10` читает `p1@0 b` и `p2@0 c REDELIVERY`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Состояние: log[p] - список значений; committed[p] и position[p] - числа; members - отсортированный список имён; assign - словарь потребитель -> список партиций; done - множество уже обработанных пар (p, offset)."
+    - "Функция rebalance(): сначала зафиксируйте позиции партиций, у которых есть владелец (committed[p] = position[p]), потом пересчитайте assign как {c: [p for p in range(P) if p % M == i]} и сбросьте position[p] = committed[p] для всех p. Печать REBALANCE делайте в конце."
+    - "CRASH: у упавшего потребителя для каждой его партиции position[p] = committed[p] (убрать из assign и members) до вызова rebalance, чтобы его незафиксированный прогресс не был сохранён. POLL: цикл по assign[c] по возрастанию, пока бюджет n не исчерпан и position[p] < len(log[p])."
+    - "Проверка вручную по примеру: после CRASH c1 у p2 committed = 0 (в COMMIT c1 попали только p0=2), поэтому c2 прочитает p2@0 c повторно. На выходе committed p0=2 p1=1 p2=1, processed=5 redelivered=1."
+  tests:
+    - id: "sample"
+      title: "Пример из условия: сбой потребителя и повторная доставка"
+      stdin: |
+        3
+        PRODUCE 0 a
+        PRODUCE 1 b
+        PRODUCE 2 c
+        PRODUCE 0 d
+        JOIN c1
+        JOIN c2
+        POLL c1 2
+        COMMIT c1
+        POLL c1 2
+        CRASH c1
+        POLL c2 10
+        LEAVE c2
+      expected: |
+        REBALANCE c1=[0,1,2]
+        REBALANCE c1=[0,2] c2=[1]
+        c1 p0@0 a
+        c1 p0@1 d
+        c1 p2@0 c
+        REBALANCE c2=[0,1,2]
+        c2 p1@0 b
+        c2 p2@0 c REDELIVERY
+        REBALANCE -
+        committed p0=2 p1=1 p2=1
+        lag p0=0 p1=0 p2=0
+        processed=5 redelivered=1
+      compare: "trim"
+      hint: "Ожидается ровно одна повторная доставка p2@0 после CRASH c1: committed для p2 равен 0."
+    - id: "graceful-rebalance"
+      title: "JOIN фиксирует позиции: повторных доставок нет"
+      stdin: |
+        2
+        PRODUCE 0 a
+        PRODUCE 0 b
+        PRODUCE 1 c
+        PRODUCE 1 d
+        JOIN x
+        POLL x 3
+        JOIN y
+        POLL x 5
+        POLL y 5
+        LEAVE x
+        POLL y 5
+      expected: |
+        REBALANCE x=[0,1]
+        x p0@0 a
+        x p0@1 b
+        x p1@0 c
+        REBALANCE x=[0] y=[1]
+        y p1@1 d
+        REBALANCE y=[0,1]
+        committed p0=2 p1=2
+        lag p0=0 p1=0
+        processed=4 redelivered=0
+      compare: "trim"
+      hint: "При JOIN позиции фиксируются, поэтому после ребалансировки новые владельцы продолжают с места, где остановился предыдущий, без REDELIVERY."
+    - id: "crash-no-commit"
+      title: "Сбой без COMMIT: всё прочитанное обрабатывается заново"
+      stdin: |
+        2
+        PRODUCE 0 m0
+        PRODUCE 0 m1
+        PRODUCE 1 n0
+        PRODUCE 1 n1
+        JOIN a
+        JOIN b
+        POLL a 2
+        POLL b 2
+        CRASH a
+        POLL b 10
+      expected: |
+        REBALANCE a=[0,1]
+        REBALANCE a=[0] b=[1]
+        a p0@0 m0
+        a p0@1 m1
+        b p1@0 n0
+        b p1@1 n1
+        REBALANCE b=[0,1]
+        b p0@0 m0 REDELIVERY
+        b p0@1 m1 REDELIVERY
+        committed p0=0 p1=2
+        lag p0=2 p1=0
+        processed=6 redelivered=2
+      compare: "trim"
+      hidden: true
+      hint: "Если COMMIT не вызывался, committed остаётся 0, и после CRASH оставшийся потребитель повторно обработает всё, что прочитал упавший."
+    - id: "more-consumers-than-partitions"
+      title: "Потребителей больше, чем партиций"
+      stdin: |
+        2
+        PRODUCE 0 a
+        PRODUCE 1 b
+        JOIN c1
+        JOIN c2
+        JOIN c3
+        POLL c3 5
+        POLL c1 5
+        POLL c2 5
+        LEAVE c1
+        PRODUCE 0 z
+        POLL c3 5
+        POLL c2 5
+      expected: |
+        REBALANCE c1=[0,1]
+        REBALANCE c1=[0] c2=[1]
+        REBALANCE c1=[0] c2=[1] c3=[]
+        c1 p0@0 a
+        c2 p1@0 b
+        REBALANCE c2=[0] c3=[1]
+        c2 p0@1 z
+        committed p0=1 p1=1
+        lag p0=1 p1=0
+        processed=3 redelivered=0
+      compare: "trim"
+      hidden: true
+      hint: "Партиций 2, потребителей 3: третий получает []. При выходе одного из активных его партиция переходит по формуле p mod M."
+    - id: "backpressure-budget"
+      title: "Бюджет POLL ограничивает обработку, остаток виден как lag"
+      stdin: |
+        1
+        PRODUCE 0 a
+        PRODUCE 0 b
+        PRODUCE 0 c
+        PRODUCE 0 d
+        PRODUCE 0 e
+        JOIN w
+        POLL w 2
+        COMMIT w
+        POLL w 2
+        LEAVE w
+        JOIN w2
+        POLL w2 5
+      expected: |
+        REBALANCE w=[0]
+        w p0@0 a
+        w p0@1 b
+        w p0@2 c
+        w p0@3 d
+        REBALANCE -
+        REBALANCE w2=[0]
+        w2 p0@4 e
+        committed p0=4
+        lag p0=1
+        processed=5 redelivered=0
+      compare: "trim"
+      hidden: true
+      hint: "POLL c 2 читает не более двух сообщений; необработанные остаются в lag, пока их не зафиксируют после чтения."
+    - id: "empty-group"
+      title: "Пустая группа, затем возвращение потребителя"
+      stdin: |
+        2
+        PRODUCE 0 a
+        PRODUCE 1 b
+        PRODUCE 1 c
+        JOIN u
+        POLL u 2
+        LEAVE u
+        PRODUCE 0 d
+        JOIN u
+        POLL u 10
+        CRASH u
+        JOIN v
+        POLL v 10
+      expected: |
+        REBALANCE u=[0,1]
+        u p0@0 a
+        u p1@0 b
+        REBALANCE -
+        REBALANCE u=[0,1]
+        u p0@1 d
+        u p1@1 c
+        REBALANCE -
+        REBALANCE v=[0,1]
+        v p0@1 d REDELIVERY
+        v p1@1 c REDELIVERY
+        committed p0=1 p1=1
+        lag p0=1 p1=1
+        processed=6 redelivered=2
+      compare: "trim"
+      hidden: true
+      hint: "После LEAVE последнего потребителя печатается REBALANCE -. LEAVE фиксирует позиции, поэтому вернувшийся потребитель продолжает с committed без повторов."

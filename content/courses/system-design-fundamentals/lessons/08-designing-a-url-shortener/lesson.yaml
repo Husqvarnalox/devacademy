@@ -1,0 +1,630 @@
+id: "system-design.fundamentals.designing-a-url-shortener"
+title: "Проектирование сервиса коротких ссылок"
+goal: "Пройти полный цикл проектирования на примере сокращателя ссылок: требования, оценка, API, кодирование base62, генерация идентификаторов и обработка коллизий, хранилище, кеш и путь масштабирования."
+difficulty: "hard"
+estimatedMinutes: 110
+prerequisites:
+  - "system-design.fundamentals.messaging-and-async-processing"
+related:
+  - "databases.sql.indexes-and-query-plans"
+  - "networking.fundamentals.http-evolution"
+  - "networking.fundamentals.udp-and-dns"
+next: []
+seeAlso:
+  - "Распределённые генераторы идентификаторов (Snowflake-подобные схемы)"
+  - "Защита от злоупотреблений: проверка ссылок и ограничение создания"
+objectives:
+  - "Собрать функциональные и нефункциональные требования сервиса и оценить нагрузку и объём хранилища по правилам из первого урока."
+  - "Спроектировать API: создание, редирект (301 или 302), удаление и срок жизни."
+  - "Реализовать кодирование и декодирование base62 и объяснить, сколько ссылок покрывает код длины L."
+  - "Сравнить генерацию кода счётчиком и хешем: уникальность, предсказуемость, коллизии и их обработка."
+  - "Показать, как кеш, чтение с реплик, партиционирование и асинхронная аналитика встраиваются в дизайн."
+masteryCriteria:
+  - "Вы называете соотношение чтений и записей и выводите из него, где нужен кеш."
+  - "Вы считаете, какой длины код нужен для заданного числа ссылок, и проверяете это арифметикой."
+  - "Вы объясняете, почему хеш требует обработки коллизий, а счётчик требует координации."
+  - "Вы выбираете между 301 и 302 с учётом кеширования браузером и аналитики."
+tags:
+  - "system-design"
+  - "url-shortener"
+  - "base62"
+  - "hashing"
+  - "collisions"
+  - "caching"
+  - "api-design"
+  - "case-study"
+facts:
+  - kind: "internals"
+    text: "Код 301 Moved Permanently означает постоянное перенаправление и по умолчанию может кешироваться клиентами; 302 Found - временное. Для сокращателя с аналитикой переходов чаще выбирают 302, чтобы каждый запрос доходил до сервиса."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/301"
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302"
+  - kind: "internals"
+    text: "RFC 3986 определяет «незарезервированные» символы URI: буквы ASCII, цифры и - . _ ~. Алфавит base62 из цифр и латинских букв целиком состоит из таких символов и безопасен в пути URL без процентного кодирования."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc3986#section-2.3"
+  - kind: "real-world"
+    text: "Семантика методов и кодов перенаправления (301, 302, 307, 308) определяется RFC 9110: 307 и 308 сохраняют метод запроса, 301 и 302 исторически допускают его замену на GET."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9110#section-15.4"
+  - kind: "performance"
+    text: "Число кодов длины L над алфавитом из 62 символов равно 62^L: 62^6 около 5,7 * 10^10, 62^7 около 3,5 * 10^12. Поэтому семи символов хватает для триллионов ссылок."
+    sources:
+      - "https://en.wikipedia.org/wiki/Base62"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: "Сколько различных кодов длины 4 можно составить из алфавита base62? Ответ округлите до целого числа миллионов."
+      answer: 15
+      tolerance: 0.5
+      explanation: "62^4 = 14 776 336, то есть около 15 миллионов."
+    - id: "q2"
+      type: "single"
+      prompt: "Какое главное свойство нагрузки сокращателя ссылок определяет архитектуру?"
+      options:
+        - "Чтений (переходов) на порядки больше, чем записей"
+        - "Записей больше, чем чтений"
+        - "Все ссылки читаются равномерно"
+        - "Нагрузка не зависит от времени"
+      answer: 0
+      explanation: "Соотношение чтения и записи сильно смещено в чтение, поэтому оправдан кеш, а запись можно держать простой."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему при генерации кода по хешу нужна обработка коллизий?"
+      options:
+        - "Разные URL могут получить один и тот же сокращённый код"
+        - "MD5 нельзя вычислить для URL"
+        - "Хеш всегда длиннее 7 символов"
+        - "Коллизий не бывает при любой длине"
+      answer: 0
+      explanation: "Код получается урезанием хеша до L символов, пространство конечно (62^L), поэтому совпадения неизбежны и растут с заполнением."
+    - id: "q4"
+      type: "single"
+      prompt: "Чем неудобен один глобальный счётчик как источник идентификаторов?"
+      options:
+        - "Это точка координации и единая точка отказа, а коды предсказуемы"
+        - "Он создаёт коллизии"
+        - "Он не работает с base62"
+        - "Он не позволяет хранить ссылки"
+      answer: 0
+      explanation: "Счётчик гарантирует уникальность без коллизий, но требует координации между узлами (например, выдачи диапазонов), а последовательные коды легко перебрать."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что разумно вынести из синхронного пути редиректа? Выберите все верные."
+      options:
+        - "Запись события клика в очередь для аналитики"
+        - "Чтение кода из кеша перед обращением к базе"
+        - "Подсчёт статистики прямо в запросе с блокировкой"
+        - "Обновление счётчика переходов с блокировкой строки"
+      answer:
+        - 0
+        - 1
+      explanation: "Редирект должен быть быстрым: чтение идёт через кеш, а аналитика - асинхронно через очередь. Блокирующие обновления на горячем пути создают узкое место."
+exercise:
+  id: "system-design.fundamentals.designing-a-url-shortener.exercise"
+  title: "Base62 и сокращатель с обработкой коллизий"
+  prompt: |
+    Реализуйте ядро сокращателя ссылок: кодирование base62 и генерацию кодов в одном из двух режимов.
+
+    **Формат ввода.** Первая строка задаёт режим: `counter <START>` или `hash <LEN>`. Далее команды (аргумент один, без пробелов):
+
+    * `ENCODE <n>` - вывести `ENCODE <n> <код>`;
+    * `DECODE <код>` - вывести `DECODE <код> <n>`;
+    * `SHORTEN <url>` - создать короткий код;
+    * `RESOLVE <код>` - вывести `RESOLVE <код> <url>` или `RESOLVE <код> NOT_FOUND`.
+
+    **Вывод `SHORTEN`.** Если URL уже сокращался, `SHORTEN <url> <код> existing`; иначе `SHORTEN <url> <код> attempts=<k>`, где `k` - число проверенных кандидатов. В конце: `urls=<число URL> collisions=<число отвергнутых кандидатов>`.
+
+    **Соглашения симулятора:**
+
+    * Алфавит base62 по порядку: `0-9`, затем `A-Z`, затем `a-z` (значение `0` - символ `0`, `10` - `A`, `36` - `a`, `61` - `z`). `ENCODE 0` даёт `0`, прочие числа кодируются без ведущих нулей: `ENCODE 62` - `10`.
+    * **Режим `counter START`:** счётчик начинается со `START` и растёт на 1 при каждом новом URL; код - `ENCODE(счётчик)`. Коллизий нет, `attempts=1`. Для уже известного URL счётчик не расходуется.
+    * **Режим `hash LEN`:** кандидат для попытки `a` (с `0`): берём строку `s = url` при `a = 0` и `s = url + "#" + a` при `a > 0`; `d = int(md5(s в UTF-8).hexdigest(), 16)`; код - `ENCODE(d mod 62^LEN)`, дополненный слева символами `0` до длины `LEN`. Если код уже занят другим URL, это коллизия: `collisions` увеличивается на 1, пробуется следующая попытка.
+    * Одинаковые URL получают тот же код (`existing`), хранилище только растёт, удалений нет.
+    * Случайные числа и время не используются.
+
+    **Пример.** Режим `counter 125`: `SHORTEN http://a.com` даёт код `21` (`125 = 2*62 + 1`) и `attempts=1`; `ENCODE 3843` - `zz`; `DECODE zz` - `3843`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "ENCODE: пока n > 0, берите divmod(n, 62) и добавляйте ALPHABET[остаток]; в конце переверните строку. Отдельно обработайте n = 0."
+    - "DECODE - свёртка: n = n * 62 + ALPHABET.index(ch) по символам слева направо. Проверьте обратимость: decode(encode(n)) == n."
+    - "hash_code: s = url если attempt == 0, иначе f\"{url}#{attempt}\"; digest = int(hashlib.md5(s.encode()).hexdigest(), 16); код = encode(digest % 62**length).rjust(length, \"0\")."
+    - "Храните два словаря: by_code и by_url. В режиме hash пробуйте попытки 0, 1, 2, ... пока код не окажется свободным; каждую занятую считайте в collisions. Проверка вручную: counter 125 -> \"21\", ENCODE 3843 -> \"zz\"."
+  tests:
+    - id: "sample"
+      title: "Пример из условия: режим counter"
+      stdin: |
+        counter 125
+        SHORTEN http://a.com
+        ENCODE 3843
+        DECODE zz
+      expected: |
+        SHORTEN http://a.com 21 attempts=1
+        ENCODE 3843 zz
+        DECODE zz 3843
+        urls=1 collisions=0
+      compare: "trim"
+      hint: "125 = 2*62 + 1, значит код \"21\"; 3843 = 61*62 + 61, значит \"zz\"."
+    - id: "counter-resolve"
+      title: "counter: повторный URL не расходует счётчик, RESOLVE"
+      stdin: |
+        counter 61
+        SHORTEN http://x.org/a
+        SHORTEN http://x.org/b
+        SHORTEN http://x.org/a
+        SHORTEN http://x.org/c
+        RESOLVE z
+        RESOLVE 10
+        RESOLVE 11
+        RESOLVE nope
+      expected: |
+        SHORTEN http://x.org/a z attempts=1
+        SHORTEN http://x.org/b 10 attempts=1
+        SHORTEN http://x.org/a z existing
+        SHORTEN http://x.org/c 11 attempts=1
+        RESOLVE z http://x.org/a
+        RESOLVE 10 http://x.org/b
+        RESOLVE 11 http://x.org/c
+        RESOLVE nope NOT_FOUND
+        urls=3 collisions=0
+      compare: "trim"
+      hint: "Для повторного URL выведите existing и не увеличивайте счётчик; RESOLVE неизвестного кода даёт NOT_FOUND."
+    - id: "encode-decode"
+      title: "ENCODE и DECODE: границы разрядов"
+      stdin: |
+        counter 0
+        ENCODE 0
+        ENCODE 9
+        ENCODE 10
+        ENCODE 35
+        ENCODE 36
+        ENCODE 61
+        ENCODE 62
+        ENCODE 3844
+        ENCODE 1000000
+        DECODE 100
+        DECODE zzz
+        DECODE 4c92
+      expected: |
+        ENCODE 0 0
+        ENCODE 9 9
+        ENCODE 10 A
+        ENCODE 35 Z
+        ENCODE 36 a
+        ENCODE 61 z
+        ENCODE 62 10
+        ENCODE 3844 100
+        ENCODE 1000000 4C92
+        DECODE 100 3844
+        DECODE zzz 238327
+        DECODE 4c92 1099944
+        urls=0 collisions=0
+      compare: "trim"
+      hidden: true
+      hint: "Границы: 0 -> 0, 9 -> 9, 10 -> A, 61 -> z, 62 -> 10, 3844 -> 100."
+    - id: "hash-basic"
+      title: "hash LEN=6: коды фиксированной длины, existing, RESOLVE"
+      stdin: |
+        hash 6
+        SHORTEN http://e.com/1
+        SHORTEN http://e.com/2
+        SHORTEN http://e.com/1
+        RESOLVE nothere
+        SHORTEN https://example.org/a/b?c=d
+      expected: |
+        SHORTEN http://e.com/1 I1ec0S attempts=1
+        SHORTEN http://e.com/2 iqXNIi attempts=1
+        SHORTEN http://e.com/1 I1ec0S existing
+        RESOLVE nothere NOT_FOUND
+        SHORTEN https://example.org/a/b?c=d JtDmtU attempts=1
+        urls=3 collisions=0
+      compare: "trim"
+      hidden: true
+      hint: "Код дополняется нулями слева до LEN. Одинаковые URL повторно дают existing."
+    - id: "hash-collisions-len1"
+      title: "hash LEN=1: заполнение пространства порождает коллизии"
+      stdin: |
+        hash 1
+        SHORTEN http://e.com/1
+        SHORTEN http://e.com/2
+        SHORTEN http://e.com/3
+        SHORTEN http://e.com/4
+        SHORTEN http://e.com/5
+        SHORTEN http://e.com/6
+        SHORTEN http://e.com/7
+        SHORTEN http://e.com/8
+        SHORTEN http://e.com/9
+        SHORTEN http://e.com/10
+        SHORTEN http://e.com/11
+        SHORTEN http://e.com/12
+        SHORTEN http://e.com/13
+        SHORTEN http://e.com/14
+        SHORTEN http://e.com/15
+        SHORTEN http://e.com/16
+        SHORTEN http://e.com/17
+        SHORTEN http://e.com/18
+        SHORTEN http://e.com/19
+        SHORTEN http://e.com/20
+        SHORTEN http://e.com/21
+        SHORTEN http://e.com/22
+        SHORTEN http://e.com/23
+        SHORTEN http://e.com/24
+        SHORTEN http://e.com/25
+        SHORTEN http://e.com/26
+        SHORTEN http://e.com/27
+        SHORTEN http://e.com/28
+        SHORTEN http://e.com/29
+        SHORTEN http://e.com/30
+        SHORTEN http://e.com/31
+        SHORTEN http://e.com/32
+        SHORTEN http://e.com/33
+        SHORTEN http://e.com/34
+        SHORTEN http://e.com/35
+        SHORTEN http://e.com/36
+        SHORTEN http://e.com/37
+        SHORTEN http://e.com/38
+        SHORTEN http://e.com/39
+        SHORTEN http://e.com/40
+        RESOLVE 0
+        RESOLVE z
+      expected: |
+        SHORTEN http://e.com/1 S attempts=1
+        SHORTEN http://e.com/2 i attempts=1
+        SHORTEN http://e.com/3 N attempts=1
+        SHORTEN http://e.com/4 B attempts=1
+        SHORTEN http://e.com/5 Q attempts=1
+        SHORTEN http://e.com/6 g attempts=1
+        SHORTEN http://e.com/7 D attempts=1
+        SHORTEN http://e.com/8 9 attempts=1
+        SHORTEN http://e.com/9 c attempts=1
+        SHORTEN http://e.com/10 L attempts=1
+        SHORTEN http://e.com/11 z attempts=2
+        SHORTEN http://e.com/12 4 attempts=1
+        SHORTEN http://e.com/13 Z attempts=1
+        SHORTEN http://e.com/14 0 attempts=3
+        SHORTEN http://e.com/15 6 attempts=1
+        SHORTEN http://e.com/16 u attempts=2
+        SHORTEN http://e.com/17 y attempts=2
+        SHORTEN http://e.com/18 5 attempts=1
+        SHORTEN http://e.com/19 1 attempts=2
+        SHORTEN http://e.com/20 K attempts=1
+        SHORTEN http://e.com/21 F attempts=2
+        SHORTEN http://e.com/22 s attempts=2
+        SHORTEN http://e.com/23 t attempts=2
+        SHORTEN http://e.com/24 k attempts=3
+        SHORTEN http://e.com/25 o attempts=1
+        SHORTEN http://e.com/26 X attempts=1
+        SHORTEN http://e.com/27 H attempts=5
+        SHORTEN http://e.com/28 A attempts=1
+        SHORTEN http://e.com/29 a attempts=3
+        SHORTEN http://e.com/30 T attempts=1
+        SHORTEN http://e.com/31 R attempts=1
+        SHORTEN http://e.com/32 3 attempts=1
+        SHORTEN http://e.com/33 I attempts=3
+        SHORTEN http://e.com/34 Y attempts=1
+        SHORTEN http://e.com/35 O attempts=2
+        SHORTEN http://e.com/36 h attempts=2
+        SHORTEN http://e.com/37 x attempts=1
+        SHORTEN http://e.com/38 r attempts=5
+        SHORTEN http://e.com/39 U attempts=2
+        SHORTEN http://e.com/40 J attempts=4
+        RESOLVE 0 http://e.com/14
+        RESOLVE z http://e.com/11
+        urls=40 collisions=29
+      compare: "trim"
+      hidden: true
+      hint: "При занятом коде пробуйте url#1, url#2, ... и считайте каждую занятую попытку в collisions."
+    - id: "hash-collisions-len2"
+      title: "hash LEN=2: мало коллизий, проверка attempts"
+      stdin: |
+        hash 2
+        SHORTEN http://e.com/1
+        SHORTEN http://e.com/2
+        SHORTEN http://e.com/3
+        SHORTEN http://e.com/4
+        SHORTEN http://e.com/5
+        SHORTEN http://e.com/6
+        SHORTEN http://e.com/7
+        SHORTEN http://e.com/8
+        SHORTEN http://e.com/9
+        SHORTEN http://e.com/10
+        SHORTEN http://e.com/11
+        SHORTEN http://e.com/12
+        SHORTEN http://e.com/13
+        SHORTEN http://e.com/14
+        SHORTEN http://e.com/15
+        SHORTEN http://e.com/16
+        SHORTEN http://e.com/17
+        SHORTEN http://e.com/18
+        SHORTEN http://e.com/19
+        SHORTEN http://e.com/20
+        SHORTEN http://e.com/21
+        SHORTEN http://e.com/22
+        SHORTEN http://e.com/23
+        SHORTEN http://e.com/24
+        SHORTEN http://e.com/25
+        SHORTEN http://e.com/26
+        SHORTEN http://e.com/27
+        SHORTEN http://e.com/28
+        SHORTEN http://e.com/29
+        SHORTEN http://e.com/30
+        SHORTEN http://e.com/31
+        SHORTEN http://e.com/32
+        SHORTEN http://e.com/33
+        SHORTEN http://e.com/34
+        SHORTEN http://e.com/35
+        SHORTEN http://e.com/36
+        SHORTEN http://e.com/37
+        SHORTEN http://e.com/38
+        SHORTEN http://e.com/39
+        SHORTEN http://e.com/40
+        SHORTEN http://e.com/41
+        SHORTEN http://e.com/42
+        SHORTEN http://e.com/43
+        SHORTEN http://e.com/44
+        SHORTEN http://e.com/45
+        SHORTEN http://e.com/46
+        SHORTEN http://e.com/47
+        SHORTEN http://e.com/48
+        SHORTEN http://e.com/49
+        SHORTEN http://e.com/50
+        SHORTEN http://e.com/51
+        SHORTEN http://e.com/52
+        SHORTEN http://e.com/53
+        SHORTEN http://e.com/54
+        SHORTEN http://e.com/55
+        SHORTEN http://e.com/56
+        SHORTEN http://e.com/57
+        SHORTEN http://e.com/58
+        SHORTEN http://e.com/59
+        SHORTEN http://e.com/60
+        SHORTEN http://e.com/61
+        SHORTEN http://e.com/62
+        SHORTEN http://e.com/63
+        SHORTEN http://e.com/64
+        SHORTEN http://e.com/65
+        SHORTEN http://e.com/66
+        SHORTEN http://e.com/67
+        SHORTEN http://e.com/68
+        SHORTEN http://e.com/69
+        SHORTEN http://e.com/70
+        SHORTEN http://e.com/71
+        SHORTEN http://e.com/72
+        SHORTEN http://e.com/73
+        SHORTEN http://e.com/74
+        SHORTEN http://e.com/75
+        SHORTEN http://e.com/76
+        SHORTEN http://e.com/77
+        SHORTEN http://e.com/78
+        SHORTEN http://e.com/79
+        SHORTEN http://e.com/80
+        SHORTEN http://e.com/81
+        SHORTEN http://e.com/82
+        SHORTEN http://e.com/83
+        SHORTEN http://e.com/84
+        SHORTEN http://e.com/85
+        SHORTEN http://e.com/86
+        SHORTEN http://e.com/87
+        SHORTEN http://e.com/88
+        SHORTEN http://e.com/89
+        SHORTEN http://e.com/90
+        SHORTEN http://e.com/91
+        SHORTEN http://e.com/92
+        SHORTEN http://e.com/93
+        SHORTEN http://e.com/94
+        SHORTEN http://e.com/95
+        SHORTEN http://e.com/96
+        SHORTEN http://e.com/97
+        SHORTEN http://e.com/98
+        SHORTEN http://e.com/99
+        SHORTEN http://e.com/100
+        SHORTEN http://e.com/101
+        SHORTEN http://e.com/102
+        SHORTEN http://e.com/103
+        SHORTEN http://e.com/104
+        SHORTEN http://e.com/105
+        SHORTEN http://e.com/106
+        SHORTEN http://e.com/107
+        SHORTEN http://e.com/108
+        SHORTEN http://e.com/109
+        SHORTEN http://e.com/110
+        SHORTEN http://e.com/111
+        SHORTEN http://e.com/112
+        SHORTEN http://e.com/113
+        SHORTEN http://e.com/114
+        SHORTEN http://e.com/115
+        SHORTEN http://e.com/116
+        SHORTEN http://e.com/117
+        SHORTEN http://e.com/118
+        SHORTEN http://e.com/119
+        SHORTEN http://e.com/120
+        SHORTEN http://e.com/121
+        SHORTEN http://e.com/122
+        SHORTEN http://e.com/123
+        SHORTEN http://e.com/124
+        SHORTEN http://e.com/125
+        SHORTEN http://e.com/126
+        SHORTEN http://e.com/127
+        SHORTEN http://e.com/128
+        SHORTEN http://e.com/129
+        SHORTEN http://e.com/130
+        SHORTEN http://e.com/131
+        SHORTEN http://e.com/132
+        SHORTEN http://e.com/133
+        SHORTEN http://e.com/134
+        SHORTEN http://e.com/135
+        SHORTEN http://e.com/136
+        SHORTEN http://e.com/137
+        SHORTEN http://e.com/138
+        SHORTEN http://e.com/139
+        SHORTEN http://e.com/140
+        SHORTEN http://e.com/141
+        SHORTEN http://e.com/142
+        SHORTEN http://e.com/143
+        SHORTEN http://e.com/144
+        SHORTEN http://e.com/145
+        SHORTEN http://e.com/146
+        SHORTEN http://e.com/147
+        SHORTEN http://e.com/148
+        SHORTEN http://e.com/149
+        SHORTEN http://e.com/150
+      expected: |
+        SHORTEN http://e.com/1 0S attempts=1
+        SHORTEN http://e.com/2 Ii attempts=1
+        SHORTEN http://e.com/3 xN attempts=1
+        SHORTEN http://e.com/4 jB attempts=1
+        SHORTEN http://e.com/5 yQ attempts=1
+        SHORTEN http://e.com/6 9g attempts=1
+        SHORTEN http://e.com/7 SD attempts=1
+        SHORTEN http://e.com/8 u9 attempts=1
+        SHORTEN http://e.com/9 Vc attempts=1
+        SHORTEN http://e.com/10 2L attempts=1
+        SHORTEN http://e.com/11 oS attempts=1
+        SHORTEN http://e.com/12 I4 attempts=1
+        SHORTEN http://e.com/13 BZ attempts=1
+        SHORTEN http://e.com/14 pB attempts=1
+        SHORTEN http://e.com/15 K6 attempts=1
+        SHORTEN http://e.com/16 WQ attempts=1
+        SHORTEN http://e.com/17 E4 attempts=1
+        SHORTEN http://e.com/18 45 attempts=1
+        SHORTEN http://e.com/19 jc attempts=1
+        SHORTEN http://e.com/20 EK attempts=1
+        SHORTEN http://e.com/21 FB attempts=1
+        SHORTEN http://e.com/22 AK attempts=1
+        SHORTEN http://e.com/23 TZ attempts=1
+        SHORTEN http://e.com/24 8t attempts=1
+        SHORTEN http://e.com/25 Jo attempts=1
+        SHORTEN http://e.com/26 sX attempts=1
+        SHORTEN http://e.com/27 Is attempts=1
+        SHORTEN http://e.com/28 0A attempts=1
+        SHORTEN http://e.com/29 ck attempts=1
+        SHORTEN http://e.com/30 YT attempts=1
+        SHORTEN http://e.com/31 IR attempts=1
+        SHORTEN http://e.com/32 z3 attempts=1
+        SHORTEN http://e.com/33 kA attempts=1
+        SHORTEN http://e.com/34 aY attempts=1
+        SHORTEN http://e.com/35 RL attempts=1
+        SHORTEN http://e.com/36 7R attempts=1
+        SHORTEN http://e.com/37 Tx attempts=1
+        SHORTEN http://e.com/38 CO attempts=1
+        SHORTEN http://e.com/39 4c attempts=1
+        SHORTEN http://e.com/40 Wr attempts=1
+        SHORTEN http://e.com/41 FR attempts=1
+        SHORTEN http://e.com/42 fz attempts=1
+        SHORTEN http://e.com/43 v3 attempts=1
+        SHORTEN http://e.com/44 zb attempts=1
+        SHORTEN http://e.com/45 TJ attempts=1
+        SHORTEN http://e.com/46 cO attempts=1
+        SHORTEN http://e.com/47 5L attempts=1
+        SHORTEN http://e.com/48 sm attempts=1
+        SHORTEN http://e.com/49 DT attempts=1
+        SHORTEN http://e.com/50 H0 attempts=1
+        SHORTEN http://e.com/51 Nl attempts=1
+        SHORTEN http://e.com/52 FD attempts=1
+        SHORTEN http://e.com/53 rr attempts=1
+        SHORTEN http://e.com/54 Qy attempts=1
+        SHORTEN http://e.com/55 zo attempts=1
+        SHORTEN http://e.com/56 QC attempts=1
+        SHORTEN http://e.com/57 W8 attempts=1
+        SHORTEN http://e.com/58 r5 attempts=1
+        SHORTEN http://e.com/59 Y2 attempts=1
+        SHORTEN http://e.com/60 ZW attempts=1
+        SHORTEN http://e.com/61 4K attempts=1
+        SHORTEN http://e.com/62 sQ attempts=1
+        SHORTEN http://e.com/63 bh attempts=1
+        SHORTEN http://e.com/64 sw attempts=1
+        SHORTEN http://e.com/65 9P attempts=1
+        SHORTEN http://e.com/66 Nu attempts=1
+        SHORTEN http://e.com/67 4E attempts=1
+        SHORTEN http://e.com/68 zH attempts=1
+        SHORTEN http://e.com/69 lf attempts=1
+        SHORTEN http://e.com/70 cF attempts=1
+        SHORTEN http://e.com/71 Da attempts=1
+        SHORTEN http://e.com/72 Fv attempts=1
+        SHORTEN http://e.com/73 4g attempts=1
+        SHORTEN http://e.com/74 Os attempts=1
+        SHORTEN http://e.com/75 DV attempts=1
+        SHORTEN http://e.com/76 Bh attempts=1
+        SHORTEN http://e.com/77 8m attempts=1
+        SHORTEN http://e.com/78 1R attempts=1
+        SHORTEN http://e.com/79 bI attempts=1
+        SHORTEN http://e.com/80 5s attempts=1
+        SHORTEN http://e.com/81 Tz attempts=1
+        SHORTEN http://e.com/82 dK attempts=1
+        SHORTEN http://e.com/83 Ah attempts=1
+        SHORTEN http://e.com/84 7t attempts=1
+        SHORTEN http://e.com/85 Hm attempts=1
+        SHORTEN http://e.com/86 Sj attempts=1
+        SHORTEN http://e.com/87 zM attempts=1
+        SHORTEN http://e.com/88 NM attempts=1
+        SHORTEN http://e.com/89 C1 attempts=1
+        SHORTEN http://e.com/90 QE attempts=1
+        SHORTEN http://e.com/91 tU attempts=1
+        SHORTEN http://e.com/92 U4 attempts=1
+        SHORTEN http://e.com/93 Oj attempts=1
+        SHORTEN http://e.com/94 aw attempts=1
+        SHORTEN http://e.com/95 dq attempts=1
+        SHORTEN http://e.com/96 K5 attempts=1
+        SHORTEN http://e.com/97 Pu attempts=1
+        SHORTEN http://e.com/98 st attempts=1
+        SHORTEN http://e.com/99 yn attempts=1
+        SHORTEN http://e.com/100 mp attempts=1
+        SHORTEN http://e.com/101 lm attempts=1
+        SHORTEN http://e.com/102 bJ attempts=1
+        SHORTEN http://e.com/103 4x attempts=1
+        SHORTEN http://e.com/104 52 attempts=1
+        SHORTEN http://e.com/105 Ue attempts=1
+        SHORTEN http://e.com/106 9I attempts=1
+        SHORTEN http://e.com/107 X0 attempts=1
+        SHORTEN http://e.com/108 mK attempts=1
+        SHORTEN http://e.com/109 YG attempts=1
+        SHORTEN http://e.com/110 9X attempts=2
+        SHORTEN http://e.com/111 XB attempts=1
+        SHORTEN http://e.com/112 dL attempts=1
+        SHORTEN http://e.com/113 2h attempts=1
+        SHORTEN http://e.com/114 Di attempts=1
+        SHORTEN http://e.com/115 jS attempts=1
+        SHORTEN http://e.com/116 Ex attempts=1
+        SHORTEN http://e.com/117 DI attempts=1
+        SHORTEN http://e.com/118 CE attempts=1
+        SHORTEN http://e.com/119 PR attempts=1
+        SHORTEN http://e.com/120 cv attempts=1
+        SHORTEN http://e.com/121 rH attempts=1
+        SHORTEN http://e.com/122 qG attempts=1
+        SHORTEN http://e.com/123 dJ attempts=1
+        SHORTEN http://e.com/124 85 attempts=1
+        SHORTEN http://e.com/125 Ua attempts=1
+        SHORTEN http://e.com/126 qU attempts=1
+        SHORTEN http://e.com/127 1Y attempts=1
+        SHORTEN http://e.com/128 vC attempts=1
+        SHORTEN http://e.com/129 Zl attempts=1
+        SHORTEN http://e.com/130 nb attempts=1
+        SHORTEN http://e.com/131 v7 attempts=1
+        SHORTEN http://e.com/132 ut attempts=1
+        SHORTEN http://e.com/133 kb attempts=1
+        SHORTEN http://e.com/134 Yo attempts=1
+        SHORTEN http://e.com/135 WD attempts=1
+        SHORTEN http://e.com/136 gf attempts=1
+        SHORTEN http://e.com/137 64 attempts=1
+        SHORTEN http://e.com/138 Nr attempts=1
+        SHORTEN http://e.com/139 1n attempts=1
+        SHORTEN http://e.com/140 l3 attempts=1
+        SHORTEN http://e.com/141 Fd attempts=1
+        SHORTEN http://e.com/142 hg attempts=1
+        SHORTEN http://e.com/143 8w attempts=1
+        SHORTEN http://e.com/144 fG attempts=1
+        SHORTEN http://e.com/145 B1 attempts=1
+        SHORTEN http://e.com/146 hn attempts=1
+        SHORTEN http://e.com/147 2y attempts=1
+        SHORTEN http://e.com/148 a2 attempts=1
+        SHORTEN http://e.com/149 Og attempts=1
+        SHORTEN http://e.com/150 kX attempts=1
+        urls=150 collisions=1
+      compare: "trim"
+      hidden: true
+      hint: "attempts = число проверенных кандидатов, включая успешный; collisions считает только отвергнутые."

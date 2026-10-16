@@ -1,0 +1,23 @@
+id: system-design-fundamentals
+version: 1.0.0
+title: Основы проектирования систем
+description: >-
+  Проектирование масштабируемых систем на симуляторах: требования, SLO и оценка нагрузки, кеширование (LRU, TTL, LFU),
+  балансировка нагрузки и согласованное хеширование, ограничение частоты запросов (token bucket, скользящее окно),
+  партиционирование и репликация с кворумами, согласованность, CAP/PACELC и идемпотентность, очереди и журналы сообщений
+  с группами потребителей и разбор задачи про сервис коротких ссылок. Упражнения выполняются на Python стандартной
+  библиотеки и детерминированы: вы пишете модели кеша, кольца хеширования, лимитера, кворума и брокера. Каждый пример
+  теории проверен запуском (Python 3.14).
+languageId: python
+level: 4
+track: system-design
+requires: [python-fundamentals]
+lessons:
+  - 01-requirements-and-estimation
+  - 02-caching
+  - 03-load-balancing-and-consistent-hashing
+  - 04-rate-limiting
+  - 05-partitioning-and-replication
+  - 06-consistency-and-idempotency
+  - 07-messaging-and-async-processing
+  - 08-designing-a-url-shortener

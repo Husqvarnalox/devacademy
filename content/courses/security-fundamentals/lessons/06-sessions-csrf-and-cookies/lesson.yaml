@@ -1,0 +1,186 @@
+id: security.fundamentals.sessions-csrf-and-cookies
+title: "Сессии, cookie и CSRF: атрибуты Set-Cookie, фиксация сессии, токены"
+goal: "Выпускать и обновлять сессионные cookie с правильными атрибутами и защищать изменяющие запросы токеном CSRF."
+difficulty: medium
+estimatedMinutes: 85
+prerequisites: [security.fundamentals.output-encoding-and-xss]
+related: [networking.fundamentals.http-evolution, networking.fundamentals.tls-and-diagnostics, security.fundamentals.message-authentication-and-tokens]
+next: [security.fundamentals.access-control]
+seeAlso:
+  - "Заголовки Origin/Referer и Fetch Metadata (Sec-Fetch-Site) как дополнительная проверка CSRF, OAuth и single sign-on (в курсе только упоминаются)"
+objectives:
+  - Объяснить, как сессия связывает серию запросов с пользователем, и почему идентификатор сессии нужно обновлять при входе.
+  - Описать фиксацию сессии и способ защиты.
+  - Назвать атрибуты Secure, HttpOnly, SameSite, Path, Domain, Max-Age и префиксы __Host-/__Secure- и объяснить, от чего каждый защищает.
+  - Объяснить CSRF и сравнить шаблоны синхронизирующего токена и double-submit (в том числе подписанный).
+  - Реализовать проверку заголовков Set-Cookie по списку правил.
+masteryCriteria:
+  - Вы выдаёте идентификатор сессии, обновляете его после входа и объясняете, чем это закрывает фиксацию.
+  - Вы определяете по строке Set-Cookie недостающие Secure, HttpOnly и SameSite и знаете исключение для токена CSRF, который читает скрипт.
+  - Вы объясняете, почему SameSite - дополнительный слой, а CSRF-токен привязывается к сессии.
+  - Ваш аудитор различает регистры атрибутов, повторы, значения с '=' и некорректные строки.
+tags: [security, sessions, cookies, csrf, samesite, httponly, secure, fixation]
+facts:
+  - kind: security
+    text: >-
+      OWASP Session Management Cheat Sheet требует обновлять идентификатор сессии после любого изменения уровня привилегий (прежде всего при входе), чтобы закрыть фиксацию сессии,
+      и советует не принимать идентификатор сессии из параметров URL.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+  - kind: security
+    text: >-
+      OWASP CSRF Prevention Cheat Sheet описывает шаблон синхронизирующего токена, а при невозможности хранить состояние - double-submit cookie. Рекомендуется подписанный вариант (HMAC),
+      привязанный к сессии; наивный вариант назван нежелательным. SameSite рассматривается как дополнительный слой защиты, а не единственная мера.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+  - kind: internals
+    text: >-
+      MDN описывает префиксы имён cookie: __Secure- требует атрибута Secure; __Host- требует Secure, отсутствия Domain и Path=/, так что cookie принадлежит только хосту, который её выставил.
+      Заголовок Set-Cookie и атрибуты определены в RFC 6265 и его обновлениях.
+    sources:
+      - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+      - https://www.rfc-editor.org/rfc/rfc6265
+  - kind: misconception
+    text: >-
+      «HttpOnly защищает от XSS». HttpOnly не даёт скрипту прочитать cookie, но не запрещает странице с XSS делать запросы от имени пользователя; это ограничение ущерба, а не защита от XSS.
+    sources:
+      - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что такое фиксация сессии и как её закрывают?"
+      options:
+        - "Пользователь входит в систему слишком долго; нужно сократить время сессии"
+        - "Злоумышленник заранее подсовывает жертве известный идентификатор сессии; после входа нужно выдать новый идентификатор"
+        - "Идентификатор сессии слишком короткий; нужно удлинить его"
+        - "Cookie хранится только в памяти; нужно сохранить её на диск"
+      answer: 1
+      explanation: >-
+        Если идентификатор остаётся тем же до и после входа, тот, кто его знал заранее, оказывается авторизован. Регенерация идентификатора при входе и инвалидация старого закрывает это.
+    - id: q2
+      type: multiple
+      prompt: "Какие атрибуты нужны сессионной cookie? Выберите все."
+      options:
+        - "Secure - cookie уходит только по HTTPS"
+        - "HttpOnly - cookie недоступна из JavaScript"
+        - "SameSite - ограничивает отправку cookie в межсайтовых запросах"
+        - "Max-Age=315360000 - чтобы пользователь не входил заново десять лет"
+      answer: [0, 1, 2]
+      explanation: >-
+        Первые три - базовые. Огромный срок жизни увеличивает окно, в течение которого украденная cookie полезна.
+    - id: q3
+      type: single
+      prompt: "Почему CSRF-токен должен приходить в запросе не в cookie?"
+      options:
+        - "Cookie слишком большие"
+        - "Браузер автоматически прикладывает cookie к межсайтовому запросу, а токен в теле или заголовке чужой сайт подставить не может"
+        - "Cookie запрещены в POST-запросах"
+        - "Токен в cookie всегда виден в журналах"
+      answer: 1
+      explanation: >-
+        CSRF существует потому, что браузер сам отправляет cookie. Токен должен быть значением, которое чужая страница не знает и не может добавить в запрос.
+    - id: q4
+      type: single
+      prompt: "Что делает префикс __Host- в имени cookie?"
+      options:
+        - "Шифрует значение"
+        - "Требует Secure, Path=/ и отсутствие Domain, привязывая cookie к одному хосту"
+        - "Разрешает отправлять cookie на все поддомены"
+        - "Запрещает сохранять cookie на диск"
+      answer: 1
+      explanation: >-
+        Так cookie нельзя перезаписать с поддомена и она не раскрывается соседним хостам.
+    - id: q5
+      type: single
+      prompt: "Почему cookie csrf_token часто выставляют без HttpOnly?"
+      options:
+        - "Это ошибка конфигурации"
+        - "Клиентский скрипт читает её значение, чтобы отправить его в заголовке запроса (double-submit)"
+        - "HttpOnly запрещён для токенов"
+        - "Так cookie живёт дольше"
+      answer: 1
+      explanation: >-
+        В шаблоне double-submit токен читается скриптом. Это допустимо, потому что сам по себе токен CSRF не даёт доступа к сессии; но сессионная cookie остаётся HttpOnly.
+exercise:
+  id: security.fundamentals.sessions-csrf-and-cookies.exercise
+  title: "Аудитор заголовков Set-Cookie"
+  prompt: |
+    Реализуйте в `main.py` проверку значений заголовка `Set-Cookie` по фиксированному списку правил. Используйте только стандартную библиотеку.
+
+    **Ввод.** Каждая строка - значение заголовка `Set-Cookie` (без слов `Set-Cookie:`), например `sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax`. Строки нумеруются с 1; пустые строки тоже считаются.
+
+    **Разбор.**
+
+    * Строка делится по `;`, каждая часть очищается от пробелов по краям. Первая часть - `имя=значение` (делите по **первому** `=`: в значении могут быть `=`). Если `=` нет или имя пусто, вывод `line N: MALFORMED`.
+    * Остальные части - атрибуты `Имя` или `Имя=значение`; имя атрибута приводится к нижнему регистру, пробелы вокруг `=` игнорируются, пустые части пропускаются. При повторе атрибута побеждает **последний**.
+
+    **Правила** (коды выводятся в этом порядке, через пробел):
+
+    1. `no-secure` - нет атрибута `Secure`;
+    2. `no-httponly` - нет `HttpOnly`, **кроме** cookie, имя которой начинается с `csrf` (без учёта регистра): её читает скрипт;
+    3. SameSite: нет атрибута - `no-samesite`; значение (без учёта регистра) не `Strict`/`Lax`/`None` (в том числе пустое) - `bad-samesite`; значение `None` без `Secure` - `samesite-none-insecure`;
+    4. `long-lived` - `Max-Age` состоит из необязательного минуса и цифр и **больше** 2 592 000 (30 суток); нечисловой `Max-Age` игнорируется;
+    5. `host-prefix` - имя начинается с `__Host-` (регистр значим) и выполнено хотя бы одно: нет `Secure`, `Path` отсутствует или не равен `/`, задан `Domain`;
+    6. `secure-prefix` - имя начинается с `__Secure-` (регистр значим) и нет `Secure`.
+
+    **Вывод.** По строке на cookie: `<имя>: OK`, если замечаний нет, иначе `<имя>: <коды через пробел>`.
+
+    **Соглашения:** это учебный набор правил - он выбран, чтобы упражнение было детерминированным, и не заменяет оценку приложения целиком. Например, `Domain` без префикса `__Host-` здесь не считается нарушением, хотя расширяет область действия cookie на поддомены.
+
+    **Пример.** `theme=dark` -> `theme: no-secure no-httponly no-samesite`; `sid=1; Secure; HttpOnly; SameSite=Lax` -> `sid: OK`.
+  entryFile: main.py
+  evaluation: io
+  hints:
+    - "Разбор: `parts = [p.strip() for p in line.split(';')]`; первую часть делите `partition('=')`. Атрибуты складывайте в словарь `attrs[ключ_в_нижнем_регистре] = значение`: так повтор перезапишет предыдущее значение."
+    - "Флаги Secure и HttpOnly проверяются просто как `'secure' in attrs`. SameSite сравнивайте как `attrs['samesite'].lower()` с тремя допустимыми значениями."
+    - "Max-Age: `re.fullmatch(r'-?[0-9]+', value)`, затем `int(value) > 30*24*3600`. Для host-prefix: `not secure or attrs.get('path') != '/' or 'domain' in attrs`."
+    - "Коды собирайте в список в порядке правил 1-6 и выводите через пробел; если список пуст - OK. Номер строки для MALFORMED берите из `enumerate(lines, 1)`."
+  tests:
+    - id: good-and-bare
+      title: "Хорошая и «голая» cookie"
+      stdin: "sid=abc123; Path=/; Secure; HttpOnly; SameSite=Lax\ntheme=dark\npref=1; Secure; HttpOnly; SameSite=Strict; Max-Age=3600\n"
+      expected: "sid: OK\ntheme: no-secure no-httponly no-samesite\npref: OK\n"
+      compare: trim
+      hint: "Три обязательных атрибута: Secure, HttpOnly, SameSite. Для 'theme=dark' нет ни одного: no-secure no-httponly no-samesite в этом порядке."
+    - id: csrf-and-none
+      title: "Исключение для csrf* и SameSite=None"
+      stdin: "csrf_token=xyz; Secure; SameSite=Strict\nCSRF-Token=1; Secure; SameSite=Lax\nads=1; HttpOnly; SameSite=None\nx=1; Secure; HttpOnly; SameSite=None\n"
+      expected: "csrf_token: OK\nCSRF-Token: OK\nads: no-secure samesite-none-insecure\nx: OK\n"
+      compare: trim
+      hint: "Имя, начинающееся с csrf (без учёта регистра), освобождено от HttpOnly: токен читает скрипт. SameSite=None без Secure - samesite-none-insecure (и no-secure тоже)."
+    - id: attribute-syntax
+      title: "Регистр атрибутов, пробелы, повторы"
+      stdin: "sid=1;secure;HTTPONLY;samesite=LAX\nsid=2 ; SECURE ; HttpOnly ; SameSite = strict\nsid=a=b==; Secure; HttpOnly; SameSite=Lax; SameSite=Weird\n"
+      expected: "sid: OK\nsid: OK\nsid: bad-samesite\n"
+      compare: trim
+      hint: "Имена атрибутов нечувствительны к регистру, пробелы вокруг ';' и '=' игнорируются. Повторяющийся атрибут: побеждает последний. В значении cookie могут быть знаки '='."
+    - id: prefixes
+      title: "Префиксы __Host- и __Secure- (скрытый)"
+      stdin: "__Host-sid=1; Secure; HttpOnly; SameSite=Lax; Path=/\n__Host-sid=1; Secure; HttpOnly; SameSite=Lax; Path=/app\n__Host-sid=1; Secure; HttpOnly; SameSite=Lax; Path=/; Domain=example.com\n__Host-sid=1; HttpOnly; SameSite=Lax\n__Secure-id=1; HttpOnly; SameSite=Lax\n__Secure-id=1; Secure; HttpOnly; SameSite=Lax\n__host-sid=1; Secure; HttpOnly; SameSite=Lax\n"
+      expected: "__Host-sid: OK\n__Host-sid: host-prefix\n__Host-sid: host-prefix\n__Host-sid: no-secure host-prefix\n__Secure-id: no-secure secure-prefix\n__Secure-id: OK\n__host-sid: OK\n"
+      compare: trim
+      hidden: true
+      hint: "__Host-: нужны Secure, Path ровно '/' (если Path нет - нарушение) и отсутствие Domain. __Secure-: нужен Secure. Префикс сравнивается с учётом регистра: '__host-' обычное имя."
+    - id: lifetime
+      title: "Срок жизни и SameSite (скрытый)"
+      stdin: "a=1; Secure; HttpOnly; SameSite=Lax; Max-Age=2592000\nb=1; Secure; HttpOnly; SameSite=Lax; Max-Age=2592001\nc=1; Secure; HttpOnly; SameSite=Lax; Max-Age=abc\nd=1; Secure; HttpOnly; SameSite=Lax; Max-Age=-1\ne=1; Secure; HttpOnly; SameSite=Maybe\nf=1; Secure; HttpOnly; SameSite=\n"
+      expected: "a: OK\nb: long-lived\nc: OK\nd: OK\ne: bad-samesite\nf: bad-samesite\n"
+      compare: trim
+      hidden: true
+      hint: "long-lived только при целом Max-Age строго больше 2592000 (30 суток). Нечисловой Max-Age игнорируется. Значение SameSite вне Strict/Lax/None (в том числе пустое) - bad-samesite."
+    - id: malformed
+      title: "Некорректные строки и нумерация (скрытый)"
+      stdin: "no-equals-sign; Secure\n=value; Secure\n\nok=1; Secure; HttpOnly; SameSite=Lax\n   \n"
+      expected: "line 1: MALFORMED\nline 2: MALFORMED\nline 3: MALFORMED\nok: OK\nline 5: MALFORMED\n"
+      compare: trim
+      hidden: true
+      hint: "Строка без '=' в первой паре или с пустым именем - 'line N: MALFORMED', где N - номер строки ввода с единицы (пустые строки тоже считаются и тоже MALFORMED)."
+    - id: combo
+      title: "Все нарушения сразу (скрытый)"
+      stdin: "__Host-x=1; Domain=a.example; Max-Age=99999999; SameSite=Bogus\n__Secure-y=1; SameSite=None\n"
+      expected: "__Host-x: no-secure no-httponly bad-samesite long-lived host-prefix\n__Secure-y: no-secure no-httponly samesite-none-insecure secure-prefix\n"
+      compare: trim
+      hidden: true
+      hint: "Порядок кодов: no-secure, no-httponly, (no-samesite | bad-samesite | samesite-none-insecure), long-lived, host-prefix, secure-prefix."

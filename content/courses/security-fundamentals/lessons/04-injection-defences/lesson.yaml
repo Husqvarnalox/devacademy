@@ -1,0 +1,186 @@
+id: security.fundamentals.injection-defences
+title: "Защита от инъекций: команды, пути и параметризация"
+goal: "Не давать недоверенным данным менять смысл команд, запросов и путей: передавать аргументы списком, нормализовать пути и проверять вхождение результата в базовый каталог."
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [security.fundamentals.threat-modelling]
+related: [databases.sql.sql-injection-and-safe-access, python.stdlib.subprocess-and-logging, python.stdlib.pathlib-os-shutil-tempfile, security.fundamentals.message-authentication-and-tokens]
+next: [security.fundamentals.output-encoding-and-xss]
+seeAlso:
+  - "SQL-инъекции и параметризованные запросы подробно разобраны в курсе по базам данных; здесь они только связаны с общим принципом"
+  - "Защита от обхода каталогов при работе с символическими ссылками (realpath, openat, chroot-подобные песочницы) - в упражнении ссылок нет"
+objectives:
+  - "Объяснить общий принцип инъекций: данные интерпретируются как код, потому что смешаны с ним в одной строке."
+  - Запускать внешние команды через subprocess со списком аргументов и без оболочки и объяснить, что даёт shlex.quote и чего не даёт.
+  - Описать обход каталогов (path traversal) и защиту «нормализовать, затем проверить вхождение».
+  - Учитывать процентное кодирование, двойное кодирование и спецсимволы при проверке пути.
+  - Реализовать безопасный резолвер путей с детерминированными правилами.
+masteryCriteria:
+  - Вы проверяете вхождение результата в базовый каталог по компонентам пути, а не через startswith, и отвергаете соседний каталог с общим префиксом.
+  - Вы декодируете процентное кодирование ровно один раз и отвергаете остаточные %XX.
+  - Вы не передаёте строку пользователя в оболочку и объясняете, чем список аргументов отличается от shell=True.
+  - Вы связываете параметризацию SQL-запросов с тем же принципом разделения кода и данных.
+tags: [security, injection, command-injection, path-traversal, subprocess, shlex, sql]
+facts:
+  - kind: security
+    text: >-
+      OWASP OS Command Injection Defense Cheat Sheet рекомендует по возможности вообще не вызывать внешние команды, а использовать встроенные API языка; если вызов неизбежен -
+      передавать аргументы массивом без оболочки и проверять ввод по белому списку.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html
+  - kind: security
+    text: >-
+      Документация subprocess в разделе «Security Considerations» предупреждает: shell=True подставляет строку в оболочку, и ответственность за корректное экранирование недоверенных значений лежит на вызывающем коде;
+      shlex.quote нужен именно для этого случая в POSIX-оболочках.
+    sources:
+      - https://docs.python.org/3/library/subprocess.html
+      - https://docs.python.org/3/library/shlex.html
+  - kind: security
+    text: >-
+      CWE-22 (Path Traversal): недостаточная проверка имени файла позволяет выйти за каталог, куда программа собиралась ограничить доступ. Типичные приёмы - последовательности «..», абсолютные пути
+      и закодированные варианты; защита - нормализация и проверка итогового пути, лучше с белым списком допустимых имён.
+    sources:
+      - https://cwe.mitre.org/data/definitions/22.html
+  - kind: internals
+    text: >-
+      Параметризованные запросы передают значения отдельно от текста SQL, поэтому значение никогда не становится частью команды. Тот же принцип разделения «код отдельно, данные отдельно» применим к командам оболочки (список аргументов) и к HTML (кодирование вывода, следующий урок).
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Какова общая причина инъекций (SQL, команд, HTML)?"
+      options:
+        - "Слишком длинные строки"
+        - "Недоверенные данные склеиваются с кодом в одну строку, и интерпретатор не отличает их от кода"
+        - "Использование юникода"
+        - "Устаревшие версии языков"
+      answer: 1
+      explanation: >-
+        Лекарство - не фильтровать «опасные символы», а разделить данные и код: параметризация, список аргументов, кодирование под контекст.
+    - id: q2
+      type: single
+      prompt: "Какой вызов безопаснее для имени файла, полученного от пользователя?"
+      options:
+        - "subprocess.run(f'wc -c {name}', shell=True)"
+        - "subprocess.run(['wc', '-c', '--', name])"
+        - "os.system('wc -c ' + name)"
+        - "subprocess.run('wc -c ' + name, shell=True)"
+      answer: 1
+      explanation: >-
+        Список аргументов не проходит через оболочку: имя - один аргумент, как бы оно ни выглядело. Разделитель '--' дополнительно не даёт принять имя за параметр команды.
+    - id: q3
+      type: single
+      prompt: "Почему проверка path.startswith('/srv/app/uploads') недостаточна?"
+      options:
+        - "startswith не работает со слэшами"
+        - "Путь /srv/app/uploads-evil/x тоже начинается с этой строки, но лежит вне каталога"
+        - "Потому что регистр важен"
+        - "Потому что путь должен быть короче"
+      answer: 1
+      explanation: >-
+        Нужно сравнивать по компонентам пути (os.path.commonpath или сравнение с добавленным разделителем), после нормализации.
+    - id: q4
+      type: multiple
+      prompt: "Какие из строк стоит отвергнуть как путь внутри базового каталога? Выберите все."
+      options:
+        - "%252e%252e/secret (двойное кодирование)"
+        - "/etc/passwd"
+        - "docs/report.pdf"
+        - "a/../../x"
+      answer: [0, 1, 3]
+      explanation: >-
+        Абсолютный путь, выход за каталог после нормализации и остаточное кодирование отвергаются. docs/report.pdf - обычный допустимый путь.
+    - id: q5
+      type: single
+      prompt: "Что делает shlex.quote?"
+      options:
+        - "Превращает строку в безопасное имя файла"
+        - "Экранирует строку так, чтобы POSIX-оболочка восприняла её как единый литерал"
+        - "Проверяет, что в строке нет опасных слов"
+        - "Шифрует строку"
+      answer: 1
+      explanation: >-
+        shlex.quote нужен, когда команду приходится собирать строкой для оболочки. Лучше обходиться списком аргументов; quote не защищает от того, что сама команда или её параметры сделают с данными.
+exercise:
+  id: security.fundamentals.injection-defences.exercise
+  title: "Безопасный резолвер путей"
+  prompt: |
+    Реализуйте в `main.py` функцию, которая отображает путь, присланный пользователем, в путь внутри базового каталога или отвергает его. Модель без символических ссылок: файловая система не читается, работа идёт только со строками (используйте `posixpath` и `urllib.parse.unquote`).
+
+    **Формат ввода.** Первая строка - базовый каталог `base` (абсолютный нормализованный POSIX-путь, например `/srv/app/uploads`). Вторая - число `n`. Далее `n` строк - пути пользователя ровно как есть (пробелы значимы, строка может быть пустой).
+
+    **Вывод.** По строке на путь: итоговый абсолютный путь или `REJECT`.
+
+    **Правила в этом порядке:**
+
+    1. Пустая строка - `REJECT`.
+    2. Процентное декодирование **ровно один раз** (`unquote`). Если в результате снова встречается `%` и две шестнадцатеричные цифры (регистр любой) - это двойное кодирование, `REJECT`.
+    3. После декодирования: символ NUL (`\x00`) или обратный слэш `\` - `REJECT`.
+    4. Путь, начинающийся с `/`, или начинающийся с буквы и двоеточия (как `C:`) - `REJECT`.
+    5. Склейте `base` и путь, нормализуйте (`posixpath.normpath`). Если результат равен `base` или не находится внутри `base` (проверка **по компонентам**: `posixpath.commonpath([base, результат]) == base`) - `REJECT`. Иначе выведите результат.
+
+    **Соглашения:**
+
+    * Проверяется итоговый путь, а не наличие `..` во вводе: `../uploads/x.txt` при `base = /srv/app/uploads` нормализуется в `/srv/app/uploads/x.txt` - внутри, поэтому разрешён (более строгая политика могла бы отвергать любой `..`, но здесь она другая).
+    * Путь, равный самому каталогу (`.`, `a/..`, `%2e`), отвергается: нужен файл внутри.
+    * `...` и `..a` - обычные имена, не `..`. Завершающий слэш нормализация убирает. Двоеточие внутри имени (`ok:name.txt`) допустимо.
+    * Символических ссылок в модели нет. В реальной системе после проверки строк нужно ещё учитывать ссылки (например, `os.path.realpath` и открытие файла относительно дескриптора каталога).
+
+    **Пример.** При `base = /srv/app/uploads`: `docs/report.pdf` -> `/srv/app/uploads/docs/report.pdf`; `a/../../x` -> `REJECT`; `%2e%2e/secret` -> `REJECT`; `report%20final.txt` -> `/srv/app/uploads/report final.txt`.
+  entryFile: main.py
+  evaluation: io
+  hints:
+    - "Порядок правил важен: пустая строка, одно декодирование, проверка остаточного %XX, NUL и обратный слэш, абсолютность, и только потом склейка и нормализация."
+    - "Остаточное кодирование ищите регулярным выражением `%[0-9A-Fa-f]{2}` в уже декодированной строке. Букву диска - `[A-Za-z]:` в начале."
+    - "`posixpath.normpath(posixpath.join(base, decoded))` убирает `.`, `..` и повторные слэши. Затем: результат равен base - отвергнуть; `posixpath.commonpath([base, result]) != base` - отвергнуть."
+    - "Не используйте `startswith(base)`: `/srv/app/uploads-evil/x` начинается с `/srv/app/uploads`, но не внутри. commonpath сравнивает по компонентам."
+  tests:
+    - id: plain-paths
+      title: "Обычные относительные пути"
+      stdin: "/srv/app/uploads\n5\na.txt\ndocs/report.pdf\n./img/./logo.png\na/b/../c.txt\ndocs//2024///q1.csv\n"
+      expected: "/srv/app/uploads/a.txt\n/srv/app/uploads/docs/report.pdf\n/srv/app/uploads/img/logo.png\n/srv/app/uploads/a/c.txt\n/srv/app/uploads/docs/2024/q1.csv\n"
+      compare: trim
+      hint: "Склейте base и путь, нормализуйте posixpath.normpath (он убирает '.', '..' и повторные слэши) и затем проверьте, что результат внутри base."
+    - id: traversal
+      title: "Выход за базовый каталог и абсолютные пути"
+      stdin: "/srv/app/uploads\n5\n../etc/passwd\na/../../x\n/etc/passwd\n../../../../tmp/x\ndocs/../../uploads-evil/x\n"
+      expected: "REJECT\nREJECT\nREJECT\nREJECT\nREJECT\n"
+      compare: trim
+      hint: "Абсолютный путь (начинается с '/') отвергается до склейки: join с абсолютным вторым аргументом выбросил бы base. Остальное ловит проверка вхождения результата в base."
+    - id: percent-encoding
+      title: "Процентное кодирование: одно декодирование"
+      stdin: "/srv/app/uploads\n6\n%2e%2e/secret\n%2e%2e%2fsecret\nreport%20final.txt\na%2fb.txt\n%252e%252e/x\n%2E%2E/%2E%2E/x\n"
+      expected: "REJECT\nREJECT\n/srv/app/uploads/report final.txt\n/srv/app/uploads/a/b.txt\nREJECT\nREJECT\n"
+      compare: trim
+      hint: "Декодируйте ровно один раз (urllib.parse.unquote). Если после этого остался фрагмент %XX - двойное кодирование, отвергаем. '%20' и '%2f' после декодирования - обычные символы."
+    - id: prefix-sibling
+      title: "Соседний каталог с общим префиксом и допустимое '..' (скрытый)"
+      stdin: "/srv/app/uploads\n4\n../uploads-evil/x\n../uploads/x.txt\n../uploads/../uploads/y.txt\nsub/../../uploads2/z\n"
+      expected: "REJECT\n/srv/app/uploads/x.txt\n/srv/app/uploads/y.txt\nREJECT\n"
+      compare: trim
+      hidden: true
+      hint: "Проверка startswith(base) ошибочна: '/srv/app/uploads-evil' начинается с base. Сравнивайте по компонентам (commonpath) или с разделителем. А '../uploads/x.txt' после нормализации оказывается внутри base - это разрешено."
+    - id: special-chars
+      title: "NUL, обратный слэш, буква диска, пустая строка (скрытый)"
+      stdin: "/srv/app/uploads\n7\na%00.txt\na\\..\\b\nC:/Windows/x\nc:rel\n\nok:name.txt\ndir/ok:name\n"
+      expected: "REJECT\nREJECT\nREJECT\nREJECT\nREJECT\n/srv/app/uploads/ok:name.txt\n/srv/app/uploads/dir/ok:name\n"
+      compare: trim
+      hidden: true
+      hint: "Отвергаем: NUL после декодирования, любой обратный слэш, буква диска с двоеточием в начале, пустую строку. Двоеточие в середине имени допустимо."
+    - id: base-itself
+      title: "Пути, указывающие на сам каталог или его окрестности (скрытый)"
+      stdin: "/srv/app/uploads\n9\n.\n./\na/..\na/b/\n..\n%2e\n...\n..a\n.hidden\n"
+      expected: "REJECT\nREJECT\nREJECT\n/srv/app/uploads/a/b\nREJECT\nREJECT\n/srv/app/uploads/...\n/srv/app/uploads/..a\n/srv/app/uploads/.hidden\n"
+      compare: trim
+      hidden: true
+      hint: "Сам base не файл внутри него - отвергаем. '...' и '..a' - обычные имена файлов, а не '..'. Завершающий слэш нормализация убирает."
+    - id: other-base
+      title: "Другой базовый каталог и юникод (скрытый)"
+      stdin: "/data/data\n4\nфайл.txt\nпапка/отчёт 2024.txt\n../data/secret\n../../x\n"
+      expected: "/data/data/файл.txt\n/data/data/папка/отчёт 2024.txt\n/data/data/secret\nREJECT\n"
+      compare: trim
+      hidden: true
+      hint: "Юникод в именах допустим. База /data/data: '../data/secret' нормализуется в /data/data/secret - внутри; '../../x' даёт /x - снаружи."

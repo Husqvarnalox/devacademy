@@ -1,0 +1,281 @@
+id: "system-design.fundamentals.load-balancing-and-consistent-hashing"
+title: "Балансировка нагрузки и согласованное хеширование"
+goal: "Сравнивать алгоритмы балансировки (round robin, least connections, хеширование) и строить кольцо согласованного хеширования с виртуальными узлами, оценивая стоимость перебалансировки."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "system-design.fundamentals.caching"
+related:
+  - "networking.fundamentals.udp-and-dns"
+  - "networking.fundamentals.http-evolution"
+  - "networking.fundamentals.tcp-connections-and-congestion"
+next:
+  - "system-design.fundamentals.rate-limiting"
+seeAlso:
+  - "Балансировка на уровнях L4 и L7, проверки здоровья, TLS-терминация (упоминаются)"
+  - "Rendezvous (HRW) hashing и jump consistent hash как альтернативы кольцу"
+objectives:
+  - "Объяснить, чем отличаются балансировщики L4 и L7 и какие алгоритмы выбора сервера бывают."
+  - "Показать, почему хеширование по модулю `hash(key) % N` перемещает почти все ключи при смене N."
+  - "Построить кольцо согласованного хеширования и маршрутизировать ключи по часовой стрелке."
+  - "Объяснить роль виртуальных узлов для равномерности нагрузки и скорости восстановления."
+  - "Измерить, сколько ключей переезжает при добавлении и удалении узла."
+masteryCriteria:
+  - "Вы называете, какой алгоритм балансировки подходит для запросов равной стоимости, а какой для долгих соединений."
+  - "Вы вручную находите владельца ключа на кольце из трёх точек и определяете, какие ключи перейдут новому узлу."
+  - "Вы объясняете, почему при добавлении узла на кольце в среднем переезжает около 1/N ключей, а при `% N` - почти все."
+  - "Вы знаете, что без виртуальных узлов нагрузка на кольце неравномерна, и можете подобрать число vnodes."
+tags:
+  - "system-design"
+  - "load-balancing"
+  - "consistent-hashing"
+  - "round-robin"
+  - "least-connections"
+  - "vnodes"
+facts:
+  - kind: "historical"
+    text: "Согласованное хеширование описали Каргер, Леман, Лейтон, Паниграхи и соавторы в статье «Consistent Hashing and Random Trees» как способ распределённого кэширования в вебе: при изменении числа серверов перемещается лишь малая доля ключей. Идея затем легла в основу многих распределённых хранилищ."
+    sources:
+      - "https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf"
+  - kind: "real-world"
+    text: "Dynamo (Amazon) использует согласованное хеширование: пространство хешей замкнуто в кольцо, каждый узел получает несколько позиций на нём (виртуальные узлы), а ключ хранится на первых N узлах по часовой стрелке от своей позиции. В статье объясняется, что виртуальные узлы выравнивают нагрузку и позволяют давать более мощным машинам больше позиций."
+    sources:
+      - "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+  - kind: "internals"
+    text: "Cassandra строит кольцо по токенам и использует виртуальные узлы (vnodes), чтобы один физический узел владел несколькими диапазонами токенов; это упрощает добавление и удаление узлов и перераспределение данных."
+    sources:
+      - "https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html"
+  - kind: "misconception"
+    text: "Round robin не учитывает стоимость запросов и состояние серверов: при долгих соединениях (WebSocket, загрузки файлов) один сервер может накопить много тяжёлых соединений. Для них применяют алгоритм наименьшего числа соединений или учёт нагрузки."
+  - kind: "real-world"
+    text: "Равномерность распределения ключей зависит от хеш-функции и числа точек: при малом числе виртуальных узлов нагрузка заметно неравномерна, при сотнях на узел разброс становится небольшим. В упражнении хеш фиксирован (первые 8 hex-символов md5), чтобы результаты были воспроизводимы; в production используют быстрые хеши вроде murmur или xxhash."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой алгоритм лучше подходит для долгоживущих соединений разной тяжести?"
+      options:
+        - "Round robin"
+        - "Least connections"
+        - "Случайный выбор по хешу IP"
+        - "Всегда первый сервер"
+      answer: 1
+      explanation: "Least connections направляет новое соединение туда, где сейчас меньше активных, и учитывает разную продолжительность соединений. Round robin считает все запросы одинаковыми."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Ключи распределены по `hash(key) % N`. Было 4 сервера, добавили пятый. Какая примерно доля ключей остаётся на прежних местах (в процентах, для равномерного хеша)? Подсказка: ключ остаётся, только если `h mod 4 == h mod 5` для его хеша; из каждых 20 последовательных значений хеша таких 4."
+      answer: 20
+      tolerance: 1
+      explanation: "Остаётся около 4/20 = 20 %, то есть переезжает около 80 % ключей. На кольце же переехало бы около 1/5 = 20 %."
+    - id: "q3"
+      type: "single"
+      prompt: "Для чего нужны виртуальные узлы на кольце согласованного хеширования?"
+      options:
+        - "Чтобы шифровать ключи"
+        - "Чтобы нагрузка распределялась равномернее и узел можно было нагрузить пропорционально мощности"
+        - "Чтобы ускорить хеш-функцию"
+        - "Чтобы хранить больше ключей на кольце, чем помещается в память"
+      answer: 1
+      explanation: "Каждый физический узел получает много точек на кольце. Диапазоны становятся мелкими и усредняются, а при выходе узла его ключи расходятся по многим соседям."
+    - id: "q4"
+      type: "single"
+      prompt: "На кольце с узлами в точках 100, 200 и 300 (хеш-пространство 0..399). В какой узел попадёт ключ с хешем 350?"
+      options:
+        - "100"
+        - "200"
+        - "300"
+        - "Ключ не будет назначен"
+      answer: 0
+      explanation: "Ищем первую точку по часовой стрелке с хешем не меньше 350. Таких нет, поэтому кольцо замыкается и ключ уходит к узлу в точке 100."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что верно про балансировщик уровня L7 по сравнению с L4? Выберите все верные утверждения."
+      options:
+        - "Видит содержимое HTTP-запроса и может маршрутизировать по пути или заголовкам"
+        - "Работает быстрее и проще, так как вообще не обрабатывает запросы"
+        - "Может завершать TLS и перераспределять запросы внутри одного соединения"
+        - "Обязательно хранит данные приложения"
+      answer:
+        - 0
+        - 2
+      explanation: "L7 понимает протокол приложения (HTTP), поэтому гибче, но дороже по ресурсам. L4 пересылает TCP/UDP-потоки, не разбирая содержимое."
+exercise:
+  id: "system-design.fundamentals.load-balancing-and-consistent-hashing.exercise"
+  title: "Кольцо согласованного хеширования с виртуальными узлами"
+  prompt: |
+    Постройте кольцо согласованного хеширования, маршрутизируйте ключи и сообщайте, сколько отслеживаемых ключей сменили владельца при добавлении или удалении узла.
+
+    **Формат ввода.** Первая строка: `V` - число виртуальных узлов на каждый физический (`V >= 1`). Далее команды по одной в строке:
+
+    * `ADD <node>` - добавить новый узел (его ещё нет в кольце);
+    * `REMOVE <node>` - удалить существующий узел;
+    * `TRACK <key> <key> ...` - начать отслеживать ключи (повторы игнорируются);
+    * `ROUTE <key>` - узнать владельца ключа;
+    * `LOAD` - распределение отслеживаемых ключей по узлам.
+
+    **Вывод.**
+
+    * `ROUTE`: `<key> -> <node>` или `<key> -> NONE`, если кольцо пусто.
+    * `ADD` / `REMOVE`: `<ADD|REMOVE> <node> moved=<M> keys=<k1,k2,...>`: `M` - число отслеживаемых ключей, у которых владелец **был и изменился**; ключи по алфавиту через запятую, при `M = 0` - `keys=-`.
+    * `LOAD`: `LOAD <n1>=<c1> <n2>=<c2> ...` - все узлы кольца по алфавиту, `c` - число отслеживаемых ключей, которыми они владеют (0 допустим); при пустом кольце печатается просто `LOAD`.
+
+    **Соглашения симулятора:**
+
+    * Хеш: `h(s) = int(md5(s.encode("utf-8")).hexdigest()[:8], 16)` - первые 8 hex-символов md5 как целое (диапазон `0..2^32-1`). Другой хеш использовать нельзя.
+    * Виртуальный узел `i` (`0 <= i < V`) узла `n` лежит в точке `h(f"{n}#{i}")`. Точки сортируются по паре `(хеш, имя узла)`.
+    * Ключ принадлежит узлу первой точки с хешем **не меньше** `h(key)` при движении по возрастанию; если такой нет, берётся самая первая точка кольца (замыкание).
+    * `moved` считает только ключи, которые до команды имели владельца (не `None`) и после неё имеют другого. Ключи, которым узел впервые достался из пустого кольца, не считаются перемещёнными; а ключи, потерявшие владельца при удалении последнего узла, считаются (владелец стал `None`, то есть изменился).
+    * `TRACK` вычисляет владельцев сразу; ключи в уже начатом наборе не дублируются. Команды корректны: `ADD` только для узлов вне кольца, `REMOVE` только для присутствующих.
+
+    **Пример.** `V = 1`, узлы `n1, n2, n3`, ключи `alice bob carol dave erin frank`: `h("n2#0") = 448571407`, `h("n3#0") = 2600306266`, `h("n1#0") = 3348711440`. Ключ `alice` (хеш 1669653170) попадает в первую точку не меньше хеша - `n3`. Добавление `n4` (`h("n4#0") = 2230042700`) забирает ключи с хешем в диапазоне `(448571407, 2230042700]`: переедут `alice`, `erin`, `frank`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Храните кольцо как отсортированный список пар (хеш, узел). ADD вставляет V точек h(f\"{node}#{i}\"), REMOVE фильтрует список по имени узла. Для поиска годится bisect.bisect_left(points, (h(key), \"\"))."
+    - "Если bisect вернул индекс, равный длине списка, ключ «перепрыгнул» последнюю точку: владелец - points[0]. Для пустого списка владельца нет (None, печатайте NONE)."
+    - "Для moved храните словарь owners для отслеживаемых ключей. Перед ADD/REMOVE скопируйте его, после - пересчитайте через route и сравните; считайте ключ перемещённым, только если прежний владелец не None и изменился."
+    - "Проверка вручную на примере: при V = 1 и узлах n1, n2, n3 выпишите три хеша, отсортируйте, и для каждого ключа возьмите первую точку >= h(key). Для V = 1 команда LOAD после первого ADD даст всем ключам одного владельца."
+  tests:
+    - id: "sample"
+      title: "Пример из условия: V = 1, узлы n1..n4"
+      stdin: |
+        1
+        ADD n1
+        ADD n2
+        ADD n3
+        TRACK alice bob carol dave erin frank
+        LOAD
+        ROUTE alice
+        ADD n4
+        LOAD
+        REMOVE n2
+        LOAD
+      expected: |
+        ADD n1 moved=0 keys=-
+        ADD n2 moved=0 keys=-
+        ADD n3 moved=0 keys=-
+        LOAD n1=2 n2=1 n3=3
+        alice -> n3
+        ADD n4 moved=3 keys=alice,erin,frank
+        LOAD n1=2 n2=1 n3=0 n4=3
+        REMOVE n2 moved=1 keys=dave
+        LOAD n1=2 n3=0 n4=4
+      compare: "trim"
+      hint: "Проверьте: alice -> n3; после ADD n4 переезжают alice, erin, frank; после REMOVE n2 переезжает только dave."
+    - id: "wrap-around"
+      title: "Замыкание кольца: хеш больше всех точек"
+      stdin: |
+        1
+        ADD n1
+        ADD n2
+        ADD n3
+        ROUTE wrap4
+        ROUTE dave
+        ROUTE bob
+      expected: |
+        ADD n1 moved=0 keys=-
+        ADD n2 moved=0 keys=-
+        ADD n3 moved=0 keys=-
+        wrap4 -> n2
+        dave -> n2
+        bob -> n1
+      compare: "trim"
+      hint: "h(\"wrap4\") = 3929678674 больше всех точек при V = 1 и трёх узлах, поэтому ключ принадлежит первой точке кольца, n2."
+    - id: "empty-ring"
+      title: "Пустое кольцо и первое добавление"
+      stdin: |
+        3
+        ROUTE a
+        TRACK a b c
+        LOAD
+        ADD x
+        LOAD
+        REMOVE x
+        ROUTE a
+        LOAD
+      expected: |
+        a -> NONE
+        LOAD
+        ADD x moved=0 keys=-
+        LOAD x=3
+        REMOVE x moved=3 keys=a,b,c
+        a -> NONE
+        LOAD
+      compare: "trim"
+      hidden: true
+      hint: "Пока узлов нет, владелец NONE. Ключи, получившие владельца из пустого кольца, перемещёнными не считаются (moved=0), а потеря владельца при удалении последнего узла считается перемещением."
+    - id: "vnodes-balance"
+      title: "V = 100: 200 ключей, четыре узла, добавление пятого"
+      stdin: |
+        100
+        ADD a
+        ADD b
+        ADD c
+        ADD d
+        TRACK key0 key1 key2 key3 key4 key5 key6 key7 key8 key9 key10 key11 key12 key13 key14 key15 key16 key17 key18 key19 key20 key21 key22 key23 key24 key25 key26 key27 key28 key29 key30 key31 key32 key33 key34 key35 key36 key37 key38 key39 key40 key41 key42 key43 key44 key45 key46 key47 key48 key49 key50 key51 key52 key53 key54 key55 key56 key57 key58 key59 key60 key61 key62 key63 key64 key65 key66 key67 key68 key69 key70 key71 key72 key73 key74 key75 key76 key77 key78 key79 key80 key81 key82 key83 key84 key85 key86 key87 key88 key89 key90 key91 key92 key93 key94 key95 key96 key97 key98 key99 key100 key101 key102 key103 key104 key105 key106 key107 key108 key109 key110 key111 key112 key113 key114 key115 key116 key117 key118 key119 key120 key121 key122 key123 key124 key125 key126 key127 key128 key129 key130 key131 key132 key133 key134 key135 key136 key137 key138 key139 key140 key141 key142 key143 key144 key145 key146 key147 key148 key149 key150 key151 key152 key153 key154 key155 key156 key157 key158 key159 key160 key161 key162 key163 key164 key165 key166 key167 key168 key169 key170 key171 key172 key173 key174 key175 key176 key177 key178 key179 key180 key181 key182 key183 key184 key185 key186 key187 key188 key189 key190 key191 key192 key193 key194 key195 key196 key197 key198 key199
+        LOAD
+        ADD e
+        LOAD
+      expected: |
+        ADD a moved=0 keys=-
+        ADD b moved=0 keys=-
+        ADD c moved=0 keys=-
+        ADD d moved=0 keys=-
+        LOAD a=35 b=64 c=55 d=46
+        ADD e moved=38 keys=key104,key105,key112,key12,key123,key125,key129,key13,key131,key138,key141,key143,key147,key150,key152,key164,key165,key166,key177,key182,key183,key188,key2,key23,key25,key30,key40,key45,key6,key63,key68,key7,key71,key82,key83,key84,key87,key93
+        LOAD a=25 b=54 c=42 d=41 e=38
+      compare: "trim"
+      hidden: true
+      hint: "Для V = 100 при добавлении пятого узла переезжает в среднем около 1/5 ключей, и все перемещённые ключи достаются именно новому узлу; проверьте LOAD."
+    - id: "remove-spreads"
+      title: "Удаление узла: ключи расходятся по нескольким соседям"
+      stdin: |
+        20
+        ADD n1
+        ADD n2
+        ADD n3
+        ADD n4
+        TRACK user0 user1 user2 user3 user4 user5 user6 user7 user8 user9 user10 user11 user12 user13 user14 user15 user16 user17 user18 user19 user20 user21 user22 user23 user24 user25 user26 user27 user28 user29 user30 user31 user32 user33 user34 user35 user36 user37 user38 user39 user40 user41 user42 user43 user44 user45 user46 user47 user48 user49 user50 user51 user52 user53 user54 user55 user56 user57 user58 user59
+        LOAD
+        REMOVE n3
+        LOAD
+        REMOVE n1
+        LOAD
+      expected: |
+        ADD n1 moved=0 keys=-
+        ADD n2 moved=0 keys=-
+        ADD n3 moved=0 keys=-
+        ADD n4 moved=0 keys=-
+        LOAD n1=23 n2=12 n3=7 n4=18
+        REMOVE n3 moved=7 keys=user10,user13,user21,user23,user38,user40,user45
+        LOAD n1=24 n2=14 n4=22
+        REMOVE n1 moved=24 keys=user0,user14,user15,user16,user17,user18,user19,user22,user28,user3,user33,user35,user39,user4,user40,user41,user43,user44,user48,user49,user51,user6,user7,user9
+        LOAD n2=37 n4=23
+      compare: "trim"
+      hidden: true
+      hint: "При V = 20 ключи удалённого узла распределяются по остальным узлам, а ключи остальных узлов остаются на месте: moved равен прежней нагрузке удалённого."
+    - id: "track-duplicates"
+      title: "Повторный TRACK и ключ после нескольких добавлений"
+      stdin: |
+        2
+        ADD a
+        TRACK k1 k2 k3
+        TRACK k2 k3 k4
+        ADD b
+        LOAD
+        ADD c
+        LOAD
+        ROUTE k4
+      expected: |
+        ADD a moved=0 keys=-
+        ADD b moved=1 keys=k3
+        LOAD a=3 b=1
+        ADD c moved=3 keys=k1,k2,k3
+        LOAD a=1 b=0 c=3
+        k4 -> a
+      compare: "trim"
+      hidden: true
+      hint: "Повторяющиеся ключи в TRACK не должны считаться дважды: LOAD суммирует по уникальным ключам."

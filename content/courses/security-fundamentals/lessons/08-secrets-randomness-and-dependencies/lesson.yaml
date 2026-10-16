@@ -1,0 +1,180 @@
+id: security.fundamentals.secrets-and-dependencies
+title: "Секреты, случайность и зависимости: secrets, журналы, SBOM и закрепление версий"
+goal: "Генерировать секреты криптостойким генератором, не допускать их утечки в журналы и репозитории и управлять риском сторонних зависимостей."
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [security.fundamentals.password-storage, security.fundamentals.sessions-csrf-and-cookies]
+related: [python.stdlib.subprocess-and-logging, security.fundamentals.message-authentication-and-tokens]
+next: []
+seeAlso:
+  - "Менеджеры секретов (Vault, облачные хранилища), подпись артефактов (Sigstore), политики лицензий и SLSA (в курсе только упоминаются)"
+objectives:
+  - Объяснить, чем random отличается от secrets и почему предсказуемый генератор нельзя использовать для токенов.
+  - Оценить стойкость секрета в битах энтропии и выбрать длину токена.
+  - Назвать места утечки секретов (репозиторий, журналы, URL, сообщения об ошибках) и меры против них.
+  - Реализовать маскирование секретов в журналах и объяснить пределы такого маскирования.
+  - Описать закрепление версий, проверку по хешам, SBOM и процесс реакции на уязвимость в зависимости.
+masteryCriteria:
+  - Вы используете secrets для токенов, ключей и сбросов пароля, а random оставляете для моделирования и тестов.
+  - Вы считаете энтропию как длина * log2(размер алфавита) и понимаете, что это верхняя граница для случайного выбора.
+  - Ваш маскировщик заменяет пароль в URL, Bearer-токен, известные формы ключей и поля password/secret/token/api_key, но не трогает безобидные поля вроде max_tokens.
+  - Вы знаете, что маскирование журналов - последняя линия защиты, а первая - не записывать секреты вовсе.
+  - Вы объясняете, зачем нужны точные версии, хеши пакетов и SBOM.
+tags: [security, secrets, randomness, logging, dependencies, sbom, supply-chain, entropy]
+facts:
+  - kind: internals
+    text: >-
+      Документация Python предупреждает, что генераторы псевдослучайных чисел модуля random не следует использовать в целях безопасности; для криптографических целей
+      предназначен модуль secrets, который берёт случайность у операционной системы. Состояние random полностью определяется начальным значением и порождает воспроизводимую последовательность.
+    sources:
+      - https://docs.python.org/3/library/random.html
+      - https://docs.python.org/3/library/secrets.html
+  - kind: security
+    text: >-
+      OWASP Secrets Management Cheat Sheet рекомендует хранить секреты централизованно, не хранить их в исходном коде и репозитории, ограничивать доступ,
+      ротировать и аудитировать использование. Секреты в переменных окружения и конфигурации допустимы лишь с оговорками, поскольку попадают в дампы, дочерние процессы и отладочный вывод.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
+  - kind: security
+    text: >-
+      OWASP Logging Cheat Sheet перечисляет данные, которые не следует писать в журналы напрямую или нужно удалять, маскировать или хешировать: пароли, токены доступа,
+      идентификаторы сессий, ключи шифрования и строки подключения к базам данных.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html
+  - kind: real-world
+    text: >-
+      OWASP Vulnerable Dependency Management Cheat Sheet описывает процесс: вести перечень зависимостей, сопоставлять версии с базами известных уязвимостей (CVE) и срочно обновлять.
+      Перечень компонентов можно вести в формате SBOM (Software Bill of Materials, спецификация состава ПО), который описывает CISA.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html
+      - https://www.cisa.gov/sbom
+  - kind: internals
+    text: >-
+      Режим проверки хешей pip (--require-hashes) требует указывать хеш для каждого пакета, включая транзитивные зависимости, и отказывает в установке файла с другим хешем.
+      OWASP Software Supply Chain Security Cheat Sheet советует закреплять версии и проверять целостность зависимостей.
+    sources:
+      - https://pip.pypa.io/en/stable/topics/secure-installs/
+      - https://cheatsheetseries.owasp.org/cheatsheets/Software_Supply_Chain_Security_Cheat_Sheet.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Чем генерировать токен сброса пароля?"
+      options:
+        - "random.randint(0, 10**9)"
+        - "secrets.token_urlsafe(32)"
+        - "hash(время)"
+        - "uuid, сгенерированный из имени пользователя"
+      answer: 1
+      explanation: >-
+        secrets берёт случайность у ОС и предназначен для таких задач. random предсказуем по своему состоянию, время и имя пользователя угадываются.
+    - id: q2
+      type: single
+      prompt: "Сколько бит энтропии у пароля из 8 случайных строчных латинских букв (алфавит 26)?"
+      options:
+        - "Около 8 бит"
+        - "Около 38 бит"
+        - "Около 208 бит"
+        - "Около 64 бит"
+      answer: 1
+      explanation: >-
+        8 * log2(26) = 8 * 4.7 = 37.6 бит. Это верхняя оценка при действительно случайном выборе; пароль, придуманный человеком, как правило, слабее.
+    - id: q3
+      type: multiple
+      prompt: "Где секрет может оказаться без вашего ведома? Выберите все."
+      options:
+        - "В истории репозитория после удаления файла"
+        - "В журнале приложения при записи полного URL с параметрами"
+        - "В сообщении об ошибке, возвращаемом клиенту"
+        - "В хеше пароля, сохранённом в базе"
+      answer: [0, 1, 2]
+      explanation: >-
+        История git хранит удалённые файлы, журналы и ответы об ошибках часто содержат исходные данные запроса. Хеш пароля секретом в этом смысле не является (но защищается отдельно).
+    - id: q4
+      type: single
+      prompt: "Секретный ключ попал в публичный репозиторий. Что делать в первую очередь?"
+      options:
+        - "Удалить файл и сделать новый коммит"
+        - "Отозвать и заменить ключ (ротация), затем разбираться с историей"
+        - "Переименовать репозиторий"
+        - "Ничего, если репозиторий был открыт недолго"
+      answer: 1
+      explanation: >-
+        Предполагайте, что ключ уже скопирован: его нужно признать скомпрометированным и заменить. Очистка истории без ротации ничего не гарантирует.
+    - id: q5
+      type: single
+      prompt: "Зачем закреплять версии зависимостей и проверять хеши?"
+      options:
+        - "Чтобы приложение запускалось быстрее"
+        - "Чтобы одна и та же сборка воспроизводилась, а подменённый или неожиданно обновлённый пакет не попал в продукт незамеченным"
+        - "Чтобы не нужно было обновлять зависимости"
+        - "Чтобы скрыть список зависимостей"
+      answer: 1
+      explanation: >-
+        Закрепление не отменяет обновлений: оно делает их осознанными. Новые версии с исправлениями принимаются по процессу, а не случайно.
+exercise:
+  id: security.fundamentals.secrets-and-dependencies.exercise
+  title: "Маскировщик секретов в журналах"
+  prompt: |
+    Реализуйте в `main.py` фильтр, который читает строки журнала и выводит их с замаскированными секретами. Используйте модуль `re`. Каждая входная строка даёт ровно одну выходную; пустые строки остаются пустыми. Маска везде одна: `[REDACTED]`.
+
+    **Правила применяются по порядку 1-4 к уже изменённой строке:**
+
+    1. **Пароль в URL.** `схема://пользователь:пароль@хост` превращается в `схема://пользователь:[REDACTED]@хост`. Схема - `[A-Za-z][A-Za-z0-9+.-]*`, пользователь и пароль не содержат пробелов, `:`, `/`, `@`. URL без пароля (`user@host` или без userinfo) не меняется.
+    2. **Bearer-токен.** Слово `bearer` (любой регистр, на границе слова), один или несколько пробельных символов и токен из символов `[A-Za-z0-9._~+/=-]` длиной **не меньше 8**, в котором есть хотя бы один символ, не являющийся латинской буквой, заменяются на `Bearer [REDACTED]`. Токен только из букв (например слово `authentication`) обычный текст и не меняется.
+    3. **Известные формы ключей** заменяются на `[REDACTED]`: `AKIA[0-9A-Z]{16}`, `gh[pousr]_[A-Za-z0-9]{36,}`, `xox[abprs]-[A-Za-z0-9-]{10,}`.
+    4. **Поля `ключ=значение`.** Имя поля (без учёта регистра) состоит из букв, цифр, `_` и `-` и **заканчивается** на `password`, `passwd`, `pwd`, `secret`, `token` или `api_key`/`api-key`/`apikey`. После имени необязательная кавычка, пробелы, `:` или `=`, пробелы и значение. Значение в одинарных или двойных кавычках сохраняет кавычки (`"[REDACTED]"`, в том числе для пустого значения); без кавычек оно продолжается до пробела, `,`, `;`, `&` или кавычки и заменяется на `[REDACTED]`. Разделитель и всё остальное остаются на месте.
+
+    **Не должны меняться** поля, имя которых только содержит слово, но не заканчивается им: `max_tokens=100`, `token_count=5`, `secretary=jane`, а также слово `passwords` без разделителя.
+
+    **Соглашения:** тестовые «секреты» вымышленные; маскирование по шаблонам - последняя линия защиты и всегда пропустит часть секретов, поэтому лучше вообще не записывать их в журнал. Строки из теста не обязаны быть корректными JSON или URL.
+
+    **Пример.** `login password=hunter2 ok` -> `login password=[REDACTED] ok`; `max_tokens=100` остаётся как есть.
+  entryFile: main.py
+  evaluation: io
+  hints:
+    - "Пароль в URL: `re.sub(r'([A-Za-z][A-Za-z0-9+.-]*://)([^\\s:/@]+):([^\\s/@]+)@', lambda m: m.group(1) + m.group(2) + ':[REDACTED]@', line)`."
+    - "Bearer: найдите `\\b[Bb]earer\\s+([A-Za-z0-9._~+/=-]{8,})` без учёта регистра, а в функции-замене проверьте `any(not c.isalpha() for c in token)`; если токен только из букв, верните исходный текст `m.group(0)`."
+    - "Поля: шаблон `([\\w-]*(?:password|passwd|pwd|secret|token|api[_-]?key))([\"']?\\s*[:=]\\s*)(\"[^\"]*\"|'[^']*'|[^\\s,;&\"']+)` с флагом IGNORECASE. Ключ обязан кончаться на слово прямо перед разделителем, поэтому `token_count=` не совпадёт."
+    - "В функции-замене для поля соберите `m.group(1) + m.group(2) + значение`: если значение начинается с кавычки, оберните `[REDACTED]` теми же кавычками. Читайте ввод `sys.stdin.read().splitlines()`."
+  tests:
+    - id: url-userinfo
+      title: "Пароль в URL"
+      stdin: "connecting to postgres://app:s3cr3t-pass@db.internal:5432/main\nmirror https://example.org/path?x=1 ok\nftp://anonymous:guest@files.example.org/pub\nproxy http://alice@proxy.example.org:3128 set\n"
+      expected: "connecting to postgres://app:[REDACTED]@db.internal:5432/main\nmirror https://example.org/path?x=1 ok\nftp://anonymous:[REDACTED]@files.example.org/pub\nproxy http://alice@proxy.example.org:3128 set\n"
+      compare: trim
+      hint: "Схема, имя пользователя и пароль в формате scheme://user:pass@host. Заменяется только пароль: `postgres://app:[REDACTED]@db...`. URL без пароля (только user@ или без userinfo) не меняется."
+    - id: bearer
+      title: "Bearer-токены"
+      stdin: "Authorization: Bearer eyJhbGciOi.payload-part.sig_nature\nauthorization: bearer abc123def456\nbearer authentication is enabled\nBearer short1\nBearer abcdefghij\n"
+      expected: "Authorization: Bearer [REDACTED]\nauthorization: Bearer [REDACTED]\nbearer authentication is enabled\nBearer short1\nBearer abcdefghij\n"
+      compare: trim
+      hint: "После слова Bearer (любой регистр) и пробела идёт токен из `[A-Za-z0-9._~+/=-]` длиной от 8, в котором есть хотя бы один символ, не являющийся буквой. Результат всегда `Bearer [REDACTED]`. Слова вроде 'authentication' - обычный текст."
+    - id: key-shapes
+      title: "Известные формы ключей"
+      stdin: "aws key AKIAIOSFODNN7EXAMPLE used\ngh token ghp_0123456789abcdefghijklmnopqrstuvwxyz in header\nslack xoxb-000000000000-EXAMPLEFAKE posted\nnot a key: AKIA123 and ghp_short and xoxb-short\n"
+      expected: "aws key [REDACTED] used\ngh token [REDACTED] in header\nslack [REDACTED] posted\nnot a key: AKIA123 and ghp_short and xoxb-short\n"
+      compare: trim
+      hint: "Три формы: `AKIA[0-9A-Z]{16}`, `gh[pousr]_[A-Za-z0-9]{36,}`, `xox[abprs]-[A-Za-z0-9-]{10,}`. Слишком короткие совпадения не трогаются."
+    - id: fields
+      title: "Поля password, secret, token, api_key (скрытый)"
+      stdin: "login password=hunter2 ok\ncfg: api_key: abcdef, other=1\nDB_PASSWORD=p@ss;next=2\n{\"password\": \"x y z\", \"user\": \"bob\"}\nclient_secret='quoted value' done\napikey=k1&api-key=k2&x=3\nToken=T0ken PWD=1234 passwd: secret-word\n"
+      expected: "login password=[REDACTED] ok\ncfg: api_key: [REDACTED], other=1\nDB_PASSWORD=[REDACTED];next=2\n{\"password\": \"[REDACTED]\", \"user\": \"bob\"}\nclient_secret='[REDACTED]' done\napikey=[REDACTED]&api-key=[REDACTED]&x=3\nToken=[REDACTED] PWD=[REDACTED] passwd: [REDACTED]\n"
+      compare: trim
+      hidden: true
+      hint: "Ключ - любое слово, заканчивающееся на password, passwd, pwd, secret, token или api_key/api-key/apikey (без учёта регистра). Затем необязательная кавычка, пробелы, `:` или `=`, значение. Значение в кавычках сохраняет кавычки, без кавычек заканчивается на пробел, `,`, `;` или `&`."
+    - id: no-false-positives
+      title: "Похожие, но безобидные поля (скрытый)"
+      stdin: "max_tokens=100 token_count=5 secretary=jane\npasswords are stored hashed\npassword reset sent; token_count=5 password=abc\n"
+      expected: "max_tokens=100 token_count=5 secretary=jane\npasswords are stored hashed\npassword reset sent; token_count=5 password=[REDACTED]\n"
+      compare: trim
+      hidden: true
+      hint: "Ключ должен заканчиваться на слово из списка прямо перед разделителем: `max_tokens=`, `token_count=` и `secretary=` не подходят. Слово `passwords` без разделителя тоже не подходит. В последней строке сработает только `password=abc`."
+    - id: order-and-combos
+      title: "Порядок правил и несколько секретов в строке (скрытый)"
+      stdin: "fetch https://u:pw@h.example/x token=abc Authorization: Bearer tk-12345678\nx-auth-token: abc\npwd=\"\" api_key=AKIAIOSFODNN7EXAMPLE\n\nplain line without secrets password=ghp_0123456789abcdefghijklmnopqrstuvwxyz\n"
+      expected: "fetch https://u:[REDACTED]@h.example/x token=[REDACTED] Authorization: Bearer [REDACTED]\nx-auth-token: [REDACTED]\npwd=\"[REDACTED]\" api_key=[REDACTED]\n\nplain line without secrets password=[REDACTED]\n"
+      compare: trim
+      hidden: true
+      hint: "Правила применяются по порядку 1-4 к уже изменённой строке. После правила 4 значение у полей становится `[REDACTED]`; пустое значение в кавычках тоже заменяется (`\"[REDACTED]\"`). Пустые строки выводятся как есть."

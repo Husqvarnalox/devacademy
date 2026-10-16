@@ -1,0 +1,296 @@
+id: "system-design.fundamentals.partitioning-and-replication"
+title: "Партиционирование и репликация: шарды, лидер, кворумы"
+goal: "Объяснять стратегии шардирования, горячие точки, репликацию лидер-фолловер и кворумные чтения и записи, и проверять условие R + W > N на модели."
+difficulty: "medium"
+estimatedMinutes: 100
+prerequisites:
+  - "system-design.fundamentals.load-balancing-and-consistent-hashing"
+related:
+  - "databases.sql.transactions-and-isolation"
+  - "databases.sql.indexes-and-query-plans"
+  - "networking.fundamentals.tcp-connections-and-congestion"
+next:
+  - "system-design.fundamentals.consistency-and-idempotency"
+seeAlso:
+  - "Многолидерная репликация и разрешение конфликтов (CRDT, last-write-wins)"
+  - "Консенсус: Raft и Paxos (в курсе не разбираются)"
+objectives:
+  - "Сравнить шардирование по диапазону, по хешу и по справочнику (directory) и назвать их компромиссы."
+  - "Объяснить горячие точки (hot spots) и способы борьбы с ними."
+  - "Описать репликацию лидер-фолловер, синхронную и асинхронную, и лаг репликации."
+  - "Вывести условие пересечения кворумов R + W > N и объяснить, что оно даёт, а что нет."
+  - "Смоделировать кворумные чтения и записи при отказах узлов и определить, возможно ли устаревшее чтение."
+masteryCriteria:
+  - "Вы объясняете, почему шардирование по диапазону ключей-времени создаёт горячую точку, а по хешу - нет, но ломает диапазонные запросы."
+  - "Вы для заданных N, W, R называете, сколько отказов допускают запись и чтение и гарантируется ли чтение последней записи."
+  - "Вы показываете, как асинхронная репликация приводит к чтению устаревших данных у фолловера."
+  - "Вы различаете партиционирование (разные данные на разных узлах) и репликацию (копии одних данных)."
+tags:
+  - "system-design"
+  - "sharding"
+  - "partitioning"
+  - "replication"
+  - "quorum"
+  - "leader-follower"
+  - "hotspots"
+facts:
+  - kind: "internals"
+    text: "В Dynamo запись считается успешной, если подтверждена как минимум W репликами из N, а чтение - если ответили минимум R реплик. При R + W > N множества читаемых и записанных реплик пересекаются, поэтому чтение видит хотя бы одну реплику с последней записью. Типичная конфигурация в статье - (N, R, W) = (3, 2, 2); R и W настраиваются, смещая баланс между задержкой чтения и записи."
+    sources:
+      - "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+  - kind: "internals"
+    text: "Пересечение кворумов не гарантирует линеаризуемость: при «нестрогих» кворумах (sloppy quorum) и подсказанной передаче (hinted handoff) записи могут оказываться на узлах вне основных N, а конкурирующие записи требуют разрешения конфликтов (векторные часы в Dynamo)."
+    sources:
+      - "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+  - kind: "real-world"
+    text: "Amazon описывает приём shuffle sharding: клиентов раскладывают по случайным небольшим подмножествам шардов, так что проблемный клиент затрагивает лишь малую долю остальных. Приём снижает «радиус поражения» отказов."
+    sources:
+      - "https://aws.amazon.com/builders-library/workload-isolation-using-shuffle-sharding/"
+  - kind: "misconception"
+    text: "Репликация не заменяет резервное копирование и не масштабирует запись: все реплики принимают те же изменения, а удаление, выполненное по ошибке, быстро реплицируется на все копии. Масштабировать запись помогает партиционирование."
+  - kind: "real-world"
+    text: "Шардирование по диапазону сохраняет порядок ключей и удобно для диапазонных запросов, но монотонные ключи (время, автоинкремент) направляют все новые записи в последний шард. Шардирование по хешу выравнивает нагрузку, но запросы по диапазону требуют обхода всех шардов."
+    sources:
+      - "https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Данные пользователей шардированы по диапазону дат регистрации. Какая проблема наиболее вероятна?"
+      options:
+        - "Горячая точка: новые пользователи пишутся в последний шард"
+        - "Невозможно выполнить поиск по дате"
+        - "Репликация перестанет работать"
+        - "Все шарды получат одинаковую нагрузку"
+      answer: 0
+      explanation: "Монотонный ключ направляет все новые записи в один (последний) шард. Хеширование ключа выровняло бы запись, ценой диапазонных запросов."
+    - id: "q2"
+      type: "numeric"
+      prompt: "N = 5 реплик, запись подтверждается W = 3. Какое минимальное R гарантирует пересечение чтения с последней записью (R + W > N)?"
+      answer: 3
+      tolerance: 0
+      explanation: "R + 3 > 5, значит R >= 3."
+    - id: "q3"
+      type: "numeric"
+      prompt: "N = 3, W = 2, R = 2. Сколько реплик может отказать, чтобы записи оставались доступны?"
+      answer: 1
+      tolerance: 0
+      explanation: "Для записи нужно W = 2 живых реплики из 3, значит отказ допустим для одной. Чтение тоже требует R = 2 живых."
+    - id: "q4"
+      type: "single"
+      prompt: "При асинхронной репликации лидер-фолловер читатель получил от фолловера устаревшее значение. Это называется:"
+      options:
+        - "Лаг репликации"
+        - "Конфликт слияния"
+        - "Разделение сети"
+        - "Переполнение WAL"
+      answer: 0
+      explanation: "Фолловер ещё не применил последние изменения лидера: между записью и её видимостью на реплике проходит лаг."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что верно про партиционирование и репликацию? Выберите все верные утверждения."
+      options:
+        - "Партиционирование делит данные между узлами и масштабирует запись и объём"
+        - "Репликация хранит копии одних данных и повышает доступность и пропускную способность чтения"
+        - "Репликация заменяет резервные копии"
+        - "Реплики одного шарда можно держать на разных узлах"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Репликация не заменяет бэкап: ошибочное удаление реплицируется. Остальные утверждения верны."
+exercise:
+  id: "system-design.fundamentals.partitioning-and-replication.exercise"
+  title: "Симулятор кворумов: версии, отказы, устаревшие чтения"
+  prompt: |
+    Смоделируйте группу из `N` реплик одного значения с кворумной записью и чтением и определите, возможны ли устаревшие чтения.
+
+    **Формат ввода.** Первая строка: `N W R`. Далее команды по одной в строке:
+
+    * `WRITE <value>` - записать значение (токен без пробелов);
+    * `READ` - прочитать;
+    * `DOWN <i>` / `UP <i>` - отключить / вернуть реплику `i` (`0 <= i < N`);
+    * `SYNC` - фоновая синхронизация (anti-entropy);
+    * `STATE` - показать версии реплик.
+
+    **Вывод.**
+
+    * `WRITE <value> OK v=<версия> acked=[<индексы>]` или `WRITE <value> FAIL up=<число живых>`;
+    * `READ -> <value> v=<версия> from=[<индексы>] <FRESH|STALE> can_be_stale=<yes|no>` или `READ FAIL up=<число живых>`;
+    * `SYNC`;
+    * `STATE v=[<версии реплик>] down=[<индексы отключённых>]`.
+
+    Списки печатаются как в Python: `[0, 1]` (запятая и пробел), пустой - `[]`.
+
+    **Соглашения симулятора:**
+
+    * Начальное состояние каждой реплики: версия `0`, значение `-`. Версии подтверждённых записей растут на 1: `1, 2, ...`; `latest` - наибольшая версия успешной записи (изначально `0`).
+    * `WRITE`: если живых реплик меньше `W` - отказ (`FAIL`), состояние не меняется и версия не расходуется. Иначе запись применяется **синхронно ровно на первые `W` живые реплики по возрастанию индекса**; остальные живые реплики получат её только при `SYNC` (так моделируется лаг репликации).
+    * `READ`: если живых реплик меньше `R` - отказ. Иначе опрашиваются первые `R` живые реплики по возрастанию индекса; возвращается значение с наибольшей версией среди них (`from` - опрошенные индексы).
+    * Ответ `STALE`, если версия прочитанного значения меньше `latest`, иначе `FRESH`.
+    * `can_be_stale=yes`, если **существует** набор из `R` живых реплик, ни одна из которых не хранит версию `latest`, то есть если число живых реплик с версией меньше `latest` не меньше `R`; иначе `no`. Это не то же самое, что `STALE`: чтение могло оказаться удачным.
+    * `SYNC`: все живые реплики получают пару (версия, значение) с наибольшей версией среди живых реплик. Отключённые реплики не меняются; при `UP` реплика возвращается с прежним (возможно, устаревшим) содержимым.
+    * До первой записи `READ` возвращает `- v=0` и это `FRESH`.
+
+    **Пример.** `N = 3`, `W = 2`, `R = 1`: `WRITE a` попадает на реплики `[0, 1]`; `READ` опрашивает реплику 0 и видит `a` (`FRESH`), но реплика 2 всё ещё на версии 0, так что `can_be_stale=yes`. После `SYNC` отстающих реплик нет, и `can_be_stale=no`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Состояние: список reps из пар (версия, значение), список up из флагов и число latest. alive = индексы с up[i]; пересчитывайте alive при каждой команде."
+    - "WRITE: если len(alive) < W - FAIL. Иначе latest += 1 и reps[i] = (latest, value) для alive[:W]. READ: asked = alive[:R]; ответ - пара с максимальной версией среди reps[i] для i в asked."
+    - "can_be_stale: lacking = число i из alive с reps[i][0] < latest; ответ yes, если lacking >= R. STALE/FRESH определяется отдельно по версии, которую вернуло именно это чтение."
+    - "Проверка вручную на N=3, W=1, R=1: WRITE a (реплика 0, v1), DOWN 0, READ -> опрошена реплика 1, версия 0, значение \"-\": STALE и can_be_stale=yes (живые реплики 1 и 2 обе без v1)."
+  tests:
+    - id: "sample"
+      title: "Пример из условия: W = 2, R = 1, SYNC"
+      stdin: |
+        3 2 1
+        WRITE a
+        READ
+        DOWN 0
+        READ
+        UP 0
+        READ
+        SYNC
+        READ
+        STATE
+      expected: |
+        WRITE a OK v=1 acked=[0, 1]
+        READ -> a v=1 from=[0] FRESH can_be_stale=yes
+        READ -> a v=1 from=[1] FRESH can_be_stale=yes
+        READ -> a v=1 from=[0] FRESH can_be_stale=yes
+        SYNC
+        READ -> a v=1 from=[0] FRESH can_be_stale=no
+        STATE v=[1, 1, 1] down=[]
+      compare: "trim"
+      hint: "До SYNC can_be_stale=yes (реплика 2 отстаёт), после SYNC - no."
+    - id: "stale-read"
+      title: "W = 1, R = 1: чтение с устаревшей реплики"
+      stdin: |
+        3 1 1
+        WRITE a
+        WRITE b
+        DOWN 0
+        READ
+        STATE
+        WRITE c
+        UP 0
+        READ
+      expected: |
+        WRITE a OK v=1 acked=[0]
+        WRITE b OK v=2 acked=[0]
+        READ -> - v=0 from=[1] STALE can_be_stale=yes
+        STATE v=[2, 0, 0] down=[0]
+        WRITE c OK v=3 acked=[1]
+        READ -> b v=2 from=[0] STALE can_be_stale=yes
+      compare: "trim"
+      hint: "Запись ушла на реплику 0; после DOWN 0 читаем реплику 1 с версией 0: STALE."
+    - id: "strict-quorum"
+      title: "W = 2, R = 2, N = 3: пересечение кворумов"
+      stdin: |
+        3 2 2
+        WRITE a
+        READ
+        DOWN 0
+        WRITE b
+        READ
+        UP 0
+        READ
+        DOWN 1
+        READ
+        DOWN 2
+        READ
+        WRITE c
+      expected: |
+        WRITE a OK v=1 acked=[0, 1]
+        READ -> a v=1 from=[0, 1] FRESH can_be_stale=no
+        WRITE b OK v=2 acked=[1, 2]
+        READ -> b v=2 from=[1, 2] FRESH can_be_stale=no
+        READ -> b v=2 from=[0, 1] FRESH can_be_stale=no
+        READ -> b v=2 from=[0, 2] FRESH can_be_stale=no
+        READ FAIL up=1
+        WRITE c FAIL up=1
+      compare: "trim"
+      hidden: true
+      hint: "При R + W > N и всех живых репликах can_be_stale=no, а после DOWN запись идёт на оставшиеся, и чтение всё равно видит последнюю версию."
+    - id: "weak-quorum"
+      title: "N = 5, W = 2, R = 2: R + W <= N"
+      stdin: |
+        5 2 2
+        WRITE x
+        READ
+        DOWN 0
+        DOWN 1
+        READ
+        UP 1
+        READ
+        SYNC
+        READ
+        STATE
+      expected: |
+        WRITE x OK v=1 acked=[0, 1]
+        READ -> x v=1 from=[0, 1] FRESH can_be_stale=yes
+        READ -> - v=0 from=[2, 3] STALE can_be_stale=yes
+        READ -> x v=1 from=[1, 2] FRESH can_be_stale=yes
+        SYNC
+        READ -> x v=1 from=[1, 2] FRESH can_be_stale=no
+        STATE v=[1, 1, 1, 1, 1] down=[0]
+      compare: "trim"
+      hidden: true
+      hint: "Запись на репликах 0 и 1; после DOWN 0, DOWN 1 чтение опрашивает 2 и 3 (версия 0): STALE, 3 отстающих живых >= R."
+    - id: "failures-unavailable"
+      title: "Недоступность записи и чтения при отказах"
+      stdin: |
+        5 3 3
+        DOWN 0
+        DOWN 1
+        WRITE a
+        READ
+        DOWN 2
+        WRITE b
+        READ
+        UP 2
+        WRITE b
+        READ
+        STATE
+      expected: |
+        WRITE a OK v=1 acked=[2, 3, 4]
+        READ -> a v=1 from=[2, 3, 4] FRESH can_be_stale=no
+        WRITE b FAIL up=2
+        READ FAIL up=2
+        WRITE b OK v=2 acked=[2, 3, 4]
+        READ -> b v=2 from=[2, 3, 4] FRESH can_be_stale=no
+        STATE v=[0, 0, 2, 2, 2] down=[0, 1]
+      compare: "trim"
+      hidden: true
+      hint: "N = 5, W = 3, R = 3: при двух отказах всё работает, при третьем и запись, и чтение отклоняются (живых меньше 3)."
+    - id: "read-before-write"
+      title: "Чтение до первой записи и SYNC после неё"
+      stdin: |
+        4 1 2
+        READ
+        WRITE a
+        READ
+        SYNC
+        WRITE b
+        DOWN 0
+        READ
+        SYNC
+        READ
+        STATE
+      expected: |
+        READ -> - v=0 from=[0, 1] FRESH can_be_stale=no
+        WRITE a OK v=1 acked=[0]
+        READ -> a v=1 from=[0, 1] FRESH can_be_stale=yes
+        SYNC
+        WRITE b OK v=2 acked=[0]
+        READ -> a v=1 from=[1, 2] STALE can_be_stale=yes
+        SYNC
+        READ -> a v=1 from=[1, 2] STALE can_be_stale=yes
+        STATE v=[2, 1, 1, 1] down=[0]
+      compare: "trim"
+      hidden: true
+      hint: "До записи версия 0 и значение \"-\", это FRESH с can_be_stale=no (latest = 0). SYNC копирует лучшую версию среди живых реплик; версия 2 осталась только на отключённой реплике 0, поэтому после SYNC чтение всё ещё STALE."

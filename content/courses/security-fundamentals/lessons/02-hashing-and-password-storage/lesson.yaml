@@ -1,0 +1,179 @@
+id: security.fundamentals.password-storage
+title: "Хеширование и хранение паролей: соль, PBKDF2, scrypt, сравнение за постоянное время"
+goal: "Хранить пароли в виде медленных солёных хешей с параметрами в самой записи и проверять их без утечек по времени."
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [security.fundamentals.threat-modelling]
+related: [python.stdlib.json-csv-struct, networking.fundamentals.tls-and-diagnostics]
+next: [security.fundamentals.message-authentication-and-tokens]
+seeAlso:
+  - "Argon2id и bcrypt: рекомендованы OWASP, но отсутствуют в стандартной библиотеке Python, поэтому в упражнениях не используются"
+  - "Перец (pepper), многофакторная аутентификация и политики паролей (в курсе только упоминаются)"
+objectives:
+  - Объяснить, чем хеш отличается от шифрования, и почему обычный SHA-256 не подходит для паролей.
+  - Объяснить роль соли и отличить соль от перца.
+  - Назвать параметры работы PBKDF2 и scrypt и значения, которые рекомендует OWASP.
+  - Хранить параметры алгоритма в записи и поддерживать обновление числа итераций при входе пользователя.
+  - Сравнивать дайджесты через hmac.compare_digest и объяснить, какую атаку это закрывает.
+masteryCriteria:
+  - Вы создаёте запись формата pbkdf2_sha256$итерации$соль_b64$хеш_b64 и получаете известный вектор RFC 7914 для первых 32 байт.
+  - Вы отвергаете повреждённые записи (схема, итерации, base64, пустая соль, слишком большое число итераций) значением INVALID, а не исключением.
+  - Вы сравниваете хеши только константным по времени сравнением и не используете == для секретов.
+  - Вы объясняете, когда запись нужно перехешировать, и не сохраняете пароль в открытом виде в логах и отладочном выводе.
+tags: [security, passwords, hashing, pbkdf2, scrypt, salt, constant-time]
+facts:
+  - kind: security
+    text: >-
+      OWASP Password Storage Cheat Sheet: пароли нельзя хранить в открытом виде, нужны сильные медленные алгоритмы (Argon2id, bcrypt, PBKDF2) и уникальная соль для каждого пароля.
+      Быстрые хеши вроде SHA-256 не подходят, потому что позволяют перебирать огромное число догадок.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+  - kind: security
+    text: >-
+      Минимальные параметры по OWASP: Argon2id - 19 МиБ памяти, 2 итерации, параллелизм 1; если Argon2id недоступен - scrypt с N = 2^17, блоком 8 и параллелизмом 1;
+      для bcrypt - фактор работы не меньше 10 и лимит пароля 72 байта; если требуется FIPS-140 - PBKDF2 с HMAC-SHA-256 и 600 000 итераций и более.
+      Числа со временем меняются: сверяйтесь с актуальной версией документа. В упражнениях итераций мало ради скорости тестов.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+  - kind: internals
+    text: >-
+      PBKDF2 определён в RFC 8018 как PBKDF2(P, S, c, dkLen): псевдослучайная функция (здесь HMAC) применяется c раз к паролю и соли. Функция hashlib.pbkdf2_hmac в Python
+      реализует её; hashlib.scrypt реализует scrypt (RFC 7914) и требует сборки Python с OpenSSL.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc8018
+      - https://www.rfc-editor.org/rfc/rfc7914
+      - https://docs.python.org/3/library/hashlib.html
+  - kind: security
+    text: >-
+      Сравнение секретов оператором == может завершиться раньше при первом различающемся байте, и время ответа зависит от длины общего префикса.
+      hmac.compare_digest сравнивает за время, не зависящее от содержимого (для данных одинаковой длины), и предназначена именно для этого.
+    sources:
+      - https://docs.python.org/3/library/hmac.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Почему пароли нельзя хранить обычным SHA-256 без соли и без замедления?"
+      options:
+        - "SHA-256 легко обратить в исходный пароль"
+        - "Хеш быстрый, так что при утечке базы перебор паролей идёт очень быстро, а одинаковые пароли дают одинаковые хеши"
+        - "SHA-256 запрещён стандартами"
+        - "SHA-256 даёт слишком длинный хеш"
+      answer: 1
+      explanation: >-
+        Обратить хеш нельзя, но можно подбирать пароли: SHA-256 вычисляется миллиарды раз в секунду на видеокартах. Без соли у одинаковых паролей одинаковые хеши и работают готовые таблицы.
+    - id: q2
+      type: single
+      prompt: "Для чего нужна соль?"
+      options:
+        - "Чтобы хранить пароль в зашифрованном виде"
+        - "Чтобы одинаковые пароли давали разные хеши и нельзя было использовать заранее посчитанные таблицы"
+        - "Чтобы пароль нельзя было забыть"
+        - "Чтобы ускорить хеширование"
+      answer: 1
+      explanation: >-
+        Соль уникальна для каждого пароля, не секретна и хранится рядом с хешем. Секретный общий для приложения компонент называется перцем - это другая мера.
+    - id: q3
+      type: multiple
+      prompt: "Какие данные должны храниться в записи пароля, чтобы её можно было проверить и позже усилить? Выберите все."
+      options:
+        - "Идентификатор алгоритма"
+        - "Число итераций (или другие параметры стоимости)"
+        - "Соль"
+        - "Сам пароль, на случай, если пользователь забудет"
+      answer: [0, 1, 2]
+      explanation: >-
+        Параметры в записи позволяют проверять старые записи и постепенно переводить их на новые параметры при входе. Пароль в открытом виде не хранится никогда.
+    - id: q4
+      type: numeric
+      prompt: "Сколько мегабайт памяти (приблизительно, 1 МБ = 2^20 байт) нужно scrypt при N = 2^17 и r = 8, если расход равен 128 * N * r байт?"
+      answer: 128
+      tolerance: 0
+      explanation: >-
+        128 * 131072 * 8 = 134 217 728 байт = 128 МиБ. Именно такой памятью scrypt замедляет перебор на специализированном железе.
+    - id: q5
+      type: single
+      prompt: "Что делать при успешном входе, если в записи 100 000 итераций, а текущая политика требует 600 000?"
+      options:
+        - "Ничего: старые записи нельзя менять"
+        - "Пересчитать хеш из только что введённого пароля с новыми параметрами и сохранить новую запись"
+        - "Удалить запись пользователя"
+        - "Отправить пользователю пароль по почте"
+      answer: 1
+      explanation: >-
+        Пароль в открытом виде доступен только в момент входа, поэтому именно тогда запись обновляют. Остальные записи усиливаются по мере входа пользователей.
+exercise:
+  id: security.fundamentals.password-storage.exercise
+  title: "Запись пароля pbkdf2_sha256: создание и проверка"
+  prompt: |
+    Реализуйте в `main.py` формат записи пароля и три команды над ним. Используйте только стандартную библиотеку (`hashlib`, `hmac`, `base64`).
+
+    **Формат записи:** `pbkdf2_sha256$<итерации>$<соль_b64>$<хеш_b64>`. Хеш - `hashlib.pbkdf2_hmac("sha256", пароль_в_UTF8, соль, итерации, 32)`, то есть 32 байта. Соль и хеш кодируются стандартным base64 (`base64.b64encode`, с `=`).
+
+    **Ввод.** Команды по одной на строку; пустые строки пропускаются:
+
+    * `create <итерации> <соль_hex> <пароль>` - вывести запись. Пароль - всё, что идёт после соли (пробелы входят в пароль);
+    * `verify <запись> <пароль>` - вывести `OK`, `FAIL` или `INVALID`. Пароль - всё после первого пробела за записью, без `strip()`;
+    * `check <запись> <минимум_итераций>` - вывести `REHASH`, если итераций в записи **строго меньше** минимума, иначе `CURRENT`; для повреждённой записи `INVALID`.
+
+    **Корректная запись.** Ровно четыре поля через `$`; схема равна `pbkdf2_sha256`; итерации - только ASCII-цифры, значение от 1 до 10 000 000 (верхний предел защищает проверяющую сторону: запись от недоверенного источника не должна заставить вас считать часами); соль и хеш - допустимый base64 (`validate=True`), соль непустая. Всё остальное - `INVALID`, а не исключение.
+
+    **Проверка.** Пересчитайте хеш с солью и итерациями из записи и сравните с сохранённым через `hmac.compare_digest`. Сохранённый хеш другой длины не подходит (`FAIL`).
+
+    **Параметры в реальной жизни.** В тестах итераций мало (1-1000), чтобы каждый запуск занимал доли секунды. В реальных системах по OWASP Password Storage Cheat Sheet: Argon2id (19 МиБ, 2 итерации, параллелизм 1) предпочтителен; scrypt - N = 2^17, r = 8, p = 1; PBKDF2-HMAC-SHA256 - 600 000 итераций и больше (для FIPS-140). Числа актуализируются: сверяйтесь с текущей версией документа.
+
+    **Пример.** `create 1 73616c74 passwd` выводит запись, в которой хеш - первые 32 байта контрольного вектора PBKDF2-HMAC-SHA-256 из RFC 7914 (раздел 11).
+  entryFile: main.py
+  evaluation: io
+  hints:
+    - "Три функции: `create` собирает строку из четырёх полей, `parse` проверяет форму и возвращает кортеж или None, `verify` и `check` опираются на `parse`."
+    - "В `parse` сначала `split('$')` и проверка числа полей и схемы; итерации: `s.isascii() and s.isdigit()`, затем `int` и диапазон 1..10_000_000. base64: `b64decode(x, validate=True)` бросает binascii.Error - перехватите его."
+    - "В `verify`: `hmac.compare_digest(derive(...), digest)`. Не вычисляйте PBKDF2 для записи, которая не прошла `parse`, и не используйте `==`."
+    - "Пароль для verify берите через `rest.split(' ', 1)[1]`, а не через `.split()`: пробелы и пустой пароль должны сохраниться. Для check сравнивайте `iterations < minimum`."
+  tests:
+    - id: create-salts
+      title: "Один пароль, две соли - две разные записи"
+      stdin: "create 1000 00112233445566778899aabbccddeeff correct horse battery\ncreate 1000 ffeeddccbbaa99887766554433221100 correct horse battery\n"
+      expected: "pbkdf2_sha256$1000$ABEiM0RVZneImaq7zN3u/w==$e0W6slWI75MtCaHVataRHX18F1ne3xjLZjzWwwNL1ns=\npbkdf2_sha256$1000$/+7dzLuqmYh3ZlVEMyIRAA==$WJGy1Dt5u7AjVnG8QQ4u7UcORsQjXGo+jDEPshTBwxg=\n"
+      compare: trim
+      hint: "Формат: pbkdf2_sha256$итерации$соль_b64$хеш_b64. Соль приходит в hex, в запись кладётся её base64 (b64encode со знаками '=')."
+    - id: rfc7914-vector
+      title: "Контрольный вектор RFC 7914 (c=1, пароль passwd, соль salt)"
+      stdin: "create 1 73616c74 passwd\n"
+      expected: "pbkdf2_sha256$1$c2FsdA==$VawEblbjCJ/sFpHCJUS2BflBhSFt3gRl5oudV8INrLw=\n"
+      compare: trim
+      hint: "Длина производного ключа - 32 байта (первые 32 байта вектора RFC 7914 из 64). Пароль кодируется в UTF-8."
+    - id: verify-basic
+      title: "Проверка верного и неверного пароля"
+      stdin: "verify pbkdf2_sha256$1000$ABEiM0RVZneImaq7zN3u/w==$e0W6slWI75MtCaHVataRHX18F1ne3xjLZjzWwwNL1ns= correct horse battery\nverify pbkdf2_sha256$1000$ABEiM0RVZneImaq7zN3u/w==$e0W6slWI75MtCaHVataRHX18F1ne3xjLZjzWwwNL1ns= correct horse batterY\nverify pbkdf2_sha256$1000$ABEiM0RVZneImaq7zN3u/w==$e0W6slWI75MtCaHVataRHX18F1ne3xjLZjzWwwNL1ns= \n"
+      expected: "OK\nFAIL\nFAIL\n"
+      compare: trim
+      hint: "Пересчитайте PBKDF2 с солью и числом итераций из записи и сравните через hmac.compare_digest. Пароль - вся остальная часть строки после записи."
+    - id: unicode-spaces
+      title: "Юникод и пробелы в пароле (скрытый)"
+      stdin: "verify pbkdf2_sha256$500$ABEiM0RVZneImaq7zN3u/w==$CMnPgn/bH6niaBjbb0e+7q7o4qDQgln8omMc/Ahq3ws= пароль-№1\nverify pbkdf2_sha256$500$ABEiM0RVZneImaq7zN3u/w==$CMnPgn/bH6niaBjbb0e+7q7o4qDQgln8omMc/Ahq3ws= пароль-№2\nverify pbkdf2_sha256$500$/+7dzLuqmYh3ZlVEMyIRAA==$QZqQewAnJLuK5kJx8TN5clSSENSwtzmk+qQ7XKigULw=   two  spaces \nverify pbkdf2_sha256$500$/+7dzLuqmYh3ZlVEMyIRAA==$QZqQewAnJLuK5kJx8TN5clSSENSwtzmk+qQ7XKigULw=  two  spaces \n"
+      expected: "OK\nFAIL\nOK\nFAIL\n"
+      compare: trim
+      hidden: true
+      hint: "Пароль - это всё после первого пробела за записью, без strip(): пробелы значимы. Кодировка - UTF-8."
+    - id: malformed
+      title: "Повреждённые записи дают INVALID (скрытый)"
+      stdin: "verify pbkdf2_sha256$1000$AAEC$AAEC pw\nverify pbkdf2_sha1$1000$AAEC$AAEC pw\nverify pbkdf2_sha256$0$AAEC$AAEC pw\nverify pbkdf2_sha256$-5$AAEC$AAEC pw\nverify pbkdf2_sha256$12x$AAEC$AAEC pw\nverify pbkdf2_sha256$1000$AAEC pw\nverify pbkdf2_sha256$1000$AAEC$AAEC$extra pw\nverify pbkdf2_sha256$1000$!!!$AAEC pw\nverify pbkdf2_sha256$1000$$AAEC pw\nverify pbkdf2_sha256$10000001$AAEC$AAEC pw\n"
+      expected: "FAIL\nINVALID\nINVALID\nINVALID\nINVALID\nINVALID\nINVALID\nINVALID\nINVALID\nINVALID\n"
+      compare: trim
+      hint: "Первая строка - корректная запись с неверным хешем: ожидается FAIL, а не INVALID. Остальные нарушают формат: схема, итерации (только цифры, 1..10000000), четыре поля, валидный base64, непустая соль."
+    - id: check-rehash
+      title: "Нужно ли перехешировать запись (скрытый)"
+      stdin: "check pbkdf2_sha256$1000$ABEiM0RVZneImaq7zN3u/w==$jvvWt0LvW2Wc0VvdRZwwKqDPtQXsAvruG79wmhLF6hE= 1000\ncheck pbkdf2_sha256$1000$ABEiM0RVZneImaq7zN3u/w==$jvvWt0LvW2Wc0VvdRZwwKqDPtQXsAvruG79wmhLF6hE= 1001\ncheck pbkdf2_sha256$7$/+7dzLuqmYh3ZlVEMyIRAA==$tZtPLT0TyEyeXsg6jsh11xGWvtFj3i7TERO5JOC2clY= 600000\ncheck broken 1\n"
+      expected: "CURRENT\nREHASH\nREHASH\nINVALID\n"
+      compare: trim
+      hidden: true
+      hint: "REHASH, если iterations строго меньше порога; равенство - CURRENT. Повреждённая запись - INVALID."
+    - id: hash-length
+      title: "Хеш не той длины не подходит (скрытый)"
+      stdin: "verify pbkdf2_sha256$1000$AAEC$AAEC pw\nverify pbkdf2_sha256$1000$AAEC$ pw\n"
+      expected: "FAIL\nFAIL\n"
+      compare: trim
+      hidden: true
+      hint: "Пустой base64 - допустимый (пустой) хеш: запись корректна, но сравнение не пройдёт, значит FAIL. compare_digest спокойно принимает байтовые строки разной длины."

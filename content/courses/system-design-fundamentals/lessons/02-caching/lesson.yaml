@@ -1,0 +1,461 @@
+id: "system-design.fundamentals.caching"
+title: "Кэширование: стратегии, вытеснение и защита от штурма"
+goal: "Выбирать стратегию кэширования (cache-aside, write-through, write-back), политику вытеснения (LRU, LFU) и TTL, и защищать базу от штурма кэша."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "system-design.fundamentals.requirements-and-estimation"
+related:
+  - "os.fundamentals.virtual-memory-page-replacement"
+  - "databases.sql.indexes-and-query-plans"
+  - "python.concurrency.threading-and-synchronization"
+next:
+  - "system-design.fundamentals.load-balancing-and-consistent-hashing"
+seeAlso:
+  - "Многоуровневые кэши: браузер, CDN, прокси, приложение (упоминаются)"
+  - "Инвалидация кэша по событиям и версионирование ключей"
+objectives:
+  - "Сравнить cache-aside, read-through, write-through и write-back по задержке, согласованности и риску потери данных."
+  - "Реализовать LRU-кэш с TTL, где время задаётся логическими часами, и посчитать попадания, промахи и вытеснения."
+  - "Объяснить, чем LFU отличается от LRU и в каких нагрузках каждая политика выигрывает."
+  - "Описать штурм кэша (cache stampede) и три способа защиты: единый загрузчик, джиттер TTL, раннее обновление."
+  - "Оценить выигрыш от кэша по доле попаданий и стоимости промаха."
+masteryCriteria:
+  - "Вы объясняете, почему в cache-aside запись обычно удаляет ключ из кэша, а не обновляет его."
+  - "Вы вручную прогоняете последовательность GET/PUT через LRU с TTL и получаете нужные счётчики."
+  - "Вы называете нагрузку, на которой LFU лучше LRU (стабильно популярные ключи и разовые сканирования) и наоборот."
+  - "Вы описываете, что произойдёт при одновременном истечении популярного ключа и как это предотвратить."
+tags:
+  - "system-design"
+  - "caching"
+  - "lru"
+  - "lfu"
+  - "ttl"
+  - "cache-aside"
+  - "write-back"
+  - "stampede"
+facts:
+  - kind: "internals"
+    text: "Redis поддерживает несколько политик вытеснения при достижении лимита памяти: noeviction, allkeys-lru, volatile-lru, allkeys-lfu, volatile-ttl и другие. Реализации LRU и LFU там приближённые: на выборке ключей, а не по точному порядку всех ключей. Точный набор политик смотрите в актуальной документации."
+    sources:
+      - "https://redis.io/docs/latest/develop/reference/eviction/"
+  - kind: "real-world"
+    text: "Facebook описал, как масштабировал memcached: для борьбы со штурмом они выдают клиенту «аренду» (lease) на загрузку отсутствующего ключа, так что только один клиент идёт в базу, а остальные ждут или получают слегка устаревшее значение. Та же статья обсуждает инвалидацию кэша удалением ключа."
+    sources:
+      - "https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf"
+  - kind: "misconception"
+    text: "Кэш не «ускоряет всё». Доля попаданий (hit ratio) определяет выигрыш: среднее время = h * t_кэша + (1 - h) * t_источника. При доле 50 % и промахе, в 100 раз более дорогом, среднее время падает меньше чем вдвое. Хороший кэш требует локальности обращений."
+  - kind: "performance"
+    text: "Тот же приём вытеснения встречается в операционных системах: замещение страниц LRU/OPT в виртуальной памяти - это кэш физических кадров перед диском. Выводы про локальность обращений и аномалии применимы и к кэшам приложений."
+    sources:
+      - "https://pages.cs.wisc.edu/~remzi/OSTEP/vm-beyondphys-policy.pdf"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В cache-aside приложение при записи в базу чаще всего поступает так:"
+      options:
+        - "Обновляет значение в кэше до записи в базу"
+        - "Пишет в базу, затем удаляет ключ из кэша"
+        - "Пишет только в кэш, а в базу позже"
+        - "Не трогает кэш до истечения TTL и никогда не удаляет ключ"
+      answer: 1
+      explanation: "Удаление ключа после записи в базу проще и безопаснее обновления: следующее чтение загрузит свежее значение. Обновление кэша при гонках легко оставляет устаревшее значение."
+    - id: "q2"
+      type: "single"
+      prompt: "Какая стратегия записи рискует потерять подтверждённые записи при падении кэша?"
+      options:
+        - "Write-through"
+        - "Write-back (write-behind)"
+        - "Cache-aside"
+        - "Read-through"
+      answer: 1
+      explanation: "Write-back подтверждает запись после попадания в кэш, а в базу сбрасывает позже. Падение кэша до сброса теряет данные."
+    - id: "q3"
+      type: "numeric"
+      prompt: "LRU-кэш на 2 записи, пустой. Последовательность обращений (как GET с загрузкой при промахе): A B A C B. Сколько промахов?"
+      answer: 4
+      tolerance: 0
+      explanation: "A - промах, B - промах, A - попадание, C - промах (вытесняет B, самую давнюю), B - промах. Всего 4 промаха."
+    - id: "q4"
+      type: "single"
+      prompt: "Что такое штурм кэша (cache stampede)?"
+      options:
+        - "Переполнение кэша слишком большими значениями"
+        - "Одновременный промах по популярному ключу, из-за которого множество запросов идут в базу"
+        - "Потеря соединения с кэшем"
+        - "Вытеснение всех ключей политикой LRU"
+      answer: 1
+      explanation: "Когда популярный ключ истекает, все параллельные запросы видят промах и дружно нагружают источник. Защита: единый загрузчик, джиттер TTL, раннее обновление."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Какие приёмы помогают против штурма кэша? Выберите все."
+      options:
+        - "Блокировка или «аренда»: загружает один клиент, остальные ждут"
+        - "Случайный разброс (джиттер) TTL у однотипных ключей"
+        - "Обновление значения заранее, до истечения TTL"
+        - "Уменьшение размера кэша"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Первые три сокращают число одновременных обращений к источнику. Уменьшение кэша только повышает долю промахов."
+exercise:
+  id: "system-design.fundamentals.caching.exercise"
+  title: "LRU-кэш с TTL на логических часах"
+  prompt: |
+    Смоделируйте LRU-кэш ограниченной ёмкости, где у каждой записи есть срок жизни (TTL), а время задаёт сам ввод.
+
+    **Формат ввода.** Первая строка: `C T` - ёмкость (число записей, `C >= 1`) и TTL в тиках (`T >= 1`). Далее команды по одной в строке, времена не убывают:
+
+    * `<t> PUT <key> <value>` - положить значение;
+    * `<t> GET <key>` - прочитать.
+
+    **Вывод.** Для каждого `GET` одна строка: `<t> GET <key> HIT <value>` или `<t> GET <key> MISS`. `PUT` ничего не печатает. В конце две строки:
+
+    ```
+    hits=<H> misses=<M> evictions=<E> expirations=<X>
+    keys: <ключи от самого давнего к самому свежему через пробел>
+    ```
+
+    (для пустого кэша вторая строка - `keys:`; пробелы в конце строки не учитываются).
+
+    **Соглашения симулятора:**
+
+    * Время логическое: считывать системные часы нельзя, единственный источник времени - число `<t>` в команде.
+    * Запись, положенная в момент `t0`, истекает в момент `t0 + T` включительно: при `now >= t0 + T` её уже нет.
+    * **Перед каждой командой** сначала удаляются все просроченные записи (каждая учитывается в `expirations`, не в `evictions`), и только потом выполняется сама команда.
+    * `GET`: попадание (`HIT`, `hits += 1`) делает запись самой свежей, но **не продлевает TTL**; отсутствие (`MISS`, `misses += 1`).
+    * `PUT` существующего ключа заменяет значение, **сбрасывает TTL** (срок отсчитывается от нового `t`) и делает ключ самым свежим; вытеснения нет.
+    * `PUT` нового ключа при полном кэше вытесняет самую давно использованную запись (`evictions += 1`), затем вставляет новую.
+    * «Использованием» считается успешный `GET` или любой `PUT`; промах `GET` кэш не меняет (загрузка из источника в этой модели не выполняется).
+
+    **Пример.** Ввод `2 10`, затем `0 PUT a 1`, `1 PUT b 2`, `2 GET a`, `3 PUT c 3`, `4 GET b`, `10 GET a`, `11 GET c`. Ответ: `2 GET a HIT 1`, `4 GET b MISS` (`b` вытеснена ключом `c`), `10 GET a MISS` (`a` положена в 0 и истекла в 10), `11 GET c HIT 3`, затем `hits=2 misses=2 evictions=1 expirations=1` и `keys: c`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Удобная структура - collections.OrderedDict: первый элемент самый давний, move_to_end() освежает ключ, popitem(last=False) убирает самый давний. В значении храните пару (значение, момент_истечения)."
+    - "Порядок обработки команды: сначала цикл по списку ключей с expires_at <= now (удаляйте по копии списка и считайте expirations), потом GET или PUT. Истечение и вытеснение - разные счётчики."
+    - "PUT: если ключ уже есть - удалите его и вставьте заново в конец с новым сроком now + ttl (вытеснения нет). Если ключа нет и len(cache) == capacity - сначала popitem(last=False) и evictions += 1."
+    - "Проверьте на примере из условия вручную: после PUT c в кэше a и c (b вытеснена, a освежена GET). В момент 10 запись a (положена в 0, TTL 10) уже просрочена и удаляется до выполнения GET."
+  tests:
+    - id: "sample"
+      title: "Пример из условия"
+      stdin: |
+        2 10
+        0 PUT a 1
+        1 PUT b 2
+        2 GET a
+        3 PUT c 3
+        4 GET b
+        10 GET a
+        11 GET c
+      expected: |
+        2 GET a HIT 1
+        4 GET b MISS
+        10 GET a MISS
+        11 GET c HIT 3
+        hits=2 misses=2 evictions=1 expirations=1
+        keys: c
+      compare: "trim"
+      hint: "Ожидается hits=2 misses=2 evictions=1 expirations=1 и keys: c."
+    - id: "overwrite-resets-ttl"
+      title: "PUT существующего ключа сбрасывает TTL и освежает ключ"
+      stdin: |
+        2 10
+        0 PUT a 1
+        1 PUT b 2
+        5 PUT a 9
+        6 PUT c 3
+        7 GET a
+        8 GET b
+        14 GET a
+        15 GET a
+      expected: |
+        7 GET a HIT 9
+        8 GET b MISS
+        14 GET a HIT 9
+        15 GET a MISS
+        hits=2 misses=2 evictions=1 expirations=1
+        keys: c
+      compare: "trim"
+      hint: "Повторный PUT a в момент 5 продлевает жизнь до 15 и делает a самой свежей: вытеснена будет b."
+    - id: "expiry-boundary"
+      title: "Запись исчезает ровно в t0 + T"
+      stdin: |
+        3 5
+        0 PUT x 7
+        4 GET x
+        5 GET x
+        5 GET x
+      expected: |
+        4 GET x HIT 7
+        5 GET x MISS
+        5 GET x MISS
+        hits=1 misses=2 evictions=0 expirations=1
+        keys:
+      compare: "trim"
+      hidden: true
+      hint: "Условие истечения - now >= t0 + T. GET в момент 4 - ещё попадание, в момент 5 - промах."
+    - id: "get-does-not-extend"
+      title: "GET не продлевает TTL, но освежает порядок"
+      stdin: |
+        2 8
+        0 PUT k v
+        3 GET k
+        6 GET k
+        8 GET k
+      expected: |
+        3 GET k HIT v
+        6 GET k HIT v
+        8 GET k MISS
+        hits=2 misses=1 evictions=0 expirations=1
+        keys:
+      compare: "trim"
+      hidden: true
+      hint: "Попадания в моменты 3 и 6 не сдвигают срок: запись положена в 0 и истекает в 8."
+    - id: "expired-frees-space"
+      title: "Просроченные записи освобождают место без вытеснения"
+      stdin: |
+        2 10
+        0 PUT a 1
+        0 PUT b 2
+        10 PUT c 3
+        10 PUT d 4
+        11 GET c
+        11 GET a
+      expected: |
+        11 GET c HIT 3
+        11 GET a MISS
+        hits=1 misses=1 evictions=0 expirations=2
+        keys: d c
+      compare: "trim"
+      hidden: true
+      hint: "Перед PUT в момент 10 обе записи уже просрочены и удаляются как expirations, поэтому evictions остаётся 0."
+    - id: "capacity-one"
+      title: "Ёмкость 1: каждый новый ключ вытесняет предыдущий"
+      stdin: |
+        1 100
+        1 PUT a 1
+        2 PUT b 2
+        3 GET a
+        4 GET b
+        5 PUT b 3
+        6 GET b
+        7 PUT c 9
+        8 GET b
+      expected: |
+        3 GET a MISS
+        4 GET b HIT 2
+        6 GET b HIT 3
+        8 GET b MISS
+        hits=2 misses=2 evictions=2 expirations=0
+        keys: c
+      compare: "trim"
+      hidden: true
+      hint: "При C = 1 любой PUT нового ключа вытесняет единственную запись; TTL большой, истечений нет."
+    - id: "mixed-workload"
+      title: "Смешанная нагрузка: вытеснения и истечения"
+      stdin: |
+        3 6
+        0 PUT a 1
+        1 PUT b 2
+        2 PUT c 3
+        3 GET a
+        4 PUT d 4
+        5 GET b
+        5 GET c
+        6 GET a
+        7 PUT e 5
+        8 GET d
+        9 GET d
+        10 GET e
+        12 GET e
+        13 PUT f 6
+      expected: |
+        3 GET a HIT 1
+        5 GET b MISS
+        5 GET c HIT 3
+        6 GET a MISS
+        8 GET d HIT 4
+        9 GET d HIT 4
+        10 GET e HIT 5
+        12 GET e HIT 5
+        hits=6 misses=2 evictions=1 expirations=4
+        keys: f
+      compare: "trim"
+      hidden: true
+      hint: "Следите за порядком использования: GET освежает, а промах кэш не меняет; истечения считаются отдельно."
+challenge:
+  id: "system-design.fundamentals.caching.challenge"
+  title: "LFU с вытеснением по давности при равенстве"
+  prompt: |
+    Реализуйте кэш с политикой LFU (least frequently used): вытесняется запись с наименьшим числом обращений; при равенстве числа обращений - **самая давно использованная** (LRU как арбитр).
+
+    **Формат ввода.** Первая строка: `C` - ёмкость (`C >= 1`). Далее команды:
+
+    * `PUT <key> <value>`;
+    * `GET <key>`.
+
+    **Вывод.** Для каждого `GET`: `GET <key> HIT <value>` или `GET <key> MISS`. В конце:
+
+    ```
+    hits=<H> misses=<M> evictions=<E>
+    contents: <key>:<freq> ...
+    ```
+
+    где записи упорядочены по ключу (лексикографически), `freq` - текущий счётчик обращений.
+
+    **Соглашения симулятора:**
+
+    * Логические часы - номер команды (с 1): «последнее использование» записи - номер последней команды, которая к ней обращалась.
+    * Новая запись входит со счётчиком `freq = 1`. Попадание `GET` увеличивает счётчик на 1. `PUT` существующего ключа заменяет значение и тоже увеличивает счётчик на 1; вытеснения нет.
+    * При `PUT` нового ключа в полный кэш вытесняется запись с минимальной парой `(freq, последнее использование)` - до вставки новой, поэтому новая запись не может быть вытеснена собой.
+    * Счётчик вытесненной записи забывается: при повторной вставке ключ снова начинает с `freq = 1`.
+    * Промах `GET` кэш не меняет, но номер команды всё равно увеличивается.
+
+    **Пример.** `C = 2`: `PUT a 1`, `PUT b 2`, `GET a`, `PUT c 3`, `GET b`, `GET c`, `PUT d 4`. После `GET a` у `a` счётчик 2, у `b` - 1, поэтому `PUT c` вытесняет `b`; `GET b` - промах; `GET c` даёт `c:2`; при `PUT d` у `a` и `c` счётчик 2, но `a` использовалась раньше (команда 3 против 6), так что вытесняется `a`. Итог: `hits=2 misses=1 evictions=2`, `contents: c:2 d:1`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Храните для каждого ключа список [значение, freq, last_used], где last_used - номер команды; номер команды увеличивайте на каждой команде, включая промахи."
+    - "Жертва - ключ с минимальным кортежем (freq, last_used): min(store, key=lambda k: (store[k][1], store[k][2])). Кортеж сам даёт нужный арбитраж при равенстве freq."
+    - "PUT существующего ключа: значение заменяется, freq + 1, last_used = текущий номер; вытеснений нет. Вытеснять нужно только при вставке нового ключа в полный кэш и до вставки."
+    - "Сверьтесь с примером: после GET a ключ b единственный с freq 1, так что PUT c вытесняет его. На PUT d у a и c freq равны 2, решает last_used: a (3) меньше c (6)."
+  tests:
+    - id: "sample"
+      title: "Пример из условия"
+      stdin: |
+        2
+        PUT a 1
+        PUT b 2
+        GET a
+        PUT c 3
+        GET b
+        GET c
+        PUT d 4
+      expected: |
+        GET a HIT 1
+        GET b MISS
+        GET c HIT 3
+        hits=2 misses=1 evictions=2
+        contents: c:2 d:1
+      compare: "trim"
+      hint: "Ожидается hits=2 misses=1 evictions=2 и contents: c:2 d:1."
+    - id: "tie-break"
+      title: "Равные счётчики: вытесняется давняя запись"
+      stdin: |
+        3
+        PUT a 1
+        PUT b 2
+        PUT c 3
+        PUT d 4
+        GET a
+        GET b
+        GET c
+        GET d
+      expected: |
+        GET a MISS
+        GET b HIT 2
+        GET c HIT 3
+        GET d HIT 4
+        hits=3 misses=1 evictions=1
+        contents: b:2 c:2 d:2
+      compare: "trim"
+      hint: "У всех freq равны 1, поэтому вытесняется самая давно использованная - a."
+    - id: "put-existing-counts"
+      title: "PUT существующего ключа увеличивает счётчик"
+      stdin: |
+        2
+        PUT a 1
+        PUT b 2
+        PUT a 5
+        PUT c 3
+        GET a
+        GET b
+        GET c
+      expected: |
+        GET a HIT 5
+        GET b MISS
+        GET c HIT 3
+        hits=2 misses=1 evictions=1
+        contents: a:3 c:2
+      compare: "trim"
+      hidden: true
+      hint: "Повторный PUT a даёт freq 2, поэтому вытесняется b (freq 1), а не a."
+    - id: "new-key-is-victim"
+      title: "Свежая запись с freq 1 вытесняется первой (скрытый)"
+      stdin: |
+        2
+        PUT a 1
+        GET a
+        GET a
+        PUT b 2
+        PUT c 3
+        PUT d 4
+        GET a
+        GET b
+        GET d
+      expected: |
+        GET a HIT 1
+        GET a HIT 1
+        GET a HIT 1
+        GET b MISS
+        GET d HIT 4
+        hits=4 misses=1 evictions=2
+        contents: a:4 d:2
+      compare: "trim"
+      hidden: true
+      hint: "Старая популярная запись защищена счётчиком, и ключи с freq 1 вытесняют друг друга по очереди."
+    - id: "forget-frequency"
+      title: "Счётчик вытесненного ключа забывается"
+      stdin: |
+        2
+        PUT a 1
+        GET a
+        GET a
+        PUT b 2
+        GET b
+        GET b
+        GET b
+        PUT c 3
+        PUT a 4
+        GET a
+      expected: |
+        GET a HIT 1
+        GET a HIT 1
+        GET b HIT 2
+        GET b HIT 2
+        GET b HIT 2
+        GET a HIT 4
+        hits=6 misses=0 evictions=2
+        contents: a:2 b:4
+      compare: "trim"
+      hidden: true
+      hint: "После вытеснения a вставляется заново с freq 1, прежние три обращения не учитываются."
+    - id: "capacity-one"
+      title: "Ёмкость 1"
+      stdin: |
+        1
+        PUT a 1
+        GET a
+        GET b
+        PUT b 2
+        GET a
+        GET b
+        PUT b 3
+      expected: |
+        GET a HIT 1
+        GET b MISS
+        GET a MISS
+        GET b HIT 2
+        hits=2 misses=2 evictions=1
+        contents: b:3
+      compare: "trim"
+      hidden: true
+      hint: "При C = 1 любой новый ключ вытесняет единственный; GET промах увеличивает номер команды, но кэш не меняет."

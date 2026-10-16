@@ -1,0 +1,493 @@
+id: "system-design.fundamentals.rate-limiting"
+title: "Ограничение частоты запросов: окна, ведро токенов, дырявое ведро"
+goal: "Сравнивать алгоритмы ограничения частоты (fixed window, sliding log, sliding window counter, token bucket, leaky bucket), считать их поведение на потоке запросов и выбирать подходящий."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "system-design.fundamentals.load-balancing-and-consistent-hashing"
+related:
+  - "networking.fundamentals.http-evolution"
+  - "python.concurrency.threading-and-synchronization"
+  - "os.fundamentals.cpu-scheduling"
+next:
+  - "system-design.fundamentals.partitioning-and-replication"
+seeAlso:
+  - "Распределённое ограничение частоты через общий счётчик (Redis) и согласованность счётчиков"
+  - "Адаптивное ограничение и сброс нагрузки (load shedding)"
+objectives:
+  - "Объяснить, зачем нужно ограничение частоты и где оно ставится (клиент, шлюз, сервис)."
+  - "Реализовать fixed window, sliding log, sliding window counter, token bucket и leaky bucket и описать их компромиссы по памяти и точности."
+  - "Показать на потоке запросов «всплеск на границе окон» у фиксированного окна."
+  - "Сформулировать ответ клиенту при отказе: код 429 и заголовок Retry-After."
+  - "Выбрать алгоритм под задачу: допустить всплеск или сгладить нагрузку."
+masteryCriteria:
+  - "Вы вручную прогоняете поток запросов через ведро токенов с заданными ёмкостью и скоростью пополнения."
+  - "Вы объясняете, почему фиксированное окно пропускает до 2*limit запросов за интервал, равный окну, и как его смягчает скользящее окно."
+  - "Вы называете, какой алгоритм разрешает всплеск (token bucket), а какой сглаживает выход (leaky bucket)."
+  - "Вы знаете, что состояние лимитера нужно хранить на ключ (клиент, ключ API), и оцениваете память для каждого алгоритма."
+tags:
+  - "system-design"
+  - "rate-limiting"
+  - "token-bucket"
+  - "leaky-bucket"
+  - "sliding-window"
+  - "fixed-window"
+  - "429"
+facts:
+  - kind: "real-world"
+    text: "Для ответа «слишком много запросов» в HTTP определён код 429 Too Many Requests (RFC 6585). Ответ может содержать заголовок Retry-After с подсказкой, когда повторить запрос."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc6585.html"
+  - kind: "real-world"
+    text: "Google Cloud в обзоре стратегий ограничения частоты описывает типичные приёмы: ограничение на клиента, на ресурс, по регионам, а также возврат 429 и экспоненциальную задержку на стороне клиента. Клиенты, получив 429, должны замедляться, а не повторять запрос немедленно."
+    sources:
+      - "https://cloud.google.com/architecture/rate-limiting-strategies-techniques"
+  - kind: "real-world"
+    text: "Повторы без задержки и без разброса (jitter) усиливают перегрузку: когда сервер уже на пределе, клиенты возвращаются одновременно. В Builders Library Amazon рекомендует экспоненциальную задержку с джиттером на стороне клиента."
+    sources:
+      - "https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/"
+  - kind: "performance"
+    text: "Сброс нагрузки (load shedding) защищает сервис, отвергая часть запросов раньше, чем очередь станет бесконечной: лучше быстро отказать части клиентов, чем медленно ответить всем. Лимитер по клиентам и общий сброс нагрузки решают разные задачи и дополняют друг друга."
+    sources:
+      - "https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/"
+  - kind: "misconception"
+    text: "Лимит «100 запросов в минуту» не означает «не больше 100 запросов за любую минуту»: при фиксированном окне клиент может отправить 100 запросов в конце одной минуты и 100 в начале следующей - 200 запросов за пару секунд. Такое поведение зависит от алгоритма."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой код HTTP означает превышение лимита запросов?"
+      options:
+        - "403"
+        - "404"
+        - "429"
+        - "503"
+      answer: 2
+      explanation: "Код 429 Too Many Requests (RFC 6585). Заголовок Retry-After подсказывает клиенту, когда повторить."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Лимит фиксированного окна: 100 запросов в минуту. Какое наибольшее число запросов клиент может успешно отправить за 2 секунды вокруг границы окон?"
+      answer: 200
+      tolerance: 0
+      explanation: "100 запросов в последние секунды одного окна и 100 в первые секунды следующего. Это и есть «всплеск на границе»."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой алгоритм допускает кратковременный всплеск до ёмкости и при этом ограничивает среднюю скорость?"
+      options:
+        - "Token bucket"
+        - "Leaky bucket как очередь с постоянным выходом"
+        - "Fixed window с лимитом 1"
+        - "Сброс соединения"
+      answer: 0
+      explanation: "Ведро токенов накапливает токены (до ёмкости) и позволяет всплеск, а долгосрочная скорость равна скорости пополнения. Дырявое ведро, наоборот, выдаёт запросы равномерно."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Ведро токенов: ёмкость 5, пополнение 2 токена каждые 1000 мс, в момент 0 ведро полное. В момент 0 пришли 5 запросов (стоимость 1) и все прошли. Сколько токенов в ведре в момент 2500 мс (до обработки нового запроса)?"
+      answer: 4
+      tolerance: 0
+      explanation: "К моменту 2500 прошло два полных периода (до 2000), добавлено 2 * 2 = 4 токена; ёмкость 5 не превышена."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что верно про sliding log? Выберите все верные утверждения."
+      options:
+        - "Хранит временную метку каждого принятого запроса"
+        - "Точен: окно считается по реальным моментам запросов"
+        - "Требует памяти порядка лимита на ключ"
+        - "Не допускает всплеска на границе окон"
+      answer:
+        - 0
+        - 1
+        - 2
+        - 3
+      explanation: "Sliding log хранит метки запросов за последнее окно: точен и без граничного всплеска, но дорог по памяти."
+exercise:
+  id: "system-design.fundamentals.rate-limiting.exercise"
+  title: "Ведро токенов на потоке запросов"
+  prompt: |
+    Реализуйте ограничитель на ведре токенов (token bucket) и прогоните через него поток запросов с целочисленными миллисекундными метками.
+
+    **Формат ввода.** Первая строка: `B R P` - ёмкость ведра, число токенов за один период пополнения и длина периода в миллисекундах. Далее по одному запросу в строке: `<t>` или `<t> <cost>` - момент в мс и стоимость (по умолчанию 1). Моменты не убывают.
+
+    **Вывод.** Для каждого запроса строка `<t> ALLOW tokens_left=<N>` или `<t> DENY tokens_left=<N>`, где `N` - число токенов в ведре после обработки запроса. В конце: `allowed=<A> denied=<D>`.
+
+    **Соглашения симулятора:**
+
+    * В момент `0` ведро полное (`B` токенов), время последнего пополнения `last = 0`.
+    * Пополнение дискретное: перед запросом в момент `t` вычисляется `k = (t - last) // P` полных периодов; если `k > 0`, то `tokens = min(B, tokens + k * R)` и `last += k * P` (дробные периоды не накапливаются, `last` сдвигается ровно на целое число периодов, даже если ведро уже полное).
+    * Запрос стоимости `c` проходит (`ALLOW`), если `tokens >= c`, тогда `tokens -= c`; иначе `DENY` и токены не меняются. Частичного списания нет.
+    * Стоимость может превышать `B`: такой запрос всегда отклоняется.
+    * Время, `float` и случайные числа не используются: все вычисления в целых числах.
+
+    **Пример.** `B = 3`, `R = 1`, `P = 1000`; запросы в моменты `0, 0, 0, 0, 500, 1000, 1500, 2999, 3000`. Первые три проходят (остаётся 0), четвёртый и момент 500 отклоняются, в 1000 добавляется 1 токен - проходит, в 1500 токенов нет, в 2999 прошло ещё `(2999-1000)//1000 = 1` период - проходит, в 3000 ещё период - проходит. Итого `allowed=6 denied=3`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Состояние лимитера - три числа: tokens, last (момент последнего учтённого пополнения) и константы B, R, P. Каждая строка запроса: разберите t и cost (cost по умолчанию 1)."
+    - "Пополнение: k = (now - last) // period; если k > 0: tokens = min(capacity, tokens + k * refill); last += k * period. Не присваивайте last = now: тогда дробные доли периодов потеряются."
+    - "Решение: если tokens >= cost - вычтите и напечатайте ALLOW, иначе DENY без изменения tokens. Печатайте значение tokens после обработки, затем накапливайте счётчики allowed/denied."
+    - "Проверка на ручном примере: B=2, R=1, P=1000, запросы 0,0,0,1500,1999,2000. Ответы: ALLOW, ALLOW, DENY, ALLOW (в 1500 один период, last=1000), DENY (в 1999 нового периода нет), ALLOW (в 2000 last=2000)."
+  tests:
+    - id: "sample"
+      title: "Пример из условия"
+      stdin: |
+        3 1 1000
+        0
+        0
+        0
+        0
+        500
+        1000
+        1500
+        2999
+        3000
+      expected: |
+        0 ALLOW tokens_left=2
+        0 ALLOW tokens_left=1
+        0 ALLOW tokens_left=0
+        0 DENY tokens_left=0
+        500 DENY tokens_left=0
+        1000 ALLOW tokens_left=0
+        1500 DENY tokens_left=0
+        2999 ALLOW tokens_left=0
+        3000 ALLOW tokens_left=0
+        allowed=6 denied=3
+      compare: "trim"
+      hint: "allowed=6 denied=3; в 2999 и в 3000 пополнение по одному токену."
+    - id: "no-drift"
+      title: "Сдвиг last на целые периоды, а не на now"
+      stdin: |
+        2 1 1000
+        0
+        0
+        0
+        1500
+        1999
+        2000
+      expected: |
+        0 ALLOW tokens_left=1
+        0 ALLOW tokens_left=0
+        0 DENY tokens_left=0
+        1500 ALLOW tokens_left=0
+        1999 DENY tokens_left=0
+        2000 ALLOW tokens_left=0
+        allowed=4 denied=2
+      compare: "trim"
+      hint: "После запроса в 1500 last = 1000 (а не 1500), поэтому в 2000 уже наступает новый период и запрос проходит."
+    - id: "costs"
+      title: "Запросы разной стоимости"
+      stdin: |
+        5 2 100
+        0 3
+        0 3
+        50 1
+        100 3
+        100 3
+        300 5
+        450 6
+      expected: |
+        0 ALLOW tokens_left=2
+        0 DENY tokens_left=2
+        50 ALLOW tokens_left=1
+        100 ALLOW tokens_left=0
+        100 DENY tokens_left=0
+        300 DENY tokens_left=4
+        450 DENY tokens_left=5
+        allowed=3 denied=4
+      compare: "trim"
+      hidden: true
+      hint: "Частичного списания нет: запрос стоимости 3 при 2 токенах отклоняется и не уменьшает ведро; стоимость 6 больше ёмкости 5 и отклоняется всегда."
+    - id: "cap-on-idle"
+      title: "Долгий простой не переполняет ведро выше ёмкости"
+      stdin: |
+        3 1 1000
+        0
+        0
+        0
+        10000
+        10000
+        10000
+        10000
+        10000
+      expected: |
+        0 ALLOW tokens_left=2
+        0 ALLOW tokens_left=1
+        0 ALLOW tokens_left=0
+        10000 ALLOW tokens_left=2
+        10000 ALLOW tokens_left=1
+        10000 ALLOW tokens_left=0
+        10000 DENY tokens_left=0
+        10000 DENY tokens_left=0
+        allowed=6 denied=2
+      compare: "trim"
+      hidden: true
+      hint: "После простоя в 10 000 мс токенов не больше B: за раз проходит ровно B запросов."
+    - id: "steady-vs-burst"
+      title: "Всплеск, затем ровный поток с частотой пополнения"
+      stdin: |
+        4 1 1000
+        0
+        0
+        0
+        0
+        0
+        500
+        1000
+        1500
+        2000
+        2500
+        3000
+        3500
+        4000
+      expected: |
+        0 ALLOW tokens_left=3
+        0 ALLOW tokens_left=2
+        0 ALLOW tokens_left=1
+        0 ALLOW tokens_left=0
+        0 DENY tokens_left=0
+        500 DENY tokens_left=0
+        1000 ALLOW tokens_left=0
+        1500 DENY tokens_left=0
+        2000 ALLOW tokens_left=0
+        2500 DENY tokens_left=0
+        3000 ALLOW tokens_left=0
+        3500 DENY tokens_left=0
+        4000 ALLOW tokens_left=0
+        allowed=8 denied=5
+      compare: "trim"
+      hidden: true
+      hint: "Запросы раз в 500 мс при пополнении 1 токена в секунду проходят через один."
+    - id: "big-refill"
+      title: "Пополнение сразу несколькими периодами и крупными порциями"
+      stdin: |
+        10 4 250
+        0 10
+        100
+        250 4
+        250
+        1000 12
+        1000 10
+        1000
+      expected: |
+        0 ALLOW tokens_left=0
+        100 DENY tokens_left=0
+        250 ALLOW tokens_left=0
+        250 DENY tokens_left=0
+        1000 DENY tokens_left=10
+        1000 ALLOW tokens_left=0
+        1000 DENY tokens_left=0
+        allowed=3 denied=4
+      compare: "trim"
+      hidden: true
+      hint: "k периодов дают k * R токенов, но не больше ёмкости: 3 периода по 4 токена при ёмкости 10."
+challenge:
+  id: "system-design.fundamentals.rate-limiting.challenge"
+  title: "Фиксированное окно против скользящего окна со счётчиками"
+  prompt: |
+    Прогоните один и тот же поток запросов через два ограничителя и покажите всплеск на границе окон у фиксированного окна.
+
+    **Формат ввода.** Первая строка: `L W` - лимит запросов и длина окна в мс. Далее по одной метке `<t>` (мс, неубывающие) в строке.
+
+    **Вывод.** Для каждого запроса строка `<t> FIXED:<ALLOW|DENY> SWC:<ALLOW|DENY>`. В конце две строки:
+
+    ```
+    fixed_allowed=<A> swc_allowed=<B>
+    fixed_max_in_window=<X> swc_max_in_window=<Y>
+    ```
+
+    **Соглашения симулятора:**
+
+    * **Фиксированное окно (FIXED).** Окно с номером `w = t // W`. Запрос разрешается, если число уже **разрешённых** в этом окне запросов `< L`; иначе отклоняется. Отклонённые запросы не учитываются.
+    * **Скользящее окно со счётчиками (SWC).** Для запроса в момент `t`: `w = t // W`, `off = t % W`, `cur` - число разрешённых запросов в окне `w`, `prev` - число разрешённых в окне `w - 1` (0, если в нём не было разрешённых). Оценка `est = prev * (W - off) // W + cur` (целочисленное деление с округлением вниз, в целых числах). Запрос разрешается, если `est < L`; иначе отклоняется. Счётчики FIXED и SWC независимы.
+    * `*_max_in_window` для каждого ограничителя - наибольшее по всем разрешённым запросам число разрешённых запросов в полуинтервале `(t - W, t]`, где `t` - момент разрешённого запроса (сам запрос включается).
+    * Время только целое (мс); `float` не используется.
+
+    **Пример.** `L = 3`, `W = 1000`; запросы в `900, 950, 990, 1000, 1010, 1020`. FIXED пропускает все шесть (границу 1000 разделяют окна `0` и `1`): `fixed_max_in_window=6`. SWC: в 1000 `est = 3*1000//1000 + 0 = 3` - отказ, в 1010 `est = 3*990//1000 + 0 = 2` - разрешён, в 1020 `est = 3*980//1000 + 1 = 3` - отказ. `swc_allowed=4`, `swc_max_in_window=4`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Ведите два словаря: номер окна -> число разрешённых запросов. Для FIXED ключ w = t // W; для SWC используйте отдельный словарь (отказанные запросы не учитываются)."
+    - "Для SWC считайте est = swc.get(w - 1, 0) * (W - off) // W + swc.get(w, 0), где off = t % W. Запрос разрешён при est < L; если разрешён - увеличьте swc[w]."
+    - "max_in_window: для каждого разрешённого момента t посчитайте число разрешённых моментов u с t - W < u <= t, возьмите максимум (перебор квадратичный, допустим для коротких тестов)."
+    - "Сверьтесь с примером: в 1000 у SWC prev = 3 и off = 0, оценка 3 - отказ. В 1010 оценка 3*990//1000 = 2 - разрешён. Если окно w - 1 пропущено целиком (нет запросов), prev = 0."
+  tests:
+    - id: "sample"
+      title: "Пример: всплеск на границе окон"
+      stdin: |
+        3 1000
+        900
+        950
+        990
+        1000
+        1010
+        1020
+      expected: |
+        900 FIXED:ALLOW SWC:ALLOW
+        950 FIXED:ALLOW SWC:ALLOW
+        990 FIXED:ALLOW SWC:ALLOW
+        1000 FIXED:ALLOW SWC:DENY
+        1010 FIXED:ALLOW SWC:ALLOW
+        1020 FIXED:ALLOW SWC:DENY
+        fixed_allowed=6 swc_allowed=4
+        fixed_max_in_window=6 swc_max_in_window=4
+      compare: "trim"
+      hint: "fixed_max_in_window=6 против swc_max_in_window=4."
+    - id: "steady"
+      title: "Ровный поток: оба ограничителя близки"
+      stdin: |
+        2 1000
+        0
+        500
+        1000
+        1500
+        2000
+        2500
+      expected: |
+        0 FIXED:ALLOW SWC:ALLOW
+        500 FIXED:ALLOW SWC:ALLOW
+        1000 FIXED:ALLOW SWC:DENY
+        1500 FIXED:ALLOW SWC:ALLOW
+        2000 FIXED:ALLOW SWC:ALLOW
+        2500 FIXED:ALLOW SWC:ALLOW
+        fixed_allowed=6 swc_allowed=5
+        fixed_max_in_window=2 swc_max_in_window=2
+      compare: "trim"
+      hint: "FIXED пропускает все запросы, а SWC отказывает ровно на границе окна: prev = 2 = L, off = 0, оценка равна 2 и не меньше L."
+    - id: "skipped-window"
+      title: "Пропущенное окно: prev = 0"
+      stdin: |
+        2 100
+        10
+        20
+        30
+        40
+        350
+        360
+        370
+        380
+      expected: |
+        10 FIXED:ALLOW SWC:ALLOW
+        20 FIXED:ALLOW SWC:ALLOW
+        30 FIXED:DENY SWC:DENY
+        40 FIXED:DENY SWC:DENY
+        350 FIXED:ALLOW SWC:ALLOW
+        360 FIXED:ALLOW SWC:ALLOW
+        370 FIXED:DENY SWC:DENY
+        380 FIXED:DENY SWC:DENY
+        fixed_allowed=4 swc_allowed=4
+        fixed_max_in_window=2 swc_max_in_window=2
+      compare: "trim"
+      hidden: true
+      hint: "Если окна w - 1 не было, у SWC prev = 0 и оценка равна cur."
+    - id: "denied-not-counted"
+      title: "Отклонённые запросы не увеличивают счётчики"
+      stdin: |
+        2 1000
+        0
+        1
+        2
+        3
+        4
+        1000
+        1100
+        1200
+        1300
+        1999
+      expected: |
+        0 FIXED:ALLOW SWC:ALLOW
+        1 FIXED:ALLOW SWC:ALLOW
+        2 FIXED:DENY SWC:DENY
+        3 FIXED:DENY SWC:DENY
+        4 FIXED:DENY SWC:DENY
+        1000 FIXED:ALLOW SWC:DENY
+        1100 FIXED:ALLOW SWC:ALLOW
+        1200 FIXED:DENY SWC:DENY
+        1300 FIXED:DENY SWC:DENY
+        1999 FIXED:DENY SWC:ALLOW
+        fixed_allowed=4 swc_allowed=4
+        fixed_max_in_window=2 swc_max_in_window=2
+      compare: "trim"
+      hidden: true
+      hint: "В окне 0 разрешены только первые 2 запроса; следующие в этом окне отклонены и prev для окна 1 равен 2, а не 5."
+    - id: "double-burst"
+      title: "Двойной всплеск на двух границах"
+      stdin: |
+        5 1000
+        996
+        997
+        998
+        999
+        999
+        1000
+        1001
+        1002
+        1003
+        1004
+        1995
+        1996
+        1997
+        1998
+        1999
+        2000
+        2001
+        2002
+        2003
+        2004
+      expected: |
+        996 FIXED:ALLOW SWC:ALLOW
+        997 FIXED:ALLOW SWC:ALLOW
+        998 FIXED:ALLOW SWC:ALLOW
+        999 FIXED:ALLOW SWC:ALLOW
+        999 FIXED:ALLOW SWC:ALLOW
+        1000 FIXED:ALLOW SWC:DENY
+        1001 FIXED:ALLOW SWC:ALLOW
+        1002 FIXED:ALLOW SWC:DENY
+        1003 FIXED:ALLOW SWC:DENY
+        1004 FIXED:ALLOW SWC:DENY
+        1995 FIXED:DENY SWC:ALLOW
+        1996 FIXED:DENY SWC:ALLOW
+        1997 FIXED:DENY SWC:ALLOW
+        1998 FIXED:DENY SWC:ALLOW
+        1999 FIXED:DENY SWC:DENY
+        2000 FIXED:ALLOW SWC:DENY
+        2001 FIXED:ALLOW SWC:ALLOW
+        2002 FIXED:ALLOW SWC:DENY
+        2003 FIXED:ALLOW SWC:DENY
+        2004 FIXED:ALLOW SWC:DENY
+        fixed_allowed=15 swc_allowed=11
+        fixed_max_in_window=10 swc_max_in_window=7
+      compare: "trim"
+      hidden: true
+      hint: "FIXED пропускает L запросов у каждой границы: до 2L за W мс; у SWC максимум за окно заметно меньше 2L."
+    - id: "floor-division"
+      title: "Округление вниз в оценке"
+      stdin: |
+        4 1000
+        100
+        200
+        300
+        400
+        1333
+        1334
+        1335
+        1336
+        1337
+      expected: |
+        100 FIXED:ALLOW SWC:ALLOW
+        200 FIXED:ALLOW SWC:ALLOW
+        300 FIXED:ALLOW SWC:ALLOW
+        400 FIXED:ALLOW SWC:ALLOW
+        1333 FIXED:ALLOW SWC:ALLOW
+        1334 FIXED:ALLOW SWC:ALLOW
+        1335 FIXED:ALLOW SWC:DENY
+        1336 FIXED:ALLOW SWC:DENY
+        1337 FIXED:DENY SWC:DENY
+        fixed_allowed=8 swc_allowed=6
+        fixed_max_in_window=5 swc_max_in_window=4
+      compare: "trim"
+      hidden: true
+      hint: "Оценка prev * (W - off) // W округляется вниз: при L = 4, prev = 4 и off = 333 получается 4*667//1000 = 2, а не 2,668."

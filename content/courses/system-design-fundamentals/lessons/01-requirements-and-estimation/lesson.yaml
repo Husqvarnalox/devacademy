@@ -1,0 +1,273 @@
+id: "system-design.fundamentals.requirements-and-estimation"
+title: "Требования и оценка нагрузки: SLO и расчёт на салфетке"
+goal: "Отделять функциональные требования от нефункциональных, формулировать SLI/SLO/SLA и прикидывать QPS, хранилище и пропускную способность по условиям задачи."
+difficulty: "easy"
+estimatedMinutes: 75
+prerequisites:
+  - "python.fundamentals.dicts-and-sets"
+  - "python.fundamentals.errors-and-files"
+related:
+  - "networking.fundamentals.tcp-connections-and-congestion"
+  - "os.fundamentals.virtual-memory-page-replacement"
+  - "databases.sql.indexes-and-query-plans"
+next:
+  - "system-design.fundamentals.caching"
+seeAlso:
+  - "Модели стоимости облака и планирование бюджета (в курсе не разбираются)"
+  - "Нагрузочное тестирование как способ проверить оценку (упоминается)"
+objectives:
+  - "Отличить функциональные требования от нефункциональных и перевести «быстро и надёжно» в измеримые цели."
+  - "Объяснить разницу между SLI, SLO и SLA и посчитать бюджет ошибок по доступности."
+  - "Оценить средний и пиковый QPS по DAU и числу действий на пользователя."
+  - "Оценить объём хранилища с учётом размера записи, репликации и срока хранения, а также пропускную способность сети."
+  - "Пользоваться порядками величин задержек (память, SSD, сеть, диск) для быстрой проверки идеи."
+masteryCriteria:
+  - "Вы приводите пример SLI, SLO и SLA для одного сервиса и объясняете, чем отличаются последствия их нарушения."
+  - "Вы за пару минут оцениваете QPS и хранилище для сервиса с 10 млн DAU и называете порядок результата."
+  - "Вы знаете, что в сутках 86 400 секунд, и умеете применять коэффициент пика, а не только среднее."
+  - "Вы пишете калькулятор ёмкости с явными правилами округления и проверяете его на примере вручную."
+tags:
+  - "system-design"
+  - "requirements"
+  - "sli"
+  - "slo"
+  - "sla"
+  - "estimation"
+  - "capacity"
+  - "latency"
+facts:
+  - kind: "internals"
+    text: "SLI (service level indicator) - измеряемая величина вроде доли успешных запросов или задержки; SLO (service level objective) - целевое значение или диапазон для SLI; SLA (service level agreement) - соглашение с потребителем, где за нарушение предусмотрены последствия. Руководство SRE от Google рекомендует выбирать небольшое число SLI, важных пользователю, и считать доступность по доле успешных запросов или времени."
+    sources:
+      - "https://sre.google/sre-book/service-level-objectives/"
+  - kind: "real-world"
+    text: "Цель доступности 99,9 % допускает около 43 минут недоступности в 30-дневный месяц (0,1 % от 43 200 минут). Эта разница между целью и 100 % называется бюджетом ошибок: его можно тратить на релизы и эксперименты. 100 % - почти всегда неправильная цель, так как пользователь не заметит разницы там, где сам канал связи надёжен меньше."
+    sources:
+      - "https://sre.google/sre-book/embracing-risk/"
+  - kind: "performance"
+    text: "Порядки величин задержек известны давно: обращение к памяти - десятки-сотни наносекунд, чтение с SSD - десятки микросекунд и больше, круг по сети внутри дата-центра - сотни микросекунд, межконтинентальный круг - порядка сотен миллисекунд. Точные значения зависят от железа и меняются; полезны именно порядки и соотношения. Классический список приведён в докладе Джеффа Дина."
+    sources:
+      - "https://www.cs.cornell.edu/projects/ladis2009/talks/dean-keynote-ladis2009.pdf"
+  - kind: "misconception"
+    text: "Средняя задержка скрывает хвост распределения: если 1 запрос из 100 медленный, а пользователь делает десятки запросов за страницу, медленный встретится почти каждому. Поэтому цели задержки формулируют перцентилями (p95, p99), а не средним."
+    sources:
+      - "https://research.google/pubs/the-tail-at-scale/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что из перечисленного является нефункциональным требованием?"
+      options:
+        - "Пользователь может сократить ссылку"
+        - "Сокращение ссылки отвечает за 100 мс на 99-м перцентиле"
+        - "Пользователь может удалить свою ссылку"
+        - "Ссылка открывается по короткому коду"
+      answer: 1
+      explanation: "Функциональные требования описывают, что система делает. Задержка на перцентиле - свойство качества (нефункциональное) и измеряется как SLI."
+    - id: "q2"
+      type: "single"
+      prompt: "Сервис обещает клиентам по договору доступность 99,9 % и платит штраф при нарушении. Внутри команды цель 99,95 %. Что такое 99,9 %?"
+      options:
+        - "SLI"
+        - "SLO"
+        - "SLA"
+        - "Бюджет ошибок"
+      answer: 2
+      explanation: "Обещание клиенту с последствиями - SLA. Внутренняя цель (99,95 %) - SLO, и она обычно строже SLA, чтобы остаться в запасе."
+    - id: "q3"
+      type: "numeric"
+      prompt: "Сколько минут недоступности в 30-дневный месяц допускает цель 99,9 %? Ответ округлите до целого числа минут."
+      answer: 43
+      tolerance: 0.6
+      explanation: "30 дней * 24 ч * 60 мин = 43 200 минут. 0,1 % от этого - 43,2 минуты."
+    - id: "q4"
+      type: "numeric"
+      prompt: "100 млн запросов в сутки равномерно по времени. Каков средний QPS? Считайте сутки равными 86 400 секундам, округлите до целого вверх."
+      answer: 1158
+      tolerance: 0.5
+      explanation: "100 000 000 / 86 400 = 1157,4, округление вверх даёт 1158. Пик обычно в несколько раз выше среднего."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что нужно учесть, оценивая объём хранилища на год? Выберите все верные."
+      options:
+        - "Размер одной записи и число записей в сутки"
+        - "Коэффициент репликации"
+        - "Срок хранения (retention)"
+        - "Цвет логотипа сервиса"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Объём = записи в сутки * размер * срок * число копий. Остальное на оценку не влияет."
+exercise:
+  id: "system-design.fundamentals.requirements-and-estimation.exercise"
+  title: "Калькулятор ёмкости по спецификации"
+  prompt: |
+    Напишите оценщик ёмкости: по спецификации нагрузки он печатает QPS (средний и пиковый), хранилище и пропускную способность.
+
+    **Формат ввода.** Строки вида `ключ целое_число` в произвольном порядке (пустые строки пропускаются). Ровно восемь ключей:
+
+    * `dau` - активных пользователей в сутки;
+    * `writes_per_user_day` - записей на одного пользователя в сутки;
+    * `reads_per_write` - чтений на каждую запись (чтений в сутки = записей в сутки * `reads_per_write`);
+    * `write_bytes` и `read_bytes` - размер одной записи и одного ответа в байтах;
+    * `replication` - число копий каждой записи в хранилище;
+    * `retention_days` - срок хранения в днях;
+    * `peak_factor` - во сколько раз пиковый QPS превышает средний.
+
+    **Вывод.** Ровно шесть строк в таком порядке:
+
+    ```
+    write_qps avg=<A> peak=<P>
+    read_qps avg=<A> peak=<P>
+    storage_year <размер>
+    storage_retained <размер>
+    ingress_peak <N> Mbit/s
+    egress_peak <N> Mbit/s
+    ```
+
+    **Соглашения симулятора:**
+
+    * В сутках `86400` секунд, в году `365` дней; нагрузка равномерна, пик задаётся только `peak_factor`.
+    * Средний QPS = `ceil(запросов_в_сутки / 86400)`; пиковый QPS = `ceil(запросов_в_сутки * peak_factor / 86400)` (одно округление вверх от точного значения, не от среднего).
+    * `storage_year` = записей в сутки * `write_bytes` * 365 * `replication`; `storage_retained` = то же, но с `retention_days` вместо 365.
+    * `ingress_peak` = `ceil(write_peak_qps * write_bytes * 8 / 1 000 000)`; `egress_peak` = `ceil(read_peak_qps * read_bytes * 8 / 1 000 000)` (Мбит/с, десятичные; пиковый QPS берётся уже округлённым).
+    * Размеры печатаются в десятичных единицах (`1 KB = 1000 B`): `B, KB, MB, GB, TB, PB`; берётся наибольшая единица, для которой размер не меньше `1000^k`, значение округляется до одного знака после запятой по правилу «половина вверх» и печатается как `<целая>.<десятая> <единица>` (например `2.2 TB`, `180.0 GB`). Для размера меньше 1000 печатается `<n>.0 B`; единица выбирается до округления и после него не пересчитывается (`999950` байт - это `1000.0 KB`); единицы старше `PB` нет, поэтому очень большие размеры печатаются в `PB`.
+    * Все вычисления - в целых числах (без `float`), чтобы результат не зависел от округления машинной арифметики.
+
+    **Пример.** `dau 1000000`, `writes_per_user_day 2`, `reads_per_write 100`, `write_bytes 1000`, `read_bytes 2000`, `replication 3`, `retention_days 30`, `peak_factor 3`: записей в сутки 2 000 000, `write_qps avg=24 peak=70`, `read_qps avg=2315 peak=6945`, `storage_year 2.2 TB`, `storage_retained 180.0 GB`, `ingress_peak 1 Mbit/s`, `egress_peak 112 Mbit/s`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Разберите ввод в словарь: для каждой непустой строки split() даёт ключ и число. Дальше всё считается из восьми значений; заведите вспомогательные функции ceil_div и human."
+    - "Потолок целочисленного деления без float: -(-a // b). Пиковый QPS считайте как ceil_div(запросов_в_сутки * peak_factor, 86400), а не как средний * peak_factor."
+    - "human(n): найдите наибольшее k (0..5), для которого n >= 1000**k; десятые = (n * 10 * 2 + scale) // (2 * scale), где scale = 1000**k; печатайте f\"{десятые // 10}.{десятые % 10} {единица}\"."
+    - "Проверка на примере: 2 000 000 записей в сутки дают 2e6/86400 = 23,15, значит avg=24; пик 2e6*3/86400 = 69,4, значит peak=70. storage_year = 2e6 * 1000 * 365 * 3 = 2,19e12 байт = 2.2 TB."
+  tests:
+    - id: "sample"
+      title: "Пример из условия"
+      stdin: |
+        dau 1000000
+        writes_per_user_day 2
+        reads_per_write 100
+        write_bytes 1000
+        read_bytes 2000
+        replication 3
+        retention_days 30
+        peak_factor 3
+      expected: |
+        write_qps avg=24 peak=70
+        read_qps avg=2315 peak=6945
+        storage_year 2.2 TB
+        storage_retained 180.0 GB
+        ingress_peak 1 Mbit/s
+        egress_peak 112 Mbit/s
+      compare: "trim"
+      hint: "Сверьтесь с примером из условия: avg=24 peak=70, 2.2 TB, 112 Mbit/s."
+    - id: "social-feed"
+      title: "Лента: 10 млн DAU, ключи в другом порядке"
+      stdin: |
+        peak_factor 2
+        replication 3
+        retention_days 365
+        read_bytes 5000
+        write_bytes 500
+        reads_per_write 20
+        writes_per_user_day 5
+        dau 10000000
+      expected: |
+        write_qps avg=579 peak=1158
+        read_qps avg=11575 peak=23149
+        storage_year 27.4 TB
+        storage_retained 27.4 TB
+        ingress_peak 5 Mbit/s
+        egress_peak 926 Mbit/s
+      compare: "trim"
+      hint: "Ключи идут в произвольном порядке - читайте их в словарь. writes/day = 10 млн * 5 = 50 млн."
+    - id: "tiny"
+      title: "Маленький сервис: единицы B и KB"
+      stdin: |
+        dau 100
+        writes_per_user_day 1
+        reads_per_write 1
+        write_bytes 5
+        read_bytes 3
+        replication 1
+        retention_days 1
+        peak_factor 5
+      expected: |
+        write_qps avg=1 peak=1
+        read_qps avg=1 peak=1
+        storage_year 182.5 KB
+        storage_retained 500.0 B
+        ingress_peak 1 Mbit/s
+        egress_peak 1 Mbit/s
+      compare: "trim"
+      hidden: true
+      hint: "Для размера меньше 1000 печатается <n>.0 B; потолок считается от точного значения, avg не может быть 0 при ненулевой нагрузке."
+    - id: "peak-ceil"
+      title: "Пик считается от точного значения, а не от среднего"
+      stdin: |
+        dau 86401
+        writes_per_user_day 1
+        reads_per_write 1
+        write_bytes 100
+        read_bytes 100
+        replication 2
+        retention_days 7
+        peak_factor 3
+      expected: |
+        write_qps avg=2 peak=4
+        read_qps avg=2 peak=4
+        storage_year 6.3 GB
+        storage_retained 121.0 MB
+        ingress_peak 1 Mbit/s
+        egress_peak 1 Mbit/s
+      compare: "trim"
+      hidden: true
+      hint: "ceil(86401 * 3 / 86400) = 4, тогда как avg = 2 и 2 * 3 = 6: округляйте один раз, после умножения на peak_factor."
+    - id: "rounding-up"
+      title: "Округление размера: половина вверх и граница единицы"
+      stdin: |
+        dau 999950
+        writes_per_user_day 1
+        reads_per_write 0
+        write_bytes 1
+        read_bytes 1
+        replication 1
+        retention_days 1
+        peak_factor 1
+      expected: |
+        write_qps avg=12 peak=12
+        read_qps avg=0 peak=0
+        storage_year 365.0 MB
+        storage_retained 1000.0 KB
+        ingress_peak 1 Mbit/s
+        egress_peak 0 Mbit/s
+      compare: "trim"
+      hidden: true
+      hint: "storage_retained = 999 950 байт: единица выбрана KB, округление до десятых даёт 1000.0 KB, и единица после этого не пересчитывается."
+    - id: "video"
+      title: "Видеосервис: крупные записи, петабайты"
+      stdin: |
+        dau 50000000
+        writes_per_user_day 1
+        reads_per_write 200
+        write_bytes 50000000
+        read_bytes 2000000
+        replication 3
+        retention_days 90
+        peak_factor 4
+      expected: |
+        write_qps avg=579 peak=2315
+        read_qps avg=115741 peak=462963
+        storage_year 2737.5 PB
+        storage_retained 675.0 PB
+        ingress_peak 926000 Mbit/s
+        egress_peak 7407408 Mbit/s
+      compare: "trim"
+      hidden: true
+      hint: "Большие значения: никаких float, только целые. Годовое хранилище здесь исчисляется тысячами петабайт, но единица остаётся PB."

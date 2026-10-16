@@ -1,0 +1,269 @@
+id: security.fundamentals.access-control
+title: "Контроль доступа: RBAC, ABAC, IDOR и запрет по умолчанию"
+goal: "Проектировать и проверять решения о доступе: роли и атрибуты, владение ресурсом, явные запреты и запрет по умолчанию, защита от IDOR."
+difficulty: hard
+estimatedMinutes: 110
+prerequisites: [security.fundamentals.threat-modelling, security.fundamentals.sessions-csrf-and-cookies]
+related: [databases.sql.sql-injection-and-safe-access, security.fundamentals.injection-defences]
+next: [security.fundamentals.secrets-and-dependencies]
+seeAlso:
+  - "Централизованные политики (OPA, Cedar, XACML), OAuth-области (scopes), ReBAC и модели на графе отношений (в курсе только упоминаются)"
+objectives:
+  - Различать аутентификацию и авторизацию и объяснить, почему проверка прав должна выполняться на сервере при каждом запросе.
+  - Описать модели RBAC и ABAC, сильные и слабые стороны каждой.
+  - Сформулировать принципы запрета по умолчанию, наименьших привилегий и приоритета явного запрета.
+  - Объяснить IDOR и исправить его проверкой владения ресурсом, а не сокрытием идентификатора.
+  - Реализовать вычислитель политик с ролями, шаблонами прав, владельцами и явными запретами, а затем с атрибутными условиями.
+masteryCriteria:
+  - Ваш вычислитель начинает с отказа и разрешает только по явному совпадению правила.
+  - Явный запрет перекрывает любое разрешение, включая права владельца и шаблон "*".
+  - Неизвестный пользователь, неизвестный ресурс и отсутствующий атрибут приводят к отказу, а не к ошибке и не к разрешению.
+  - Вы объясняете, почему случайный или непредсказуемый идентификатор не заменяет проверку владения.
+  - Числа сравниваются как числа, а не как строки, и нечисловые значения не проходят порядковые сравнения.
+tags: [security, access-control, authorization, rbac, abac, idor, deny-by-default, least-privilege]
+facts:
+  - kind: security
+    text: >-
+      OWASP Authorization Cheat Sheet требует проверять права при каждом запросе, применять принцип наименьших привилегий и политику «запрет по умолчанию»
+      (Deny by Default): если для запроса нет явного разрешающего правила, доступ отклоняется. Проверки должны быть на сервере, а не только в интерфейсе.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+  - kind: real-world
+    text: >-
+      В OWASP Top 10 2021 нарушенный контроль доступа (Broken Access Control) стоит на первом месте. В списке типичных проявлений - обход проверок
+      подменой идентификатора в URL (небезопасные прямые ссылки на объекты) и доступ к чужим данным по изменённому параметру.
+    sources:
+      - https://owasp.org/Top10/A01_2021-Broken_Access_Control/
+  - kind: security
+    text: >-
+      OWASP Insecure Direct Object Reference Prevention Cheat Sheet относит IDOR к проблемам контроля доступа: приложение выдаёт объект по идентификатору из запроса,
+      но не проверяет, имеет ли пользователь право на этот объект. Непредсказуемые идентификаторы рассматриваются как дополнительный слой, а не замена проверке прав.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html
+  - kind: internals
+    text: >-
+      NIST описывает RBAC как модель, в которой права назначаются ролям, а пользователям назначаются роли; а в SP 800-162 ABAC определяется как метод, где решение
+      принимается по атрибутам субъекта, объекта, действия и окружения (например, время или место) на основе набора правил.
+    sources:
+      - https://csrc.nist.gov/projects/role-based-access-control
+      - https://csrc.nist.gov/pubs/sp/800/162/upd2/final
+  - kind: misconception
+    text: >-
+      «Если кнопки у пользователя нет в интерфейсе, то и действие недоступно». Скрытие элемента управления не ограничивает доступ: запрос можно отправить напрямую,
+      поэтому проверка выполняется на сервере в каждом обработчике.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Чем авторизация отличается от аутентификации?"
+      options:
+        - "Это одно и то же"
+        - "Аутентификация отвечает на вопрос «кто это», авторизация - «что ему разрешено»"
+        - "Авторизация выполняется только при входе, аутентификация - при каждом запросе"
+        - "Авторизация нужна только для администраторов"
+      answer: 1
+      explanation: >-
+        Вход подтверждает личность, но права проверяются при каждом обращении к ресурсу: личность без проверки прав ничего не защищает.
+    - id: q2
+      type: single
+      prompt: "Что означает политика «запрет по умолчанию»?"
+      options:
+        - "Всё разрешено, пока не найден запрет"
+        - "Запрос отклоняется, если нет явного правила, которое его разрешает"
+        - "Пользователи не могут входить без пароля"
+        - "Все ресурсы закрыты и после появления правил"
+      answer: 1
+      explanation: >-
+        Отсутствие правила (в том числе из-за ошибки в конфигурации или нового типа ресурса) должно приводить к отказу, а не к открытому доступу.
+    - id: q3
+      type: single
+      prompt: "Пользователь меняет в адресе /invoices/1001 число на 1002 и видит чужой счёт. Что исправляет проблему по существу?"
+      options:
+        - "Заменить числовые идентификаторы на длинные случайные"
+        - "Скрыть ссылки на чужие счета в интерфейсе"
+        - "Проверять на сервере, что запрошенный счёт принадлежит текущему пользователю (или доступен по его правам)"
+        - "Запретить пользователям менять адресную строку"
+      answer: 2
+      explanation: >-
+        Непредсказуемый идентификатор лишь затрудняет угадывание и годится как дополнительный слой. Если идентификатор утёк или известен, защищает только проверка владения.
+    - id: q4
+      type: multiple
+      prompt: "Какие свойства должен иметь надёжный вычислитель политики? Выберите все."
+      options:
+        - "Явный запрет перекрывает разрешения"
+        - "Неизвестный пользователь или ресурс приводит к отказу"
+        - "При ошибке разбора условия запрос разрешается, чтобы не ломать работу"
+        - "Отсутствующий атрибут делает условие ложным"
+      answer: [0, 1, 3]
+      explanation: >-
+        Система должна «закрываться при сбое» (fail closed): ошибки, пропуски и неизвестные значения ведут к отказу. Разрешение «на всякий случай» превращает ошибку в уязвимость.
+    - id: q5
+      type: single
+      prompt: "Какое преимущество ABAC перед RBAC?"
+      options:
+        - "ABAC проще проверять"
+        - "Условия по атрибутам (отдел, владелец, время, уровень допуска) выражаются правилами, без размножения ролей"
+        - "ABAC не требует политики"
+        - "ABAC не нужен там, где есть пользователи"
+      answer: 1
+      explanation: >-
+        В RBAC для каждого сочетания «отдел + уровень + время» пришлось бы заводить отдельную роль. Цена ABAC - более сложная проверка и отладка политики.
+exercise:
+  id: security.fundamentals.access-control.exercise
+  title: "Вычислитель политики: роли, владельцы, явные запреты"
+  prompt: |
+    Реализуйте в `main.py` вычислитель политики доступа. Используйте только стандартную библиотеку.
+
+    **Ввод.** Строки (пустые пропускайте, лишние пробелы между словами не важны; запросы обрабатываются **после** чтения всего ввода):
+
+    * `ROLE <роль> <право>...` - права роли; если роль повторяется, права складываются;
+    * `USER <пользователь> <роль>...` - роли пользователя (может не быть ни одной; роли без `ROLE` не дают прав);
+    * `OWNERPERM <право>...` - права, которые владелец ресурса имеет на свой ресурс (строк может быть несколько);
+    * `OWNER <ресурс> <пользователь>` - владелец ресурса;
+    * `DENY <пользователь> <право> <ресурс>` - явный запрет;
+    * `REQ <пользователь> <право> <ресурс>` - запрос, на который нужно ответить.
+
+    **Шаблоны.** В `ROLE`, `OWNERPERM` и в трёх полях `DENY` допустимы шаблоны: `*` подходит к чему угодно, `ns:*` - к любому значению, начинающемуся с `ns:` (например `doc:*` подходит к `doc:read`, но не к `docs:read` и не к `doc`); остальное сравнивается точно.
+
+    **Порядок решения для каждого `REQ`** (первое сработавшее определяет ответ):
+
+    1. пользователя нет среди `USER` - `DENY unknown-user`;
+    2. подходит хотя бы один `DENY` - `DENY explicit`;
+    3. ресурс принадлежит пользователю (`OWNER`) и право подходит под `OWNERPERM` - `ALLOW owner`;
+    4. право подходит под права одной из ролей пользователя - `ALLOW role=<роль>` (берётся первая подходящая роль в порядке строки `USER`);
+    5. иначе - `DENY default`.
+
+    Для каждого `REQ` выведите одну строку.
+
+    **Почему так.** Явный запрет сильнее любого разрешения, а отсутствие разрешения - это отказ (запрет по умолчанию).
+
+    **Пример.** При `ROLE editor doc:read doc:write`, `USER alice editor` запрос `REQ alice doc:write d1` даёт `ALLOW role=editor`, а `REQ alice doc:delete d1` - `DENY default`.
+  entryFile: main.py
+  evaluation: io
+  hints:
+    - "Напишите функцию `match(pattern, value)`: `pattern == '*'`, или `pattern == value`, или `pattern.endswith(':*') and value.startswith(pattern[:-1])` (срез оставляет двоеточие)."
+    - "Читайте весь ввод в списки и словари (`roles`, `users`, `owners`, `owner_perms`, `denies`, `requests`), и только потом отвечайте на запросы."
+    - "Для DENY проверяйте все три поля: `any(match(u, user) and match(p, perm) and match(r, res) for u, p, r in denies)`. Эта проверка стоит до владельца и ролей."
+    - "Для ролей: `for role in users[user]: if any(match(p, perm) for p in roles.get(role, [])): print(f'ALLOW role={role}'); break` и `else: print('DENY default')` у цикла for."
+  tests:
+    - id: roles-basic
+      title: "Права по ролям и запрет по умолчанию"
+      stdin: "ROLE viewer doc:read\nROLE editor doc:read doc:write\nROLE admin *\nROLE billing invoice:*\nUSER alice editor\nUSER bob viewer billing\nUSER root admin\nUSER carol\nOWNERPERM doc:read doc:write doc:delete\nOWNER doc1 carol\nOWNER doc2 alice\nREQ alice doc:read doc2\nREQ alice doc:delete doc2\nREQ bob doc:write doc1\nREQ bob invoice:pay inv9\nREQ root anything:at-all x\n"
+      expected: "ALLOW owner\nALLOW owner\nDENY default\nALLOW role=billing\nALLOW role=admin\n"
+      compare: trim
+      hint: "Роли дают права; шаблон `ns:*` покрывает всё с префиксом `ns:`, `*` - всё. Нет совпадения - `DENY default`. Владение doc2 у alice, но doc:delete ей даёт только OWNERPERM."
+    - id: owner-without-role
+      title: "Владелец без ролей"
+      stdin: "ROLE viewer doc:read\nROLE editor doc:read doc:write\nROLE admin *\nROLE billing invoice:*\nUSER alice editor\nUSER bob viewer billing\nUSER root admin\nUSER carol\nOWNERPERM doc:read doc:write doc:delete\nOWNER doc1 carol\nOWNER doc2 alice\nREQ carol doc:read doc1\nREQ carol doc:delete doc1\nREQ carol doc:share doc1\nREQ carol doc:read doc2\n"
+      expected: "ALLOW owner\nALLOW owner\nDENY default\nDENY default\n"
+      compare: trim
+      hint: "Владелец ресурса получает права из OWNERPERM только на свой ресурс. carol владеет doc1, но не doc2; doc:share не входит в OWNERPERM."
+    - id: unknown-user
+      title: "Неизвестный пользователь"
+      stdin: "ROLE viewer doc:read\nROLE editor doc:read doc:write\nROLE admin *\nROLE billing invoice:*\nUSER alice editor\nUSER bob viewer billing\nUSER root admin\nUSER carol\nOWNERPERM doc:read doc:write doc:delete\nOWNER doc1 carol\nOWNER doc2 alice\nREQ mallory doc:read doc1\nREQ  root  doc:read  doc1\n"
+      expected: "DENY unknown-user\nALLOW role=admin\n"
+      compare: trim
+      hint: "Пользователь, которого нет среди USER, получает `DENY unknown-user` даже на действие, которое разрешено всем ролям. Лишние пробелы в строках не важны."
+    - id: explicit-deny
+      title: "Явный запрет сильнее разрешения (скрытый)"
+      stdin: "ROLE viewer doc:read\nROLE editor doc:read doc:write\nROLE admin *\nROLE billing invoice:*\nUSER alice editor\nUSER bob viewer billing\nUSER root admin\nUSER carol\nOWNERPERM doc:read doc:write doc:delete\nOWNER doc1 carol\nOWNER doc2 alice\nDENY alice doc:write doc2\nDENY * doc:delete doc1\nDENY bob invoice:* *\nREQ alice doc:write doc2\nREQ alice doc:read doc2\nREQ carol doc:delete doc1\nREQ carol doc:read doc1\nREQ bob invoice:pay inv1\nREQ root doc:delete doc1\n"
+      expected: "DENY explicit\nALLOW owner\nDENY explicit\nALLOW owner\nDENY explicit\nDENY explicit\n"
+      compare: trim
+      hidden: true
+      hint: "Порядок решения: неизвестный пользователь, явный запрет, владелец, роль, запрет по умолчанию. В DENY пользователь, право и ресурс могут быть шаблонами (`*`, `ns:*`); запрет побеждает даже `*` у admin и права владельца."
+    - id: owner-vs-role
+      title: "Владелец и роль: кто назван в ответе (скрытый)"
+      stdin: "ROLE viewer doc:read\nROLE editor doc:read doc:write\nROLE admin *\nROLE billing invoice:*\nUSER alice editor\nUSER bob viewer billing\nUSER root admin\nUSER carol\nOWNERPERM doc:read doc:write doc:delete\nOWNER doc1 carol\nOWNER doc2 alice\nOWNER doc3 alice\nREQ alice doc:write doc3\nREQ alice doc:write doc4\nREQ alice doc:delete doc3\n"
+      expected: "ALLOW owner\nALLOW role=editor\nALLOW owner\n"
+      compare: trim
+      hidden: true
+      hint: "Если применимы и владение, и роль, выводится `ALLOW owner`: владение проверяется раньше ролей."
+    - id: multi-role-wildcards
+      title: "Несколько ролей и шаблоны (скрытый)"
+      stdin: "ROLE a user:read\nROLE b user:write\nROLE c report:*\nUSER u a b\nUSER v c\nUSER w nosuchrole\nREQ u user:write x\nREQ u user:read x\nREQ u report:view x\nREQ v report:view x\nREQ v reports:view x\nREQ w user:read x\nREQ v report x\n"
+      expected: "ALLOW role=b\nALLOW role=a\nDENY default\nALLOW role=c\nDENY default\nDENY default\nDENY default\n"
+      compare: trim
+      hidden: true
+      hint: "Права складываются по всем ролям пользователя; в ответе называется первая подходящая роль в порядке строки USER. `report:*` не покрывает `reports:view` и голое `report`; несуществующая роль прав не даёт."
+challenge:
+  id: security.fundamentals.access-control.challenge
+  title: "ABAC: правила с условиями на атрибуты"
+  prompt: |
+    Замените роли **правилами с условиями** на атрибуты пользователя, ресурса и окружения.
+
+    **Ввод.** Строки (запросы обрабатываются после чтения всего ввода):
+
+    * `RULE allow|deny <право> <условие>...` - правило; `<право>` - точное значение, `ns:*` или `*` (как шаблоны в упражнении); условий может быть ноль и больше, **все** должны выполняться;
+    * `USER <имя> <k>=<v>...`, `RES <имя> <k>=<v>...` - атрибуты (значения - строки без пробелов);
+    * `ENV <k>=<v>...` - атрибуты окружения (повторная строка обновляет значения);
+    * `REQ <пользователь> <право> <ресурс>`.
+
+    **Условие** имеет вид `<левая><оператор><правая>`, оператор - один из `==`, `!=`, `>=`, `<=`, `>`, `<` (берётся первый подходящий оператор слева, при этом `>=` и `<=` проверяются раньше `>` и `<`). Каждая сторона - ссылка `user.x`, `resource.x`, `env.x` либо литерал (всё остальное, как есть).
+
+    **Семантика условия.**
+
+    * Если ссылка указывает на отсутствующий атрибут, условие **ложно** (в том числе для `!=`).
+    * Если обе стороны - целые числа (необязательный минус и цифры), сравнение числовое; иначе `==` и `!=` сравнивают строки, а `>=`, `<=`, `>`, `<` ложны.
+
+    **Решение.** Неизвестный пользователь или ресурс - `DENY`. Иначе: если подходит хотя бы одно правило `deny` (право подходит и все условия истинны) - `DENY`; иначе если подходит хотя бы одно правило `allow` - `ALLOW`; иначе `DENY`. Для каждого `REQ` выведите одну строку.
+
+    **Пример.** `RULE allow doc:read user.dept==resource.dept` при `USER a dept=hr` и `RES d dept=hr` разрешает `REQ a doc:read d`.
+  entryFile: main.py
+  evaluation: io
+  starter: challenge/starter
+  solution: challenge/solution
+  hints:
+    - "Разбор условия: регулярное выражение `(.+?)(==|!=|>=|<=|>|<)(.+)`; ленивая левая часть остановится на первом операторе, а `>=` в альтернативе стоит раньше `>`."
+    - "Функция `operand(text)` возвращает пару (найден, значение): для `user.x` ищите в словаре пользователя, для `env.x` - в окружении; всё остальное - литерал."
+    - "Если одна из ссылок не найдена, `holds` возвращает False сразу. Числа распознавайте `re.fullmatch(r'-?[0-9]+', s)` и сравнивайте `int(a)` и `int(b)`."
+    - "Соберите `matching = [effect for effect, p, conds in rules if match(p, perm) and all(holds(...) for c in conds)]`: ответ ALLOW только если в нём есть allow и нет deny."
+  tests:
+    - id: attrs-basic
+      title: "Отдел, владелец, публичность"
+      stdin: "RULE allow doc:read user.dept==resource.dept\nRULE allow doc:write user.id==resource.owner\nRULE allow doc:read resource.public==yes\nRULE deny * resource.locked==yes\nRULE allow doc:approve user.level>=5 resource.amount<1000\nRULE deny * env.maintenance==on\nRULE allow report:* user.clearance>=resource.level env.hour>=9 env.hour<18\nUSER u1 id=u1 dept=hr level=3 clearance=2\nUSER u2 id=u2 dept=it level=7 clearance=5\nUSER u3 id=u3\nRES d1 owner=u1 dept=hr amount=500 level=2\nRES d2 owner=u2 dept=it amount=1500 public=yes level=4\nRES d3 owner=u1 dept=hr locked=yes amount=10\nRES d4 owner=u9 dept=ops amount=ten level=high\nENV hour=12\nREQ u1 doc:read d1\nREQ u2 doc:read d1\nREQ u2 doc:read d2\nREQ u1 doc:write d1\nREQ u2 doc:write d1\nREQ u1 doc:delete d1\n"
+      expected: "ALLOW\nDENY\nALLOW\nALLOW\nDENY\nDENY\n"
+      compare: trim
+      hint: "Все условия одного правила должны выполняться (И). Условие сравнивает `user.x`, `resource.x`, `env.x` или литерал. Разрешает любое сработавшее allow, если не сработал ни один deny; иначе DENY."
+    - id: deny-wins
+      title: "Запрет перекрывает разрешение"
+      stdin: "RULE allow doc:read user.dept==resource.dept\nRULE allow doc:write user.id==resource.owner\nRULE allow doc:read resource.public==yes\nRULE deny * resource.locked==yes\nRULE allow doc:approve user.level>=5 resource.amount<1000\nRULE deny * env.maintenance==on\nRULE allow report:* user.clearance>=resource.level env.hour>=9 env.hour<18\nUSER u1 id=u1 dept=hr level=3 clearance=2\nUSER u2 id=u2 dept=it level=7 clearance=5\nUSER u3 id=u3\nRES d1 owner=u1 dept=hr amount=500 level=2\nRES d2 owner=u2 dept=it amount=1500 public=yes level=4\nRES d3 owner=u1 dept=hr locked=yes amount=10\nRES d4 owner=u9 dept=ops amount=ten level=high\nENV hour=12\nREQ u1 doc:read d3\nREQ u1 doc:write d3\nREQ u2 doc:read d2\nREQ u1 doc:read d1\n"
+      expected: "DENY\nDENY\nALLOW\nALLOW\n"
+      compare: trim
+      hint: "Правило deny с подходящими условиями побеждает любое allow. Ключ `*` в RULE подходит к любому праву. d3 заблокирован (`locked==yes`), поэтому даже владелец получает DENY."
+    - id: maintenance-env
+      title: "Окружение читается целиком (скрытый)"
+      stdin: "RULE allow doc:read user.dept==resource.dept\nRULE allow doc:write user.id==resource.owner\nRULE allow doc:read resource.public==yes\nRULE deny * resource.locked==yes\nRULE allow doc:approve user.level>=5 resource.amount<1000\nRULE deny * env.maintenance==on\nRULE allow report:* user.clearance>=resource.level env.hour>=9 env.hour<18\nUSER u1 id=u1 dept=hr level=3 clearance=2\nUSER u2 id=u2 dept=it level=7 clearance=5\nUSER u3 id=u3\nRES d1 owner=u1 dept=hr amount=500 level=2\nRES d2 owner=u2 dept=it amount=1500 public=yes level=4\nRES d3 owner=u1 dept=hr locked=yes amount=10\nRES d4 owner=u9 dept=ops amount=ten level=high\nENV hour=12\nREQ u2 doc:read d2\nENV maintenance=on\nREQ u2 doc:read d2\n"
+      expected: "DENY\nDENY\n"
+      compare: trim
+      hidden: true
+      hint: "Все строки RULE, USER, RES и ENV собираются при чтении ввода, а запросы REQ обрабатываются после; повторная строка ENV обновляет значение. Поэтому обе проверки видят maintenance=on."
+    - id: numeric
+      title: "Числовое сравнение и время суток"
+      stdin: "RULE allow doc:read user.dept==resource.dept\nRULE allow doc:write user.id==resource.owner\nRULE allow doc:read resource.public==yes\nRULE deny * resource.locked==yes\nRULE allow doc:approve user.level>=5 resource.amount<1000\nRULE deny * env.maintenance==on\nRULE allow report:* user.clearance>=resource.level env.hour>=9 env.hour<18\nUSER u1 id=u1 dept=hr level=3 clearance=2\nUSER u2 id=u2 dept=it level=7 clearance=5\nUSER u3 id=u3\nRES d1 owner=u1 dept=hr amount=500 level=2\nRES d2 owner=u2 dept=it amount=1500 public=yes level=4\nRES d3 owner=u1 dept=hr locked=yes amount=10\nRES d4 owner=u9 dept=ops amount=ten level=high\nENV hour=9\nREQ u2 doc:approve d1\nREQ u1 doc:approve d1\nREQ u2 doc:approve d2\nREQ u2 report:view d2\nREQ u1 report:view d1\nREQ u1 report:view d2\n"
+      expected: "ALLOW\nDENY\nDENY\nALLOW\nALLOW\nDENY\n"
+      compare: trim
+      hint: "Если обе стороны - целые числа, сравнивайте как числа (`9 < 10`, а не как строки). Для ENV hour=9 условия `env.hour>=9` и `env.hour<18` истинны."
+    - id: fail-closed
+      title: "Нет атрибута или не число: условие ложно (скрытый)"
+      stdin: "RULE allow doc:read user.dept==resource.dept\nRULE allow doc:write user.id==resource.owner\nRULE allow doc:read resource.public==yes\nRULE deny * resource.locked==yes\nRULE allow doc:approve user.level>=5 resource.amount<1000\nRULE deny * env.maintenance==on\nRULE allow report:* user.clearance>=resource.level env.hour>=9 env.hour<18\nUSER u1 id=u1 dept=hr level=3 clearance=2\nUSER u2 id=u2 dept=it level=7 clearance=5\nUSER u3 id=u3\nRES d1 owner=u1 dept=hr amount=500 level=2\nRES d2 owner=u2 dept=it amount=1500 public=yes level=4\nRES d3 owner=u1 dept=hr locked=yes amount=10\nRES d4 owner=u9 dept=ops amount=ten level=high\nENV hour=20\nREQ u3 doc:read d1\nREQ u3 doc:write d1\nREQ u2 doc:approve d4\nREQ u2 report:view d4\nREQ u2 report:view d2\nREQ u2 doc:read d2\nREQ u2 doc:read nores\nREQ ghost doc:read d1\n"
+      expected: "DENY\nDENY\nDENY\nDENY\nDENY\nALLOW\nDENY\nDENY\n"
+      compare: trim
+      hidden: true
+      hint: "Отсутствующий атрибут делает условие ложным (в том числе для `!=`), `>=` и `<` на нечисловых значениях тоже ложны. Неизвестный пользователь или ресурс - DENY."
+    - id: not-equal-and-literals
+      title: "Операторы != и литералы (скрытый)"
+      stdin: "RULE allow x:y user.role!=guest\nRULE allow x:z user.level>3 user.level<=10\nRULE allow x:w env.zone==eu\nRULE deny x:w user.id==resource.owner\nUSER a role=admin level=10 id=a\nUSER b role=guest level=4 id=b\nUSER c level=-1 id=c\nRES r owner=a\nENV zone=eu\nREQ a x:y r\nREQ b x:y r\nREQ c x:y r\nREQ a x:z r\nREQ b x:z r\nREQ c x:z r\nREQ a x:w r\nREQ b x:w r\n"
+      expected: "ALLOW\nDENY\nDENY\nALLOW\nALLOW\nDENY\nDENY\nALLOW\n"
+      compare: trim
+      hidden: true
+      hint: "`!=` с отсутствующим атрибутом - ложь (fail closed). `user.level>3` и `<=10` работают как числа, отрицательные тоже. `x:w` разрешён всем в зоне eu, но владелец ресурса получает deny."
+    - id: no-rules
+      title: "Без правил (скрытый)"
+      stdin: "USER a id=a\nRES r owner=a\nREQ a doc:read r\nREQ a doc:read zz\n"
+      expected: "DENY\nDENY\n"
+      compare: trim
+      hidden: true
+      hint: "Ни одного совпавшего allow - значит DENY."
