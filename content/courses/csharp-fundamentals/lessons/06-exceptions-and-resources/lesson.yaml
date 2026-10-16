@@ -1,0 +1,185 @@
+id: "csharp.fundamentals.exceptions-and-resources"
+title: "Исключения и ресурсы"
+goal: "Правильно ловить и пробрасывать исключения, применять Try-шаблон, фильтры when, finally и using для надёжного освобождения ресурсов."
+difficulty: "medium"
+estimatedMinutes: 55
+prerequisites:
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+related:
+  - "javascript.fundamentals.errors-and-exceptions"
+  - "go.fundamentals.functions-and-errors"
+next:
+  - "csharp.fundamentals.delegates-lambdas-events"
+objectives:
+  - "Ориентироваться в иерархии исключений и ловить конкретные типы от частного к общему."
+  - "Различать throw и throw ex, оборачивать исключения с сохранением InnerException."
+  - "Выбирать между исключением и Try-шаблоном и применять фильтры when."
+  - "Гарантировать освобождение ресурсов через using, IDisposable, await using и finally."
+masteryCriteria:
+  - "Вы называете порядок выполнения фильтра when, Dispose, finally и catch при броске исключения."
+  - "Вы объясняете, почему throw; сохраняет трассу стека, а throw ex; нет."
+  - "Вы заменяете try/catch вокруг int.Parse на TryParse и объясняете причину."
+  - "Вы предсказываете, какое исключение увидит вызывающий, если Dispose бросает исключение внутри using."
+tags:
+  - "csharp"
+  - "exceptions"
+  - "using"
+  - "idisposable"
+  - "finally"
+facts:
+  - kind: "internals"
+    text: "Фильтр исключений (catch ... when) проверяется до разворачивания стека: к этому моменту блоки finally и Dispose внутренних уровней ещё не выполнялись. Исключение внутри самого фильтра подавляется и трактуется как false."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/exception-handling-statements"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/when"
+  - kind: "internals"
+    text: "Оператор using компилятор разворачивает в try/finally с вызовом Dispose(); объявление using var освобождает ресурс в конце текущей области видимости, а несколько ресурсов закрываются в порядке, обратном объявлению."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/using"
+      - "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/using-objects"
+  - kind: "misconception"
+    text: "«Сборщик мусора вызовет Dispose за меня». Сборщик освобождает управляемую память, но не вызывает Dispose() для обычных объектов; файлы, соединения и блокировки нужно закрывать явно через using."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.idisposable"
+  - kind: "misconception"
+    text: "«throw ex; и throw; одинаковы». throw; сохраняет исходную трассу стека, а throw ex; перезаписывает её местом повторного броска; правило анализатора CA2200 предупреждает об этом."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/exception-handling-statements"
+      - "https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2200"
+  - kind: "performance"
+    text: "Исключения дороги: создание объекта, захват трассы стека и разворачивание стека стоят на порядки дороже обычного возврата, поэтому ожидаемые отказы выражают Try-методами (int.TryParse, Dictionary.TryGetValue), а не исключениями."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/standard/exceptions/best-practices-for-exceptions"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.int32.tryparse"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Метод пишет a, b, c соответственно в Dispose первого ресурса, Dispose второго ресурса и в catch. Код: try { using var r1 = new R(\"a\"); using var r2 = new R(\"b\"); throw new Exception(); } catch { Console.Write(\"c\"); } - какой порядок вывода?"
+      options:
+        - "a b c"
+        - "b a c"
+        - "c b a"
+        - "c a b"
+      answer: 1
+      explanation: "Ресурсы закрываются в обратном порядке (b, затем a) при выходе из блока try, и только потом выполняется catch."
+    - id: "q2"
+      type: "single"
+      prompt: "Чем throw; в блоке catch отличается от throw ex;?"
+      options:
+        - "Ничем"
+        - "throw; сохраняет исходную трассу стека"
+        - "throw ex; сохраняет исходную трассу стека"
+        - "throw; создаёт новое исключение"
+      answer: 1
+      explanation: "throw; пробрасывает то же исключение и сохраняет трассу; throw ex; сбрасывает её на текущую строку (CA2200)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Фильтр when выполняется до блоков finally внутренних try."
+        - "Сборщик мусора вызывает Dispose() у объектов IDisposable."
+        - "Исключение из Dispose() внутри using может заместить исходное."
+        - "return внутри finally допустим."
+      answer:
+        - 0
+        - 2
+      explanation: "Фильтр проверяется до разворачивания стека; сборщик Dispose не вызывает; return в finally запрещён (CS0157)."
+    - id: "q4"
+      type: "single"
+      prompt: "Пользователь вводит число в текстовом поле, и неверный ввод бывает часто. Что лучше использовать?"
+      options:
+        - "try { int.Parse(...) } catch (FormatException)"
+        - "int.TryParse(..., out var n)"
+        - "catch (Exception)"
+        - "Environment.FailFast"
+      answer: 1
+      explanation: "Для частых ожидаемых отказов применяют Try-шаблон: без затрат на исключение."
+exercise:
+  id: "csharp.fundamentals.exceptions-and-resources.exercise"
+  title: "Задания с ресурсами и ошибками"
+  prompt: |
+    Первая строка ввода - число заданий `n`, затем `n` строк `<имя> <вид>`. Для каждого задания программа открывает ресурс, выполняет работу и печатает строки. Виды заданий:
+
+    * `ok` - печатает `work <имя>`;
+    * `fail` - печатает `work <имя>` и бросает `InvalidOperationException("failed <имя>")`;
+    * `bad` - бросает `InvalidOperationException("bad state")`;
+    * `fatal` - бросает `NotSupportedException`;
+    * `parse:<текст>` - `int.TryParse` с `CultureInfo.InvariantCulture`; печатает `parsed <число>` или `invalid <текст>`.
+
+    Порядок строк для каждого задания: `open <имя>` (конструктор ресурса), результат работы, `close <имя>` (`Dispose()`), при ошибке вида `failed ...` - `caught <сообщение>`, и всегда `done <имя>` (`finally`). `caught` печатается **только** для `InvalidOperationException` с сообщением на `failed ` (фильтр `when`); остальные исключения не обрабатываются заданием, но `close` и `done` для него всё равно печатаются. Внешний обработчик печатает `unhandled <ТипИсключения>` и **останавливает** обработку остальных заданий. Последняя строка всегда `finished <число начатых заданий>` (внешний `finally`).
+
+    **Пример**
+
+    ```
+    3
+    a ok
+    b fail
+    c fatal
+    ```
+
+    выведет
+
+    ```
+    open a
+    work a
+    close a
+    done a
+    open b
+    work b
+    close b
+    caught failed b
+    done b
+    open c
+    close c
+    done c
+    unhandled NotSupportedException
+    finished 3
+    ```
+
+    **Что дано.** Заготовка компилируется, но закрывает ресурс только при успехе, ловит `Exception` целиком и не останавливает обработку после неожиданной ошибки.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Объявите ресурс как using var resource = new Resource(name); внутри try: тогда close выполнится до блока catch и при любом исключении."
+    - "Замените catch (Exception e) на catch (InvalidOperationException e) when (e.Message.StartsWith(\"failed \", StringComparison.Ordinal)). Остальные исключения поднимутся выше."
+    - "done печатайте в finally внутреннего try. Тогда done появляется и при пробросе исключения наружу."
+    - "Оберните весь цикл во внешний try / catch (Exception e) / finally: catch печатает unhandled и тип исключения (e.GetType().Name), finally печатает finished и счётчик начатых заданий."
+  tests:
+    - id: "basic"
+      title: "ok, fail, parse"
+      stdin: "5\na ok\nb fail\nc parse:42\nd parse:4x\ne ok\n"
+      expected: "open a\nwork a\nclose a\ndone a\nopen b\nwork b\nclose b\ncaught failed b\ndone b\nopen c\nparsed 42\nclose c\ndone c\nopen d\ninvalid 4x\nclose d\ndone d\nopen e\nwork e\nclose e\ndone e\nfinished 5\n"
+      hint: "Для fail порядок такой: work, close, caught, done. parse не пишет work."
+    - id: "fatal"
+      title: "fatal останавливает обработку"
+      stdin: "3\na ok\nb fatal\nc ok\n"
+      expected: "open a\nwork a\nclose a\ndone a\nopen b\nclose b\ndone b\nunhandled NotSupportedException\nfinished 2\n"
+      hint: "После fatal задание c не начинается: finished 2, а close и done для b печатаются до unhandled."
+    - id: "bad"
+      title: "bad не ловится фильтром"
+      stdin: "3\na bad\nb ok\nc ok\n"
+      expected: "open a\nclose a\ndone a\nunhandled InvalidOperationException\nfinished 1\n"
+      hint: "Сообщение не начинается с failed, поэтому фильтр не срабатывает: исключение выходит наружу."
+    - id: "empty"
+      title: "Нет заданий (скрытый)"
+      stdin: "0\n"
+      expected: "finished 0\n"
+      hidden: true
+      hint: "Внешний finally выполняется и тут: finished 0."
+    - id: "parse"
+      title: "Разбор чисел (скрытый)"
+      stdin: "5\na parse:-7\nb parse:+5\nc parse:99999999999\nd parse:1.5\ne parse:12\n"
+      expected: "open a\nparsed -7\nclose a\ndone a\nopen b\nparsed 5\nclose b\ndone b\nopen c\ninvalid 99999999999\nclose c\ndone c\nopen d\ninvalid 1.5\nclose d\ndone d\nopen e\nparsed 12\nclose e\ndone e\nfinished 5\n"
+      hidden: true
+      hint: "NumberStyles.Integer допускает знак, но не десятичную точку; число вне диапазона int - invalid."
+    - id: "mix"
+      title: "fail после fail (скрытый)"
+      stdin: "4\nx fail\ny fail\nz parse:3\nw fatal\n"
+      expected: "open x\nwork x\nclose x\ncaught failed x\ndone x\nopen y\nwork y\nclose y\ncaught failed y\ndone y\nopen z\nparsed 3\nclose z\ndone z\nopen w\nclose w\ndone w\nunhandled NotSupportedException\nfinished 4\n"
+      hidden: true
+      hint: "Каждый fail обрабатывается независимо; fatal последним: unhandled и finished 4."

@@ -1,0 +1,175 @@
+id: "csharp.fundamentals.type-system-and-memory"
+title: "Система типов и память: упаковка, ref, Span, nullable"
+goal: "Объяснять поведение значений и ссылок через копирование, замечать упаковку и пользоваться ref/out/in, Span<T> и двумя видами nullable."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "csharp.first-steps.value-types-and-nullable"
+related:
+  - "rust.first-steps.ownership-moves-and-borrowing"
+  - "kotlin.first-steps.null-safety-and-val-var"
+  - "java.first-steps.primitives-objects-and-equality"
+next:
+  - "csharp.fundamentals.classes-records-structs"
+objectives:
+  - "Объяснить, почему «стек или куча» - деталь реализации, а семантика C# определяется копированием значения или ссылки."
+  - "Находить упаковку и распаковку в коде и объяснять, почему упакованное значение - независимая копия."
+  - "Выбирать между ref, out и in и писать методы вида Try... с out-параметром."
+  - "Делать срезы без копирования через Span<T> и ReadOnlySpan<T> и называть их ограничения."
+  - "Различать int? (Nullable<int>) и string? (аннотация компилятора)."
+masteryCriteria:
+  - "Вы предсказываете вывод кода с упаковкой, распаковкой в неверный тип и сравнением упакованных значений."
+  - "Вы пишете метод с параметрами ref и out и вызываете его правильным синтаксисом."
+  - "Вы получаете подмассив через Span<T> и объясняете, почему запись в срез меняет исходный массив."
+  - "Вы объясняете, почему предупреждения о null исчезают при компиляции и не защищают во время выполнения."
+tags:
+  - "csharp"
+  - "types"
+  - "boxing"
+  - "span"
+  - "ref"
+  - "nullable"
+facts:
+  - kind: "internals"
+    text: "Упаковка - это неявное преобразование значимого типа в object (или в интерфейс, который тип реализует): значение копируется в объект в управляемой куче. Распаковка - явное преобразование обратно, причём тип должен совпадать с типом упакованного значения."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing"
+  - kind: "internals"
+    text: "Span<T> и ReadOnlySpan<T> объявлены как ref struct: они могут жить только на стеке, поэтому их нельзя хранить в поле обычного класса, упаковывать или держать через await. Срез Span<T> указывает на те же данные и не копирует их."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.span-1"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/ref-struct"
+  - kind: "internals"
+    text: "Nullable reference types - анализ потока управления во время компиляции: он выдаёт предупреждения, но не меняет сгенерированный тип. Поэтому typeof(string?) не компилируется (CS8639), а выражение null! подавляет предупреждение, оставляя в переменной настоящий null."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-reference-types"
+  - kind: "internals"
+    text: "int? - это структура System.Nullable<int> с полями HasValue и Value; арифметика с «пустым» значением даёт «пустой» результат, а сравнение двух пустых значений оператором == даёт true."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/nullable-value-types"
+  - kind: "misconception"
+    text: "«Структуры хранятся на стеке, а классы в куче» - упрощение. Поле структуры внутри объекта лежит в куче, а локальная переменная может вообще не получить памяти (регистр). Корректная формулировка: значимые типы копируются при присваивании, ссылочные копируют ссылку."
+  - kind: "performance"
+    text: "Упаковка в цикле выделяет объект на каждой итерации и нагружает сборщик мусора. Обобщённые коллекции (List<int>) хранят значения без упаковки, в отличие от необобщённых (ArrayList)."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт при выполнении: object o = 5; long l = (long)o; ?"
+      options:
+        - "l станет равным 5."
+        - "Будет брошено InvalidCastException."
+        - "Ошибка компиляции."
+        - "l станет равным 0."
+      answer: 1
+      explanation: "Распаковка требует точного типа: в объекте лежит упакованный int, а не long. Нужно сначала (int)o, затем преобразование к long."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет код: int x = 1; object o = x; x = 2; Console.WriteLine((int)o); ?"
+      options:
+        - "1"
+        - "2"
+        - "0"
+        - "InvalidCastException"
+      answer: 0
+      explanation: "Упаковка копирует значение: объект o хранит собственную копию единицы, и изменение x её не затрагивает."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о Span<T> верны?"
+      options:
+        - "Срез Span<T> указывает на те же данные, запись в него меняет исходный массив."
+        - "Span<T> можно хранить в поле обычного класса."
+        - "Span<T> можно создать над памятью stackalloc."
+        - "Локальную переменную Span<T> можно держать через await."
+      answer:
+        - 0
+        - 2
+      explanation: "Span<T> - ref struct: срез не копирует данные и может указывать на стековую память, но поле класса (CS8345) и граница await (CS4007) запрещены."
+    - id: "q4"
+      type: "single"
+      prompt: "Что выведет код при включённых nullable reference types: string s = null!; Console.WriteLine(s is null); ?"
+      options:
+        - "True"
+        - "False"
+        - "Ошибка компиляции"
+        - "NullReferenceException"
+      answer: 0
+      explanation: "Оператор ! только подавляет предупреждение. Во время выполнения в переменной по-прежнему лежит null."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Чему равно b ?? -1 после int? a = null; int? b = a + 1; ?"
+      answer: -1
+      tolerance: 0
+      explanation: "Арифметика с пустым Nullable<int> даёт пустой результат, поэтому b пуст и оператор ?? возвращает -1."
+exercise:
+  id: "csharp.fundamentals.type-system-and-memory.exercise"
+  title: "Разбор чисел: out, ref и срез Span"
+  prompt: |
+    Программа читает **весь** стандартный ввод - числа и посторонние слова, разделённые любыми пробельными символами. Токен считается допустимым, если `int.TryParse` с `NumberStyles.Integer` и `CultureInfo.InvariantCulture` принимает его (например `-5` и `+7`, но не `3.5`, `abc` и `2147483648`).
+
+    Выведите ровно четыре строки:
+
+    ```
+    valid=<сколько допустимых> invalid=<сколько недопустимых>
+    sum=<сумма допустимых, тип long>
+    min=<минимум или none> max=<максимум или none>
+    tail=<сумма последних трёх допустимых (или всех, если их меньше трёх)>
+    ```
+
+    **Пример.** Для `3 1 4 1 5` получится:
+
+    ```
+    valid=5 invalid=0
+    sum=14
+    min=1 max=5
+    tail=10
+    ```
+
+    **Заготовка не компилируется - так и задумано.** Компилятор сообщает CS1615: метод вызывается с `out`/`ref`, а параметры объявлены без них. Прочитайте ошибку, исправьте сигнатуры `TryParseToken` (параметр `out int result`) и `Track` (параметры `ref int?`), затем реализуйте разбор и добавьте вычисление `tail` через `ReadOnlySpan<int>` и срез по диапазону - без копирования массива.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Сообщение CS1615 говорит, что аргумент передаётся с out или ref, а параметр так не объявлен. Нужно изменить объявления методов, а не вызовы."
+    - "TryParseToken должен иметь параметр `out int result` и просто вернуть результат int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out result). Track принимает `ref int? min, ref int? max`."
+    - "Для tail: `ReadOnlySpan<int> valid = buffer.AsSpan(0, count);` затем срез `valid[Math.Max(0, count - 3)..]` и цикл foreach по нему."
+    - "Полный набросок: после цикла разбора создайте `var tail = buffer.AsSpan(0, count)[Math.Max(0, count - 3)..];`, пройдите по нему и накапливайте в long tailSum. Границу Math.Max нужно, чтобы при count < 3 индекс не стал отрицательным."
+  tests:
+    - id: "basic"
+      title: "Только допустимые числа"
+      stdin: "3 1 4 1 5\n"
+      expected: "valid=5 invalid=0\nsum=14\nmin=1 max=5\ntail=10\n"
+      hint: "Последние три числа: 4 + 1 + 5 = 10."
+    - id: "mixed"
+      title: "Слова и дробные числа недопустимы"
+      stdin: "10 abc 20 3.5 -5\n"
+      expected: "valid=3 invalid=2\nsum=25\nmin=-5 max=20\ntail=25\n"
+      hint: "Токены abc и 3.5 не проходят int.TryParse; считайте их в invalid."
+    - id: "empty"
+      title: "Пустой ввод"
+      stdin: "\n"
+      expected: "valid=0 invalid=0\nsum=0\nmin=none max=none\ntail=0\n"
+      hint: "Без допустимых чисел min и max равны none, а суммы - 0."
+    - id: "overflow"
+      title: "Границы int и переполнение (скрытый)"
+      stdin: "2147483647 2147483648 -2147483648\n"
+      expected: "valid=2 invalid=1\nsum=-1\nmin=-2147483648 max=2147483647\ntail=-1\n"
+      hidden: true
+      hint: "2147483648 не помещается в int и недопустимо. Сумму храните в long."
+    - id: "few"
+      title: "Меньше трёх допустимых (скрытый)"
+      stdin: "x 7 y 8\n"
+      expected: "valid=2 invalid=2\nsum=15\nmin=7 max=8\ntail=15\n"
+      hidden: true
+      hint: "Если допустимых меньше трёх, tail - сумма всех; следите за границей среза."
+    - id: "whitespace"
+      title: "Плюс, табуляции и лишние пробелы (скрытый)"
+      stdin: "  +7   8\t9\n10 \n"
+      expected: "valid=4 invalid=0\nsum=34\nmin=7 max=10\ntail=27\n"
+      hidden: true
+      hint: "Разделители - любые пробельные символы; +7 допустимо и равно 7."

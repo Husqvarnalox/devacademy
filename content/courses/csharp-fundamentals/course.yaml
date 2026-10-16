@@ -1,0 +1,17 @@
+id: "csharp-fundamentals"
+version: "1.0.0"
+title: "C#: язык и платформа .NET"
+description: "Курс из восьми уроков: система типов и память (упаковка, ref, Span, nullable), классы, записи и структуры, наследование и интерфейсы, обобщения и коллекции, LINQ, исключения и ресурсы, делегаты и события, async/await. Каждое утверждение проверено запуском кода на .NET 10 и C# 14. ASP.NET Core, Entity Framework и UI-фреймворки пока не входят."
+languageId: "csharp"
+level: 1
+track: "csharp"
+requires: [csharp-first-steps]
+lessons:
+  - "01-type-system-and-memory"
+  - "02-classes-records-structs"
+  - "03-interfaces-inheritance-polymorphism"
+  - "04-generics-and-collections"
+  - "05-linq"
+  - "06-exceptions-and-resources"
+  - "07-delegates-lambdas-events"
+  - "08-async-await"

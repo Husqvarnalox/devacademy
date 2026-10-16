@@ -1,0 +1,213 @@
+id: "rust.fundamentals.collections-and-iterators"
+title: "Коллекции и итераторы"
+goal: "Выбирать подходящую коллекцию (Vec, HashMap, BTreeMap, HashSet), считать и группировать через entry API и строить ленивые цепочки итераторов с collect."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "rust.fundamentals.traits-and-generics"
+objectives:
+  - "Выбирать между Vec, HashMap, HashSet, BTreeMap и BTreeSet по требованиям к порядку и скорости."
+  - "Считать и группировать данные через entry API без двойного поиска."
+  - "Различать iter, iter_mut и into_iter и объяснять, что каждый делает с владением."
+  - "Строить цепочки адаптеров и завершать их потребителем, понимая, что адаптеры ленивы."
+  - "Собирать результат через collect в Vec, String, HashMap и Result<Vec<_>, _>."
+masteryCriteria:
+  - "Вы пишете подсчёт частот через HashMap и entry и выводите результат в детерминированном порядке."
+  - "Вы объясняете, почему цепочка map без потребителя ничего не вычисляет."
+  - "Вы исправляете E0382, E0502 и E0283 при работе с коллекциями, не прибегая к лишним clone."
+related:
+  - "go.fundamentals.maps-and-slices-deep-dive"
+  - "cpp.first-steps.value-semantics-references-and-raii"
+  - "rust.fundamentals.traits-and-generics"
+  - "rust.fundamentals.smart-pointers-and-interior-mutability"
+next:
+  - "rust.fundamentals.smart-pointers-and-interior-mutability"
+tags:
+  - "rust"
+  - "collections"
+  - "iterators"
+  - "hashmap"
+  - "vec"
+facts:
+  - kind: "internals"
+    text: "Итераторы Rust ленивы: адаптеры вроде map и filter ничего не вычисляют, пока потребитель (collect, sum, for) не вызовет next. Поэтому map с println! без потребителя ничего не напечатает, а take(n) над бесконечным диапазоном завершается (проверено на rustc 1.99)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch13-02-iterators.html"
+      - "https://doc.rust-lang.org/std/iter/index.html"
+  - kind: "internals"
+    text: "Порядок обхода HashMap и HashSet не определён и может отличаться между запусками, а BTreeMap и BTreeSet всегда обходятся по возрастанию ключа. Для стабильного вывода сортируйте ключи или берите B-деревья."
+    sources:
+      - "https://doc.rust-lang.org/std/collections/struct.HashMap.html"
+      - "https://doc.rust-lang.org/std/collections/struct.BTreeMap.html"
+  - kind: "real-world"
+    text: "entry API находит ячейку HashMap один раз и позволяет вставить значение по умолчанию или изменить существующее (or_insert, or_default, and_modify), поэтому *map.entry(k).or_insert(0) += 1 - идиоматичный счётчик."
+    sources:
+      - "https://doc.rust-lang.org/book/ch08-03-hash-maps.html"
+      - "https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html"
+  - kind: "misconception"
+    text: "«Цепочка итераторов медленнее цикла» - нет. Итераторы Rust относятся к абстракциям с нулевой стоимостью: в оптимизированной сборке компилятор обычно сводит цепочку к тому же коду, что и ручной цикл. Раздел Rust Book сравнивает их производительность."
+    sources:
+      - "https://doc.rust-lang.org/book/ch13-04-performance.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "let v = vec![1, 2, 3]; for x in v { let _ = x; } println!(\"{}\", v.len()); — что скажет компилятор?"
+      options:
+        - "Всё компилируется, выведет 3."
+        - "Ошибка E0382: v перемещён в цикл for."
+        - "Ошибка E0502: v заимствован дважды."
+        - "Паника во время выполнения."
+      answer: 1
+      explanation: "for x in v вызывает into_iter и перемещает вектор. Используйте for x in &v, если v нужен после цикла."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Чему равно (1..=10).filter(|n| n % 3 == 0).map(|n| n * n).sum::<i32>()?"
+      answer: 126
+      tolerance: 0
+      explanation: "Кратные трём: 3, 6, 9. Квадраты: 9 + 36 + 81 = 126."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие коллекции гарантированно обходятся по возрастанию ключа?"
+      options:
+        - "HashMap"
+        - "BTreeMap"
+        - "BTreeSet"
+        - "HashSet"
+      answer:
+        - 1
+        - 2
+      explanation: "B-деревья хранят ключи упорядоченно. Порядок обхода HashMap и HashSet не определён."
+    - id: "q4"
+      type: "numeric"
+      prompt: "let mut c = 0; let r: Vec<i32> = w.iter().inspect(|_| c += 1).take(2).cloned().collect(); где w = vec![1, 2, 3, 4]. Чему равно c после выполнения?"
+      answer: 2
+      tolerance: 0
+      explanation: "Итератор ленив: take(2) останавливает цепочку после двух элементов, и inspect вызывается только дважды."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой метод HashMap возвращает Entry, чтобы одним поиском вставить значение по умолчанию или изменить существующее?"
+      answer:
+        - "entry"
+        - "entry()"
+        - ".entry"
+      explanation: "map.entry(key) возвращает Entry, у которого есть or_insert, or_default и and_modify."
+exercise:
+  id: "rust.fundamentals.collections-and-iterators.exercise"
+  title: "Частотный словарь"
+  prompt: |
+    Первая строка ввода - число `N`. Остальное - произвольный текст (несколько строк). Слово - максимальная последовательность символов, для которых `char::is_alphanumeric` истинно; слова приводятся к нижнему регистру.
+
+    Выведите `N` самых частых слов в формате `<слово> <число>`: по убыванию числа, при равенстве - по алфавиту. Если разных слов меньше `N`, выведите все. Последней строкой выведите `unique=<число разных слов> total=<всего слов>`.
+
+    **Пример.** Для `2` и текста `Hello, hello! World? world... HELLO` вывод: `hello 3`, `world 2`, `unique=2 total=5`.
+
+    В заготовке `main` готов; реализуйте `tokenize`, `count` и `top`. Заготовка компилируется, но падает на `todo!()`.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется и падает на todo!(). Начните с tokenize: text.split(|c: char| !c.is_alphanumeric()) даёт слова вперемешку с пустыми строками."
+    - "tokenize: .filter(|w| !w.is_empty()).map(|w| w.to_lowercase()).collect(). Пустые фрагменты возникают между соседними разделителями."
+    - "count: let mut m = HashMap::new(); for w in words { *m.entry(w.as_str()).or_insert(0) += 1; } m. Ключи - &str, заимствованные из words."
+    - "top: переложите пары в Vec<(&str, usize)>, sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0))), затем into_iter().take(n).collect()."
+  tests:
+    - id: "basic"
+      title: "Три самых частых слова"
+      stdin: "3\nthe cat and the dog and the bird\n"
+      expected: "the 3\nand 2\nbird 1\nunique=5 total=8\n"
+      hint: "Сортировка: сначала по убыванию числа, при равенстве - по алфавиту. Затем строка unique=<разных> total=<всего>."
+    - id: "case-punct"
+      title: "Регистр и знаки препинания"
+      stdin: "2\nHello, hello! World? world... HELLO\n"
+      expected: "hello 3\nworld 2\nunique=2 total=5\n"
+      hint: "Приводите слова к нижнему регистру и делите текст по всем символам, которые не буквы и не цифры."
+    - id: "n-larger"
+      title: "N больше числа слов"
+      stdin: "10\nb a b\n"
+      expected: "b 2\na 1\nunique=2 total=3\n"
+      hint: "take(n) не паникует, если слов меньше n."
+    - id: "zero"
+      title: "N равно нулю (скрытый)"
+      stdin: "0\none two two\n"
+      expected: "unique=2 total=3\n"
+      hidden: true
+      hint: "При N=0 выводится только строка итогов."
+    - id: "empty"
+      title: "Пустой текст (скрытый)"
+      stdin: "5\n"
+      expected: "unique=0 total=0\n"
+      hidden: true
+      hint: "Нет слов: только unique=0 total=0."
+    - id: "tie"
+      title: "Равные частоты - алфавит (скрытый)"
+      stdin: "4\nc b a d c b a d\n"
+      expected: "a 2\nb 2\nc 2\nd 2\nunique=4 total=8\n"
+      hidden: true
+      hint: "При равных числах порядок задаёт слово: a, b, c, d. Используйте then() или then_with()."
+    - id: "unicode"
+      title: "Юникод и цифры (скрытый)"
+      stdin: "3\nЯблоко яблоко 42 42 x1 x1 x1\n"
+      expected: "x1 3\n42 2\nяблоко 2\nunique=3 total=7\n"
+      hidden: true
+      hint: "is_alphanumeric понимает не только ASCII; to_lowercase приводит и кириллицу."
+challenge:
+  id: "rust.fundamentals.collections-and-iterators.challenge"
+  title: "Группы анаграмм"
+  prompt: |
+    Ввод - слова, разделённые любыми пробельными символами (возможно, на нескольких строках). Слова приводятся к нижнему регистру; два слова - анаграммы, если у них одинаковый набор букв.
+
+    Выведите группы анаграмм, в которых **два и более разных слова** (повторы слова внутри группы не считаются). Слова в группе - по алфавиту через пробел. Порядок групп: больше слов раньше, при равенстве - по первому слову группы. Последняя строка - `groups=<число групп>`.
+
+    **Пример.** Для `listen silent enlist cat act tac dog` вывод: `act cat tac`, `enlist listen silent`, `groups=2`.
+
+    Группировку удобно строить как `HashMap<String, BTreeSet<String>>`. Заготовка компилируется, но падает на `todo!()`: реализуйте `key` и `groups`.
+  entryFile: "main.rs"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется и падает на todo!(). Ключ анаграммы - отсортированные буквы: let mut c: Vec<char> = word.to_lowercase().chars().collect(); c.sort_unstable();"
+    - "Группировка: map.entry(key(w)).or_default().insert(w.to_lowercase()); BTreeSet сам убирает повторы и держит слова по алфавиту."
+    - "Выбор групп: map.into_values().filter(|g| g.len() >= 2).map(|g| g.into_iter().collect::<Vec<_>>()).collect()."
+    - "Порядок: out.sort_by(|a, b| b.len().cmp(&a.len()).then(a[0].cmp(&b[0]))). Результат HashMap не упорядочен, поэтому сортировка обязательна."
+  tests:
+    - id: "basic"
+      title: "Простые группы"
+      stdin: "listen silent enlist google gogole cat act tac dog\n"
+      expected: "act cat tac\nenlist listen silent\ngogole google\ngroups=3\n"
+      hint: "Ключ - отсортированные буквы. В вывод попадают только группы из 2+ слов."
+    - id: "order"
+      title: "Порядок групп"
+      stdin: "ab ba abc cab bca xy yx\nzz\n"
+      expected: "abc bca cab\nab ba\nxy yx\ngroups=3\n"
+      hint: "Сначала группы с большим числом слов, при равенстве - по первому (алфавитному) слову группы."
+    - id: "none"
+      title: "Нет анаграмм"
+      stdin: "one two three\n"
+      expected: "groups=0\n"
+      hint: "Если групп нет, выводится только groups=0."
+    - id: "dups"
+      title: "Повторы и регистр (скрытый)"
+      stdin: "Listen listen SILENT silent enlist\n"
+      expected: "enlist listen silent\ngroups=1\n"
+      hidden: true
+      hint: "Слова приводятся к нижнему регистру и не повторяются в группе (BTreeSet)."
+    - id: "single-dup"
+      title: "Одно слово дважды (скрытый)"
+      stdin: "cat cat cat\n"
+      expected: "groups=0\n"
+      hidden: true
+      hint: "Одно и то же слово - не анаграмма самому себе: после удаления повторов в группе одно слово."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "groups=0\n"
+      hidden: true
+      hint: "Пустой ввод даёт groups=0."
+    - id: "tie-first"
+      title: "Равный размер, разные первые слова (скрытый)"
+      stdin: "tea eat ate rat tar art pots stop\n"
+      expected: "art rat tar\nate eat tea\npots stop\ngroups=3\n"
+      hidden: true
+      hint: "Группы по три слова: art rat tar, ate eat tea. Сравнение по первому слову группы."

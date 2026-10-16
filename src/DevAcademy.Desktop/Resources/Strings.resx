@@ -665,6 +665,14 @@
   <data name="Onboarding_NoPath" xml:space="preserve"><value>Без маршрута</value></data>
   <data name="Onboarding_NoPathHint" xml:space="preserve"><value>Выберу курсы сам из каталога.</value></data>
   <data name="Path_Goal" xml:space="preserve"><value>Цель: {0}</value></data>
+  <data name="PathGoal_general" xml:space="preserve"><value>общая подготовка</value></data>
+  <data name="PathGoal_backend" xml:space="preserve"><value>бэкенд-разработка</value></data>
+  <data name="PathGoal_frontend" xml:space="preserve"><value>фронтенд-разработка</value></data>
+  <data name="PathGoal_fullstack" xml:space="preserve"><value>фулстек-разработка</value></data>
+  <data name="PathGoal_ml" xml:space="preserve"><value>машинное обучение</value></data>
+  <data name="PathGoal_data" xml:space="preserve"><value>анализ данных</value></data>
+  <data name="PathGoal_interview" xml:space="preserve"><value>подготовка к собеседованию</value></data>
+  <data name="PathGoal_automation" xml:space="preserve"><value>автоматизация</value></data>
   <data name="Path_Follow" xml:space="preserve"><value>Вести этот маршрут</value></data>
   <data name="Path_Unfollow" xml:space="preserve"><value>Перестать вести</value></data>
   <data name="Path_LessonCredited" xml:space="preserve"><value>Засчитано по проверке знаний</value></data>

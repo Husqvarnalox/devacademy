@@ -1,0 +1,17 @@
+id: "rust-fundamentals"
+version: "1.0.0"
+title: "Rust: владение, типы и надёжный код"
+description: "Курс из восьми уроков: владение и перемещение в деталях, заимствование и времена жизни, структуры, перечисления и сопоставление с образцом, обработка ошибок, трейты и обобщения, коллекции и итераторы, умные указатели и внутренняя изменяемость, потокобезопасная конкурентность. Каждое утверждение проверено компиляцией и запуском на rustc 1.99 (редакция 2021). Cargo, внешние крейты, async и unsafe пока не входят."
+languageId: "rust"
+level: 1
+track: "rust"
+requires: [rust-first-steps]
+lessons:
+  - "01-ownership-and-moves-in-depth"
+  - "02-borrowing-and-lifetimes"
+  - "03-structs-enums-pattern-matching"
+  - "04-error-handling"
+  - "05-traits-and-generics"
+  - "06-collections-and-iterators"
+  - "07-smart-pointers-and-interior-mutability"
+  - "08-concurrency-fearless"

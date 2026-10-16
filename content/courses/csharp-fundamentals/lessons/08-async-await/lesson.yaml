@@ -1,0 +1,258 @@
+id: "csharp.fundamentals.async-await"
+title: "async/await"
+goal: "Писать корректный асинхронный код: Task, отмена через CancellationToken, параллельный запуск через WhenAll, и избегать async void и блокировок на .Result."
+difficulty: "hard"
+estimatedMinutes: 70
+prerequisites:
+  - "csharp.fundamentals.exceptions-and-resources"
+  - "csharp.fundamentals.delegates-lambdas-events"
+related:
+  - "javascript.fundamentals.promises-and-async"
+  - "go.fundamentals.goroutines-and-channels"
+  - "python.concurrency.asyncio-basics"
+next: []
+objectives:
+  - "Объяснять, что происходит до и после await, и почему async не создаёт потоков."
+  - "Запускать независимые операции параллельно через Task.WhenAll и сохранять порядок результатов."
+  - "Передавать CancellationToken, различать отмену и ошибку и обрабатывать OperationCanceledException."
+  - "Избегать async void, блокировок на .Result и .Wait(), применять ConfigureAwait(false) в библиотеках и знать, когда уместен ValueTask."
+masteryCriteria:
+  - "Вы объясняете, почему блокировка на Wait() в потоке с однопоточным контекстом приводит к взаимоблокировке и как её избежать."
+  - "Вы называете статус задачи при отмене и исключение, которое выбросит await."
+  - "Вы объясняете порядок результатов Task.WhenAll и где лежат все ошибки."
+  - "Вы ограничиваете параллелизм через SemaphoreSlim.WaitAsync и объясняете, почему lock здесь не подходит."
+tags:
+  - "csharp"
+  - "async"
+  - "await"
+  - "task"
+  - "cancellation"
+facts:
+  - kind: "internals"
+    text: "Компилятор превращает async-метод в конечный автомат. До первого await на незавершённой задаче метод выполняется синхронно в потоке вызывающего; после await продолжение идёт в захваченном SynchronizationContext или TaskScheduler, а при их отсутствии (консоль) - в пуле потоков."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/task-based-asynchronous-pattern-tap"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/"
+  - kind: "internals"
+    text: "Task.WhenAll возвращает результаты в порядке аргументов, а не в порядке завершения. При нескольких ошибках await выбрасывает только первое исключение, а все исключения доступны в свойстве Exception.InnerExceptions возвращённой задачи."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.whenall"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/task-asynchronous-programming-model"
+  - kind: "misconception"
+    text: "«Отмена прерывает операцию». Отмена в .NET кооперативна: CancellationToken только сообщает о запросе, а операция сама проверяет токен и завершается исключением OperationCanceledException, при этом задача получает статус Canceled, а не Faulted."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtoken"
+  - kind: "misconception"
+    text: "«async void - то же, что async Task, только короче». Исключение из async void нельзя перехватить в вызывающем коде и нельзя дождаться завершения; такой метод допустим только для обработчиков событий."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/async-return-types"
+      - "https://learn.microsoft.com/en-us/archive/msdn-magazine/2013/march/async-await-best-practices-in-asynchronous-programming"
+  - kind: "performance"
+    text: "ValueTask<T> позволяет вернуть готовый результат без выделения объекта Task, но его можно ожидать только один раз и нельзя использовать параллельно; в остальных случаях по умолчанию возвращайте Task<T>."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.valuetask-1"
+      - "https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/consuming-the-task-based-asynchronous-pattern"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В каком потоке и когда выполняется код async-метода до первого await на незавершённой задаче?"
+      options:
+        - "В потоке пула, отдельном от вызывающего"
+        - "Синхронно в потоке вызывающего"
+        - "Только после завершения задачи"
+        - "В новом потоке, создаваемом ключевым словом async"
+      answer: 1
+      explanation: "Async-метод выполняется синхронно до первого await на незавершённой задаче и лишь затем возвращает Task вызывающему."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой статус получает задача Task.Delay(1000, token), если токен был отменён до завершения?"
+      options:
+        - "Faulted"
+        - "RanToCompletion"
+        - "Canceled"
+        - "WaitingForActivation"
+      answer: 2
+      explanation: "Отмена даёт статус Canceled, а await выбросит TaskCanceledException (наследник OperationCanceledException)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Task.WhenAll возвращает результаты в порядке аргументов."
+        - "async void подходит для обычных методов, которые нужно дождаться."
+        - "await внутри lock не компилируется (CS1996)."
+        - "ConfigureAwait(false) уместен в библиотечном коде."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "async void допустим только для обработчиков событий; остальные утверждения верны."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Три независимые операции занимают 100, 100 и 100 мс. Примерно за сколько миллисекунд завершится await Task.WhenAll(a, b, c) (накладными расходами пренебречь)?"
+      answer: 100
+      tolerance: 20
+      explanation: "Операции идут параллельно, поэтому общее время близко к самой долгой: 100 мс, а не 300."
+    - id: "q5"
+      type: "single"
+      prompt: "Почему .Result в обработчике UI может привести к взаимоблокировке?"
+      options:
+        - "Потому что Result всегда вызывает исключение"
+        - "Поток UI заблокирован в ожидании, а продолжение ждёт именно этот поток"
+        - "Потому что задачи нельзя ожидать дважды"
+        - "Из-за сборщика мусора"
+      answer: 1
+      explanation: "Продолжение должно вернуться в поток UI, но тот заблокирован на .Result, поэтому ни один из них не продвигается."
+exercise:
+  id: "csharp.fundamentals.async-await.exercise"
+  title: "Параллельные запросы с тайм-аутом"
+  prompt: |
+    Первая строка ввода - тайм-аут `t` в миллисекундах, вторая - число запросов `n`, затем `n` строк `<имя> <задержка_мс>`. Каждый «запрос» ждёт `Task.Delay(задержка)` и возвращает своё имя. Запустите все запросы **параллельно**, общий тайм-аут `t` задайте через `CancellationTokenSource(t)` и передайте токен в `Task.Delay`. Напечатайте результаты **в порядке ввода**:
+
+    * `<имя>: ok` - запрос уложился в тайм-аут;
+    * `<имя>: cancelled` - запрос был отменён;
+
+    и итоговую строку `ok=<k> cancelled=<m>`.
+
+    **Пример**
+
+    ```
+    300
+    3
+    users 20
+    posts 900
+    likes 40
+    ```
+
+    выведет
+
+    ```
+    users: ok
+    posts: cancelled
+    likes: ok
+    ok=2 cancelled=1
+    ```
+
+    В тестах «быстрые» запросы укладываются в десятки миллисекунд, «медленные» - около секунды.
+
+    **Что дано.** Заготовка компилируется, но токен нигде не создаётся и не передаётся в `Task.Delay`: все запросы «успешны» (и программа ждёт самый медленный). Создайте `CancellationTokenSource`, передайте токен вниз и дождитесь всех задач через `Task.WhenAll`, обработав `OperationCanceledException`; статус каждой задачи проверьте через `IsCanceled`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "using var cts = new CancellationTokenSource(timeoutMs); токен передайте как cts.Token в FetchAsync, а там - вторым аргументом в Task.Delay(delayMs, token)."
+    - "Запустите все запросы до первого await: Task<string>[] tasks = requests.Select(r => FetchAsync(...)).ToArray();, потом один раз await Task.WhenAll(tasks)."
+    - "Await Task.WhenAll бросит OperationCanceledException, если хотя бы одна задача отменена: оберните его в try/catch и не завершайте программу."
+    - "После WhenAll пройдите по tasks по индексу и для каждой смотрите tasks[i].IsCanceled: так порядок вывода совпадёт с порядком ввода."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "300\n3\nusers 20\nposts 900\nlikes 40\n"
+      expected: "users: ok\nposts: cancelled\nlikes: ok\nok=2 cancelled=1\n"
+      hint: "posts ждёт 900 мс при тайм-ауте 300, значит отменяется; users и likes укладываются."
+    - id: "allok"
+      title: "Все успевают"
+      stdin: "300\n3\na 10\nb 30\nc 5\n"
+      expected: "a: ok\nb: ok\nc: ok\nok=3 cancelled=0\n"
+      hint: "Все задержки меньше тайм-аута: порядок вывода - порядок ввода, а не завершения."
+    - id: "allslow"
+      title: "Все отменены"
+      stdin: "200\n2\nx 900\ny 1000\n"
+      expected: "x: cancelled\ny: cancelled\nok=0 cancelled=2\n"
+      hint: "Обе задачи отменяются; await WhenAll бросает OperationCanceledException, его нужно поймать."
+    - id: "empty"
+      title: "Нет запросов (скрытый)"
+      stdin: "300\n0\n"
+      expected: "ok=0 cancelled=0\n"
+      hidden: true
+      hint: "Пустой набор: Task.WhenAll завершается сразу, выводится ok=0 cancelled=0."
+    - id: "order"
+      title: "Порядок вывода (скрытый)"
+      stdin: "300\n5\nslow1 900\nfast 10\nmid 40\nslow2 800\nlast 5\n"
+      expected: "slow1: cancelled\nfast: ok\nmid: ok\nslow2: cancelled\nlast: ok\nok=3 cancelled=2\n"
+      hidden: true
+      hint: "Результаты идут в порядке ввода, независимо от завершения: slow1, fast, mid, slow2, last."
+    - id: "zero"
+      title: "Нулевая задержка (скрытый)"
+      stdin: "300\n3\na 0\nb 900\nc 0\n"
+      expected: "a: ok\nb: cancelled\nc: ok\nok=2 cancelled=1\n"
+      hidden: true
+      hint: "Task.Delay(0) завершается сразу и успешно; b отменяется."
+challenge:
+  id: "csharp.fundamentals.async-await.challenge"
+  title: "Ограничение параллелизма"
+  prompt: |
+    Первая строка ввода - предел параллелизма `L`, вторая - число задач `n`, затем `n` строк `<имя> <задержка_мс>` (задержка не меньше 100). Каждая задача занимает «слот» на время `Task.Delay(задержка)` и возвращает строку `<имя> -> <длина имени>`. Одновременно должно выполняться **не более `L`** задач. Ограничьте параллелизм через `SemaphoreSlim` (`WaitAsync` и `Release` в `finally`).
+
+    Напечатайте результаты **в порядке ввода**, затем `peak=<максимальное число одновременно выполнявшихся задач>`. Подсчёт пика уже написан (`PeakCounter`).
+
+    **Пример** (`L = 2`, пять задач по 100 мс):
+
+    ```
+    2
+    5
+    a 100
+    bb 100
+    ccc 100
+    d 100
+    eeeee 100
+    ```
+
+    выведет
+
+    ```
+    a -> 1
+    bb -> 2
+    ccc -> 3
+    d -> 1
+    eeeee -> 5
+    peak=2
+    ```
+
+    **Что дано.** Заготовка запускает все задачи одновременно (`peak` получается равным `n`). Добавьте семафор и ожидание слота; для `lock` здесь нельзя: внутри него нельзя `await` (CS1996).
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Создайте var gate = new SemaphoreSlim(limit); и передайте в конструктор начальное число свободных слотов, равное пределу."
+    - "В начале RunAsync выполните await gate.WaitAsync();, а освобождение слота поместите в finally: gate.Release()."
+    - "Структура: await gate.WaitAsync(); try { ...работа... } finally { gate.Release(); }. Тогда слот вернётся даже при исключении."
+    - "Все задачи по-прежнему стартуют сразу (Select + ToArray), а ограничивает их семафор; результаты берите из await Task.WhenAll(tasks) - порядок совпадает с порядком запуска."
+  tests:
+    - id: "limit2"
+      title: "Предел 2 из 5"
+      stdin: "2\n5\na 100\nbb 100\nccc 100\nd 100\neeeee 100\n"
+      expected: "a -> 1\nbb -> 2\nccc -> 3\nd -> 1\neeeee -> 5\npeak=2\n"
+      hint: "Одновременно работают две задачи: peak=2."
+    - id: "limit1"
+      title: "Предел 1 (последовательно)"
+      stdin: "1\n3\nx 100\nyy 100\nzzz 100\n"
+      expected: "x -> 1\nyy -> 2\nzzz -> 3\npeak=1\n"
+      hint: "Предел 1 - задачи идут строго по очереди, peak=1."
+    - id: "wide"
+      title: "Предел больше числа задач"
+      stdin: "10\n3\nx 100\nyy 100\nzzz 100\n"
+      expected: "x -> 1\nyy -> 2\nzzz -> 3\npeak=3\n"
+      hint: "Задач всего три, поэтому peak=3, а не 10."
+    - id: "limit3"
+      title: "Предел 3 из 7 (скрытый)"
+      stdin: "3\n7\nu 120\nvv 120\nwww 120\nxxxx 120\ny 120\nzz 120\nq 120\n"
+      expected: "u -> 1\nvv -> 2\nwww -> 3\nxxxx -> 4\ny -> 1\nzz -> 2\nq -> 1\npeak=3\n"
+      hidden: true
+      hint: "Первые три занимают слоты, остальные ждут: peak=3."
+    - id: "one"
+      title: "Одна задача (скрытый)"
+      stdin: "4\n1\nsolo 100\n"
+      expected: "solo -> 4\npeak=1\n"
+      hidden: true
+      hint: "Одна задача: peak=1."
+    - id: "empty"
+      title: "Нет задач (скрытый)"
+      stdin: "2\n0\n"
+      expected: "peak=0\n"
+      hidden: true
+      hint: "Нет задач: выводится только peak=0."

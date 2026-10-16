@@ -1,0 +1,212 @@
+id: "rust.fundamentals.concurrency-fearless"
+title: "Бесстрашная конкурентность"
+goal: "Писать многопоточные программы на thread, Arc, Mutex, mpsc и thread::scope, понимая, как Send и Sync делают гонки данных ошибкой компиляции."
+difficulty: "hard"
+estimatedMinutes: 90
+prerequisites:
+  - "rust.fundamentals.smart-pointers-and-interior-mutability"
+objectives:
+  - "Запускать потоки через thread::spawn и thread::scope и получать их результаты через join."
+  - "Объяснять, что означают Send и Sync и почему Rc и RefCell не подходят для потоков."
+  - "Делить состояние через Arc<Mutex<T>>, RwLock и атомики."
+  - "Обмениваться данными через mpsc-каналы и корректно закрывать их."
+  - "Проектировать детерминированный вывод в программе, где порядок потоков не определён."
+masteryCriteria:
+  - "Вы раздаёте независимые куски данных потокам через thread::scope и собираете результаты по каналу в детерминированном порядке."
+  - "Вы объясняете, почему thread::spawn требует 'static и move, а scope - нет."
+  - "Вы строите пул рабочих с общей очередью и корректно завершаете его закрытием канала."
+related:
+  - "go.fundamentals.goroutines-and-channels"
+  - "cpp.first-steps.value-semantics-references-and-raii"
+  - "rust.fundamentals.smart-pointers-and-interior-mutability"
+next: []
+tags:
+  - "rust"
+  - "threads"
+  - "mutex"
+  - "channels"
+  - "send-sync"
+facts:
+  - kind: "internals"
+    text: "thread::spawn требует от замыкания Send и 'static, поэтому замыкание, заимствующее локальную переменную, не компилируется (E0373); данные передают с move. После move исходная переменная недоступна (E0382)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch16-01-threads.html"
+      - "https://doc.rust-lang.org/std/thread/fn.spawn.html"
+  - kind: "internals"
+    text: "Rc<T> не реализует Send, поэтому его нельзя перемещать в поток (E0277); Arc<T> использует атомарный счётчик и является Send и Sync при T: Send + Sync. Mutex<T> является Sync при T: Send."
+    sources:
+      - "https://doc.rust-lang.org/book/ch16-04-extensible-concurrency-sync-and-send.html"
+      - "https://doc.rust-lang.org/std/sync/struct.Arc.html"
+  - kind: "internals"
+    text: "mpsc::Receiver::recv возвращает Err, когда уничтожены все Sender; поэтому забытый оригинальный tx (после раздачи клонов) оставляет канал открытым, и for m in rx не завершается."
+    sources:
+      - "https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html"
+      - "https://doc.rust-lang.org/book/ch16-02-message-passing.html"
+  - kind: "real-world"
+    text: "thread::scope гарантирует завершение вложенных потоков до выхода из scope, поэтому они могут заимствовать локальные данные без Arc и move; изменяемое заимствование одной переменной двумя потоками остаётся ошибкой E0499."
+    sources:
+      - "https://doc.rust-lang.org/std/thread/fn.scope.html"
+  - kind: "misconception"
+    text: "«Если программа компилируется, в ней нет проблем с конкурентностью» - нет: Rust исключает гонки данных, но не взаимные блокировки (deadlock) и не логические гонки порядка операций. Мьютекс, в потоке с которым случилась паника, становится отравленным."
+    sources:
+      - "https://doc.rust-lang.org/book/ch16-03-shared-state.html"
+      - "https://doc.rust-lang.org/std/sync/struct.Mutex.html#poisoning"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "let v = vec![1, 2, 3]; let h = thread::spawn(|| println!(\"{:?}\", v)); — что скажет компилятор?"
+      options:
+        - "Всё компилируется: v просто заимствуется."
+        - "Ошибка E0373: замыкание может пережить функцию, нужен move."
+        - "Ошибка E0382: v перемещён."
+        - "Предупреждение о неиспользованном JoinHandle."
+      answer: 1
+      explanation: "thread::spawn требует 'static, а замыкание заимствует локальную v. Добавьте move или используйте thread::scope."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Сколько будет значение *counter.lock().unwrap() в конце, если 4 потока по 1000 раз увеличивают его на 1 под Mutex?"
+      answer: 4000
+      tolerance: 0
+      explanation: "Мьютекс сериализует инкременты, поэтому ни один не теряется: 4 * 1000 = 4000."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие из этих типов можно передать (переместить) в thread::spawn?"
+      options:
+        - "Rc<i32>"
+        - "Arc<Mutex<i32>>"
+        - "Vec<String>"
+        - "&RefCell<i32> на локальную переменную"
+      answer:
+        - 1
+        - 2
+      explanation: "Rc не Send. Ссылка на локальную переменную не 'static, а RefCell не Sync. Arc<Mutex<..>> и Vec<String> - Send."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Создан один tx и три его клона tx.clone(). Сколько всего экземпляров Sender должно быть уничтожено, чтобы rx.recv() вернул Err?"
+      answer: 4
+      tolerance: 0
+      explanation: "Канал закрывается, когда уничтожены все Sender: исходный и три клона, то есть 4. Забытый оригинальный tx - частая причина зависания."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой маркерный трейт означает, что на значение можно безопасно делиться ссылкой &T между потоками?"
+      answer:
+        - "Sync"
+        - "std::marker::Sync"
+      explanation: "T: Sync означает, что &T: Send. Send - про перемещение значения между потоками."
+exercise:
+  id: "rust.fundamentals.concurrency-fearless.exercise"
+  title: "Параллельная сумма квадратов"
+  prompt: |
+    Первая строка ввода - число рабочих `W`, дальше числа `u64` (токены, не разбирающиеся как `u64`, пропускаются). Данные делятся на подряд идущие куски размера `ceil(len / W)` (последний может быть короче); при пустых данных или `W == 0` кусков нет.
+
+    Каждый кусок обрабатывается в **своём потоке внутри `thread::scope`**: поток считает сумму квадратов куска, увеличивает общий счётчик обработанных чисел (`Arc<Mutex<usize>>`) и отправляет `(индекс куска, сумма)` по каналу `mpsc`. Выведите по строке `chunk <i>: <сумма>` в порядке индексов (порядок прихода сообщений не определён!), затем `total=<сумма всех сумм> processed=<значение счётчика>`.
+
+    **Пример.** Для `3` и чисел `1 2 3 4 5 6 7` вывод: `chunk 0: 14`, `chunk 1: 77`, `chunk 2: 49`, `total=140 processed=7`.
+
+    Реализуйте `split` и `run`; `main` готов. Заготовка компилируется, но падает на `todo!()`.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется и падает на todo!(). split: если data.is_empty() || workers == 0 вернуть Vec::new(); иначе data.chunks(data.len().div_ceil(workers)).collect()."
+    - "run: let (tx, rx) = mpsc::channel(); внутри thread::scope(|s| { for (i, chunk) in chunks.iter().enumerate() { let tx = tx.clone(); let processed = Arc::clone(processed); s.spawn(move || { ... }); } });"
+    - "Поток: let sum: u64 = chunk.iter().map(|x| x * x).sum(); *processed.lock().unwrap() += chunk.len(); tx.send((i, sum)).unwrap();. Потоки в scope могут заимствовать chunk без Arc."
+    - "После scope сделайте drop(tx) - иначе rx.iter() не завершится. Затем let mut r: Vec<_> = rx.iter().collect(); r.sort(); r. Сортировка нужна, потому что порядок сообщений не определён."
+  tests:
+    - id: "three"
+      title: "Три потока, семь чисел"
+      stdin: "3\n1 2 3 4 5 6 7\n"
+      expected: "chunk 0: 14\nchunk 1: 77\nchunk 2: 49\ntotal=140 processed=7\n"
+      hint: "Размер куска - потолок деления len / workers: для 7 чисел и 3 потоков куски 3, 3, 1... проверьте div_ceil. Результаты печатаются по возрастанию индекса куска."
+    - id: "more-workers"
+      title: "Потоков больше, чем чисел"
+      stdin: "10\n5 6\n"
+      expected: "chunk 0: 25\nchunk 1: 36\ntotal=61 processed=2\n"
+      hint: "chunks(size) даёт не более len кусков; лишних потоков не запускается."
+    - id: "one"
+      title: "Один рабочий"
+      stdin: "1\n10 20 30\n"
+      expected: "chunk 0: 1400\ntotal=1400 processed=3\n"
+      hint: "При одном рабочем весь вход - единственный кусок chunk 0."
+    - id: "empty"
+      title: "Нет данных (скрытый)"
+      stdin: "4\n"
+      expected: "total=0 processed=0\n"
+      hidden: true
+      hint: "Пустой вход: chunks() с нулевым размером паникует, поэтому обработайте пустые данные до вызова."
+    - id: "zero-workers"
+      title: "Ноль рабочих (скрытый)"
+      stdin: "0\n1 2 3\n"
+      expected: "total=0 processed=0\n"
+      hidden: true
+      hint: "При workers == 0 кусков нет: выводится только итоговая строка total=0 processed=0."
+    - id: "big"
+      title: "Много чисел (скрытый)"
+      stdin: "4\n1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 11000\n"
+      expected: "chunk 0: 14000000\nchunk 1: 77000000\nchunk 2: 194000000\nchunk 3: 221000000\ntotal=506000000 processed=11\n"
+      hidden: true
+      hint: "Сумма квадратов помещается в u64. Проверьте processed: все 11 чисел обработаны, ни один инкремент не потерян."
+    - id: "junk"
+      title: "Мусор во вводе (скрытый)"
+      stdin: "2\n3 x 4 -1 5\n"
+      expected: "chunk 0: 25\nchunk 1: 25\ntotal=50 processed=3\n"
+      hidden: true
+      hint: "Токены, которые не разобрались как u64, пропускаются (filter_map)."
+challenge:
+  id: "rust.fundamentals.concurrency-fearless.challenge"
+  title: "Пул рабочих с общей очередью"
+  prompt: |
+    Первая строка - число рабочих `W` (минимум 1), дальше числа `u64`. Числа `n < 1` и нечисловые токены отбрасываются; оставшиеся образуют задачи с номерами `0, 1, ...` по порядку ввода.
+
+    Запустите **пул из `W` потоков** (`thread::spawn`), которые берут задачи из общей очереди (`Arc<Mutex<Receiver<..>>>`). Задача - вычислить число шагов гипотезы Коллатца для `n` (чётное: `n / 2`, нечётное: `3n + 1`, пока не получится `1`). Результаты возвращаются по другому каналу.
+
+    Выведите `job <i>: <n> -> <шаги>` по порядку номеров, затем `longest: job <i> (<n>) with <шаги> steps` - задача с наибольшим числом шагов (при равенстве - с меньшим номером) или `no jobs`, если задач нет. Программа должна завершаться: закройте каналы и дождитесь `join` всех рабочих.
+
+    **Пример.** Для `2` и чисел `6 7 1 27` последняя строка - `longest: job 3 (27) with 111 steps`.
+
+    В заготовке готовы `collatz` и `main`; реализуйте `pool`. Заготовка компилируется, но падает на `todo!()`.
+  entryFile: "main.rs"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется и падает на todo!(). Создайте два канала: задачи (job_tx, job_rx) и результаты (res_tx, res_rx). Receiver один, поэтому оберните его: Arc::new(Mutex::new(job_rx))."
+    - "Рабочий: loop { let job = job_rx.lock().unwrap().recv(); match job { Ok((i, n)) => res_tx.send((i, n, collatz(n))).unwrap(), Err(_) => break } } - защитник мьютекса живёт только до конца первой строки."
+    - "Раздайте рабочим клоны res_tx и сделайте drop(res_tx) в основном потоке; отправьте все задачи и сделайте drop(job_tx) - это сигнал рабочим остановиться."
+    - "Соберите rx.iter().collect(), затем join всех рабочих и results.sort(). Без drop(res_tx) сбор результатов зависнет навсегда."
+  tests:
+    - id: "basic"
+      title: "Шаги Коллатца"
+      stdin: "2\n6 7 1 27\n"
+      expected: "job 0: 6 -> 8\njob 1: 7 -> 16\njob 2: 1 -> 0\njob 3: 27 -> 111\nlongest: job 3 (27) with 111 steps\n"
+      hint: "Задачи нумеруются с нуля по порядку ввода; результаты выводятся по индексу независимо от порядка выполнения."
+    - id: "one-worker"
+      title: "Один рабочий"
+      stdin: "1\n3 10 97\n"
+      expected: "job 0: 3 -> 7\njob 1: 10 -> 6\njob 2: 97 -> 118\nlongest: job 2 (97) with 118 steps\n"
+      hint: "Один рабочий обрабатывает всю очередь; вывод тот же, что при нескольких."
+    - id: "many"
+      title: "Много рабочих (скрытый)"
+      stdin: "8\n9 12 15 18 21 24 27 30 33 36 39 42\n"
+      expected: "job 0: 9 -> 19\njob 1: 12 -> 9\njob 2: 15 -> 17\njob 3: 18 -> 20\njob 4: 21 -> 7\njob 5: 24 -> 10\njob 6: 27 -> 111\njob 7: 30 -> 18\njob 8: 33 -> 26\njob 9: 36 -> 21\njob 10: 39 -> 34\njob 11: 42 -> 8\nlongest: job 6 (27) with 111 steps\n"
+      hidden: true
+      hint: "Рабочих больше, чем нужно: лишние получают Err от recv и завершаются. Не забудьте drop(job_tx) и drop(res_tx)."
+    - id: "tie"
+      title: "Ничья по длине (скрытый)"
+      stdin: "3\n16 5 32 5\n"
+      expected: "job 0: 16 -> 4\njob 1: 5 -> 5\njob 2: 32 -> 5\njob 3: 5 -> 5\nlongest: job 1 (5) with 5 steps\n"
+      hidden: true
+      hint: "При равных шагах побеждает задача с меньшим индексом: ключ (шаги, Reverse(индекс)). 5 -> 5 шагов, 16 -> 4, 32 -> 5."
+    - id: "empty"
+      title: "Нет задач (скрытый)"
+      stdin: "4\n"
+      expected: "no jobs\n"
+      hidden: true
+      hint: "Без задач выводится только 'no jobs'; рабочие должны завершиться, а не зависнуть."
+    - id: "zero"
+      title: "Нули и мусор (скрытый)"
+      stdin: "0\n0 5 q 6\n"
+      expected: "job 0: 5 -> 5\njob 1: 6 -> 8\nlongest: job 1 (6) with 8 steps\n"
+      hidden: true
+      hint: "Число рабочих не меньше 1; задачи n < 1 и нечисловые токены отбрасываются."

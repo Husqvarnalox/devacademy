@@ -1,0 +1,164 @@
+id: "rust.fundamentals.smart-pointers-and-interior-mutability"
+title: "Умные указатели и внутренняя изменяемость"
+goal: "Выбирать между Box, Rc, RefCell и Weak, строить структуры с общим владением и без циклов и понимать, где проверки заимствований переходят из компиляции в рантайм."
+difficulty: "hard"
+estimatedMinutes: 85
+prerequisites:
+  - "rust.fundamentals.collections-and-iterators"
+objectives:
+  - "Использовать Box для рекурсивных типов и владеющих trait-объектов."
+  - "Делить владение через Rc и читать strong_count и weak_count."
+  - "Менять данные через общую ссылку с помощью Cell и RefCell и объяснять, когда RefCell паникует."
+  - "Разрывать циклы владения с помощью Weak и upgrade."
+  - "Связывать Deref и Drop с поведением умных указателей."
+masteryCriteria:
+  - "Вы строите дерево с Rc вниз и Weak вверх и показываете, что узлы освобождаются при удалении поддерева."
+  - "Вы объясняете, почему Rc нельзя отправить в другой поток и чем его заменить."
+  - "Вы предсказываете, где RefCell паникует, и применяете try_borrow или узкую область для защитников."
+related:
+  - "cpp.first-steps.value-semantics-references-and-raii"
+  - "rust.fundamentals.collections-and-iterators"
+  - "rust.fundamentals.concurrency-fearless"
+next:
+  - "rust.fundamentals.concurrency-fearless"
+tags:
+  - "rust"
+  - "box"
+  - "rc"
+  - "refcell"
+  - "weak"
+  - "interior-mutability"
+facts:
+  - kind: "internals"
+    text: "Box<T> хранит значение в куче, а сам занимает один указатель (8 байт на 64-битной платформе), поэтому enum List { Cons(i32, Box<List>), Nil } имеет конечный размер; без Box компилятор сообщает E0072 (recursive type has infinite size)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch15-01-box.html"
+  - kind: "internals"
+    text: "Rc::clone увеличивает счётчик ссылок и не копирует данные; значение уничтожается, когда strong_count доходит до нуля. Rc не реализует Send, поэтому thread::spawn с Rc даёт E0277, а для потоков предназначен Arc."
+    sources:
+      - "https://doc.rust-lang.org/book/ch15-04-rc.html"
+      - "https://doc.rust-lang.org/std/rc/struct.Rc.html"
+  - kind: "internals"
+    text: "RefCell проверяет правила заимствования во время выполнения: несколько borrow() или один borrow_mut(); нарушение приводит к панике (RefCell already borrowed), а try_borrow и try_borrow_mut возвращают Err (проверено на rustc 1.99)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch15-05-interior-mutability.html"
+      - "https://doc.rust-lang.org/std/cell/struct.RefCell.html"
+  - kind: "misconception"
+    text: "«Утечки памяти в безопасном Rust невозможны» - возможны: цикл из Rc никогда не обнуляет счётчик. Язык гарантирует безопасность памяти (нет use-after-free и гонок данных), но не отсутствие утечек. Цикл разрывают через Weak."
+    sources:
+      - "https://doc.rust-lang.org/book/ch15-06-reference-cycles.html"
+      - "https://doc.rust-lang.org/std/rc/struct.Weak.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "let a = Rc::new(String::from(\"x\")); a.push('y'); — что скажет компилятор?"
+      options:
+        - "Всё в порядке: Rc разыменовывается в String."
+        - "Ошибка E0596: нельзя изменять данные внутри Rc."
+        - "Ошибка E0382: a перемещён."
+        - "Паника во время выполнения."
+      answer: 1
+      explanation: "Rc даёт только общий (неизменяемый) доступ. Для изменения используйте Rc<RefCell<String>> или Rc::make_mut."
+    - id: "q2"
+      type: "numeric"
+      prompt: "let a = Rc::new(1); let b = Rc::clone(&a); let c = Rc::clone(&a); drop(b); Чему равно Rc::strong_count(&a)?"
+      answer: 2
+      tolerance: 0
+      explanation: "Три владельца (a, b, c), после drop(b) остаются два: a и c."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие типы позволяют изменять содержимое через общую ссылку &T?"
+      options:
+        - "Cell<i32>"
+        - "RefCell<i32>"
+        - "Box<i32>"
+        - "Rc<i32>"
+      answer:
+        - 0
+        - 1
+      explanation: "Cell и RefCell - типы внутренней изменяемости. Box и Rc сами по себе изменений через &T не дают."
+    - id: "q4"
+      type: "single"
+      prompt: "let c = RefCell::new(1); let _a = c.borrow_mut(); let _b = c.borrow_mut(); — что произойдёт?"
+      options:
+        - "Ошибка компиляции E0499."
+        - "Паника во время выполнения (RefCell already borrowed)."
+        - "Второй вызов вернёт Err."
+        - "Оба заимствования работают."
+      answer: 1
+      explanation: "RefCell проверяет правила в рантайме, поэтому код компилируется, но паникует. Вернуть Err умеет только try_borrow_mut."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой метод Weak<T> возвращает Option<Rc<T>>?"
+      answer:
+        - "upgrade"
+        - "upgrade()"
+        - "Weak::upgrade"
+      explanation: "upgrade возвращает Some(Rc), пока есть хотя бы один сильный владелец, и None после его уничтожения."
+exercise:
+  id: "rust.fundamentals.smart-pointers-and-interior-mutability.exercise"
+  title: "Дерево с Rc и Weak"
+  prompt: |
+    Программа читает команды и управляет деревом имён. Первая команда - `root <имя>` (создаёт дерево). Остальные команды (пустые строки пропускаются):
+
+    * `add <родитель> <ребёнок>` - добавить узел. Ошибки: `error: unknown parent <родитель>`, затем `error: duplicate <ребёнок>` (проверяются в этом порядке); при успехе ничего не печатается.
+    * `path <имя>` - путь от корня через `/`, например `a/b/d`; иначе `error: unknown <имя>`.
+    * `children <имя>` - имена детей через пробел в порядке добавления или `(none)`.
+    * `remove <имя>` - отцепить узел вместе с поддеревом; выводит `removed <число узлов в поддереве>`. Корень удалить нельзя: `error: cannot remove root`; неизвестное имя: `error: unknown <имя>`.
+    * `count` - число живых узлов.
+    * любая другая команда или неверное число аргументов: `error: bad command <команда>`.
+
+    После всех команд выводится `strong(root)=<Rc::strong_count корня> weak(root)=<Rc::weak_count корня>`.
+
+    Устройство дерева задано в заготовке: потомки лежат в `children: RefCell<Vec<Rc<Node>>>`, родитель - в `parent: RefCell<Weak<Node>>`, а имена индексируются в `HashMap<String, Weak<Node>>`. Индекс хранит **только слабые** ссылки, поэтому удалённое поддерево освобождается, и его имена снова становятся свободными. Реализуйте методы `Tree`; заготовка компилируется, но падает на `todo!()`.
+
+    **Пример.** `root a`, `add a b`, `add b d`, `path d`, `remove b`, `count` дают `a/b/d`, `removed 2`, `1`, затем итоговую строку со счётчиками.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется и падает на todo!(). Начните с new и find: index.insert(name, Rc::downgrade(&node)); find - self.index.get(name)?.upgrade()."
+    - "add: найдите родителя через find(...).ok_or(format!(...))?, проверьте find(child).is_some(), создайте узел с parent: RefCell::new(Rc::downgrade(&p)) и сделайте p.children.borrow_mut().push(node)."
+    - "path: в цикле берите cur.parent.borrow().upgrade(); сохраните результат в переменную до match, чтобы защитник Ref не жил дольше нужного; в конце reverse() и join(\"/\")."
+    - "remove: родитель - n.parent.borrow().upgrade() (None означает корень); затем parent.children.borrow_mut().retain(|c| !Rc::ptr_eq(c, &n)). Размер поддерева считайте рекурсивно до того, как n выйдет из области."
+  tests:
+    - id: "build"
+      title: "Построение и пути"
+      stdin: "root a\nadd a b\nadd a c\nadd b d\npath d\npath a\nchildren a\nchildren d\n"
+      expected: "a/b/d\na\nb c\n(none)\nstrong(root)=1 weak(root)=3\n"
+      hint: "path идёт вверх по parent.upgrade(); children возвращает имена в порядке добавления, для пустого списка - (none)."
+    - id: "errors"
+      title: "Ошибки команд"
+      stdin: "root r\nadd x y\nadd r y\nadd r y\npath z\nchildren z\n"
+      expected: "error: unknown parent x\nerror: duplicate y\nerror: unknown z\nerror: unknown z\nstrong(root)=1 weak(root)=2\n"
+      hint: "Порядок проверок в add: сначала родитель (unknown parent), затем дубликат (duplicate). Сообщения вида error: <текст>."
+    - id: "remove"
+      title: "Удаление поддерева"
+      stdin: "root a\nadd a b\nadd b c\nadd b d\nadd a e\nremove b\ncount\nchildren a\npath c\nadd a c\npath c\ncount\n"
+      expected: "removed 3\n2\ne\nerror: unknown c\na/c\n3\nstrong(root)=1 weak(root)=3\n"
+      hint: "После retain поддерево b уничтожается: Weak в индексе больше не обновляется, и имя можно использовать повторно."
+    - id: "root-remove"
+      title: "Корень не удаляется (скрытый)"
+      stdin: "root a\nremove a\nremove q\ncount\n"
+      expected: "error: cannot remove root\nerror: unknown q\n1\nstrong(root)=1 weak(root)=1\n"
+      hidden: true
+      hint: "У корня нет живого родителя: remove возвращает ошибку cannot remove root, для неизвестного имени - unknown <имя>."
+    - id: "counts"
+      title: "Счётчики Rc в конце (скрытый)"
+      stdin: "root a\nadd a b\nadd a c\nadd c d\nremove c\n"
+      expected: "removed 2\nstrong(root)=1 weak(root)=2\n"
+      hidden: true
+      hint: "Итоговая строка: strong(root) всегда 1 (владеет только Tree), weak(root) = индекс + по одному Weak от каждого живого ребёнка."
+    - id: "deep"
+      title: "Глубокая цепочка (скрытый)"
+      stdin: "root n0\nadd n0 n1\nadd n1 n2\nadd n2 n3\nadd n3 n4\npath n4\nremove n2\ncount\npath n1\n"
+      expected: "n0/n1/n2/n3/n4\nremoved 3\n2\nn0/n1\nstrong(root)=1 weak(root)=2\n"
+      hidden: true
+      hint: "remove n2 удаляет n2, n3, n4 и возвращает removed 3."
+    - id: "bad"
+      title: "Неизвестная команда и пустые строки (скрытый)"
+      stdin: "root a\n\nfoo bar\nadd a\ncount\n"
+      expected: "error: bad command foo\nerror: bad command add\n1\nstrong(root)=1 weak(root)=1\n"
+      hidden: true
+      hint: "Пустые строки пропускаются, а неподходящие по форме команды дают error: bad command <имя>."

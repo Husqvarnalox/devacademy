@@ -1,0 +1,158 @@
+id: "rust.fundamentals.borrowing-and-lifetimes"
+title: "Заимствование и времена жизни"
+goal: "Читать и исправлять ошибки borrow checker (E0499, E0502, E0106, E0515, E0597) и писать сигнатуры с явными временами жизни там, где пропуск невозможен."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "rust.fundamentals.ownership-and-moves-in-depth"
+objectives:
+  - "Различать общие и изменяемые заимствования и объяснять, как NLL определяет конец жизни ссылки."
+  - "Применять три правила пропуска времён жизни и понимать, когда они не срабатывают."
+  - "Писать функции и структуры с явными параметрами времени жизни."
+  - "Объяснять, почему нельзя вернуть ссылку на локальную переменную, и выбирать исправление."
+  - "Различать и читать коды ошибок E0499, E0502, E0505, E0506, E0515, E0597 и E0106."
+masteryCriteria:
+  - "Вы добавляете параметры времени жизни в структуру и в функцию с двумя входными ссылками так, чтобы программа компилировалась."
+  - "Вы по тексту ошибки rustc называете нарушенное правило (одна &mut или много &, ссылка не переживает владельца)."
+  - "Вы объясняете, почему аннотация 'a не удлиняет время жизни данных."
+related:
+  - "rust.fundamentals.ownership-and-moves-in-depth"
+  - "cpp.first-steps.value-semantics-references-and-raii"
+  - "go.fundamentals.maps-and-slices-deep-dive"
+next:
+  - "rust.fundamentals.structs-enums-pattern-matching"
+tags:
+  - "rust"
+  - "borrowing"
+  - "lifetimes"
+  - "borrow-checker"
+  - "nll"
+facts:
+  - kind: "internals"
+    text: "Правила пропуска времён жизни: каждому пропущенному входному времени жизни присваивается своё имя; если входное время жизни одно, оно присваивается всем пропущенным выходным; если есть &self или &mut self, выходным присваивается время жизни self."
+    sources:
+      - "https://doc.rust-lang.org/reference/lifetime-elision.html"
+      - "https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html"
+  - kind: "internals"
+    text: "Время жизни ссылки в Rust 2018 и новее определяется потоком управления (NLL): конфликт возникает только если ссылка используется позже, а не до конца блока. Поэтому let r = &s; println!(\"{r}\"); s.push('x'); компилируется."
+    sources:
+      - "https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"
+  - kind: "misconception"
+    text: "«Аннотация 'a продлевает жизнь данных» - неверно. Параметры времени жизни только описывают связи между временами жизни ссылок в сигнатуре и позволяют проверить вызывающий код; данные живут столько, сколько их владелец."
+    sources:
+      - "https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html"
+  - kind: "security"
+    text: "Висячие ссылки и инвалидация указателей после изменения коллекции - классические источники use-after-free в C и C++. В безопасном Rust они отсекаются на этапе компиляции без накладных расходов во время работы."
+    sources:
+      - "https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что скажет компилятор про fn first(a: &str, b: &str) -> &str { a }?"
+      options:
+        - "Всё в порядке: результат берётся из a."
+        - "Ошибка E0106: неясно, от какого входа зависит результат."
+        - "Ошибка E0499: две ссылки."
+        - "Предупреждение о неиспользуемом b."
+      answer: 1
+      explanation: "Два входных времени жизни и нет self: правила пропуска не могут выбрать выходное время жизни, поэтому E0106. Нужно написать, например, fn first<'a>(a: &'a str, b: &str) -> &'a str."
+    - id: "q2"
+      type: "single"
+      prompt: "let mut s = String::from(\"a\"); let r = &s; println!(\"{r}\"); s.push('x'); — результат?"
+      options:
+        - "Не компилируется: r ещё в области видимости."
+        - "Компилируется: r больше не используется после println (NLL)."
+        - "Компилируется, но паникует."
+        - "Не компилируется, нужен let mut r."
+      answer: 1
+      explanation: "Время жизни ссылки заканчивается на последнем использовании, поэтому изменяемое заимствование s.push допустимо."
+    - id: "q3"
+      type: "single"
+      prompt: "Метод fn pick(&self, other: &str) -> &str { other } в impl. Что скажет компилятор?"
+      options:
+        - "Компилируется: возвращается ссылка."
+        - "Ошибка: по правилу 3 результат связан с self, а возвращается other."
+        - "Ошибка E0499."
+        - "Ошибка E0515."
+      answer: 1
+      explanation: "Если среди входов есть &self, пропущенное выходное время жизни равно времени жизни self. Возврат other нарушает это, поэтому нужно явно указать 'a для other и результата."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой код ошибки rustc выдаёт на let r1 = &mut s; let r2 = &mut s; r1.push('x');?"
+      answer:
+        - "E0499"
+        - "e0499"
+      explanation: "E0499 - вторая изменяемая ссылка, пока жива первая."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Какие способы исправляют E0515 в fn f() -> &String { let s = String::new(); &s }?"
+      options:
+        - "Вернуть String (владение)."
+        - "Написать &'static String."
+        - "Принять &mut String от вызывающего и записывать в него."
+        - "Заменить let на let mut."
+      answer:
+        - 0
+        - 2
+      explanation: "Нельзя ссылаться на локальное значение, оно уничтожается при выходе. Возвращают владение или пишут в буфер, принадлежащий вызывающему. 'static и mut ничего не меняют."
+exercise:
+  id: "rust.fundamentals.borrowing-and-lifetimes.exercise"
+  title: "Слова, ссылающиеся на входной текст"
+  prompt: |
+    Программа читает весь ввод и разбивает его на слова (`split_whitespace`, в тексте есть хотя бы одно слово). Структура `Words` хранит **ссылки** на слова во входном тексте, а не копии.
+
+    Выведите четыре строки:
+
+    ```
+    count=<число слов>
+    first=<первое слово>
+    last=<последнее слово>
+    longest=<самое длинное слово по числу символов; при равенстве - первое>
+    ```
+
+    **Пример.** Для `the quick brown fox jumps` вывод: `count=5`, `first=the`, `last=jumps`, `longest=quick`.
+
+    **Заготовка не компилируется (`E0106`, два раза)**: у структуры `Words` с полем `Vec<&str>` нет параметра времени жизни, а у функции `pick(a: &str, b: &str) -> &str` два входа и непонятно, от какого зависит результат. Добавьте параметры времени жизни (структура, `impl` и функция); методы `first`, `last` и `longest` должны возвращать ссылки, связанные с исходным текстом, а не с самой структурой.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: компилятор дважды сообщит E0106 «missing lifetime specifier» - в struct Words и в fn pick."
+    - "Структура хранит ссылки на текст, значит, объявите struct Words<'a> { items: Vec<&'a str> } и impl<'a> Words<'a>. В pick оба входа и результат получают одно имя 'a."
+    - "Сигнатуры: fn pick<'a>(a: &'a str, b: &'a str) -> &'a str; fn new(text: &'a str) -> Self; методы first, last, longest возвращают &'a str."
+    - "Метод с результатом &'a str можно использовать после уничтожения Words, пока жив исходный текст. Остальной код менять не нужно."
+  tests:
+    - id: "basic"
+      title: "Пять слов"
+      stdin: "the quick brown fox jumps\n"
+      expected: "count=5\nfirst=the\nlast=jumps\nlongest=quick\n"
+      hint: "При равной длине побеждает первое слово: сравнивайте строго (>), начиная с первого элемента."
+    - id: "single"
+      title: "Одно слово"
+      stdin: "rust\n"
+      expected: "count=1\nfirst=rust\nlast=rust\nlongest=rust\n"
+      hint: "При одном слове first, last и longest совпадают."
+    - id: "lines"
+      title: "Несколько строк"
+      stdin: "one\ntwo three\n  four  \n"
+      expected: "count=4\nfirst=one\nlast=four\nlongest=three\n"
+      hint: "Читайте весь ввод и разбивайте по split_whitespace(): переводы строк тоже разделители."
+    - id: "unicode"
+      title: "Кириллица (скрытый)"
+      stdin: "мир программирование код\n"
+      expected: "count=3\nfirst=мир\nlast=код\nlongest=программирование\n"
+      hidden: true
+      hint: "Длина измеряется в символах: chars().count(), иначе кириллица считается в байтах."
+    - id: "ties"
+      title: "Все слова одной длины (скрытый)"
+      stdin: "abc xyz def\n"
+      expected: "count=3\nfirst=abc\nlast=def\nlongest=abc\n"
+      hidden: true
+      hint: "Если все слова равны по длине, longest - первое слово."
+    - id: "last-longest"
+      title: "Самое длинное последнее (скрытый)"
+      stdin: "a bb ccc dddd\n"
+      expected: "count=4\nfirst=a\nlast=dddd\nlongest=dddd\n"
+      hidden: true
+      hint: "Проверьте, что последнее слово тоже участвует в сравнении."

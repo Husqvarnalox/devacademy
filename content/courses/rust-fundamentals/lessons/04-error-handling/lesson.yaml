@@ -1,0 +1,229 @@
+id: "rust.fundamentals.error-handling"
+title: "Обработка ошибок"
+goal: "Проектировать обработку ошибок на Result и ?: писать собственные типы ошибок с From и Display, выбирать между Box<dyn Error> и enum и отличать восстановимые сбои от паники."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "rust.fundamentals.structs-enums-pattern-matching"
+objectives:
+  - "Использовать Result, match и оператор ? для передачи ошибок вверх по стеку."
+  - "Определять собственный enum ошибки с реализациями Display, Error и From."
+  - "Выбирать между Box<dyn Error> и собственным типом ошибки."
+  - "Выстраивать цепочку причин через Error::source."
+  - "Решать, где применять Result, а где панику, и использовать unwrap и expect осознанно."
+masteryCriteria:
+  - "Вы пишете функцию, в которой ? преобразует ошибки двух разных источников в один собственный тип через From."
+  - "Вы объясняете, почему библиотека возвращает Result, а не паникует на пользовательском вводе."
+  - "Вы собираете итератор Result в Result<Vec<_>, _> и объясняете, где он останавливается."
+related:
+  - "go.fundamentals.functions-and-errors"
+  - "rust.fundamentals.structs-enums-pattern-matching"
+  - "rust.fundamentals.traits-and-generics"
+next:
+  - "rust.fundamentals.traits-and-generics"
+tags:
+  - "rust"
+  - "result"
+  - "error-handling"
+  - "question-mark"
+  - "panic"
+facts:
+  - kind: "internals"
+    text: "Оператор ? на Result возвращает ошибку из функции, предварительно преобразовав её через From::from в тип ошибки функции. Использовать ? можно только в функции, возвращающей Result, Option или другой совместимый тип; в fn main() без Result получится E0277."
+    sources:
+      - "https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html"
+      - "https://doc.rust-lang.org/reference/expressions/operator-expr.html#the-try-propagation-expression"
+  - kind: "internals"
+    text: "Если main возвращает Err(e), программа печатает в stderr строку Error: <Debug-представление e> и завершается с кодом 1; необработанная паника главного потока завершает процесс с кодом 101 (проверено на rustc 1.99)."
+    sources:
+      - "https://doc.rust-lang.org/std/process/trait.Termination.html"
+      - "https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html"
+  - kind: "real-world"
+    text: "Рекомендация Rust Book: паникуйте при нарушенных инвариантах и в примерах или тестах, а для ожидаемых сбоев (плохой ввод, недоступный файл) возвращайте Result. unwrap и expect уместны, когда вы знаете больше компилятора и ошибка невозможна."
+    sources:
+      - "https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html"
+  - kind: "misconception"
+    text: "«В Rust нет исключений, значит, паника - то же, что обработка ошибки» - нет. Паника по умолчанию разматывает стек и завершает поток; в многопоточной программе другой поток может увидеть её как Err у JoinHandle::join, но восстановление после паники - не основной способ управления ошибками."
+    sources:
+      - "https://doc.rust-lang.org/std/thread/struct.JoinHandle.html#method.join"
+      - "https://doc.rust-lang.org/book/ch09-03-to-panic-or-not-to-panic.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "fn main() { let n: i32 = \"5\".parse()?; println!(\"{n}\"); } — что скажет компилятор?"
+      options:
+        - "Всё в порядке: ? просто развернёт значение."
+        - "Ошибка E0277: ? можно использовать только в функции, возвращающей Result или Option."
+        - "Паника во время выполнения."
+        - "Предупреждение о неиспользуемом Result."
+      answer: 1
+      explanation: "Оператор ? может вернуть ошибку из функции, а main без возвращаемого типа возвращать нечего. Достаточно объявить fn main() -> Result<(), Box<dyn std::error::Error>>."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Чему равно \"abc\".parse::<i32>().unwrap_or(8)?"
+      answer: 8
+      tolerance: 0
+      explanation: "Разбор \"abc\" возвращает Err, и unwrap_or подставляет значение по умолчанию 8."
+    - id: "q3"
+      type: "multiple"
+      prompt: "В каких случаях уместно вернуть Result, а не паниковать?"
+      options:
+        - "Пользователь ввёл нечисловой порт."
+        - "Файл конфигурации не найден."
+        - "Внутренний инвариант структуры данных нарушен из-за бага."
+        - "Сервер вернул код ошибки 503."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Ожидаемые внешние сбои (ввод, файл, сеть) обрабатываются через Result. Нарушенный инвариант - это баг, и паника там допустима."
+    - id: "q4"
+      type: "numeric"
+      prompt: "С каким кодом завершается процесс, если главный поток паникует (по умолчанию)?"
+      answer: 101
+      tolerance: 0
+      explanation: "Необработанная паника главного потока даёт код 101; main, вернувшая Err, завершает процесс с кодом 1."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой трейт нужно реализовать для типа ошибки, чтобы оператор ? автоматически преобразовывал в него ошибку другого типа?"
+      answer:
+        - "From"
+        - "From<E>"
+        - "std::convert::From"
+      explanation: "Оператор ? вызывает From::from(e), поэтому достаточно impl From<ParseIntError> for MyError."
+exercise:
+  id: "rust.fundamentals.error-handling.exercise"
+  title: "Калькулятор с собственным типом ошибки"
+  prompt: |
+    Программа читает строки вида `a op b` (три токена через пробелы; `a` и `b` - числа `i64`, `op` - один из `+ - * / %`) и для каждой непустой строки выводит `ok <результат>` или `err <сообщение>`. Пустые строки пропускаются.
+
+    Порядок проверок: сначала формат (ровно три токена), затем левое число, правое число, и только потом оператор. Сообщения об ошибках:
+
+    * `expected 'a op b'` - не три токена;
+    * `invalid number: <текст ParseIntError>` - число не разобралось (текст берётся из `Display` самой `ParseIntError`);
+    * `unknown operator '<op>'`;
+    * `division by zero` - для `/` и `%` при `b == 0`;
+    * `overflow` - результат не помещается в `i64` (используйте `checked_*`; `i64::MIN / -1` тоже переполнение).
+
+    **Пример.** Для `1 + 2`, `7 / 0`, `1 ^ 2` вывод: `ok 3`, `err division by zero`, `err unknown operator '^'`.
+
+    В заготовке объявлен `enum CalcError`. Нужно реализовать `Display`, `From<ParseIntError>` и функцию `eval`, в которой числа разбираются оператором `?`.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется, но падает на todo!(). Начните с Display: по строке на вариант CalcError."
+    - "Добавьте impl From<ParseIntError> for CalcError { fn from(e: ParseIntError) -> Self { CalcError::Parse(e) } }. После этого let a: i64 = a.parse()?; работает без map_err."
+    - "Разберите строку: let parts: Vec<&str> = line.split_whitespace().collect(); let [a, op, b] = parts[..] else { return Err(CalcError::Format); };"
+    - "Оператор: match op { \"+\" => a.checked_add(b), ... \"/\" | \"%\" if b == 0 => return Err(CalcError::DivByZero), other => return Err(CalcError::UnknownOp(other.to_string())) }; в конце result.ok_or(CalcError::Overflow)."
+  tests:
+    - id: "ok"
+      title: "Четыре действия"
+      stdin: "1 + 2\n10 / 3\n-4 * 5\n9 - 12\n"
+      expected: "ok 3\nok 3\nok -20\nok -3\n"
+      hint: "checked_add/sub/mul/div возвращают Option; Some(v) превращайте в Ok(v)."
+    - id: "errors"
+      title: "Три вида ошибок"
+      stdin: "7 / 0\n1 ^ 2\nabc + 1\n"
+      expected: "err division by zero\nerr unknown operator '^'\nerr invalid number: invalid digit found in string\n"
+      hint: "Проверьте порядок: деление на ноль, неизвестный оператор, неверное число. Сообщение числа берётся из Display самой ParseIntError."
+    - id: "format"
+      title: "Неверный формат"
+      stdin: "1 +\n1 + 2 3\n"
+      expected: "err expected 'a op b'\nerr expected 'a op b'\n"
+      hint: "Если токенов не три, это CalcError::Format."
+    - id: "overflow"
+      title: "Переполнение (скрытый)"
+      stdin: "9223372036854775807 + 1\n-9223372036854775808 / -1\n3037000500 * 3037000500\n"
+      expected: "err overflow\nerr overflow\nerr overflow\n"
+      hidden: true
+      hint: "None из checked_* означает Overflow, в том числе для i64::MIN / -1."
+    - id: "modulo"
+      title: "Остаток и пустые строки (скрытый)"
+      stdin: "7 % 3\n\n-7 % 3\n7 % 0\n"
+      expected: "ok 1\nok -1\nerr division by zero\n"
+      hidden: true
+      hint: "Пустые строки пропускаются без вывода. Для % при b == 0 - тоже division by zero."
+    - id: "too-large"
+      title: "Слишком большое число (скрытый)"
+      stdin: "99999999999999999999 + 1\n1 + \n- + 1\n"
+      expected: "err invalid number: number too large to fit in target type\nerr expected 'a op b'\nerr invalid number: invalid digit found in string\n"
+      hidden: true
+      hint: "parse::<i64>() для 20 цифр даёт ошибку переполнения разбора; первым разбирается левый операнд."
+    - id: "left-first"
+      title: "Порядок проверок (скрытый)"
+      stdin: "x ? y\n1 ? 2\n1 / x\n"
+      expected: "err invalid number: invalid digit found in string\nerr unknown operator '?'\nerr invalid number: invalid digit found in string\n"
+      hidden: true
+      hint: "Сначала формат, затем числа слева направо, и только потом оператор."
+challenge:
+  id: "rust.fundamentals.error-handling.challenge"
+  title: "Пакетный разбор заказов: strict и lenient"
+  prompt: |
+    Первая строка ввода - режим: `strict` или `lenient`. Остальные непустые строки - записи заказов `id,qty,price` (поля обрезаются от пробелов): `id` - непустая строка, `qty` - `u32`, `price` - `u64` (в копейках). Номер строки считается по всему вводу, режим - строка 1.
+
+    Ошибка записи - это `RecordError { line, kind }`; её `Display` имеет вид `line <N>: <сообщение>`:
+
+    * `expected 3 fields, got <n>`;
+    * `empty id`;
+    * `bad quantity` (причина - `ParseIntError`);
+    * `bad price` (причина - `ParseIntError`).
+
+    Для `bad quantity` и `bad price` метод `Error::source()` возвращает вложенную `ParseIntError`.
+
+    **strict.** Если есть ошибки, выведите только первую (по порядку строк): `error: <Display>`, а для ошибок с причиной ещё строку `  caused by: <Display причины>` (два пробела в начале). Если ошибок нет, выведите `orders=<N>` и `total=<сумма qty*price>`.
+
+    **lenient.** Плохие записи пропускаются; выведите `skipped=<число ошибок>`, затем `orders=<число верных>` и `total=<сумма qty*price>`.
+
+    В заготовке готовы типы и ввод-вывод. Реализуйте `Display`, `source` и `parse_record` (используйте `map_err` и `let-else`).
+  entryFile: "main.rs"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется, но падает на todo!(). Начните с Display: write!(f, \"line {}: \", self.line)?; и затем match по self.kind."
+    - "source: match &self.kind { Kind::BadQty(e) | Kind::BadPrice(e) => Some(e), _ => None }. Тип e - &ParseIntError, он приводится к &(dyn Error + 'static)."
+    - "parse_record: fields = line.split(',').map(str::trim).collect::<Vec<_>>(); let [id, qty, price] = fields[..] else { return Err(...WrongFieldCount(fields.len())) };"
+    - "Числа: qty.parse().map_err(|e| RecordError { line: line_no, kind: Kind::BadQty(e) })?. Типы u32 и u64 выводятся из полей Order."
+  tests:
+    - id: "strict-ok"
+      title: "strict: все записи верны"
+      stdin: "strict\nA1, 2, 150\nB2,1,999\n\nC3, 10, 5\n"
+      expected: "orders=3\ntotal=1349\n"
+      hint: "В режиме strict без ошибок выводятся только orders и total (qty * price по всем записям)."
+    - id: "lenient"
+      title: "lenient: плохие записи пропускаются"
+      stdin: "lenient\nA1,2,150\nbroken\n,3,10\nB2,x,1\nC3,1,-5\nD4,4,25\n"
+      expected: "skipped=4\norders=2\ntotal=400\n"
+      hint: "В режиме lenient сначала skipped=<число ошибок>, затем orders и total по верным записям."
+    - id: "strict-cause"
+      title: "strict: первая ошибка и причина (скрытый)"
+      stdin: "strict\nA1,2,150\nB2,x,1\nC3,1,2,3\n"
+      expected: "error: line 3: bad quantity\n  caused by: invalid digit found in string\n"
+      hidden: true
+      hint: "Номер строки считается по файлу: строка mode - первая. Для BadQty выведите вторую строку '  caused by: ' + Display вложенной ошибки."
+    - id: "strict-count"
+      title: "strict: неверное число полей (скрытый)"
+      stdin: "strict\nA1,2\nB2,1,1\n"
+      expected: "error: line 2: expected 3 fields, got 2\n"
+      hidden: true
+      hint: "У ошибки WrongFieldCount причины нет, строка caused by не печатается."
+    - id: "strict-empty"
+      title: "strict: пустой id (скрытый)"
+      stdin: "strict\n  , 1, 1\n"
+      expected: "error: line 2: empty id\n"
+      hidden: true
+      hint: "Поля обрезаются от пробелов, поэтому id из пробелов - пустой."
+    - id: "lenient-none"
+      title: "lenient: нет записей (скрытый)"
+      stdin: "lenient\n"
+      expected: "skipped=0\norders=0\ntotal=0\n"
+      hidden: true
+      hint: "Пустой набор: skipped=0, orders=0, total=0."
+    - id: "strict-price"
+      title: "strict: плохая цена (скрытый)"
+      stdin: "strict\nA1,1,99999999999999999999999\n"
+      expected: "error: line 2: bad price\n  caused by: number too large to fit in target type\n"
+      hidden: true
+      hint: "Слишком большое число - тоже ошибка разбора u64 (BadPrice)."

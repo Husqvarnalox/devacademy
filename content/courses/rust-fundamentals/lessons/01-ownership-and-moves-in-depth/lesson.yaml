@@ -1,0 +1,160 @@
+id: "rust.fundamentals.ownership-and-moves-in-depth"
+title: "Владение и перемещение в деталях"
+goal: "Различать Copy, Move и Clone, предсказывать порядок уничтожения значений и передавать владение в функции и замыкания без лишнего клонирования."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "rust.first-steps.ownership-moves-and-borrowing"
+objectives:
+  - "Объяснить, что именно происходит при перемещении String и чем оно отличается от clone."
+  - "Определить, какие типы Copy, и почему тип с String или Drop не может быть Copy."
+  - "Предсказать порядок вызова drop для переменных, полей структуры, элементов Vec и временных значений."
+  - "Передавать значения в функции и move-замыкания и понимать, что FnOnce вызывается один раз."
+  - "Выполнять частичное перемещение и забирать значение из &mut через mem::take, mem::replace и Option::take."
+masteryCriteria:
+  - "Вы исправляете ошибку E0382 перестановкой вызовов или заимствованием, а не клонированием."
+  - "Вы без запуска называете порядок строк drop в программе с несколькими Drop-значениями."
+  - "Вы объясняете, почему из структуры с Drop нельзя переместить поле (E0509) и из Vec нельзя взять элемент по индексу (E0507)."
+related:
+  - "rust.fundamentals.borrowing-and-lifetimes"
+  - "cpp.first-steps.value-semantics-references-and-raii"
+  - "go.fundamentals.structs-methods-embedding"
+next:
+  - "rust.fundamentals.borrowing-and-lifetimes"
+tags:
+  - "rust"
+  - "ownership"
+  - "move"
+  - "copy"
+  - "clone"
+  - "drop"
+facts:
+  - kind: "internals"
+    text: "Порядок уничтожения определён: локальные переменные уничтожаются в порядке, обратном объявлению; поля структуры - в порядке объявления после вызова её Drop::drop; элементы массива и вектора - от первого к последнему; временные значения - в конце содержащего их оператора."
+    sources:
+      - "https://doc.rust-lang.org/reference/destructors.html"
+  - kind: "internals"
+    text: "Тип с реализацией Drop не может реализовать Copy (ошибка E0184), а Copy можно реализовать только для типа, у которого все поля Copy (E0204)."
+    sources:
+      - "https://doc.rust-lang.org/std/marker/trait.Copy.html"
+      - "https://doc.rust-lang.org/error_codes/E0184.html"
+  - kind: "misconception"
+    text: "«Перемещение String копирует текст» - неверно: перемещается только структура из указателя, длины и ёмкости, а буфер остаётся на месте (as_ptr() до и после let b = a совпадает). Копирует данные только явный clone()."
+    sources:
+      - "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+  - kind: "performance"
+    text: "Стоимость clone() зависит от типа: у String и Vec он выделяет память и копирует содержимое, а у Rc и Arc только увеличивает счётчик ссылок."
+    sources:
+      - "https://doc.rust-lang.org/std/rc/struct.Rc.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "let _a = Noisy(\"a\"); let _b = Noisy(\"b\"); — в каком порядке вызовутся drop при выходе из main?"
+      options:
+        - "Сначала a, потом b."
+        - "Сначала b, потом a."
+        - "Порядок не определён."
+        - "Только b: a была создана раньше."
+      answer: 1
+      explanation: "Локальные переменные уничтожаются в порядке, обратном объявлению: сначала _b, затем _a."
+    - id: "q2"
+      type: "single"
+      prompt: "Что произойдёт с #[derive(Clone, Copy)] struct S { name: String }?"
+      options:
+        - "Скомпилируется; Copy будет делать глубокую копию."
+        - "Ошибка компиляции E0204: поле String не Copy."
+        - "Паника при первом присваивании."
+        - "Предупреждение, но программа соберётся."
+      answer: 1
+      explanation: "Copy можно реализовать только для типа, все поля которого Copy; String не Copy, компилятор выдаёт E0204."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие из типов реализуют Copy?"
+      options:
+        - "i32"
+        - "String"
+        - "&str"
+        - "(i32, char)"
+        - "Vec<i32>"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "i32, общие ссылки (&str) и кортежи из Copy-типов копируются побитово. String и Vec<i32> владеют кучей и только перемещаются."
+    - id: "q4"
+      type: "single"
+      prompt: "let _ = Noisy(\"x\"); println!(\"after\"); — что выведется первым: drop x или after?"
+      options:
+        - "after, затем drop x."
+        - "drop x, затем after."
+        - "Только after: _ не создаёт значение."
+        - "Порядок зависит от оптимизации."
+      answer: 1
+      explanation: "Шаблон _ не привязывает значение к имени, поэтому оно уничтожается сразу, в конце оператора let. Переменная _x жила бы до конца блока."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой метод Option забирает значение и оставляет на его месте None?"
+      answer:
+        - "take"
+        - "take()"
+        - "Option::take"
+      explanation: "Option::take заменяет значение за &mut на None и возвращает старое. Для остальных типов аналог - mem::take, оставляющий Default."
+exercise:
+  id: "rust.fundamentals.ownership-and-moves-in-depth.exercise"
+  title: "Владение, заимствование и порядок drop"
+  prompt: |
+    Программа читает `n` (n >= 2) и затем `n` имён (непустых, без пробелов). Каждое имя оборачивается в `Guard`, который при уничтожении печатает `drop <имя>`.
+
+    Программа делает следующее:
+
+    1. Складывает `Guard` в `Vec`, забирает последний элемент (`pop`) в `last`, а первый (`remove(0)`) - в `first`.
+    2. Вызывает `inspect(&first)` (заимствование: печатает `inspect <имя>` и возвращает длину в символах), затем `consume(first)` (владение: печатает `consume <имя>` и возвращает длину; `first` уничтожается при выходе из функции).
+    3. Печатает `seen=<..> taken=<..>`, `last=<имя>` и `rest=<сколько Guard осталось в векторе>`.
+    4. В конце `main` значения уничтожаются автоматически: сначала `last` (объявлен позже вектора), затем элементы вектора по порядку.
+
+    **Пример.** Для `4` и `a bb ccc dd` вывод: `inspect a`, `consume a`, `drop a`, `seen=1 taken=1`, `last=dd`, `rest=2`, `drop dd`, `drop bb`, `drop ccc`.
+
+    **Заготовка не компилируется (`E0382`)**: она сначала передаёт `first` в `consume`, а затем пытается взять `&first`. Это намеренная ошибка заимствования: исправьте порядок вызовов, не используя `clone()`.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: компилятор сообщит E0382 «borrow of moved value: first». Значение перемещено в consume, а потом нужно снова."
+    - "Чтение (&first) должно произойти раньше, чем передача владения: после consume(first) имя first недоступно."
+    - "Поменяйте две строки местами: сначала let seen = inspect(&first);, затем let taken = consume(first);."
+    - "Остальной вывод формируется автоматически: порядок drop в конце main определяется порядком объявления переменных, менять код для этого не нужно."
+  tests:
+    - id: "basic"
+      title: "Четыре имени"
+      stdin: "4\na bb ccc dd\n"
+      expected: "inspect a\nconsume a\ndrop a\nseen=1 taken=1\nlast=dd\nrest=2\ndrop dd\ndrop bb\ndrop ccc\n"
+      hint: "Порядок строк: inspect, consume, drop первого; затем итоговые строки; в конце main сначала уничтожается last, потом элементы вектора."
+    - id: "two"
+      title: "Два имени: вектор пуст"
+      stdin: "2\nx yy\n"
+      expected: "inspect x\nconsume x\ndrop x\nseen=1 taken=1\nlast=yy\nrest=0\ndrop yy\n"
+      hint: "После pop и remove(0) вектор пуст: rest=0, а last уничтожается в конце main."
+    - id: "unicode"
+      title: "Кириллица"
+      stdin: "3\nпривет мир дом\n"
+      expected: "inspect привет\nconsume привет\ndrop привет\nseen=6 taken=6\nlast=дом\nrest=1\ndrop дом\ndrop мир\n"
+      hint: "Длина считается в символах: chars().count(), а не len()."
+    - id: "five"
+      title: "Пять имён (скрытый)"
+      stdin: "5\none two three four five\n"
+      expected: "inspect one\nconsume one\ndrop one\nseen=3 taken=3\nlast=five\nrest=3\ndrop five\ndrop two\ndrop three\ndrop four\n"
+      hidden: true
+      hint: "Элементы вектора уничтожаются от первого к последнему, но переменная last объявлена позже guards, поэтому уничтожается раньше."
+    - id: "six"
+      title: "Шесть имён (скрытый)"
+      stdin: "6\nalpha b cc ddd eeee ffffff\n"
+      expected: "inspect alpha\nconsume alpha\ndrop alpha\nseen=5 taken=5\nlast=ffffff\nrest=4\ndrop ffffff\ndrop b\ndrop cc\ndrop ddd\ndrop eeee\n"
+      hidden: true
+      hint: "consume печатает строку до drop: drop происходит при выходе из функции."
+    - id: "same"
+      title: "Одинаковые имена (скрытый)"
+      stdin: "4\nz z z z\n"
+      expected: "inspect z\nconsume z\ndrop z\nseen=1 taken=1\nlast=z\nrest=2\ndrop z\ndrop z\ndrop z\n"
+      hidden: true
+      hint: "Проверьте, что inspect вызывается до consume и что first уничтожается ровно один раз."

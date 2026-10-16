@@ -1,0 +1,181 @@
+id: "rust.fundamentals.structs-enums-pattern-matching"
+title: "Структуры, перечисления и сопоставление с образцом"
+goal: "Моделировать предметную область структурами и перечислениями с данными и обрабатывать их исчерпывающим match, if let, let-else и комбинаторами Option."
+difficulty: "easy"
+estimatedMinutes: 65
+prerequisites:
+  - "rust.fundamentals.borrowing-and-lifetimes"
+objectives:
+  - "Объявлять структуры (обычные, кортежные, единичные) и методы с self, &self и &mut self."
+  - "Объявлять перечисления с кортежными и именованными данными в вариантах."
+  - "Писать исчерпывающий match с диапазонами, защитными условиями, привязкой @ и образцами срезов."
+  - "Выбирать между match, if let, while let и let-else."
+  - "Использовать map, and_then, filter, unwrap_or, ok_or, take и as_deref вместо unwrap."
+masteryCriteria:
+  - "Вы заменяете набор флагов и Option-полей перечислением, в котором невозможные состояния непредставимы."
+  - "Вы пишете match по ссылке на enum, не перемещая данные, и объясняете разницу с match по значению."
+  - "Вы предсказываете ошибку E0004 при добавлении нового варианта и исправляете её."
+related:
+  - "go.fundamentals.structs-methods-embedding"
+  - "go.fundamentals.interfaces"
+  - "rust.fundamentals.error-handling"
+next:
+  - "rust.fundamentals.error-handling"
+tags:
+  - "rust"
+  - "struct"
+  - "enum"
+  - "pattern-matching"
+  - "option"
+facts:
+  - kind: "internals"
+    text: "Выражение match обязано быть исчерпывающим: если образцы не покрывают все значения типа, компилятор сообщает об ошибке E0004 и показывает непокрытый вариант."
+    sources:
+      - "https://doc.rust-lang.org/book/ch06-02-match.html"
+      - "https://doc.rust-lang.org/reference/expressions/match-expr.html"
+  - kind: "internals"
+    text: "Option<&T>, Option<Box<T>> и Option<NonZeroU32> занимают столько же памяти, сколько T (оптимизация ниши): у Option<&u8> размер 8 байт на 64-битной платформе, как и у &u8, а у Option<u32> - 8 байт при размере u32 в 4 байта."
+    sources:
+      - "https://doc.rust-lang.org/std/option/index.html#representation"
+  - kind: "real-world"
+    text: "В let ... else блок else обязан расходиться (return, break, continue или panic!); иначе компилятор выдаёт E0308. Конструкция доступна начиная с Rust 1.65."
+    sources:
+      - "https://doc.rust-lang.org/reference/statements.html#let-statements"
+      - "https://doc.rust-lang.org/book/ch06-03-if-let.html"
+  - kind: "misconception"
+    text: "«match по Option<String> просто читает значение» - нет: образец Some(s) по значению перемещает строку из переменной, и использовать её дальше нельзя (E0382). Для чтения сопоставляйте ссылку: match &opt."
+    sources:
+      - "https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "short"
+      prompt: "Какой код ошибки выдаёт rustc, если в match по enum пропущен один из вариантов?"
+      answer:
+        - "E0004"
+        - "e0004"
+      explanation: "E0004: non-exhaustive patterns - компилятор показывает непокрытый вариант."
+    - id: "q2"
+      type: "single"
+      prompt: "let Some(x) = opt else { println!(\"none\"); }; — что скажет компилятор?"
+      options:
+        - "Компилируется, на None печатает none и идёт дальше."
+        - "Ошибка E0308: блок else должен расходиться (return, break, continue, panic!)."
+        - "Ошибка E0004: нет ветки для None."
+        - "Предупреждение о неиспользуемом x."
+      answer: 1
+      explanation: "В let-else блок else не может «упасть» в следующий код, поэтому в нём нужен return, break, continue или panic!."
+    - id: "q3"
+      type: "single"
+      prompt: "let opt = Some(String::from(\"a\")); match opt { Some(s) => println!(\"{s}\"), None => {} } println!(\"{:?}\", opt); — результат?"
+      options:
+        - "Компилируется и печатает a, Some(\"a\")."
+        - "Ошибка E0382: opt частично перемещена в образец Some(s)."
+        - "Паника во время выполнения."
+        - "Ошибка E0004."
+      answer: 1
+      explanation: "Сопоставление по значению перемещает String в s. Чтобы сохранить opt, используйте match &opt или opt.as_ref()."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Чему равно Some(3).map(|x| x * 2).filter(|x| *x > 5).unwrap_or(0)?"
+      answer: 6
+      tolerance: 0
+      explanation: "map даёт Some(6), filter оставляет его (6 > 5), unwrap_or возвращает 6."
+    - id: "q5"
+      type: "single"
+      prompt: "Какой метод Option<T> превращает его в Result<T, E>, подставляя заданную ошибку при None?"
+      options:
+        - "map"
+        - "and_then"
+        - "ok_or"
+        - "unwrap_or"
+      answer: 2
+      explanation: "ok_or(err) возвращает Ok(значение) для Some и Err(err) для None; ok_or_else вычисляет ошибку лениво."
+exercise:
+  id: "rust.fundamentals.structs-enums-pattern-matching.exercise"
+  title: "Стековая машина на перечислениях"
+  prompt: |
+    Программа читает команды стековой машины (по одной в строке) над стеком из `i64`:
+
+    | команда | действие |
+    |---|---|
+    | `push N` | положить число `N` |
+    | `pop` | снять вершину |
+    | `add`, `mul` | снять два верхних значения и положить сумму или произведение |
+    | `dup` | продублировать вершину |
+    | `swap` | поменять два верхних значения местами |
+    | `neg` | сменить знак вершины |
+
+    Пустые строки пропускаются (но учитываются в нумерации строк, которая идёт от 1). После всех команд выводятся две строки: `stack=[...]` (формат `{:?}` для `Vec<i64>`, снизу вверх) и `top=<вершина или none>`.
+
+    Первая же ошибка прекращает работу и выводит одну строку `error line <N>: <сообщение>`. Сообщения: `unknown command '<имя>'`, `bad number '<токен>'`, `missing number` (push без аргумента), `stack underflow` (мало элементов) и `overflow` (арифметика `i64` выходит за границы - используйте `checked_add`, `checked_mul`, `checked_neg`).
+
+    **Пример.** Для `push 2`, `push 3`, `add`, `dup`, `mul` вывод: `stack=[25]` и `top=25`.
+
+    В заготовке готовы перечисления `Cmd` и `Fault`, разбор `parse` и ввод-вывод; реализуйте `apply` (исчерпывающий `match` по `Cmd`) и `message` (`match` по `Fault`).
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Заготовка компилируется, но падает на todo!(). Начните с message: один match по Fault, по строке на вариант."
+    - "apply - это match по Cmd. Для Push, Pop и Dup достаточно stack.push, stack.pop и stack.last().copied(); Invalid(fault) просто возвращает Some(fault)."
+    - "Для Add и Mul снимите два значения: let (Some(b), Some(a)) = (stack.pop(), stack.pop()) else { return Some(Fault::Underflow); };. Затем a.checked_add(b) или a.checked_mul(b): None означает Overflow."
+    - "Swap: если stack.len() < 2 - Underflow, иначе stack.swap(len - 1, len - 2). Neg: stack.pop(), затем top.checked_neg(); None - это Overflow (так бывает для i64::MIN)."
+  tests:
+    - id: "arith"
+      title: "Сложение, dup, умножение"
+      stdin: "push 2\npush 3\nadd\ndup\nmul\n"
+      expected: "stack=[25]\ntop=25\n"
+      hint: "add берёт два верхних значения и кладёт сумму; dup дублирует вершину. Результат 5 * 5 = 25."
+    - id: "swap-neg"
+      title: "swap и neg"
+      stdin: "push 1\npush 2\nswap\npush -5\nneg\n"
+      expected: "stack=[2, 1, 5]\ntop=5\n"
+      hint: "swap меняет два верхних значения местами; neg меняет знак вершины. Вывод stack печатается снизу вверх."
+    - id: "underflow"
+      title: "add на недостаточном стеке"
+      stdin: "push 1\nadd\n"
+      expected: "error line 2: stack underflow\n"
+      hint: "Если в стеке меньше двух значений, верните Fault::Underflow; номер строки считается от 1."
+    - id: "unknown"
+      title: "Неизвестная команда после пустой строки (скрытый)"
+      stdin: "push 1\n\nfoo 3\n"
+      expected: "error line 3: unknown command 'foo'\n"
+      hidden: true
+      hint: "Пустые строки пропускаются, но номер строки считает и их: ошибка на строке 3."
+    - id: "bad-number"
+      title: "Не число (скрытый)"
+      stdin: "push 5\npush x1\n"
+      expected: "error line 2: bad number 'x1'\n"
+      hidden: true
+      hint: "parse::<i64>() вернул Err - это Fault::BadNumber с исходным текстом токена."
+    - id: "missing"
+      title: "push без числа (скрытый)"
+      stdin: "push\n"
+      expected: "error line 1: missing number\n"
+      hidden: true
+      hint: "Если после push нет токена, это MissingNumber."
+    - id: "overflow-add"
+      title: "Переполнение сложения (скрытый)"
+      stdin: "push 9223372036854775807\npush 1\nadd\n"
+      expected: "error line 3: overflow\n"
+      hidden: true
+      hint: "Используйте checked_add: None означает Overflow."
+    - id: "overflow-neg"
+      title: "Переполнение neg (скрытый)"
+      stdin: "push -9223372036854775808\nneg\n"
+      expected: "error line 2: overflow\n"
+      hidden: true
+      hint: "Отрицание i64::MIN переполняется: checked_neg вернёт None."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "stack=[]\ntop=none\n"
+      hidden: true
+      hint: "Для пустого стека выводятся stack=[] и top=none."
+    - id: "pop-empty"
+      title: "pop из пустого стека (скрытый)"
+      stdin: "push 4\npop\npop\n"
+      expected: "error line 3: stack underflow\n"
+      hidden: true
+      hint: "Второй pop на пустом стеке - Underflow на строке 3."

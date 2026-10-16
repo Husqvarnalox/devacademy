@@ -1,0 +1,233 @@
+id: "csharp.fundamentals.classes-records-structs"
+title: "Классы, записи и структуры"
+goal: "Выбирать между class, record и struct по семантике, задавать неизменяемые данные через init, required и with и объяснять равенство записей."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "csharp.fundamentals.type-system-and-memory"
+related:
+  - "kotlin.first-steps.null-safety-and-val-var"
+  - "java.first-steps.primitives-objects-and-equality"
+next:
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+objectives:
+  - "Объяснить различие идентичности (class) и равенства по значению (record) на примерах."
+  - "Использовать позиционные записи, with-выражения, деконструкцию и record struct."
+  - "Задавать неизменяемое состояние через init, required и, начиная с C# 14, ключевое слово field."
+  - "Объяснить, чем параметры первичного конструктора класса отличаются от свойств записи."
+  - "Назвать причины, по которым изменяемые структуры опасны."
+masteryCriteria:
+  - "Вы предсказываете результат == и Equals для записей, классов и записей-наследников."
+  - "Вы заменяете изменение объекта на месте выражением with и получаете неизменяемую историю."
+  - "Вы называете версию C#, в которой появилась каждая из возможностей: init, record, record struct, required, первичные конструкторы, field."
+  - "Вы объясняете, почему запись со свойством-массивом сравнивается не по элементам."
+tags:
+  - "csharp"
+  - "records"
+  - "structs"
+  - "immutability"
+  - "properties"
+facts:
+  - kind: "internals"
+    text: "Для record компилятор синтезирует Equals, GetHashCode, ToString, операторы == и !=, Deconstruct для позиционных записей и копирующий конструктор, на котором строится with. Равенство записей учитывает точный тип (скрытое свойство EqualityContract), поэтому запись-наследник с теми же данными не равна базовой."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/with-expression"
+  - kind: "historical"
+    text: "Записи и init-аксессоры появились в C# 9, record struct - в C# 10, required-члены - в C# 11, первичные конструкторы классов и выражения коллекций - в C# 12, ключевое слово field в автосвойствах - в C# 14. Для каждой возможности вы можете проверить версию, указав LangVersion в файловом приложении."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-12"
+  - kind: "internals"
+    text: "В классе и структуре параметры первичного конструктора не становятся свойствами: они захватываются в скрытые поля, если используются в членах. Только в записях и record struct первичный конструктор создаёт открытые свойства."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/tutorials/primary-constructors"
+  - kind: "real-world"
+    text: "Руководство по проектированию .NET советует делать структурой тип, который логически представляет одно значение, неизменяем и имеет размер экземпляра менее 16 байт; иначе предпочтителен класс."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/choosing-between-class-and-struct"
+  - kind: "misconception"
+    text: "«Запись неизменяема целиком» - нет. Позиционные свойства записи имеют init, но свойство-массив или список остаётся изменяемым и сравнивается по ссылке; позиционные свойства обычного record struct вообще изменяемы."
+  - kind: "performance"
+    text: "with копирует объект поверхностно: для записи с большим числом полей это выделение нового объекта на каждое «изменение». В горячем коде выбирают readonly record struct или изменяемый класс с ограниченной областью видимости."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что выведет код: record P(int X); ... Console.WriteLine(new P(1) == new P(1)); ?"
+      options:
+        - "True"
+        - "False"
+        - "Ошибка компиляции"
+        - "Зависит от GetHashCode"
+      answer: 0
+      explanation: "Оператор == для записи сравнивает значения свойств (и точный тип), а не ссылки."
+    - id: "q2"
+      type: "single"
+      prompt: "Даны record Person(string Name, int Age); и record Employee(string Name, int Age, string Role) : Person(Name, Age);. Чему равно (Person)new Employee(\"Ann\", 30, \"dev\") == new Person(\"Ann\", 30)?"
+      options:
+        - "True"
+        - "False"
+        - "Ошибка компиляции"
+        - "InvalidCastException"
+      answer: 1
+      explanation: "Равенство записей учитывает точный тип (EqualityContract): Employee и Person не равны, даже если свойства Name и Age совпадают."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Выражение with изменяет исходную запись на месте."
+        - "Позиционные свойства обычного record struct изменяемы."
+        - "Свойство с init можно задать в инициализаторе объекта при создании."
+        - "Параметры первичного конструктора класса автоматически становятся открытыми свойствами."
+      answer:
+        - 1
+        - 2
+      explanation: "with создаёт копию. Первичный конструктор класса только захватывает параметры; открытые свойства создаются в записях. Позиционные свойства record struct имеют get и set."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое контекстное ключевое слово C# 14 даёт доступ к скрытому полю автосвойства внутри аксессора?"
+      answer:
+        - "field"
+      explanation: "В set { field = value; } слово field обозначает скрытое поле автосвойства; до C# 14 такого имени нет."
+exercise:
+  id: "csharp.fundamentals.classes-records-structs.exercise"
+  title: "Реестр точек с историей"
+  prompt: |
+    Программа получает `n` и затем `n` команд (по одной в строке). Она хранит именованные точки с целыми координатами `X` и `Y`:
+
+    * `add <имя> <x> <y>` - создать точку; если имя занято, вывести `exists: <имя>` и ничего не менять;
+    * `move <имя> <dx> <dy>` - сместить точку; прежнее положение запоминается в истории этого имени;
+    * `undo <имя>` - вернуть положение из истории; если история пуста, вывести `nothing to undo`;
+    * `show <имя>` - вывести точку в формате записи C#: `Point { X = 1, Y = 2 }`;
+    * `same <имя1> <имя2>` - вывести `True`, если координаты совпадают, иначе `False`;
+    * `distinct` - вывести `distinct=<k>`, где `k` - число **различных по значению** точек среди всех имён.
+
+    Для любого неизвестного имени команды `move`, `undo`, `show` и `same` выводят `missing: <имя>` (для `same` - первое неизвестное).
+
+    **Пример.**
+
+    ```
+    add a 1 2
+    move a 3 4
+    show a
+    ```
+
+    выведет `Point { X = 4, Y = 6 }`.
+
+    **Что дано.** В заготовке `Point` - изменяемый класс, а `move` меняет объект на месте. Из-за этого история хранит ссылку на тот же объект, `show` печатает только имя типа, а `same` и `distinct` сравнивают ссылки. Превратите `Point` в запись и используйте выражение `with`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Заготовка компилируется, но четыре команды ведут себя неверно. Общая причина: Point - класс, поэтому нет равенства по значению, нет нужного ToString, а history хранит ссылку на изменяемый объект."
+    - "Замените объявление класса на позиционную запись: `record Point(int X, int Y);`. Теперь ToString, == и GetHashCode синтезированы компилятором."
+    - "В команде move не меняйте current.X и current.Y. Положите current в историю и сохраните `current with { X = current.X + dx, Y = current.Y + dy }`."
+    - "distinct: `new HashSet<Point>(points.Values).Count` - HashSet использует Equals и GetHashCode записи. Для same достаточно `left == right`."
+  tests:
+    - id: "show-move"
+      title: "Создание, смещение и вывод"
+      stdin: "4\nadd a 1 2\nshow a\nmove a 3 4\nshow a\n"
+      expected: "Point { X = 1, Y = 2 }\nPoint { X = 4, Y = 6 }\n"
+      hint: "Формат вывода - ToString записи: Point { X = 1, Y = 2 }."
+    - id: "same"
+      title: "Равенство по значению"
+      stdin: "6\nadd a 1 2\nadd b 1 2\nadd c 2 1\nsame a b\nsame a c\nsame a a\n"
+      expected: "True\nFalse\nTrue\n"
+      hint: "Две разные точки с одинаковыми координатами равны, если Point - запись."
+    - id: "undo"
+      title: "История смещений"
+      stdin: "8\nadd a 0 0\nmove a 1 1\nmove a 2 2\nundo a\nshow a\nundo a\nundo a\nshow a\n"
+      expected: "Point { X = 1, Y = 1 }\nnothing to undo\nPoint { X = 0, Y = 0 }\n"
+      hint: "Каждая запись истории должна быть отдельной копией. При смещении на месте история бы указывала на тот же объект."
+    - id: "missing"
+      title: "Неизвестные имена и повторное add (скрытый)"
+      stdin: "8\nadd a 1 1\nadd a 5 5\nshow a\nshow z\nmove z 1 1\nundo z\nsame a z\nsame z a\n"
+      expected: "exists: a\nPoint { X = 1, Y = 1 }\nmissing: z\nmissing: z\nmissing: z\nmissing: z\nmissing: z\n"
+      hidden: true
+      hint: "Повторный add не меняет точку. Для same выведите первое неизвестное имя."
+    - id: "distinct"
+      title: "Различные точки по значению (скрытый)"
+      stdin: "7\nadd a 1 1\nadd b 1 1\nadd c 2 2\ndistinct\nmove c -1 -1\ndistinct\nsame a c\n"
+      expected: "distinct=2\ndistinct=1\nTrue\n"
+      hidden: true
+      hint: "HashSet<Point> объединяет равные по значению записи; после move точка c совпадает с a."
+    - id: "negative"
+      title: "Отрицательные координаты (скрытый)"
+      stdin: "6\nadd p -5 -7\nmove p -1 10\nshow p\nadd q -6 3\nsame p q\ndistinct\n"
+      expected: "Point { X = -6, Y = 3 }\nTrue\ndistinct=1\n"
+      hidden: true
+      hint: "Смещение складывается с координатой: -5 + -1 = -6."
+challenge:
+  id: "csharp.fundamentals.classes-records-structs.challenge"
+  title: "Деньги: readonly record struct"
+  prompt: |
+    Первая строка - `n`, затем `n` строк вида `<сумма> <валюта>`, например `12.50 USD` или `-3 EUR`. Суммы - десятичные числа с точкой (используйте `CultureInfo.InvariantCulture`). Строка **недопустима**, если в ней не две части, сумма не число или в сумме больше двух знаков после запятой; для неё выведите `invalid: <исходная строка>` сразу при чтении и пропустите её.
+
+    После обработки всех строк выведите итог по каждой валюте в порядке `StringComparer.Ordinal`: `<валюта> <сумма с двумя знаками>` (например `USD 12.60`, `EUR -3.00`). Последняя строка - `distinct=<k>`, где `k` - число различных по значению допустимых пар «сумма + валюта».
+
+    **Пример.**
+
+    ```
+    5
+    12.50 USD
+    0.1 USD
+    abc EUR
+    1.234 EUR
+    -3 EUR
+    ```
+
+    ```
+    invalid: abc EUR
+    invalid: 1.234 EUR
+    EUR -3.00
+    USD 12.60
+    distinct=3
+    ```
+
+    В заготовке `Money` - изменяемый класс: суммы считаются через `double`, а `HashSet` не умеет считать одинаковые значения одним. Сделайте `Money` типом-значением (`readonly record struct`), храните целое число центов (`long`), добавьте оператор `+`, `TryParse` и `ToString`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Замените `class Money` на `readonly record struct Money(long Cents, string Currency)`. Равенство по значению для HashSet появится само."
+    - "TryParse: decimal.TryParse с NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint и InvariantCulture. Затем умножьте на 100 и проверьте, что произведение целое (decimal.Truncate)."
+    - "В основном цикле проверьте parts.Length != 2 или !Money.TryParse(...) и выведите `invalid: <исходная строка>`, затем continue."
+    - "ToString: знак, затем целая часть `abs / 100` и дробная `abs % 100:00` для модуля abs = Math.Abs(Cents). Так -3 даёт `-3.00`, а -0.5 - `-0.50`."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "5\n12.50 USD\n0.1 USD\nabc EUR\n1.234 EUR\n-3 EUR\n"
+      expected: "invalid: abc EUR\ninvalid: 1.234 EUR\nEUR -3.00\nUSD 12.60\ndistinct=3\n"
+      hint: "0.10 + 12.50 = 12.60; три допустимые строки дают distinct=3."
+    - id: "float-trap"
+      title: "Десятичные доли сумм"
+      stdin: "4\n0.10 USD\n0.20 USD\n0.30 EUR\n0.10 USD\n"
+      expected: "EUR 0.30\nUSD 0.40\ndistinct=3\n"
+      hint: "В центах 10 + 20 = 30. Одинаковые 0.10 USD считаются один раз в distinct."
+    - id: "order"
+      title: "Порядок валют"
+      stdin: "4\n1 usd\n1 USD\n2 EUR\n3 CHF\n"
+      expected: "CHF 3.00\nEUR 2.00\nUSD 1.00\nusd 1.00\ndistinct=4\n"
+      hint: "Порядок Ordinal: заглавные буквы раньше строчных (CHF, EUR, USD, usd)."
+    - id: "shape"
+      title: "Неверное число частей (скрытый)"
+      stdin: "4\n5\n5 USD EUR\n7 USD\n-0.5 USD\n"
+      expected: "invalid: 5\ninvalid: 5 USD EUR\nUSD 6.50\ndistinct=2\n"
+      hidden: true
+      hint: "Строка из одного или трёх токенов - invalid. 7 USD и -0.5 USD в сумме дают USD 6.50."
+    - id: "negative"
+      title: "Отрицательный итог (скрытый)"
+      stdin: "3\n-1.25 EUR\n0.5 EUR\n-0.01 EUR\n"
+      expected: "EUR -0.76\ndistinct=3\n"
+      hidden: true
+      hint: "Итог -0.76: знак ставится один раз, а дробная часть печатается из модуля."
+    - id: "empty"
+      title: "Все строки недопустимы (скрытый)"
+      stdin: "2\nx USD\n1.001 EUR\n"
+      expected: "invalid: x USD\ninvalid: 1.001 EUR\ndistinct=0\n"
+      hidden: true
+      hint: "Недопустимые строки печатаются как invalid, итогов по валютам нет, последняя строка - distinct=0."

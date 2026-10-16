@@ -1,0 +1,151 @@
+id: "rust.fundamentals.traits-and-generics"
+title: "Трейты и обобщения"
+goal: "Описывать общее поведение трейтами, писать обобщённый код с ограничениями и осознанно выбирать между статической и динамической диспетчеризацией."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "rust.fundamentals.error-handling"
+objectives:
+  - "Определять трейты с методами по умолчанию и реализовывать их для своих типов."
+  - "Записывать ограничения тремя способами: T: Trait, where и impl Trait."
+  - "Выбирать между impl Trait / обобщениями и dyn Trait, объясняя цену каждого."
+  - "Использовать derive, реализовывать Display и операторные трейты из std::ops."
+  - "Распознавать ошибки E0369, E0277, E0038 и E0117 и исправлять их."
+masteryCriteria:
+  - "Вы пишете функцию над коллекцией Box<dyn Trait> и обобщённую функцию с ограничением и объясняете, чем отличается их вызов."
+  - "Вы реализуете Add, Neg, Mul, Sum и Display для собственного типа."
+  - "Вы объясняете, почему нельзя реализовать чужой трейт для чужого типа, и предлагаете обход через новый тип."
+related:
+  - "go.fundamentals.interfaces"
+  - "rust.fundamentals.collections-and-iterators"
+  - "cpp.first-steps.value-semantics-references-and-raii"
+next:
+  - "rust.fundamentals.collections-and-iterators"
+tags:
+  - "rust"
+  - "traits"
+  - "generics"
+  - "dyn"
+  - "operators"
+facts:
+  - kind: "internals"
+    text: "Обобщённый код в Rust мономорфизируется: для каждого набора конкретных типов компилятор генерирует отдельную копию функции, поэтому вызов через ограничение T: Trait не добавляет косвенности, а размер программы может расти."
+    sources:
+      - "https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics"
+  - kind: "internals"
+    text: "Ссылка на трейт-объект &dyn Trait состоит из двух слов: указателя на данные и указателя на таблицу виртуальных методов. На 64-битной платформе size_of::<&dyn Animal>() равен 16 байт, а size_of::<&Dog>() - 8 (проверено запуском)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch18-02-trait-objects.html"
+      - "https://doc.rust-lang.org/reference/types/trait-object.html"
+  - kind: "internals"
+    text: "Правило сирот: реализовать трейт для типа можно, только если локален либо трейт, либо тип; impl Display for Vec<i32> даёт E0117. Обход - новый тип (struct-обёртка)."
+    sources:
+      - "https://doc.rust-lang.org/book/ch10-02-traits.html#implementing-a-trait-on-a-type"
+      - "https://doc.rust-lang.org/error_codes/E0117.html"
+  - kind: "historical"
+    text: "Раньше требование к трейту для использования как dyn называлось «безопасность объектов» (object safety); в современной документации и сообщениях компилятора (E0038) это «совместимость с dyn» (dyn compatible)."
+    sources:
+      - "https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility"
+      - "https://doc.rust-lang.org/error_codes/E0038.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "short"
+      prompt: "fn largest<T>(xs: &[T]) -> &T { let mut m = &xs[0]; for x in xs { if x > m { m = x; } } m } — какой код ошибки выдаст rustc (сравнение ссылок на T без ограничений)?"
+      answer:
+        - "E0369"
+        - "e0369"
+      explanation: "E0369: оператор > нельзя применить к &T, пока не добавлено ограничение T: PartialOrd."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Сколько байт занимает &dyn Trait на 64-битной платформе?"
+      answer: 16
+      tolerance: 0
+      explanation: "Это толстый указатель из двух слов: указатель на данные и указатель на таблицу виртуальных методов; обычная ссылка &T занимает 8 байт."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему нельзя создать Vec<Box<dyn Cloner>> для трейта trait Cloner { fn dup(&self) -> Self; }?"
+      options:
+        - "Трейт не dyn-совместим: метод возвращает Self (E0038)."
+        - "Box нельзя хранить в Vec."
+        - "У метода нет реализации по умолчанию."
+        - "Трейт нужно сделать pub."
+      answer: 0
+      explanation: "Для вызова через vtable размер результата должен быть известен заранее, а Self у трейт-объекта неизвестен, поэтому такой трейт не dyn compatible."
+    - id: "q4"
+      type: "single"
+      prompt: "Что произойдёт при impl std::fmt::Display for Vec<i32> { ... } в вашем крейте?"
+      options:
+        - "Скомпилируется."
+        - "Ошибка E0117: правило сирот."
+        - "Ошибка E0038."
+        - "Предупреждение о неиспользуемом impl."
+      answer: 1
+      explanation: "И трейт Display, и тип Vec<i32> чужие, поэтому реализация запрещена. Оберните вектор в собственную структуру."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Какие объявления допустимы и выражают ограничение «x реализует A»?"
+      options:
+        - "fn f<T: A>(x: T)"
+        - "fn f(x: impl A)"
+        - "fn f<T>(x: T) where T: A"
+        - "fn f(x: dyn A)"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "dyn A без указателя не имеет размера (E0277), нужен &dyn A или Box<dyn A>. Первые три записи равнозначны."
+exercise:
+  id: "rust.fundamentals.traits-and-generics.exercise"
+  title: "Фигуры, обобщённый максимум и деньги"
+  prompt: |
+    Откройте `shapes.rs`: трейт `Shape` (с методом `name` по умолчанию `"shape"`), структуры `Rect` и `Circle` и тип `Money` (копейки, `Money(pub i64)`) уже объявлены, а реализации заменены на `todo!()`. Проверка компилирует `shapes.rs` вместе со скрытым драйвером и запускает 8 проверок; в консоли «Запустить» работает функция `main` из этого файла.
+
+    Нужно реализовать:
+
+    * `Shape` для `Rect` (`area = w * h`, `perimeter = 2 * (w + h)`, `name = "rect"`) и для `Circle` (`area = PI * r * r`, `perimeter = 2 * PI * r`, `name = "circle"`);
+    * `Display` для `Rect` в формате `Rect(2x3)` (числа через `{}`: `2.0` печатается как `2`, `3.5` как `3.5`);
+    * `total_area(&[Box<dyn Shape>]) -> f64`; `largest` - ссылка на фигуру с наибольшей площадью (при равенстве первая; `None` для пустого среза);
+    * `max_of<T: PartialOrd + Copy>(&[T]) -> Option<T>`;
+    * для `Money`: `Add`, `Neg`, `Mul<i64>`, `Sum` и `Display` в формате `19.99`, `0.05`, `-0.05`, `0.00`.
+
+    Метод `name` по умолчанию из трейта менять не нужно: драйвер проверяет, что он остался.
+  entryFile: "shapes.rs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.rs"
+  hints:
+    - "Заготовка компилируется, но каждая проверка падает на todo!(). Заполняйте реализации по одной: сначала Shape для Rect и Circle."
+    - "Для Shape добавьте в impl метод fn name(&self) -> String { \"rect\".to_string() }. total_area: shapes.iter().map(|s| s.area()).sum(). max_of: возьмите первый элемент через xs.iter().copied(), затем fold с if x > m."
+    - "largest: идите по срезу и держите best: Option<&dyn Shape>; заменяйте его только если площадь строго больше (так при равенстве остаётся первая). Элемент Box<dyn Shape> превращается в &dyn Shape методом s.as_ref()."
+    - "Money: Add - Money(self.0 + o.0); Sum - iter.fold(Money(0), |a, b| a + b); Display - знак из self.0 < 0, затем abs = self.0.abs(), write!(f, \"{}{}.{:02}\", sign, abs / 100, abs % 100)."
+  tests:
+    - id: "rect"
+      title: "Rect: площадь, периметр, имя и Display"
+      hint: "area = w * h, perimeter = 2 * (w + h), name() = rect, Display = Rect(2x3.5)."
+    - id: "circle"
+      title: "Circle: площадь, периметр, имя"
+      hint: "Используйте std::f64::consts::PI; name() должен вернуть circle."
+    - id: "total-area"
+      title: "total_area по Box<dyn Shape>"
+      hint: "Сложите площади через dyn Shape; для пустого среза результат 0."
+    - id: "max-of"
+      title: "max_of для i32, f64 и char"
+      hint: "Ограничение T: PartialOrd + Copy; для пустого среза верните None (первый элемент через ?)."
+    - id: "largest"
+      title: "largest: наибольшая площадь и порядок при равенстве (скрытый)"
+      hidden: true
+      hint: "Заменяйте лучшую фигуру только при строго большей площади, чтобы при равенстве осталась первая."
+    - id: "default-name"
+      title: "Метод name по умолчанию (скрытый)"
+      hidden: true
+      hint: "Не удаляйте реализацию name в трейте: тип без собственного name должен вернуть shape."
+    - id: "money-ops"
+      title: "Money: Add, Neg, Mul и Sum (скрытый)"
+      hidden: true
+      hint: "Sum пустого итератора - Money(0); реализуйте Sum через fold."
+    - id: "money-display"
+      title: "Money: Display (скрытый)"
+      hidden: true
+      hint: "Знак отдельно, затем модуль: рубли = abs / 100, копейки = abs % 100 с форматом {:02}."

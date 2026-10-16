@@ -1,0 +1,176 @@
+id: "csharp.fundamentals.interfaces-inheritance-polymorphism"
+title: "Интерфейсы, наследование и полиморфизм"
+goal: "Проектировать иерархии через virtual/override/abstract, интерфейсы и композицию и реализовывать согласованные Equals и GetHashCode."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.fundamentals.classes-records-structs"
+related:
+  - "go.fundamentals.interfaces"
+  - "java.first-steps.primitives-objects-and-equality"
+next:
+  - "csharp.fundamentals.generics-and-collections"
+objectives:
+  - "Объяснять разницу между override и new и предсказывать, какой метод будет вызван."
+  - "Использовать abstract, sealed и интерфейсы, включая члены по умолчанию и явную реализацию."
+  - "Заменять наследование композицией (декоратор) и аргументировать выбор."
+  - "Реализовывать Equals, GetHashCode и IEquatable<T> по контракту и объяснять, почему изменяемые ключи опасны."
+masteryCriteria:
+  - "Вы предсказываете вывод программы с override, new, виртуальным вызовом из конструктора и порядком инициализации."
+  - "Вы пишете класс, корректно работающий как ключ HashSet и Dictionary."
+  - "Вы обосновываете, когда наследование подходит, а когда лучше интерфейс и композиция."
+  - "Вы называете причины ошибок CS0506, CS0534, CS0535 и предупреждения CS0659."
+tags:
+  - "csharp"
+  - "oop"
+  - "interfaces"
+  - "inheritance"
+  - "polymorphism"
+  - "equality"
+facts:
+  - kind: "internals"
+    text: "Метод, помеченный virtual, вызывается по динамическому типу объекта; метод со словом new в наследнике лишь скрывает метод базового типа, поэтому вызов через переменную базового типа попадёт в базовую реализацию."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/knowing-when-to-use-override-and-new-keywords"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/virtual"
+  - kind: "internals"
+    text: "Члены интерфейса по умолчанию появились в C# 8.0. Реализация по умолчанию доступна только через тип интерфейса: на переменной класса вызвать такой член нельзя, пока класс не объявит собственную реализацию."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/interface"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/advanced-topics/interface-implementation/default-interface-methods-versions"
+  - kind: "internals"
+    text: "Если два объекта равны по Equals, их GetHashCode обязан совпадать. Dictionary и HashSet сначала сравнивают хеш-коды, поэтому переопределение Equals без GetHashCode даёт неработающий поиск; компилятор сообщает об этом предупреждением CS0659."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.object.gethashcode"
+      - "https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/equality-operators"
+  - kind: "internals"
+    text: "В C# инициализаторы полей класса выполняются до вызова конструктора базового класса, а тело конструктора - после. Поэтому виртуальный метод, вызванный из конструктора базового класса, видит наследника с уже инициализированными полями-инициализаторами, но с ещё не выполненным телом конструктора."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constructors"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/using-constructors"
+  - kind: "real-world"
+    text: "Стандартная библиотека .NET держит интерфейсы небольшими (IDisposable, IEquatable<T>, IComparable<T>, IEnumerable<T>), а поведение добавляет обёртками: например, BufferedStream и GZipStream принимают другой Stream в конструкторе."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.io.stream"
+  - kind: "misconception"
+    text: "«Наследование - лучший способ повторно использовать код». На практике оно жёстко связывает наследника с реализацией родителя (проблема хрупкого базового класса); композиция и небольшие интерфейсы дают то же повторное использование без этой связи."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В базовом классе есть обычный метод Hello(), в наследнике - public new void Hello(). Что произойдёт при Base b = new Derived(); b.Hello();?"
+      options:
+        - "Вызовется Derived.Hello."
+        - "Вызовется Base.Hello."
+        - "Ошибка компиляции."
+        - "Исключение во время выполнения."
+      answer: 1
+      explanation: "new скрывает метод, а не переопределяет. Метод выбирается по статическому типу переменной, то есть Base."
+    - id: "q2"
+      type: "single"
+      prompt: "Класс переопределяет Equals(object?) по полю Id, но не переопределяет GetHashCode. Что вернёт new HashSet<T> { new T(1) }.Contains(new T(1))?"
+      options:
+        - "True"
+        - "False"
+        - "Ошибка компиляции"
+        - "Зависит от размера набора"
+      answer: 1
+      explanation: "Равные по Equals объекты имеют разные хеш-коды по умолчанию, поэтому набор ищет в другой корзине и не находит элемент (компилятор предупреждает CS0659)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Член интерфейса с реализацией по умолчанию можно вызвать через переменную класса, не реализующего его сам."
+        - "Инициализаторы полей наследника выполняются до конструктора базового класса."
+        - "Если a.Equals(b), то a.GetHashCode() должен быть равен b.GetHashCode()."
+        - "sealed override разрешает дальнейшее переопределение в потомках."
+      answer:
+        - 1
+        - 2
+      explanation: "Член по умолчанию виден только через интерфейс (CS1061 на переменной класса). sealed override запрещает дальнейшие переопределения."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое ключевое слово в объявлении метода наследника превращает его в скрывающий, а не переопределяющий?"
+      answer:
+        - "new"
+      explanation: "public new void M() скрывает член базового типа; полиморфизма при этом нет."
+exercise:
+  id: "csharp.fundamentals.interfaces-inheritance-polymorphism.exercise"
+  title: "Ведомость сотрудников"
+  prompt: |
+    Программа получает `n` и затем `n` строк. Каждая строка описывает сотрудника:
+
+    * `engineer <id> <имя> <база>` - зарплата равна `<база>`;
+    * `manager <id> <имя> <база> <подчинённых>` - зарплата `<база> + 100 * <подчинённых>`;
+    * `intern <id> <имя>` - зарплата `500`, валюта `EUR`.
+
+    У остальных валюта `USD`. Сотрудники с уже встречавшимся `id` считаются **дубликатами**: они не выводятся и не участвуют в итогах (первый побеждает, независимо от вида и имени). Строка с другим первым словом выводит `unknown: <слово>`.
+
+    Для каждого принятого сотрудника сразу печатайте `<Вид> <имя> pay=<зарплата> <валюта>`, где `<Вид>` - имя класса (`Engineer`, `Manager`, `Intern`). В конце:
+
+    ```
+    total USD=<сумма в USD> EUR=<сумма в EUR>
+    duplicates=<число дубликатов>
+    ```
+
+    **Пример.**
+
+    ```
+    engineer 1 Ann 1000
+    manager 2 Bob 2000 3
+    intern 3 Cy
+    ```
+
+    ```
+    Engineer Ann pay=1000 USD
+    Manager Bob pay=2300 USD
+    Intern Cy pay=500 EUR
+    total USD=3300 EUR=500
+    duplicates=0
+    ```
+
+    **Что дано.** Заготовка компилируется, но сотрудники везде получают зарплату `0` и валюту `USD`: методы в наследниках объявлены с `new`, а не с `override`. Сделайте `Employee` абстрактным, `Pay` - абстрактным методом, `Currency` - виртуальным свойством и реализуйте равенство по `Id` (`IEquatable<Employee>`, `Equals(object?)`, `GetHashCode`) для отбрасывания дубликатов через `HashSet<Employee>`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Все наследники вызываются через переменную базового типа Employee, поэтому нужны виртуальные члены и override, а не new."
+    - "Сделайте класс `abstract class Employee`, метод `public abstract long Pay();` и `public virtual string Currency => \"USD\";`. В наследниках пишите `public override long Pay() => ...`, а в Intern - `public override string Currency => \"EUR\";`."
+    - "HashSet<Employee>.Add возвращает false для уже имеющегося элемента. Для этого нужны `Equals` по Id и согласованный `GetHashCode` (например `Id.GetHashCode()`)."
+    - "Реализуйте IEquatable<Employee>: `public bool Equals(Employee? other) => other is not null && other.Id == Id;`, `public override bool Equals(object? obj) => Equals(obj as Employee);`, `public override int GetHashCode() => Id.GetHashCode();`."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "3\nengineer 1 Ann 1000\nmanager 2 Bob 2000 3\nintern 3 Cy\n"
+      expected: "Engineer Ann pay=1000 USD\nManager Bob pay=2300 USD\nIntern Cy pay=500 EUR\ntotal USD=3300 EUR=500\nduplicates=0\n"
+      hint: "Через базовый тип должна вызваться реализация наследника: Pay и Currency - virtual/abstract."
+    - id: "duplicates"
+      title: "Повторный идентификатор"
+      stdin: "5\nengineer 1 Ann 1000\nintern 1 Zed\nmanager 2 Bob 10 0\nengineer 2 Cat 5\nintern 3 Dan\n"
+      expected: "Engineer Ann pay=1000 USD\nManager Bob pay=10 USD\nIntern Dan pay=500 EUR\ntotal USD=1010 EUR=500\nduplicates=2\n"
+      hint: "Дубликат определяется только по Id: intern с Id 1 не добавляется, даже если вид другой."
+    - id: "totals"
+      title: "Итоги по валютам"
+      stdin: "4\nintern 1 A\nintern 2 B\nengineer 3 C 100\nmanager 4 D 50 2\n"
+      expected: "Intern A pay=500 EUR\nIntern B pay=500 EUR\nEngineer C pay=100 USD\nManager D pay=250 USD\ntotal USD=350 EUR=1000\nduplicates=0\n"
+      hint: "Суммы USD и EUR считаются отдельно: интерны дают EUR."
+    - id: "unknown"
+      title: "Неизвестный вид (скрытый)"
+      stdin: "3\nboss 1 X 5\nengineer 1 Ann 7\nboss 2 Y\n"
+      expected: "unknown: boss\nEngineer Ann pay=7 USD\nunknown: boss\ntotal USD=7 EUR=0\nduplicates=0\n"
+      hidden: true
+      hint: "Неизвестная строка не регистрирует идентификатор: engineer 1 принимается."
+    - id: "manager-zero"
+      title: "Менеджер без подчинённых и большие суммы (скрытый)"
+      stdin: "2\nmanager 10 M 3000000000 0\nmanager 11 N 3000000000 5\n"
+      expected: "Manager M pay=3000000000 USD\nManager N pay=3000000500 USD\ntotal USD=6000000500 EUR=0\nduplicates=0\n"
+      hidden: true
+      hint: "Зарплаты бывают больше 32 бит: используйте long."
+    - id: "all-duplicates"
+      title: "Только дубликаты после первого (скрытый)"
+      stdin: "4\nintern 7 A\nintern 7 B\nengineer 7 C 5\nmanager 7 D 5 5\n"
+      expected: "Intern A pay=500 EUR\ntotal USD=0 EUR=500\nduplicates=3\n"
+      hidden: true
+      hint: "Все строки с Id 7 после первой считаются дубликатами: duplicates=3."

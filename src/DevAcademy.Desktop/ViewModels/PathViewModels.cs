@@ -213,7 +213,7 @@ public sealed partial class PathViewModel(AppServices s, INavigator nav, string 
     public bool HasNextStep => NextStep is not null;
     public bool IsFinished => NextStep is null && !NotFound;
     public string NextStepTitle => NextStep?.Title ?? "";
-    public string NextStepReason => NextStep?.Reason ?? "";
+    public string NextStepReason => NextStep is null ? "" : Loc.T("RecReason_" + NextStep.Kind);
     public string FollowText => Loc.T(IsFollowed ? "Path_Unfollow" : "Path_Follow");
     public bool HasPlacementCheck => PlacementCheck is not null;
 

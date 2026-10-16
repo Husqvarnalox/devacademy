@@ -1,0 +1,248 @@
+id: "csharp.fundamentals.linq"
+title: "LINQ"
+goal: "Писать запросы LINQ, понимать отложенное выполнение, избегать множественного перечисления и выбирать между GroupBy, ToLookup и Join."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.fundamentals.generics-and-collections"
+related:
+  - "javascript.fundamentals.arrays-and-iteration"
+  - "kotlin.first-steps.null-safety-and-val-var"
+next:
+  - "csharp.fundamentals.exceptions-and-resources"
+objectives:
+  - "Объяснять отложенное выполнение и отличать операторы-последовательности от операторов, запускающих вычисление."
+  - "Находить и устранять множественное перечисление запроса."
+  - "Применять GroupBy, ToLookup, Join, GroupJoin и SelectMany и переводить запрос между методным и запросным синтаксисом."
+  - "Писать собственные ленивые операторы через yield return и оценивать стоимость запросов."
+masteryCriteria:
+  - "Вы предсказываете порядок побочных эффектов в цепочке Where/Select при переборе и при First()."
+  - "Вы называете, сколько раз вычислится источник при нескольких терминальных вызовах, и исправляете это материализацией."
+  - "Вы выбираете между GroupBy и ToLookup и объясняете, чем индексатор ToLookup отличается от Dictionary."
+  - "Вы реализуете ленивые Where, Select и Take и объясняете, почему Take(k) не запрашивает лишний элемент."
+tags:
+  - "csharp"
+  - "linq"
+  - "deferred-execution"
+  - "iterators"
+facts:
+  - kind: "internals"
+    text: "Запросные операторы LINQ to Objects, возвращающие последовательность, выполняются отложенно: вызов только создаёт итератор, а вычисление начинается при переборе (foreach, ToList, Count, First)."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/linq/get-started/introduction-to-linq-queries"
+      - "https://learn.microsoft.com/en-us/dotnet/standard/linq/deferred-execution-lazy-evaluation"
+  - kind: "internals"
+    text: "Запросный синтаксис компилятор переводит в вызовы методов расширения (Where, Select, OrderBy, Join...), поэтому он эквивалентен методному и не имеет собственных возможностей выполнения."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/linq/get-started/query-expression-basics"
+      - "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions"
+  - kind: "misconception"
+    text: "«ToLookup и GroupBy - одно и то же». GroupBy откладывается и перегруппирует источник при каждом переборе, а ToLookup строит ILookup немедленно; индексатор ILookup для отсутствующего ключа возвращает пустую последовательность, а не бросает исключение."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.linq.enumerable.tolookup"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.linq.enumerable.groupby"
+  - kind: "performance"
+    text: "OrderBy и GroupBy при первом запросе элемента читают весь источник (буферизующие операторы), а Where, Select и Take отдают элементы по одному. OrderBy(...).First() сортирует всё, поэтому для минимума или максимума используйте MinBy и MaxBy."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.linq.enumerable.orderby"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.linq.enumerable.maxby"
+  - kind: "performance"
+    text: "Any() останавливает перебор на первом элементе, а Count() > 0 для общего IEnumerable<T> перебирает всю последовательность; повторные терминальные вызовы по одному запросу повторяют вычисление источника."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.linq.enumerable.any"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.linq.enumerable.count"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В какой момент выполняется лямбда в var q = list.Where(x => Check(x));?"
+      options:
+        - "В момент вызова Where"
+        - "В момент перебора q"
+        - "При компиляции"
+        - "При первом обращении к list"
+      answer: 1
+      explanation: "Where возвращает отложенный итератор; Check вызывается только при переборе q."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Источник-итератор увеличивает счётчик при каждом отдаваемом элементе (3 элемента). Запрос q = Source().Where(x => x > 0); вызываются q.Count(), q.Sum() и q.Max(). Сколько всего раз выполнится счётчик?"
+      answer: 9
+      tolerance: 0
+      explanation: "Каждый терминальный оператор заново перебирает источник: 3 прохода по 3 элемента."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие операторы выполняются немедленно?"
+      options:
+        - "ToList"
+        - "Where"
+        - "ToLookup"
+        - "Select"
+      answer:
+        - 0
+        - 2
+      explanation: "ToList и ToLookup сразу перебирают источник; Where и Select возвращают отложенные итераторы."
+    - id: "q4"
+      type: "single"
+      prompt: "Что вернёт lookup[\"нет-такого\"] для ILookup<string, int>?"
+      options:
+        - "KeyNotFoundException"
+        - "null"
+        - "Пустую последовательность"
+        - "default(int)"
+      answer: 2
+      explanation: "Индексатор ILookup возвращает пустую последовательность для отсутствующего ключа."
+    - id: "q5"
+      type: "single"
+      prompt: "Как лучше проверить, что в IEnumerable<T> есть хотя бы один элемент?"
+      options:
+        - "Count() > 0"
+        - "Any()"
+        - "ToList().Count > 0"
+        - "Count() != 0"
+      answer: 1
+      explanation: "Any() останавливается на первом элементе; остальные варианты перебирают всё."
+exercise:
+  id: "csharp.fundamentals.linq.exercise"
+  title: "Журнал заказов на LINQ"
+  prompt: |
+    Первая строка ввода - число заказов `n`, затем `n` строк `<клиент> <категория> <сумма>` (сумма - целое число). Напечатайте отчёт тремя блоками:
+
+    1. `totals:` - по строке `<клиент> <общая сумма>` на каждого клиента, отсортированные по сумме **по убыванию**, при равенстве - по имени (`StringComparer.Ordinal`);
+    2. `categories:` - по строке `<категория>: <клиенты через запятую>`; категории по возрастанию (`Ordinal`), клиенты внутри категории **без повторов** и по возрастанию;
+    3. `biggest: <клиент> <сумма>` - самый крупный заказ (при равенстве - первый по порядку ввода) или `biggest: none`, если заказов нет.
+
+    **Пример**
+
+    ```
+    4
+    ann books 40
+    bob toys 25
+    ann toys 30
+    cy books 20
+    ```
+
+    выведет
+
+    ```
+    totals:
+    ann 70
+    bob 25
+    cy 20
+    categories:
+    books: ann,cy
+    toys: ann,bob
+    biggest: ann 40
+    ```
+
+    **Что дано.** Заготовка компилируется, но печатает заказы «как есть»: без группировки, без суммирования и без `biggest`. Реализуйте отчёт запросами `GroupBy`, `ToLookup`, `OrderByDescending`/`ThenBy`, `Distinct`, `MaxBy`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Для totals: orders.GroupBy(o => o.Customer).Select(g => (Name: g.Key, Total: g.Sum(o => o.Amount)))."
+    - "Сортировка по нескольким ключам: .OrderByDescending(t => t.Total).ThenBy(t => t.Name, StringComparer.Ordinal)."
+    - "Для categories: orders.ToLookup(o => o.Category); перебирайте группы, отсортировав их по Key, а клиентов берите через Select(o => o.Customer).Distinct().Order(StringComparer.Ordinal)."
+    - "biggest: orders.MaxBy(o => o.Amount) возвращает первый максимальный элемент или null для пустой последовательности; обработайте null отдельной строкой."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "4\nann books 40\nbob toys 25\nann toys 30\ncy books 20\n"
+      expected: "totals:\nann 70\nbob 25\ncy 20\ncategories:\nbooks: ann,cy\ntoys: ann,bob\nbiggest: ann 40\n"
+      hint: "ann: 40 + 30 = 70. В категории books клиенты ann и cy."
+    - id: "ties"
+      title: "Равные суммы"
+      stdin: "5\nbob toys 25\nann books 25\ncy books 50\ncy toys 10\nann toys 35\n"
+      expected: "totals:\nann 60\ncy 60\nbob 25\ncategories:\nbooks: ann,cy\ntoys: ann,bob,cy\nbiggest: cy 50\n"
+      hint: "ann = 60, cy = 60, bob = 25: при равенстве суммы порядок по имени (ann раньше cy)."
+    - id: "dups"
+      title: "Повторы клиентов в категории"
+      stdin: "4\nann books 10\nann books 20\nbob books 5\nann books 1\n"
+      expected: "totals:\nann 31\nbob 5\ncategories:\nbooks: ann,bob\nbiggest: ann 20\n"
+      hint: "Клиент в категории печатается один раз, несмотря на несколько заказов."
+    - id: "empty"
+      title: "Нет заказов (скрытый)"
+      stdin: "0\n"
+      expected: "totals:\ncategories:\nbiggest: none\n"
+      hidden: true
+      hint: "Без заказов печатаются заголовки блоков и biggest: none."
+    - id: "firstmax"
+      title: "Первый максимум (скрытый)"
+      stdin: "4\nzed a 50\nann a 50\nbob b 7\nzed b 1\n"
+      expected: "totals:\nzed 51\nann 50\nbob 7\ncategories:\na: ann,zed\nb: bob,zed\nbiggest: zed 50\n"
+      hidden: true
+      hint: "MaxBy возвращает первый максимальный заказ по порядку ввода: zed 50."
+    - id: "ordinal"
+      title: "Порядок Ordinal (скрытый)"
+      stdin: "4\nBob x 5\nann Y 5\nbob y 5\nCy a 5\n"
+      expected: "totals:\nBob 5\nCy 5\nann 5\nbob 5\ncategories:\nY: ann\na: Cy\nx: Bob\ny: bob\nbiggest: Bob 5\n"
+      hidden: true
+      hint: "Все суммы равны, поэтому порядок задаёт Ordinal: заглавные буквы идут раньше строчных (Bob, Cy, ann, bob); то же для категорий (Y, a, x, y)."
+challenge:
+  id: "csharp.fundamentals.linq.challenge"
+  title: "Ленивый конвейер"
+  prompt: |
+    Первая строка ввода - целые числа через пробел (возможно, пусто), вторая - конвейер из стадий через `|`: `where even`, `where odd`, `select sq` (квадрат), `select inc` (плюс 1), `take K`. Разбор конвейера и вывод уже написаны. Вам нужно реализовать операторы класса `Lazy`: `Where`, `Select`, `Take` - **без** LINQ и **лениво** (через `yield return`).
+
+    Программа печатает `built`, затем для каждого полученного значения - `got <значение>`, и в конце `done`. Операторы пишут в журнал при обработке каждого элемента: `where <x>: keep|skip` и `select <x> -> <y>`. Журнал идёт **вперемешку** с `got`: элементы проходят конвейер по одному. `take K` останавливается сразу после K-го элемента и **не запрашивает** следующий из источника; `take 0` не запрашивает ни одного.
+
+    **Пример**: `1 2 3 4 5 6` и `where even | select sq | take 2` выводят
+
+    ```
+    built
+    where 1: skip
+    where 2: keep
+    select 2 -> 4
+    got 4
+    where 3: skip
+    where 4: keep
+    select 4 -> 16
+    got 16
+    done
+    ```
+
+    **Что дано.** Заготовка работает, но каждый оператор «жадно» строит список целиком: сначала идут все строки `where`, потом все `select`, а `built` печатается после них.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Метод с yield return не выполняется до первого MoveNext: поэтому built появится раньше журнала."
+    - "Where: foreach по source; вычислите keep, напишите строку журнала, и только при keep сделайте yield return x. Select аналогично: вычислите y, напишите журнал, yield return y."
+    - "Take: если count <= 0, сразу yield break. Иначе считайте элементы и после yield return k-го элемента делайте yield break - тогда источник не будет запрошен ещё раз."
+    - "Не используйте ToList и Count внутри операторов: они заставят прочитать источник целиком и сломают чередование строк."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "1 2 3 4 5 6\nwhere even | select sq | take 2\n"
+      expected: "built\nwhere 1: skip\nwhere 2: keep\nselect 2 -> 4\ngot 4\nwhere 3: skip\nwhere 4: keep\nselect 4 -> 16\ngot 16\ndone\n"
+      hint: "Элементы идут по одному: после got 4 конвейер продолжается с элемента 3."
+    - id: "take-stop"
+      title: "Take не просит лишнего"
+      stdin: "5 6 7 8\nselect inc | take 1\n"
+      expected: "built\nselect 5 -> 6\ngot 6\ndone\n"
+      hint: "После первого got источник больше не опрашивается: ни select 6, ни дальнейших строк."
+    - id: "odd"
+      title: "Нечётные и инкремент"
+      stdin: "1 2 3 4 5\nwhere odd | select inc\n"
+      expected: "built\nwhere 1: keep\nselect 1 -> 2\ngot 2\nwhere 2: skip\nwhere 3: keep\nselect 3 -> 4\ngot 4\nwhere 4: skip\nwhere 5: keep\nselect 5 -> 6\ngot 6\ndone\n"
+      hint: "Без take перебираются все элементы; каждый подходящий проходит select сразу после where."
+    - id: "take0"
+      title: "take 0 (скрытый)"
+      stdin: "1 2 3\nselect inc | take 0\n"
+      expected: "built\ndone\n"
+      hidden: true
+      hint: "take 0 завершается, не запросив ни одного элемента: журнала нет."
+    - id: "empty"
+      title: "Пустой вход (скрытый)"
+      stdin: "\nwhere even | take 3\n"
+      expected: "built\ndone\n"
+      hidden: true
+      hint: "Пустой источник: built и done без журнала."
+    - id: "chain"
+      title: "Цепочка из нескольких стадий (скрытый)"
+      stdin: "2 3 4 6 8\nwhere even | select sq | where even | take 3\n"
+      expected: "built\nwhere 2: keep\nselect 2 -> 4\nwhere 4: keep\ngot 4\nwhere 3: skip\nwhere 4: keep\nselect 4 -> 16\nwhere 16: keep\ngot 16\nwhere 6: keep\nselect 6 -> 36\nwhere 36: keep\ngot 36\ndone\n"
+      hidden: true
+      hint: "Каждая стадия обрабатывает элемент до перехода к следующему; take 3 останавливается после элемента 36."

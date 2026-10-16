@@ -1,0 +1,10 @@
+id: dotnet-developer
+title: .NET-разработчик (C#)
+description: "Путь к уверенному владению C# и платформой .NET. Сначала «C#: первые шаги» (запуск, типы, ввод-вывод), затем «C#: язык и платформа .NET»: система типов и память, классы, записи и структуры, интерфейсы и наследование, обобщения и коллекции, LINQ, исключения и ресурсы, делегаты и события, async/await. ASP.NET Core, Entity Framework и тестирование пока не входят."
+goal: backend
+targets: [csharp-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [csharp-first-steps]
+  - title: Язык и платформа .NET
+    courses: [csharp-fundamentals]
