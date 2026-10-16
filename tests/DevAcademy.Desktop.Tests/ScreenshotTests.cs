@@ -148,4 +148,33 @@ public class ScreenshotTests
         Save("10-lesson-tutor");
         window.Close();
     }
+
+    [AvaloniaTheory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public void Capture_ml_visualizers(string theme)
+    {
+        string? dir = Environment.GetEnvironmentVariable("DEVACADEMY_SCREENSHOTS");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir), "Set DEVACADEMY_SCREENSHOTS to capture screenshots.");
+        Directory.CreateDirectory(dir!);
+        var km = new KMeansViewModel(3, DevAcademy.Application.Visualization.KMeansInit.KMeansPlusPlus, 1);
+        var pca = new PcaViewModel(null);
+        for (int i = 0; i < 3; i++) km.StepForwardCommand.Execute(null);
+        for (int i = 0; i < 3; i++) pca.StepForwardCommand.Execute(null);
+        foreach (var (name, view) in new (string, Avalonia.Controls.Control)[] { ("kmeans", new KMeansView(km)), ("pca", new PcaView(pca)) })
+        {
+            var window = new Avalonia.Controls.Window
+            {
+                Content = view,
+                Width = 900,
+                Height = 640,
+                RequestedThemeVariant = theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light,
+            };
+            window.Show();
+            Settle();
+            using var frame = window.CaptureRenderedFrame();
+            frame?.Save(Path.Combine(dir!, $"viz-{name}-{theme.ToLowerInvariant()}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+            window.Close();
+        }
+    }
 }

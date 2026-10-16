@@ -204,6 +204,7 @@ public static class MarkdownRenderer
     /// <summary>
     /// ```visualize sorting [algorithm=bubble|insertion|selection|merge|quick]; an optional body lists the initial numbers.
     /// ```visualize gradient-descent [function=quadratic|rosenbrock|double-well] [optimizer=gd|momentum|adam] [lr=0.1].
+    /// ```visualize kmeans [k=2..6] [init=random|kmeans++] [seed=N] and ```visualize pca; both take optional "x y" point lines as the body.
     /// An unknown kind renders a muted note (the content validator reports it as an error).
     /// </summary>
     private static Control Visualizer(string args, string body)
@@ -226,6 +227,30 @@ public static class MarkdownRenderer
             gd.Classes.Add("md-visualizer");
             gd.Classes.Add("md-visualizer-gd");
             return gd;
+        }
+        if (tokens.Length > 0 && tokens[0] == "kmeans")
+        {
+            int k = 3, seed = KMeansLab.DefaultSeed;
+            var init = KMeansInit.KMeansPlusPlus;
+            foreach (var t in tokens.Skip(1))
+            {
+                var kv = t.Split('=', 2);
+                if (kv.Length != 2) continue;
+                if (kv[0] == "k" && int.TryParse(kv[1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var kk) && kk is >= KMeansLab.MinK and <= KMeansLab.MaxK) k = kk;
+                else if (kv[0] == "init" && KMeansLab.TryParseInit(kv[1], out var i)) init = i;
+                else if (kv[0] == "seed" && int.TryParse(kv[1], System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var sd)) seed = sd;
+            }
+            var km = new Views.KMeansView(new ViewModels.KMeansViewModel(k, init, seed, PointData.TryParse(body, out var kpoints, out _) ? kpoints : null));
+            km.Classes.Add("md-visualizer");
+            km.Classes.Add("md-visualizer-kmeans");
+            return km;
+        }
+        if (tokens.Length > 0 && tokens[0] == "pca")
+        {
+            var pca = new Views.PcaView(new ViewModels.PcaViewModel(PointData.TryParse(body, out var ppoints, out _) ? ppoints : null));
+            pca.Classes.Add("md-visualizer");
+            pca.Classes.Add("md-visualizer-pca");
+            return pca;
         }
         if (tokens.Length == 0 || tokens[0] != "sorting")
         {

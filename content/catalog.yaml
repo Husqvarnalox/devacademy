@@ -117,10 +117,10 @@ tracks:
       Node.js — это среда выполнения (runtime) JavaScript вне браузера, а не язык и не веб-фреймворк: движок V8,
       цикл событий и libuv, модульная система CommonJS и ESM, потоки, файловая система, процессы, сетевые API и npm.
       Предполагает знание языка JavaScript; веб-фреймворки Express, Fastify и NestJS строятся поверх Node.js и вынесены отдельно.
-      Пока в треке один вводный курс «Node.js: первые шаги»; углублённый курс по платформе запланирован.
+      В треке два курса: вводный «Node.js: первые шаги» и углублённый «Node.js: платформа и встроенные модули» (цикл событий, модули, потоки, Buffer, файловая система, события, основы HTTP).
     languageId: javascript
     status: available
-    courses: [nodejs-first-steps]
+    courses: [nodejs-first-steps, nodejs-fundamentals]
 
   # ---------- Алгоритмы ----------
   - id: algorithms

@@ -1,0 +1,295 @@
+id: "nodejs.fundamentals.async-patterns"
+title: "Асинхронные шаблоны: колбэки, промисы, async/await, AbortController"
+goal: "Переходить от колбэков к промисам и async/await, правильно передавать ошибки, выбирать между Promise.all, allSettled, race и any и отменять работу через AbortController."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "nodejs.fundamentals.modules-esm-cjs"
+  - "javascript.fundamentals.promises-and-async"
+related:
+  - "python.concurrency.cancellation-and-timeouts"
+  - "go.fundamentals.concurrency-patterns-and-context"
+  - "csharp.fundamentals.async-await"
+  - "rust.fundamentals.error-handling"
+next:
+  - "nodejs.fundamentals.streams-backpressure"
+objectives:
+  - "Оборачивать функции с колбэком «ошибка первой» в промисы через util.promisify и вручную."
+  - "Писать последовательный и параллельный async-код и объяснять разницу в порядке ожидания."
+  - "Передавать и обогащать ошибки: try/catch/finally, cause, AggregateError, необработанные отказы."
+  - "Выбирать между Promise.all, allSettled, race и any по тому, что нужно получить."
+  - "Использовать AbortController и AbortSignal для отмены, в том числе с таймером и сочетанием сигналов."
+masteryCriteria:
+  - "Вы объясняете, какой комбинатор промисов подходит для «все или ничего», «собрать все исходы», «самый быстрый» и «первый успешный»."
+  - "Вы знаете, что происходит с необработанным отказом промиса в Node.js 22 и как его перехватить."
+  - "Вы пишете функцию, принимающую { signal } и корректно останавливающуюся при отмене."
+  - "Вы предотвращаете лишний параллелизм: ограничиваете число одновременных операций."
+tags:
+  - "nodejs"
+  - "async"
+  - "promises"
+  - "async-await"
+  - "abortcontroller"
+  - "error-handling"
+  - "promise-all"
+facts:
+  - kind: "internals"
+    text: "Стандартные асинхронные API Node.js исторически принимают колбэк «ошибка первой»: callback(err, result). util.promisify превращает такую функцию в функцию, возвращающую промис; для встроенных модулей есть готовые версии на промисах (node:fs/promises, node:timers/promises, node:stream/promises)."
+    sources:
+      - "https://nodejs.org/api/util.html#utilpromisifyoriginal"
+      - "https://nodejs.org/en/learn/asynchronous-work/javascript-asynchronous-programming-and-callbacks"
+  - kind: "internals"
+    text: "Если отказ промиса не обработан, начиная с Node.js 15 режим по умолчанию (--unhandled-rejections=throw) превращает его в необработанное исключение: процесс завершается с ненулевым кодом, если нет обработчика события unhandledRejection."
+    sources:
+      - "https://nodejs.org/api/cli.html#--unhandled-rejectionsmode"
+      - "https://nodejs.org/api/process.html#event-unhandledrejection"
+  - kind: "internals"
+    text: "Promise.all отклоняется при первом отказе, Promise.allSettled всегда ждёт все промисы и возвращает объекты {status, value|reason}, Promise.race повторяет исход первого завершившегося, Promise.any выполняется значением первого успешного и отклоняется AggregateError, когда отказали все. Остальные промисы при этом не отменяются."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#promise_concurrency"
+  - kind: "internals"
+    text: "AbortController создаёт AbortSignal; вызов abort(reason) переводит сигнал в состояние aborted и вызывает событие abort. Сигнал принимают fs, timers/promises, events.once, stream и fetch в параметре signal. Статические AbortSignal.timeout(ms), AbortSignal.any([...]) и AbortSignal.abort() доступны в Node.js 22."
+    sources:
+      - "https://nodejs.org/api/globals.html#class-abortcontroller"
+      - "https://nodejs.org/api/globals.html#static-method-abortsignalanysignals"
+      - "https://nodejs.org/api/globals.html#static-method-abortsignaltimeoutdelay"
+  - kind: "real-world"
+    text: "Отмена в Node.js кооперативная: abort() не останавливает код, а лишь сообщает об отмене. Функция должна сама проверить signal.aborted или подписаться на событие abort и освободить ресурсы."
+    sources:
+      - "https://nodejs.org/en/learn/asynchronous-work/discover-promises-in-nodejs"
+  - kind: "misconception"
+    text: "«await в цикле всегда плох» - нет: если каждый шаг зависит от предыдущего или нужно ограничить нагрузку, последовательность верна. Но await внутри map без Promise.all не ждёт ничего: массив будет состоять из промисов."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Какой комбинатор подходит, чтобы дождаться всех операций и получить исход каждой, даже если часть завершилась ошибкой?
+      options:
+        - "Promise.all"
+        - "Promise.race"
+        - "Promise.allSettled"
+        - "Promise.any"
+      answer: 2
+      explanation: "allSettled возвращает массив объектов со status 'fulfilled' или 'rejected' и никогда не отклоняется."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что делает Promise.any, если отклонены все переданные промисы?
+      options:
+        - "Возвращает undefined"
+        - "Отклоняется ошибкой AggregateError"
+        - "Отклоняется последней ошибкой"
+        - "Остаётся в ожидании"
+      answer: 1
+      explanation: "Ошибки всех промисов собраны в свойстве errors объекта AggregateError."
+    - id: "q3"
+      type: "multiple"
+      prompt: |
+        Что верно про AbortController?
+      options:
+        - "abort() сразу останавливает выполняющуюся функцию"
+        - "signal.aborted становится true после abort()"
+        - "Один сигнал можно передать нескольким операциям"
+        - "Причину отмены можно передать: abort(reason)"
+      answer:
+        - 1
+        - 2
+        - 3
+      explanation: "Отмена кооперативная: abort() только сообщает о ней; операции сами реагируют на сигнал."
+    - id: "q4"
+      type: "short"
+      prompt: |
+        Как называется свойство AbortSignal, которое хранит причину отмены?
+      answer:
+        - "reason"
+      explanation: "signal.reason содержит значение, переданное abort(reason), или AbortError по умолчанию."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт в Node.js 22 с отклонённым промисом, у которого нет обработчика и нет слушателя unhandledRejection?
+      options:
+        - "Ничего, будет только предупреждение"
+        - "Процесс завершится с ошибкой"
+        - "Отказ превратится в fulfilled"
+        - "Выполнится finally соседнего промиса"
+      answer: 1
+      explanation: "Режим по умолчанию - throw: необработанный отказ становится необработанным исключением."
+exercise:
+  id: "nodejs.fundamentals.async-patterns.exercise"
+  title: "Повторные попытки и сводка Promise.allSettled"
+  prompt: |
+    Первая строка ввода - число `N` (максимум попыток на задание). Дальше по строке на задание: `имя исходы`, где исходы - список через запятую из `ok:<значение>` и `err:<сообщение>`. Попытка с номером `k` (с единицы) берёт `k`-й исход; если исходов меньше, повторяется последний. Сообщение может содержать двоеточия (`err:a:b` - сообщение `a:b`).
+
+    Функция `attempt(job, k)` готова: она асинхронно возвращает значение или бросает `Error` с сообщением. Реализуйте:
+
+    1. `retry(job, maxAttempts)`: пробует `attempt` для `k = 1..maxAttempts` до первого успеха. Успех - `{ value, attempts: k }`. Если все попытки неудачны, бросает `new Error("gave up after N attempts", { cause: последняя ошибка })` (с реальным числом вместо `N`).
+    2. Запуск **всех** заданий одновременно через `Promise.allSettled`: ошибка одного не должна останавливать остальные.
+
+    Вывод, в порядке ввода заданий:
+
+    * успех: `<имя>: ok value=<значение> attempts=<k>`;
+    * неудача: `<имя>: failed attempts=<N> cause=<сообщение последней ошибки>`;
+    * в конце: `summary: <A> ok, <B> failed`.
+
+    **Пример.** Ввод
+
+    ```
+    3
+    a ok:1
+    b err:x,ok:2
+    c err:p,err:q
+    ```
+
+    даёт
+
+    ```
+    a: ok value=1 attempts=1
+    b: ok value=2 attempts=2
+    c: failed attempts=3 cause=q
+    summary: 2 ok, 1 failed
+    ```
+
+    **Что дано.** Заготовка читает ввод и содержит готовую `attempt`. Сейчас `retry` делает одну попытку, а `main` ждёт задания по очереди и ничего не выводит, кроме сводки.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "retry - цикл for по k от 1 до maxAttempts. Внутри try { return { value: await attempt(job, k), attempts: k }; } catch (error) { lastError = error; }. После цикла бросьте итоговую ошибку."
+    - "Итоговая ошибка: throw new Error(`gave up after ${maxAttempts} attempts`, { cause: lastError }). Второй аргумент конструктора Error с полем cause сохраняет исходную ошибку в error.cause."
+    - "В main запустите все задания сразу: const results = await Promise.allSettled(jobs.map((job) => retry(job, maxAttempts))). Результаты приходят в том же порядке, что и задания."
+    - "Для каждого result проверьте result.status. При \"fulfilled\" данные лежат в result.value, при \"rejected\" ошибка - в result.reason, а сообщение последней попытки - в result.reason.cause.message. Посчитайте успехи для summary."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "3\na ok:1\nb err:x,ok:2\nc err:p,err:q\n"
+      expected: "a: ok value=1 attempts=1\nb: ok value=2 attempts=2\nc: failed attempts=3 cause=q\nsummary: 2 ok, 1 failed\n"
+      hint: "Задание b успешно со второй попытки; c исчерпало три попытки, причина - последнее сообщение."
+    - id: "all-ok"
+      title: "Все задания успешны"
+      stdin: "2\nx ok:10\ny ok:20\nz ok:30\n"
+      expected: "x: ok value=10 attempts=1\ny: ok value=20 attempts=1\nz: ok value=30 attempts=1\nsummary: 3 ok, 0 failed\n"
+      hint: "Успех с первой попытки: attempts=1, итог 3 ok, 0 failed."
+    - id: "repeat-last"
+      title: "Последний исход повторяется"
+      stdin: "4\nu err:a\nv err:a,err:b,ok:fine\nw ok:fine,err:never\n"
+      expected: "u: failed attempts=4 cause=a\nv: ok value=fine attempts=3\nw: ok value=fine attempts=1\nsummary: 2 ok, 1 failed\n"
+      hint: "У u все попытки дают a. У v успех на третьей. У w успех сразу, остальное не вызывается."
+    - id: "single-attempt"
+      title: "Одна попытка (скрытый)"
+      stdin: "1\na err:no,ok:yes\nb ok:yes\n"
+      expected: "a: failed attempts=1 cause=no\nb: ok value=yes attempts=1\nsummary: 1 ok, 1 failed\n"
+      hidden: true
+      hint: "При N=1 повторов нет: a сразу failed attempts=1."
+    - id: "colons"
+      title: "Двоеточия в сообщении (скрытый)"
+      stdin: "2\na err:code:42:bad\nb ok:key:value\n"
+      expected: "a: failed attempts=2 cause=code:42:bad\nb: ok value=key:value attempts=1\nsummary: 1 ok, 1 failed\n"
+      hidden: true
+      hint: "Сообщение и значение - всё после первых трёх или четырёх символов префикса; slice, а не split(\":\")."
+    - id: "mixed-order"
+      title: "Порядок вывода не зависит от числа попыток (скрытый)"
+      stdin: "5\nslow err:1,err:2,err:3,err:4,ok:done\nfast ok:now\nbad err:z\nmid err:1,ok:ok\n"
+      expected: "slow: ok value=done attempts=5\nfast: ok value=now attempts=1\nbad: failed attempts=5 cause=z\nmid: ok value=ok attempts=2\nsummary: 3 ok, 1 failed\n"
+      hidden: true
+      hint: "Печатайте в порядке ввода, а не в порядке завершения: результаты allSettled идут в порядке массива."
+    - id: "empty"
+      title: "Нет заданий (скрытый)"
+      stdin: "3\n"
+      expected: "summary: 0 ok, 0 failed\n"
+      hidden: true
+      hint: "Без заданий выводится только summary: 0 ok, 0 failed."
+challenge:
+  id: "nodejs.fundamentals.async-patterns.challenge"
+  title: "mapLimit: параллелизм с ограничением и отменой"
+  prompt: |
+    Реализуйте в `src/pool.mjs` функцию `mapLimit(items, limit, fn, { signal } = {})`, которая применяет асинхронную `fn` ко всем элементам, не запуская одновременно больше `limit` вызовов. Вкладки над редактором позволяют открыть файлы; тесты в папке `tests/` скрыты и запускаются по кнопке «Проверить».
+
+    Требования:
+
+    * Возвращает промис массива результатов **в порядке элементов**, а не в порядке завершения.
+    * `fn` вызывается как `fn(item, index, signal)`. Элементы стартуют по порядку; следующий стартует сразу, когда освободился слот. Допустимо вернуть из `fn` не промис, а значение; синхронное исключение в `fn` считается отказом.
+    * `limit` должен быть целым числом не меньше 1, иначе промис отклоняется `RangeError`.
+    * Первая ошибка отклоняет результат этой же ошибкой; новые вызовы `fn` больше не стартуют, а `signal`, переданный в `fn`, переходит в состояние aborted (причина - эта ошибка). Уже запущенные вызовы не ждут.
+    * Внешний `signal` из опций: если он уже отменён, `fn` не вызывается, а результат отклоняется `signal.reason`; если отмена пришла во время работы - то же самое и новые вызовы не стартуют. Сигнал, переданный в `fn`, тоже отменяется.
+    * Пустой список даёт `[]`.
+
+    Подсказки по инструментам: `AbortController`, `signal.addEventListener("abort", ..., { once: true })`, `signal.reason`, `Promise.resolve(value)`.
+
+    **Что дано.** Заготовка запускает все вызовы сразу и игнорирует лимит и отмену.
+  entryFile: "src/pool.mjs"
+  evaluation: "command"
+  languageId: "javascript"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  command:
+    run:
+      - "node"
+      - "--test"
+      - "--test-reporter=junit"
+      - "--test-reporter-destination=report.xml"
+      - "--test-reporter=spec"
+      - "--test-reporter-destination=stdout"
+      - "tests/*.test.mjs"
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 30
+  hints:
+    - "Заведите счётчики next (следующий индекс), running и done, массив results и флаг finished. Функция launch в цикле while запускает вызовы, пока running < limit и есть элементы."
+    - "Каждый вызов оберните в Promise.resolve(fn(...)) внутри try/catch, чтобы синхронное исключение стало отказом. По успеху сохраните results[index], уменьшите running и снова вызовите launch; по отказу вызовите общую функцию fail."
+    - "fail(error) выполняется один раз: ставит finished, вызывает controller.abort(error) и reject(error). Внешний signal подпишите на abort с вызовом fail(signal.reason); не забудьте проверить signal.aborted до старта."
+    - "Скелет: async function с проверкой limit и signal?.aborted, затем return new Promise((resolve, reject) => { ... }). Пустой список разрешайте сразу. Когда done === list.length, поставьте finished и вызовите resolve(results)."
+  tests:
+    - id: "order"
+      title: "Результаты в порядке элементов"
+      match: "mapLimit > результаты в порядке элементов"
+      hint: "Записывайте результат в results[index], а не push."
+    - id: "limit"
+      title: "Не больше limit вызовов"
+      match: "mapLimit > не больше limit вызовов одновременно"
+      hint: "Новый вызов стартует только при running < limit."
+    - id: "refill"
+      title: "Слот освобождается - следующий стартует"
+      match: "mapLimit > следующий элемент стартует, как только освободился слот"
+      hint: "После завершения вызова снова запустите launch."
+    - id: "error"
+      title: "Первая ошибка (скрытый)"
+      match: "mapLimit > первая ошибка отклоняет результат и новые вызовы не стартуют"
+      hidden: true
+      hint: "После fail цикл launch не должен стартовать новые элементы."
+    - id: "error-signal"
+      title: "Сигнал для fn при ошибке (скрытый)"
+      match: "mapLimit > ошибка прерывает signal, переданный в fn"
+      hidden: true
+      hint: "Вызовите controller.abort(error) и передавайте controller.signal в fn."
+    - id: "abort-during"
+      title: "Внешняя отмена (скрытый)"
+      match: "mapLimit > внешний signal: отмена во время работы"
+      hidden: true
+      hint: "Подпишитесь на abort внешнего сигнала и отклоните результат signal.reason."
+    - id: "abort-before"
+      title: "Заранее отменённый signal (скрытый)"
+      match: "mapLimit > уже отменённый signal: fn не вызывается"
+      hidden: true
+      hint: "Проверьте signal.aborted до запуска и бросьте signal.reason."
+    - id: "range"
+      title: "Неверный limit (скрытый)"
+      match: "mapLimit > limit меньше 1 - RangeError"
+      hidden: true
+      hint: "Проверьте Number.isInteger(limit) && limit >= 1 до запуска."
+    - id: "empty-list"
+      title: "Пустой список (скрытый)"
+      match: "mapLimit > пустой список и limit больше длины"
+      hidden: true
+      hint: "Пустой список разрешается сразу; limit больше длины не мешает."
+    - id: "index-sync"
+      title: "Индекс и синхронная fn (скрытый)"
+      match: "mapLimit > fn получает индекс и работает с синхронным значением"
+      hidden: true
+      hint: "Оберните результат fn в Promise.resolve и передавайте индекс вторым аргументом."
+    - id: "sync-throw"
+      title: "Синхронное исключение (скрытый)"
+      match: "mapLimit > синхронное исключение в fn отклоняет результат"
+      hidden: true
+      hint: "Вызов fn держите в try/catch и превращайте исключение в отказ."

@@ -1,0 +1,209 @@
+id: "nodejs.fundamentals.events-and-process"
+title: "События, EventEmitter и объект process"
+goal: "Использовать EventEmitter для связи частей программы, правильно обрабатывать событие 'error' и разбираться, что даёт объект process: аргументы, переменные окружения, коды завершения, события exit и сигналы."
+difficulty: "medium"
+estimatedMinutes: 65
+prerequisites:
+  - "nodejs.fundamentals.filesystem-paths"
+related:
+  - "nodejs.first-steps.runtime-process-and-stdin"
+  - "java.fundamentals.exceptions-try-with-resources"
+  - "python.concurrency.cancellation-and-timeouts"
+  - "go.fundamentals.functions-and-errors"
+next:
+  - "nodejs.fundamentals.http-fundamentals"
+objectives:
+  - "Создавать EventEmitter и регистрировать слушатели методами on, once, prependListener и удалять их методом off."
+  - "Объяснять порядок вызова слушателей и то, что emit синхронный и возвращает true, если слушатели были."
+  - "Обрабатывать событие 'error': знать, что emit('error') без слушателя бросает исключение."
+  - "Читать process.argv и process.env, задавать код завершения через process.exitCode и понимать, чем он лучше process.exit()."
+  - "Описать события process 'exit', 'beforeExit' и сигналы SIGINT и SIGTERM как основу корректного завершения."
+masteryCriteria:
+  - "Вы объясняете, почему emit не ждёт асинхронных слушателей и вызывает синхронные в порядке регистрации."
+  - "Вы всегда навешиваете слушатель 'error' на источник событий или осознанно позволяете процессу упасть."
+  - "Вы выбираете process.exitCode вместо process.exit(), когда нужно дать программе дописать вывод."
+  - "Вы знаете, что в обработчике 'exit' можно выполнять только синхронный код."
+tags:
+  - "nodejs"
+  - "events"
+  - "eventemitter"
+  - "process"
+  - "argv"
+  - "env"
+  - "exit-code"
+  - "signals"
+facts:
+  - kind: "internals"
+    text: "emitter.emit(name, ...args) синхронно вызывает слушатели в порядке регистрации (prependListener ставит слушатель первым) и возвращает true, если у события были слушатели. once-слушатель удаляется перед своим первым вызовом. Асинхронность слушателей emit не ждёт."
+    sources:
+      - "https://nodejs.org/api/events.html#emitteremiteventname-args"
+      - "https://nodejs.org/api/events.html#emitteronceeventname-listener"
+  - kind: "internals"
+    text: "Событие 'error' особое: если у emitter нет слушателя 'error', emit('error', err) бросает err как исключение, а при отсутствии try/catch процесс завершается. Если передан не Error, бросается ERR_UNHANDLED_ERROR."
+    sources:
+      - "https://nodejs.org/api/events.html#error-events"
+  - kind: "internals"
+    text: "Слушателей можно считать и перечислять: listenerCount(name), eventNames(). Предупреждение MaxListenersExceededWarning появляется, когда у события больше 10 слушателей (значение по умолчанию); оно часто указывает на утечку регистраций."
+    sources:
+      - "https://nodejs.org/api/events.html#emitterlistenercounteventname-listener"
+      - "https://nodejs.org/api/events.html#emittersetmaxlistenersn"
+  - kind: "internals"
+    text: "process.argv - массив строк: [путь к node, путь к скрипту, ...аргументы]; пользовательские аргументы начинаются с индекса 2. process.env - объект со строковыми переменными окружения; отсутствующая переменная даёт undefined."
+    sources:
+      - "https://nodejs.org/api/process.html#processargv"
+      - "https://nodejs.org/api/process.html#processenv"
+  - kind: "internals"
+    text: "Код завершения 0 означает успех, ненулевой - ошибку. Его задают через process.exitCode = n (процесс завершится сам, когда доработают асинхронные операции) или process.exit(n) (немедленно, ожидающий вывод и операции могут быть потеряны). В обработчике события 'exit' допустим только синхронный код."
+    sources:
+      - "https://nodejs.org/api/process.html#processexitcode"
+      - "https://nodejs.org/api/process.html#processexitcode_1"
+      - "https://nodejs.org/api/process.html#event-exit"
+  - kind: "real-world"
+    text: "Сигналы - сообщения операционной системы процессу. SIGINT приходит по Ctrl+C, SIGTERM - при остановке сервиса оркестратором. Если подписаться через process.on('SIGTERM', ...), процесс не завершится сам: обработчик закрывает серверы и соединения, после чего программа завершается штатно. SIGKILL перехватить нельзя."
+    sources:
+      - "https://nodejs.org/api/process.html#signal-events"
+      - "https://nodejs.org/en/learn/getting-started/nodejs-the-difference-between-development-and-production"
+  - kind: "misconception"
+    text: "«emit вызывает слушатели асинхронно, как setTimeout» - нет. Слушатели выполняются прямо внутри emit, до его возврата; если нужна отложенность, её добавляют явно (setImmediate, queueMicrotask)."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что произойдёт при emitter.emit('error', new Error('x')), если у emitter нет слушателей 'error'?
+      options:
+        - "Вернётся false"
+        - "Ничего"
+        - "Ошибка будет выброшена как исключение"
+        - "Событие отложится до появления слушателя"
+      answer: 2
+      explanation: "'error' - особое событие: без слушателя emit бросает переданную ошибку."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Слушатели a, затем b добавлены методом on. Затем emitter.prependListener('e', c). В каком порядке они вызовутся при emit('e')?
+      options:
+        - "a, b, c"
+        - "c, a, b"
+        - "b, a, c"
+        - "c, b, a"
+      answer: 1
+      explanation: "prependListener ставит слушатель в начало очереди."
+    - id: "q3"
+      type: "multiple"
+      prompt: |
+        Что верно про emit?
+      options:
+        - "Вызывает слушатели синхронно"
+        - "Возвращает true, если слушатели были"
+        - "Дожидается завершения async-слушателей"
+        - "once-слушатель вызывается не более одного раза"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "emit не ждёт промисов, возвращённых слушателями."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        Запуск: node app.js --port 8080. Какой индекс в process.argv у строки '--port'? Индексы считаются с нуля.
+      answer: 2
+      tolerance: 0
+      explanation: "argv[0] - путь к node, argv[1] - путь к скрипту, argv[2] - первый пользовательский аргумент."
+    - id: "q5"
+      type: "short"
+      prompt: |
+        Какое свойство process нужно присвоить, чтобы задать код завершения без немедленного выхода? Введите имя свойства.
+      answer:
+        - "exitCode"
+        - "process.exitCode"
+      explanation: "process.exitCode = 1 задаёт код, процесс завершится, когда доработают отложенные операции."
+exercise:
+  id: "nodejs.fundamentals.events-and-process.exercise"
+  title: "Интерпретатор событий"
+  prompt: |
+    Программа читает команды из stdin и управляет одним `EventEmitter`. Слушатели создаёт сама программа: слушатель с именем `name` при вызове печатает `name(арг1, арг2, ...)` (аргументы через запятую и пробел; без аргументов - `name()`).
+
+    | команда | действие | результат |
+    |---|---|---|
+    | `on <событие> <имя>` | добавить слушатель (`on`) | `ok` |
+    | `once <событие> <имя>` | добавить одноразовый слушатель | `ok` |
+    | `prepend <событие> <имя>` | добавить слушатель в начало очереди | `ok` |
+    | `off <событие> <имя>` | удалить последний добавленный слушатель с этим именем | `ok`, если число слушателей уменьшилось, иначе `none` |
+    | `emit <событие> [арг...]` | вызвать слушатели; аргументы - слова строки | строки слушателей, затем `emitted <событие>: <true или false>` |
+    | `count <событие>` | `listenerCount` | число |
+    | `names` | `eventNames()` | имена через пробел, отсортированные; если событий нет - `(none)` |
+    | `exit <n>` | закончить чтение команд | см. ниже |
+
+    Особые правила:
+
+    * `emit error <сообщение...>` вызывает `emit('error', new Error(сообщение))`, где сообщение - остаток строки. Если у события `error` нет слушателей, `emit` бросит исключение: перехватите его и выведите `unhandled: <сообщение ошибки>` вместо строки `emitted`. Слушатель с аргументом-ошибкой печатает её как `имя(Error: сообщение)`.
+    * Любая другая команда даёт `error BADCMD`. Пустые строки пропускайте.
+    * Команда `exit <n>` прекращает чтение остальных строк. На событии процесса `'exit'` (регистрируется в заготовке) печатается `bye status=<n>`, где `n` - число из команды, а без команды `exit` - `0`. **Настоящий код завершения процесса должен остаться 0**: не вызывайте `process.exit` и не меняйте `process.exitCode`, `n` - просто число для печати.
+
+    **Пример.** Ввод
+
+    ```
+    on a x
+    once a y
+    emit a 1 2
+    emit a 3
+    exit 3
+    ```
+
+    даёт
+
+    ```
+    ok
+    ok
+    x(1, 2)
+    y(1, 2)
+    emitted a: true
+    x(3)
+    emitted a: true
+    bye status=3
+    ```
+
+    **Что дано.** Заготовка создаёт `EventEmitter`, регистрирует обработчик `'exit'`, читает строки через `readline` и печатает результат `interpret(...)`. Тело `interpret` пусто. Таблица `registry` помогает находить функции-слушатели по имени для `off`.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Разбейте строку: const [cmd, event, ...rest] = line.trim().split(/\\s+/). Слушатель - функция (...args) => console.log(`${name}(${args.map(String).join(', ')})`), где name = rest[0]. Её же сохраните в registry под ключом из события и имени."
+    - "on/once/prepend → emitter.on, emitter.once, emitter.prependListener. off: возьмите последнюю функцию из registry, вызовите emitter.removeListener(event, fn) и сравните listenerCount до и после - так once-слушатели, уже сработавшие, дадут none."
+    - "emit: для события 'error' передайте new Error(rest.join(' ')), для остальных - слова rest как аргументы. Оберните вызов в try/catch: в catch верните `unhandled: ${err.message}`. Иначе верните `emitted ${event}: ${результат emit}`."
+    - "names: emitter.eventNames().map(String).sort().join(' '), пустой список - '(none)'. count: String(emitter.listenerCount(event)). Всё остальное - 'error BADCMD'. Команда exit обрабатывается в main и в interpret не попадает."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "on a x\nonce a y\nemit a 1 2\nemit a 3\nexit 3\n"
+      expected: "ok\nok\nx(1, 2)\ny(1, 2)\nemitted a: true\nx(3)\nemitted a: true\nbye status=3\n"
+      hint: "once вызывается один раз; без exit в конце всегда печатается 'bye status=0', а с exit 3 - status=3."
+    - id: "order"
+      title: "Порядок слушателей и счётчики"
+      stdin: "on e a\non e b\nprepend e c\nonce e d\ncount e\nemit e\ncount e\nemit e 1\nemit other\nnames\n"
+      expected: "ok\nok\nok\nok\n4\nc()\na()\nb()\nd()\nemitted e: true\n3\nc(1)\na(1)\nb(1)\nemitted e: true\nemitted other: false\ne\nbye status=0\n"
+      hint: "prepend ставит слушатель первым; once удаляется после первого emit; emit без слушателей возвращает false."
+    - id: "off"
+      title: "Удаление слушателей"
+      stdin: "on a x\non a x\noff a x\nemit a v\noff a x\noff a x\nemit a v\ncount a\nnames\noff none y\n"
+      expected: "ok\nok\nok\nx(v)\nemitted a: true\nok\nnone\nemitted a: false\n0\n(none)\nnone\nbye status=0\n"
+      hint: "Одно имя добавлено дважды - две разные функции; off убирает последнюю. Сработавший once снять нельзя: off даст none."
+    - id: "errors"
+      title: "Событие error (скрытый)"
+      stdin: "emit error boom\nemit error two words here\ncount error\non error h\nemit error bad thing\ncount error\noff error h\nemit error again\nnames\n"
+      expected: "unhandled: boom\nunhandled: two words here\n0\nok\nh(Error: bad thing)\nemitted error: true\n1\nok\nunhandled: again\n(none)\nbye status=0\n"
+      hidden: true
+      hint: "Без слушателя emit('error') бросает исключение; поймайте его и напечатайте unhandled: <message>. С слушателем аргумент печатается как 'Error: сообщение'."
+    - id: "exit-skip"
+      title: "exit прекращает чтение (скрытый)"
+      stdin: "on a x\n\n   \nbogus\nemit a q\nexit 42\nemit a never\non a never\n"
+      expected: "ok\nerror BADCMD\nx(q)\nemitted a: true\nbye status=42\n"
+      hidden: true
+      hint: "После exit остальные строки не обрабатываются; пустые строки пропускаются; bogus даёт error BADCMD; код процесса остаётся 0."
+    - id: "exit-bare"
+      title: "exit без числа и повторная регистрация (скрытый)"
+      stdin: "once a o\nonce a o\nemit a\nemit a\ncount a\nprepend z p\non z q\nnames\nexit\n"
+      expected: "ok\nok\no()\no()\nemitted a: true\nemitted a: false\n0\nok\nok\nz\nbye status=0\n"
+      hidden: true
+      hint: "Команда exit без числа даёт status=0; два once с одним именем - два слушателя, оба срабатывают."

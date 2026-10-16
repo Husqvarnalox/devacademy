@@ -122,3 +122,60 @@ public class GradientDescentDirectiveTests
         Assert.Contains(With(f, info).Diagnostics, d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains(expected));
     }
 }
+
+public class KMeansPcaDirectiveTests
+{
+    private static ContentLoadResult With(Fixture f, string info, string body = "")
+    {
+        string theory = Path.Combine(f.Root, "courses", "py-basics", "lessons", "02-vars", "theory.md");
+        File.WriteAllText(theory, File.ReadAllText(theory) + $"\n```{info}\n{body}```\n");
+        return f.Load();
+    }
+
+    [Theory]
+    [InlineData("visualize kmeans", "")]
+    [InlineData("visualize kmeans k=2 init=random seed=7", "")]
+    [InlineData("visualize kmeans k=6 init=kmeans++ seed=-3", "")]
+    [InlineData("visualize kmeans k=2", "0 0\n1 1\n")]
+    [InlineData("visualize kmeans", "0 0\n\n1.5 -2e1\n 3   4 \n")]
+    [InlineData("visualize pca", "")]
+    [InlineData("visualize pca", "1 2\n3 4\n")]
+    public void Valid_directives_pass(string info, string body)
+    {
+        using var f = new Fixture();
+        var r = With(f, info, body);
+        Assert.DoesNotContain(r.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var found = TheoryParser.Visualizations(r.Content.FindLesson("py.vars")!.Theory.Markdown);
+        Assert.Equal(info, Assert.Single(found).Info);
+    }
+
+    [Theory]
+    [InlineData("visualize kmeans k=1", "", "k must be an integer from 2 to 6")]
+    [InlineData("visualize kmeans k=7", "", "k must be an integer from 2 to 6")]
+    [InlineData("visualize kmeans k=x", "", "k must be an integer")]
+    [InlineData("visualize kmeans k=2.5", "", "k must be an integer")]
+    [InlineData("visualize kmeans init=forgy", "", "unknown init 'forgy'")]
+    [InlineData("visualize kmeans seed=1.5", "", "seed must be an integer")]
+    [InlineData("visualize kmeans seed=abc", "", "seed must be an integer")]
+    [InlineData("visualize kmeans clusters=3", "", "unknown argument")]
+    [InlineData("visualize kmeans", "1 2\n3\n", "body line 2")]
+    [InlineData("visualize kmeans", "1 2 3\n", "body line 1")]
+    [InlineData("visualize kmeans", "1 NaN\n", "body line 1")]
+    [InlineData("visualize kmeans k=4", "0 0\n1 1\n2 2\n", "too few points")]
+    [InlineData("visualize pca", "5 5\n", "too few points")]
+    [InlineData("visualize pca", "a b\n", "body line 1")]
+    [InlineData("visualize pca k=2", "", "pca takes no arguments")]
+    public void Bad_directives_are_validator_errors(string info, string body, string expected)
+    {
+        using var f = new Fixture();
+        Assert.Contains(With(f, info, body).Diagnostics, d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains(expected));
+    }
+
+    [Fact]
+    public void Too_many_points_is_an_error()
+    {
+        using var f = new Fixture();
+        string body = string.Concat(Enumerable.Repeat("1 1\n", TheoryParser.VisualizationMaxPoints + 1));
+        Assert.Contains(With(f, "visualize pca", body).Diagnostics, d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("too many points"));
+    }
+}

@@ -372,3 +372,14 @@ network operation); exercises show what is missing until then.
 
 Theory can embed the optimiser lab: a fenced block `visualize gradient-descent function=rosenbrock optimizer=adam lr=0.02`
 (all arguments optional; functions `quadratic|rosenbrock|double-well`, optimizers `gd|momentum|adam`).
+
+Two more labs for the classical-ML lessons:
+
+* `visualize kmeans k=3 init=kmeans++ seed=1` — k-means with alternating assignment / centroid-update steps, centroid trail, inertia and a
+  convergence message (at most 50 iterations). `k` is an integer `2..6` (default 3), `init` is `random|kmeans++` (default `kmeans++`),
+  `seed` is an integer (default 1); all optional. Without a body it uses a built-in dataset of three blobs.
+* `visualize pca` — steps through raw data, centring, principal axes, projection on PC1 and 1-D reconstruction, with the explained variance of
+  PC1/PC2. No arguments. Without a body it uses a built-in correlated 2-D dataset.
+
+Both take an optional body of points, one `x y` pair of numbers per line (at least 2 points, at most 500, coordinates up to 1e6 in absolute
+value; with `kmeans` there must be at least `k`). Bad arguments or a malformed body are content errors reported by `validate-content`.

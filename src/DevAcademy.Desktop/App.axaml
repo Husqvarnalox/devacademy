@@ -40,6 +40,12 @@
           <SolidColorBrush x:Key="MdBorder" Color="#D9D9D4" />
           <SolidColorBrush x:Key="MdMuted" Color="#6A6A64" />
           <SolidColorBrush x:Key="MdLink" Color="#1F5C9E" />
+          <SolidColorBrush x:Key="VizSeries1" Color="#0072B2" />
+          <SolidColorBrush x:Key="VizSeries2" Color="#C24E00" />
+          <SolidColorBrush x:Key="VizSeries3" Color="#00806A" />
+          <SolidColorBrush x:Key="VizSeries4" Color="#B0457E" />
+          <SolidColorBrush x:Key="VizSeries5" Color="#8A6F00" />
+          <SolidColorBrush x:Key="VizSeries6" Color="#6B4FBB" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="AppBackground" Color="#17191B" />
@@ -56,6 +62,12 @@
           <SolidColorBrush x:Key="MdBorder" Color="#3A3F44" />
           <SolidColorBrush x:Key="MdMuted" Color="#9BA1A7" />
           <SolidColorBrush x:Key="MdLink" Color="#79B0EC" />
+          <SolidColorBrush x:Key="VizSeries1" Color="#56B4E9" />
+          <SolidColorBrush x:Key="VizSeries2" Color="#F28E4B" />
+          <SolidColorBrush x:Key="VizSeries3" Color="#3DD9A5" />
+          <SolidColorBrush x:Key="VizSeries4" Color="#E39BC4" />
+          <SolidColorBrush x:Key="VizSeries5" Color="#F0E442" />
+          <SolidColorBrush x:Key="VizSeries6" Color="#A58FEA" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>

@@ -1,0 +1,198 @@
+id: "nodejs.fundamentals.event-loop-architecture"
+title: "Архитектура Node.js: V8, libuv и цикл событий"
+goal: "Объяснить, из чего состоит Node.js, где выполняется ваш код и где ждут операции ввода-вывода, и предсказывать порядок nextTick, микрозадач, таймеров и setImmediate."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "nodejs.first-steps.modules-and-event-loop"
+  - "javascript.fundamentals.promises-and-async"
+related:
+  - "python.concurrency.asyncio-basics"
+  - "go.fundamentals.goroutines-and-channels"
+  - "rust.fundamentals.concurrency-fearless"
+next:
+  - "nodejs.fundamentals.modules-esm-cjs"
+objectives:
+  - "Назвать роли V8, libuv и привязок (bindings) в Node.js и объяснить, почему код JavaScript выполняется в одном потоке, а ввод-вывод идёт параллельно."
+  - "Перечислить фазы цикла событий и сказать, в какой из них выполняются таймеры, колбэки ввода-вывода и setImmediate."
+  - "Различать process.nextTick, микрозадачи промисов и макрозадачи и предсказывать порядок их выполнения."
+  - "Объяснять, что такое пул потоков libuv и какие операции его используют."
+  - "Распознавать код, который блокирует цикл событий или морит его голодом, и исправлять его."
+masteryCriteria:
+  - "Вы строите порядок вывода для программы с sync, nextTick, промисами, setTimeout и setImmediate, выполняемой внутри колбэка ввода-вывода."
+  - "Вы объясняете, почему порядок setTimeout(..., 0) и setImmediate в главном модуле не определён, а внутри колбэка ввода-вывода определён."
+  - "Вы отличаете операции, которые идут в пул потоков, от операций, которые ждёт сама операционная система."
+  - "Вы объясняете, почему тяжёлое синхронное вычисление задерживает все таймеры и все ответы сервера."
+tags:
+  - "nodejs"
+  - "v8"
+  - "libuv"
+  - "event-loop"
+  - "nexttick"
+  - "microtasks"
+  - "setimmediate"
+facts:
+  - kind: "internals"
+    text: "Node.js состоит из движка V8, который исполняет JavaScript, библиотеки libuv с циклом событий и пулом потоков и набора привязок на C++, которые соединяют их с API вроде fs и net. Версии компонентов видны в process.versions."
+    sources:
+      - "https://nodejs.org/en/learn/getting-started/introduction-to-nodejs"
+      - "https://nodejs.org/api/process.html#processversions"
+  - kind: "internals"
+    text: "Цикл событий проходит фазы timers, pending callbacks, idle/prepare, poll, check и close callbacks. Колбэки setImmediate выполняются в фазе check, сразу после poll; таймеры выполняются в фазе timers."
+    sources:
+      - "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick"
+  - kind: "internals"
+    text: "Внутри колбэка ввода-вывода setImmediate всегда срабатывает раньше setTimeout с нулевой задержкой. Из главного модуля порядок этих двух вызовов зависит от производительности процесса и не определён."
+    sources:
+      - "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#setimmediate-vs-settimeout"
+  - kind: "internals"
+    text: "Пул потоков libuv по умолчанию содержит 4 потока; размер задаёт переменная окружения UV_THREADPOOL_SIZE. Пул обслуживает файловые операции, dns.lookup и часть криптографии и сжатия; сетевые сокеты используют механизмы операционной системы без пула."
+    sources:
+      - "https://docs.libuv.org/en/v1.x/threadpool.html"
+      - "https://nodejs.org/api/cli.html#uv_threadpool_sizesize"
+  - kind: "internals"
+    text: "Очередь process.nextTick выполняется целиком после текущей операции и до очереди микрозадач промисов. Если микрозадача планирует новый nextTick, он выполнится после того, как очередь микрозадач опустеет."
+    sources:
+      - "https://nodejs.org/api/process.html#processnexttickcallback-args"
+      - "https://nodejs.org/en/learn/asynchronous-work/understanding-processnexttick"
+  - kind: "misconception"
+    text: "«Node.js однопоточный» - точнее: ваш JavaScript выполняется в одном потоке. Сам процесс имеет и другие потоки (пул libuv, потоки V8 для сборки мусора), а ввод-вывод ведёт операционная система. Для параллельных вычислений есть worker_threads."
+  - kind: "misconception"
+    text: "«setImmediate выполняется раньше setTimeout(..., 0)» - так бывает только внутри колбэка ввода-вывода. В главном модуле порядок не определён, поэтому в программах и тестах на него опираться нельзя."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Какой компонент Node.js реализует цикл событий и пул потоков?
+      options:
+        - "V8"
+        - "libuv"
+        - "npm"
+        - "Привязки node:fs"
+      answer: 1
+      explanation: "libuv - кроссплатформенная библиотека ввода-вывода: цикл событий, пул потоков, сокеты и таймеры. V8 исполняет JavaScript."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Внутри колбэка fs.readFile вызваны setTimeout(a, 0), setImmediate(b), process.nextTick(c) и Promise.resolve().then(d). Каков порядок выполнения?
+      options:
+        - "a, b, c, d"
+        - "c, d, b, a"
+        - "d, c, b, a"
+        - "c, d, a, b"
+      answer: 1
+      explanation: "После колбэка идут nextTick (c), затем микрозадачи (d). Колбэк выполняется в фазе poll, дальше фаза check (b), и только в следующем обороте - таймеры (a)."
+    - id: "q3"
+      type: "multiple"
+      prompt: |
+        Какие операции Node.js выполняют в пуле потоков libuv?
+      options:
+        - "Чтение файла через fs.readFile"
+        - "Приём TCP-соединения сервером"
+        - "dns.lookup"
+        - "Сжатие через zlib (асинхронные методы)"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Файловые операции, dns.lookup и zlib используют пул. Сетевые сокеты работают через неблокирующий ввод-вывод операционной системы."
+    - id: "q4"
+      type: "short"
+      prompt: |
+        Как называется фаза цикла событий, в которой выполняются колбэки setImmediate? Ответьте одним словом.
+      answer:
+        - "check"
+      explanation: "Фаза check идёт сразу после poll."
+    - id: "q5"
+      type: "numeric"
+      prompt: |
+        Сколько потоков в пуле libuv по умолчанию?
+      answer: 4
+      tolerance: 0
+      explanation: "По умолчанию 4; изменить можно переменной окружения UV_THREADPOOL_SIZE до первого использования пула."
+exercise:
+  id: "nodejs.fundamentals.event-loop-architecture.exercise"
+  title: "Порядок задач в цикле событий"
+  prompt: |
+    Каждая непустая строка ввода - команда вида `вид метка`. Программа должна выполнить команды **внутри колбэка ввода-вывода** (заготовка уже делает это через `fs.readFile`; в этой фазе порядок `setImmediate` и `setTimeout` определён) и вывести метки в том порядке, в котором их напечатает сам Node.js. Упорядочивать метки вручную нельзя: каждый вид команды нужно отложить настоящим механизмом.
+
+    * `sync M` - напечатать `M` сразу, синхронно;
+    * `tick M` - напечатать `M` из `process.nextTick`;
+    * `micro M` - напечатать `M` из колбэка промиса (`Promise.resolve().then`);
+    * `timer M` - напечатать `M` из `setTimeout(..., 0)`;
+    * `immediate M` - напечатать `M` из `setImmediate`;
+    * `tick>micro M` - из `nextTick` напечатать `M`, а затем из этого колбэка поставить микрозадачу, которая печатает `M>micro`;
+    * `micro>tick M` - из микрозадачи напечатать `M`, а затем поставить `nextTick`, который печатает `M>tick`.
+
+    Команды вызываются в порядке ввода. Для неизвестного вида выведите `unknown: <вид>` сразу.
+
+    **Пример.** Ввод
+
+    ```
+    timer T1
+    micro M1
+    tick K1
+    sync S1
+    immediate I1
+    ```
+
+    даёт
+
+    ```
+    S1
+    K1
+    M1
+    I1
+    T1
+    ```
+
+    **Что дано.** Заготовка читает ввод, разбирает команды и вызывает `schedule` внутри колбэка `fs.readFile`. Сейчас она печатает все метки сразу. Реализуйте `schedule`.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Нужен один switch по виду команды. Для каждого вида выберите свой способ отложить console.log(label): ничего, process.nextTick, Promise.resolve().then, setTimeout с задержкой 0, setImmediate."
+    - "Порядок выполнения вы не вычисляете: его определяет Node.js. Достаточно вызвать нужный механизм сразу при разборе команды и не копить результаты в массивах."
+    - "Для tick>micro внутри колбэка nextTick напечатайте label и поставьте Promise.resolve().then, печатающий label + \">micro\". Для micro>tick наоборот: в колбэке промиса напечатайте label и вызовите process.nextTick с печатью label + \">tick\"."
+    - "Пример порядка: сначала синхронные команды, затем вся очередь nextTick, затем микрозадачи (включая поставленные позже), затем setImmediate (фаза check), и только потом таймеры следующего оборота. Колбэки nextTick, поставленные из микрозадач, идут после опустошения очереди микрозадач."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "timer T1\nmicro M1\ntick K1\nsync S1\nimmediate I1\n"
+      expected: "S1\nK1\nM1\nI1\nT1\n"
+      hint: "Сначала sync, потом tick, потом micro, затем immediate, затем timer."
+    - id: "queues"
+      title: "Несколько задач одного вида"
+      stdin: "tick a\ntick b\nmicro c\nmicro d\nsync e\ntick f\nmicro g\n"
+      expected: "e\na\nb\nf\nc\nd\ng\n"
+      hint: "Задачи одного вида идут в порядке постановки; все tick раньше всех micro."
+    - id: "macro"
+      title: "Таймеры и setImmediate"
+      stdin: "timer t1\nimmediate i1\ntimer t2\nimmediate i2\nsync s\n"
+      expected: "s\ni1\ni2\nt1\nt2\n"
+      hint: "Внутри колбэка ввода-вывода все immediate идут раньше любого timer."
+    - id: "nested"
+      title: "Составные задачи (скрытый)"
+      stdin: "micro>tick a\ntick>micro b\nmicro c\ntick d\nsync e\n"
+      expected: "e\nb\nd\na\nc\nb>micro\na>tick\n"
+      hidden: true
+      hint: "nextTick из микрозадачи ждёт, пока опустеет очередь микрозадач; микрозадача из nextTick встаёт в конец очереди микрозадач."
+    - id: "mixed"
+      title: "Всё вместе (скрытый)"
+      stdin: "timer T1\nimmediate I1\nmicro M1\ntick K1\nsync S1\nmicro>tick M2\ntick>micro K2\nmicro M3\ntick K3\nimmediate I2\ntimer T2\nsync S2\n"
+      expected: "S1\nS2\nK1\nK2\nK3\nM1\nM2\nM3\nK2>micro\nM2>tick\nI1\nI2\nT1\nT2\n"
+      hidden: true
+      hint: "Порядок: sync, все tick, все micro (с поставленными из tick), tick из micro, immediate, timer."
+    - id: "unknown"
+      title: "Неизвестная команда и пустые строки (скрытый)"
+      stdin: "\n  sync a  \nfoo b\n\nimmediate c\ntick d\n"
+      expected: "a\nunknown: foo\nd\nc\n"
+      hidden: true
+      hint: "Лишние пробелы по краям обрезаются, пустые строки пропускаются, неизвестный вид печатает unknown: вид сразу."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: ""
+      hidden: true
+      hint: "Без команд ничего не печатается."

@@ -1,0 +1,19 @@
+id: "nodejs-fundamentals"
+version: "1.0.0"
+title: "Node.js: платформа и встроенные модули"
+description: "Курс из восьми уроков: V8, libuv и цикл событий, модули CommonJS и ESM, асинхронные шаблоны и AbortController, потоки и обратное давление, Buffer и кодировки, файловая система, события и объект process, основы HTTP на node:http. Примеры и утверждения проверены запуском на Node.js 22; используются только встроенные модули node:*, без npm-пакетов и без сети. Express, Fastify, базы данных и npm-экосистема пока не входят."
+languageId: "javascript"
+level: 1
+track: "nodejs"
+requires:
+  - "nodejs-first-steps"
+  - "javascript-fundamentals"
+lessons:
+  - "01-event-loop-architecture"
+  - "02-modules-esm-cjs"
+  - "03-async-patterns"
+  - "04-streams-backpressure"
+  - "05-buffers-encodings"
+  - "06-filesystem-paths"
+  - "07-events-and-process"
+  - "08-http-fundamentals"

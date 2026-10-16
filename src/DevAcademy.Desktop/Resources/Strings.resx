@@ -398,6 +398,48 @@
   <data name="Ml_Probing" xml:space="preserve"><value>Проверяю окружение «{0}»…</value></data>
   <data name="Ml_ProbeDone" xml:space="preserve"><value>Окружение «{0}» проверено.</value></data>
   <data name="Ml_NoFrameworks" xml:space="preserve"><value>В окружении «{0}» нет ML-фреймворков.</value></data>
+  <data name="Km_Title" xml:space="preserve"><value>Кластеризация k-means</value></data>
+  <data name="Km_K" xml:space="preserve"><value>Число кластеров k</value></data>
+  <data name="Km_KValue" xml:space="preserve"><value>k = {0}</value></data>
+  <data name="Km_Init" xml:space="preserve"><value>Инициализация</value></data>
+  <data name="Km_Init_Random" xml:space="preserve"><value>Случайная</value></data>
+  <data name="Km_Init_KMeansPlusPlus" xml:space="preserve"><value>k-means++</value></data>
+  <data name="Km_Seed" xml:space="preserve"><value>Seed</value></data>
+  <data name="Km_Plot" xml:space="preserve"><value>Точки, кластеры и центры</value></data>
+  <data name="Km_PlotHint" xml:space="preserve"><value>Цвет — кластер, ромбы — центры, линии — путь центров. Смена k, инициализации или seed запускает алгоритм заново.</value></data>
+  <data name="Km_Phase_Init" xml:space="preserve"><value>Начало</value></data>
+  <data name="Km_Phase_Assign" xml:space="preserve"><value>Назначение</value></data>
+  <data name="Km_Phase_Update" xml:space="preserve"><value>Пересчёт центров</value></data>
+  <data name="Km_Status" xml:space="preserve"><value>Итерация {0} · {1} · инерция {2}</value></data>
+  <data name="Km_StatusInit" xml:space="preserve"><value>Начальные центры выбраны ({0}). Инерция появится после первого назначения.</value></data>
+  <data name="Km_StatusInitRandom" xml:space="preserve"><value>случайные точки данных</value></data>
+  <data name="Km_StatusInitPlusPlus" xml:space="preserve"><value>k-means++: каждый следующий центр выбран с вероятностью, пропорциональной квадрату расстояния до ближайшего центра</value></data>
+  <data name="Km_DetailAssign" xml:space="preserve"><value>Каждая точка отнесена к ближайшему центру; сменили кластер: {0} из {1}.</value></data>
+  <data name="Km_DetailUpdate" xml:space="preserve"><value>Каждый центр перенесён в среднее своих точек; инерция не выросла.</value></data>
+  <data name="Km_Converged" xml:space="preserve"><value>Сошлось за {0} {1}: назначения больше не меняются.</value></data>
+  <data name="Km_IterOne" xml:space="preserve"><value>итерацию</value></data>
+  <data name="Km_IterFew" xml:space="preserve"><value>итерации</value></data>
+  <data name="Km_IterMany" xml:space="preserve"><value>итераций</value></data>
+  <data name="Km_NotConverged" xml:space="preserve"><value>Лимит в {0} итераций исчерпан, а назначения ещё менялись.</value></data>
+  <data name="Km_ErrSeed" xml:space="preserve"><value>Seed — целое число.</value></data>
+  <data name="Km_ErrK" xml:space="preserve"><value>Кластеров не может быть больше точек: взято k = {0}.</value></data>
+  <data name="Pca_Title" xml:space="preserve"><value>Метод главных компонент (PCA)</value></data>
+  <data name="Pca_Plot" xml:space="preserve"><value>Точки, главные оси и проекции</value></data>
+  <data name="Pca_PlotHint" xml:space="preserve"><value>Синие точки — данные на текущем этапе, оранжевые — их проекции на PC1, серые (на последнем этапе) — исходные точки. Длина оси пропорциональна корню из собственного числа.</value></data>
+  <data name="Pca_Variance" xml:space="preserve"><value>Объяснённая дисперсия: PC1 — {0}, PC2 — {1}</value></data>
+  <data name="Pca_Stage_Raw" xml:space="preserve"><value>Исходные данные</value></data>
+  <data name="Pca_Stage_Centered" xml:space="preserve"><value>Центрирование</value></data>
+  <data name="Pca_Stage_Axes" xml:space="preserve"><value>Главные оси</value></data>
+  <data name="Pca_Stage_Projection" xml:space="preserve"><value>Проекция на PC1</value></data>
+  <data name="Pca_Stage_Reconstruction" xml:space="preserve"><value>Одномерное восстановление</value></data>
+  <data name="Pca_Explain_Raw" xml:space="preserve"><value>Облако точек в исходных координатах. Видно, что признаки связаны: когда растёт один, обычно растёт и другой.</value></data>
+  <data name="Pca_Explain_Centered" xml:space="preserve"><value>Из каждой координаты вычтено её среднее ({0}), и центр облака теперь в начале координат. Без этого шага первая компонента указывала бы на центр, а не на разброс.</value></data>
+  <data name="Pca_Explain_Axes" xml:space="preserve"><value>Оси — собственные векторы матрицы ковариации. PC1 — направление наибольшего разброса, PC2 перпендикулярна ей. Длина оси пропорциональна корню из собственного числа: {0} и {1}.</value></data>
+  <data name="Pca_Explain_Projection" xml:space="preserve"><value>Каждая точка опущена перпендикуляром на PC1 (пунктир). Остаётся одно число на точку — её координата вдоль PC1, а то, что отброшено, лежит вдоль PC2.</value></data>
+  <data name="Pca_Explain_Reconstruction" xml:space="preserve"><value>Одно число на точку превращено обратно в точку плоскости: μ + t·v₁. Все точки легли на прямую, средний квадрат потери равен {0}, то есть дисперсии, отброшенной вместе с PC2 (с поправкой n−1 к n).</value></data>
+  <data name="Pca_Degenerate" xml:space="preserve"><value>Все точки совпадают: разброса нет, главные оси не определены, доли дисперсии равны 0.</value></data>
+  <data name="Pca_Pc1" xml:space="preserve"><value>PC1</value></data>
+  <data name="Pca_Pc2" xml:space="preserve"><value>PC2</value></data>
   <data name="Viz_Unknown" xml:space="preserve"><value>Неизвестная визуализация: {0}</value></data>
   <data name="Settings_Ai" xml:space="preserve"><value>AI-провайдеры</value></data>
   <data name="AiError_InvalidKey" xml:space="preserve"><value>Ключ API отклонён провайдером. Проверьте ключ и сохраните его заново. Ответ провайдера: {0}</value></data>

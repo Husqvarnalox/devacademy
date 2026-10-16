@@ -1,0 +1,12 @@
+id: nodejs-developer
+title: Node.js-разработчик
+description: "Путь к уверенному владению платформой Node.js на встроенных модулях. Сначала «JavaScript: первые шаги» и «JavaScript: основы языка», затем «Node.js: первые шаги» (process, stdin, модули, цикл событий) и «Node.js: платформа и встроенные модули»: цикл событий и libuv, ESM и CommonJS, асинхронные шаблоны, потоки и обратное давление, Buffer, файловая система, события и process, основы HTTP. Express, Fastify и базы данных пока не входят."
+goal: backend
+targets: [nodejs-fundamentals]
+stages:
+  - title: Язык
+    courses: [javascript-first-steps, javascript-fundamentals]
+  - title: Первые шаги в Node.js
+    courses: [nodejs-first-steps]
+  - title: Платформа и встроенные модули
+    courses: [nodejs-fundamentals]

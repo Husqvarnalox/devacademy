@@ -1,0 +1,209 @@
+id: "nodejs.fundamentals.filesystem-paths"
+title: "Файловая система и пути: node:fs/promises и node:path"
+goal: "Читать, писать и обходить файлы через node:fs/promises, собирать пути через node:path, проверять, что путь не выходит за разрешённую папку, и обрабатывать ошибки по кодам ENOENT, EEXIST, EISDIR и ENOTEMPTY."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "nodejs.fundamentals.buffers-encodings"
+related:
+  - "python.stdlib.pathlib-os-shutil-tempfile"
+  - "python.fundamentals.errors-and-files"
+  - "java.fundamentals.text-and-io"
+  - "php.fundamentals.strings-and-io"
+next:
+  - "nodejs.fundamentals.events-and-process"
+objectives:
+  - "Выбирать между промисной, колбэчной и синхронной версиями API файловой системы и объяснять, почему на сервере используют fs/promises."
+  - "Читать, писать, дописывать, копировать, переименовывать и удалять файлы и каталоги и перечислять содержимое папки."
+  - "Собирать и разбирать пути через path.join, path.resolve, path.relative, path.parse и не склеивать их строками."
+  - "Обрабатывать ошибки файловой системы по полю err.code (ENOENT, EEXIST, EISDIR, ENOTDIR, ENOTEMPTY)."
+  - "Не допускать выхода за пределы рабочей папки (path traversal) и убирать за собой временные каталоги в finally."
+masteryCriteria:
+  - "Вы пишете try/catch вокруг операции с файлом и ветвитесь по err.code, а не по тексту сообщения."
+  - "Вы объясняете, чем path.join отличается от path.resolve, и знаете, относительно чего считается относительный путь."
+  - "Вы проверяете путь из внешнего ввода через path.relative и отвергаете '..' и абсолютные пути."
+  - "Вы знаете, что проверка 'существует ли файл' перед открытием создаёт гонку, и открываете файл сразу, обрабатывая ошибку."
+tags:
+  - "nodejs"
+  - "fs"
+  - "path"
+  - "filesystem"
+  - "errors"
+  - "enoent"
+  - "path-traversal"
+  - "tmpdir"
+facts:
+  - kind: "internals"
+    text: "Модуль node:fs/promises предоставляет те же операции, что node:fs, но возвращает промисы: readFile, writeFile, appendFile, readdir, stat, mkdir, rm, rename, copyFile, mkdtemp. Колбэчные функции и *Sync-версии блокируют или усложняют код; *Sync допустимы в скриптах запуска, но не в обработчиках запросов."
+    sources:
+      - "https://nodejs.org/api/fs.html#promises-api"
+      - "https://nodejs.org/api/fs.html#synchronous-api"
+  - kind: "internals"
+    text: "Ошибки файловой системы - объекты Error с полями code (например 'ENOENT'), syscall и path. Код ENOENT означает, что файла или каталога нет, EEXIST - уже существует, EISDIR - операция над каталогом как над файлом, ENOTDIR - компонент пути не каталог, ENOTEMPTY - каталог не пуст."
+    sources:
+      - "https://nodejs.org/api/errors.html#common-system-errors"
+      - "https://nodejs.org/api/fs.html#file-system-flags"
+  - kind: "internals"
+    text: "Относительные пути в fs считаются от текущего рабочего каталога процесса (process.cwd()), а не от файла со скриптом. Каталог скрипта: __dirname в CommonJS и import.meta.dirname в ESM (Node.js 20.11 и новее)."
+    sources:
+      - "https://nodejs.org/api/fs.html#file-paths"
+      - "https://nodejs.org/api/esm.html#importmetadirname"
+  - kind: "internals"
+    text: "path.join склеивает сегменты и нормализует результат (убирает '.' и '..'); path.resolve строит абсолютный путь справа налево, пока не получит абсолютный, и при необходимости добавляет process.cwd(). path.relative(from, to) даёт относительный путь; если to лежит вне from, результат начинается с '..'."
+    sources:
+      - "https://nodejs.org/api/path.html#pathjoinpaths"
+      - "https://nodejs.org/api/path.html#pathresolvepaths"
+      - "https://nodejs.org/api/path.html#pathrelativefrom-to"
+  - kind: "security"
+    text: "Path traversal: путь от пользователя вида '../../etc/passwd' после path.join выходит за разрешённую папку. Защита - вычислить path.resolve(root, input), взять path.relative(root, full) и отвергнуть результат, равный '..', начинающийся с '..' + path.sep или абсолютный. Проверка не защищает от символических ссылок внутри папки."
+    sources:
+      - "https://nodejs.org/en/learn/manipulating-files/working-with-folders-in-nodejs"
+      - "https://nodejs.org/api/path.html#pathrelativefrom-to"
+  - kind: "misconception"
+    text: "«Сначала проверю fs.existsSync, потом открою» - между проверкой и открытием файл может исчезнуть или появиться (гонка TOCTOU). Надёжнее выполнить операцию и обработать ошибку: ENOENT при чтении, EEXIST при создании (флаг 'wx' или COPYFILE_EXCL)."
+    sources:
+      - "https://nodejs.org/api/fs.html#fsaccesspath-mode-callback"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Какой код ошибки получит fs.readFile('missing.txt'), если файла нет?
+      options:
+        - "EEXIST"
+        - "ENOENT"
+        - "EISDIR"
+        - "EACCES"
+      answer: 1
+      explanation: "ENOENT - «no such file or directory»."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Относительно чего Node.js считает путь 'data/a.txt' в fs.readFile?
+      options:
+        - "Каталога файла со скриптом"
+        - "Домашнего каталога пользователя"
+        - "Текущего рабочего каталога process.cwd()"
+        - "Корня диска"
+      answer: 2
+      explanation: "Относительный путь привязан к cwd, поэтому запуск из другой папки меняет результат; надёжный путь к ресурсу строят от __dirname."
+    - id: "q3"
+      type: "multiple"
+      prompt: |
+        Какие результаты path.relative(root, path.resolve(root, input)) означают, что input выходит за пределы root?
+      options:
+        - "'..'"
+        - "'..' + path.sep + 'x'"
+        - "'sub/file.txt'"
+        - "'' (пустая строка)"
+      answer:
+        - 0
+        - 1
+      explanation: "Пустая строка означает сам root, а 'sub/file.txt' - вложенный путь; оба допустимы."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Чем path.join('/a', '/b') отличается от path.resolve('/a', '/b')?
+      options:
+        - "Ничем"
+        - "join даст '/a/b', resolve даст '/b'"
+        - "join даст '/b', resolve даст '/a/b'"
+        - "resolve бросает исключение"
+      answer: 1
+      explanation: "join просто склеивает сегменты, а resolve считает абсолютный сегмент новым началом."
+    - id: "q5"
+      type: "short"
+      prompt: |
+        Какой код получает fs.rmdir() для непустого каталога? Введите код ошибки.
+      answer:
+        - "ENOTEMPTY"
+      explanation: "ENOTEMPTY - каталог не пуст; для рекурсивного удаления используйте fs.rm(path, { recursive: true })."
+exercise:
+  id: "nodejs.fundamentals.filesystem-paths.exercise"
+  title: "Мини-оболочка над файловой системой"
+  prompt: |
+    Программа получает команды из stdin (по одной в строке) и выполняет их в **изолированной папке**: заготовка создаёт её через `fs.mkdtemp` внутри текущего каталога и удаляет в блоке `finally`. Все пути в командах считаются относительными к этой папке. Для каждой непустой строки выводится одна строка результата. Пустые строки пропускайте.
+
+    Формат команды: `<команда> [путь] [остаток строки]`; остаток строки (после второго пробела) может содержать пробелы.
+
+    | команда | действие | результат |
+    |---|---|---|
+    | `write <путь> <текст>` | создать или перезаписать файл | `ok` |
+    | `append <путь> <текст>` | дописать в конец файла (создаст при отсутствии) | `ok` |
+    | `read <путь>` | прочитать как utf8 | содержимое, а для пустого файла `(empty)` |
+    | `mkdir <путь>` | создать каталог (родитель должен существовать) | `ok` |
+    | `mkdirp <путь>` | создать каталог вместе с родителями | `ok` |
+    | `ls <путь>` | содержимое каталога | имена через пробел, отсортированные, у каталогов в конце `/`; для пустого `(empty)` |
+    | `stat <путь>` | сведения | `file <размер в байтах>` или `dir` |
+    | `rm <путь>` | удалить файл (`fs.rm` без `recursive`) | `ok` |
+    | `rmdir <путь>` | удалить пустой каталог | `ok` |
+    | `cp <откуда> <куда>` | копировать файл; назначение не должно существовать | `ok` |
+    | `mv <откуда> <куда>` | переименовать или переместить | `ok` |
+
+    Правила ошибок:
+
+    * Если операция бросила ошибку, выведите `error <err.code>` (например, `error ENOENT`, `error EEXIST`, `error EISDIR`, `error ENOTEMPTY`). Ошибка не прерывает работу, следующая команда выполняется.
+    * Если любой путь (в том числе второй аргумент `cp` и `mv`) после `path.resolve` оказывается **вне** изолированной папки (`../x`, абсолютный путь `/etc/passwd`), выведите `error ESCAPE` и файловую систему не трогайте. Сама папка (`.`) допустима.
+    * Неизвестная команда: `error BADCMD`.
+
+    **Пример.** Ввод
+
+    ```
+    write a.txt hello world
+    read a.txt
+    read nope
+    read ../a.txt
+    ```
+
+    даёт
+
+    ```
+    ok
+    hello world
+    error ENOENT
+    error ESCAPE
+    ```
+
+    **Что дано.** Заготовка читает строки, готовит каталог, разбирает команду на `cmd`, `a`, `b` и печатает результаты. Функция `execute(root, cmd, a, b)` пока возвращает `error BADCMD` для всего.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Сначала путь: const full = path.resolve(root, a); const rel = path.relative(root, full). Вне папки, если rel === '..', начинается с '..' + path.sep или path.isAbsolute(rel). Тогда возвращайте 'error ESCAPE' ещё до любых операций (то же для второго пути cp и mv)."
+    - "Команды ложатся на fs/promises: writeFile, appendFile, readFile(full, 'utf8'), mkdir(full) и mkdir(full, { recursive: true }), readdir(full, { withFileTypes: true }), stat, rm(full), rmdir(full), copyFile(from, to, fs.constants.COPYFILE_EXCL), rename(from, to)."
+    - "Исключения ловить не нужно: main() уже оборачивает вызов execute в try/catch и печатает `error ${err.code}`. Кодов вручную писать не надо, ENOENT, EEXIST, EISDIR, ENOTEMPTY приходят сами."
+    - "Для ls: entries.map(e => e.isDirectory() ? e.name + '/' : e.name).sort(); пустой список даёт '(empty)'. Для stat: st.isDirectory() ? 'dir' : `file ${st.size}`. Содержимое пустого файла в read - '(empty)'."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "write a.txt hello world\nread a.txt\nread nope\nread ../a.txt\n"
+      expected: "ok\nhello world\nerror ENOENT\nerror ESCAPE\n"
+      hint: "Пишем файл, читаем, ENOENT для отсутствующего и ESCAPE для пути вне папки."
+    - id: "files"
+      title: "Запись, дописывание, stat, ls"
+      stdin: "write a.txt abc\nappend a.txt  def\nappend b.txt new\nread a.txt\nread b.txt\nstat a.txt\nwrite empty.txt\nread empty.txt\nstat empty.txt\nmkdir d\nstat d\nls .\nls d\n"
+      expected: "ok\nok\nok\nabc def\nnew\nfile 7\nok\n(empty)\nfile 0\nok\ndir\na.txt b.txt d/ empty.txt\n(empty)\n"
+      hint: "append создаёт файл, если его нет; размер stat считается в байтах, ls сортирует имена и помечает каталоги слешем."
+    - id: "dirs"
+      title: "Каталоги и коды ошибок"
+      stdin: "mkdir d\nmkdir d\nmkdir x/y\nmkdirp x/y/z\nls x\nwrite d/f.txt 1\nrmdir d\nread d\nrm d\nrm d/f.txt\nrmdir d\nls d\nrmdir nope\nls d/zzz\n"
+      expected: "ok\nerror EEXIST\nerror ENOENT\nok\ny/\nok\nerror ENOTEMPTY\nerror EISDIR\nerror ERR_FS_EISDIR\nok\nok\nerror ENOENT\nerror ENOENT\nerror ENOENT\n"
+      hint: "EEXIST при повторном mkdir, ENOENT без родителя, ENOTEMPTY для непустого каталога, EISDIR при чтении каталога, ERR_FS_EISDIR при fs.rm каталога."
+    - id: "escape"
+      title: "Выход за пределы папки (скрытый)"
+      stdin: "write ../x 1\nwrite /tmp/evil 1\nwrite a/../../b 1\nread ./../..\ncp a.txt ../b.txt\nmv ../a.txt b.txt\nmkdirp ../../x/y\nwrite ok.txt 1\nwrite sub/../ok2.txt 2\nls .\nstat .\n"
+      expected: "error ESCAPE\nerror ESCAPE\nerror ESCAPE\nerror ESCAPE\nerror ESCAPE\nerror ESCAPE\nerror ESCAPE\nok\nok\nok.txt ok2.txt\ndir\n"
+      hidden: true
+      hint: "Проверяйте path.relative(root, path.resolve(root, p)); '..' и абсолютные пути отвергаются, а sub/../ok2.txt остаётся внутри. Проверка касается и второго аргумента cp и mv."
+    - id: "copy-move"
+      title: "Копирование и перемещение (скрытый)"
+      stdin: "write a.txt data one\ncp a.txt b.txt\ncp a.txt b.txt\nwrite c.txt other\nmv b.txt c.txt\nread c.txt\nmv zzz y\ncp zzz y\nmkdir d\nmv a.txt d/a.txt\nls .\nls d\nread a.txt\nread d/a.txt\n"
+      expected: "ok\nok\nerror EEXIST\nok\nok\ndata one\nerror ENOENT\nerror ENOENT\nok\nok\nc.txt d/\na.txt\nerror ENOENT\ndata one\n"
+      hidden: true
+      hint: "cp идёт с COPYFILE_EXCL, поэтому повторное копирование даёт EEXIST; rename поверх файла разрешён и перезаписывает его."
+    - id: "misc"
+      title: "Пробелы, пустые строки, юникод, неизвестные команды (скрытый)"
+      stdin: "\nwrite a.txt   two  spaces\nread a.txt\nfoo\nfoo bar\nwrite note.txt Привет, мир\nstat note.txt\nread note.txt\n\nls .\n"
+      expected: "ok\n  two  spaces\nerror BADCMD\nerror BADCMD\nok\nfile 20\nПривет, мир\na.txt note.txt\n"
+      hidden: true
+      hint: "Текст команды - всё после первого пробела за путём, ровно как есть (включая лишние пробелы); 'Привет, мир' занимает 20 байтов; пустые строки пропускаются без вывода."

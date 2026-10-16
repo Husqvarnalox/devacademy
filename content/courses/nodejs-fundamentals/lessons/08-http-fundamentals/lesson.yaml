@@ -1,0 +1,414 @@
+id: "nodejs.fundamentals.http-fundamentals"
+title: "HTTP: сообщения, node:http и маршрутизация"
+goal: "Понимать устройство HTTP-запроса и ответа, читать и писать их вручную, объяснить, как node:http принимает запросы, и реализовать разбор запроса и маршрутизацию как чистую функцию без сети."
+difficulty: "hard"
+estimatedMinutes: 90
+prerequisites:
+  - "nodejs.fundamentals.events-and-process"
+related:
+  - "python.automation.robust-http-clients"
+  - "java.fundamentals.streams-lambdas-optional"
+  - "go.fundamentals.functions-and-errors"
+  - "php.fundamentals.errors-and-match"
+next:
+objectives:
+  - "Описать структуру HTTP-запроса и ответа: стартовая строка, заголовки, пустая строка, тело."
+  - "Различать методы GET, HEAD, POST, коды статуса 2xx, 4xx, 5xx и объяснять 404, 405, 411, 501."
+  - "Объяснить, как работает http.createServer: объекты запроса и ответа как потоки, события, listen."
+  - "Разобрать текст запроса в объект, определить маршрут по пути и методу и сформировать корректный ответ с Content-Length в байтах."
+  - "Читать тело по Content-Length и по Transfer-Encoding: chunked и разделять несколько запросов в одном потоке байтов."
+masteryCriteria:
+  - "Вы пишете правильный ответ с заголовком Content-Length, равным числу байтов, а не символов."
+  - "Вы выбираете 404 для неизвестного пути и 405 с заголовком Allow для известного пути с неподходящим методом."
+  - "Вы знаете, что HTTP/1.1 требует заголовок Host, а имена заголовков не зависят от регистра."
+  - "Вы понимаете, где в Node.js создаются сокеты и почему логику обработки лучше выносить в функцию, которую можно проверить без сети."
+tags:
+  - "nodejs"
+  - "http"
+  - "routing"
+  - "headers"
+  - "status-codes"
+  - "chunked"
+  - "request-parsing"
+facts:
+  - kind: "internals"
+    text: "HTTP/1.1-сообщение - текст: стартовая строка, строки заголовков 'Имя: значение', пустая строка и необязательное тело. Строки разделяются парой CRLF (\\r\\n). Имена заголовков нечувствительны к регистру. Запрос HTTP/1.1 без заголовка Host недопустим."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Messages"
+      - "https://www.rfc-editor.org/rfc/rfc9112.html#name-message-format"
+  - kind: "internals"
+    text: "Длину тела определяют заголовки: Content-Length задаёт число байтов тела, Transfer-Encoding: chunked передаёт тело кусками 'размер в hex, CRLF, данные, CRLF', завершая куском нулевого размера. Content-Length считается в байтах, а не в символах."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9112.html#name-message-body-length"
+      - "https://www.rfc-editor.org/rfc/rfc9112.html#name-chunked-transfer-coding"
+  - kind: "internals"
+    text: "Коды статуса делятся на классы: 2xx успех, 3xx перенаправление, 4xx ошибка клиента (400, 404, 405, 411), 5xx ошибка сервера (500, 501, 505). Ответ 405 Method Not Allowed обязан содержать заголовок Allow со списком допустимых методов. Объект http.STATUS_CODES сопоставляет коды и тексты, http.METHODS - перечисляет известные методы."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status"
+      - "https://www.rfc-editor.org/rfc/rfc9110.html#name-405-method-not-allowed"
+      - "https://nodejs.org/api/http.html#httpstatus_codes"
+      - "https://nodejs.org/api/http.html#httpmethods"
+  - kind: "internals"
+    text: "http.createServer(handler) возвращает сервер, который на каждый запрос вызывает handler(req, res). Объект req - читаемый поток (IncomingMessage) с полями method, url и headers (имена в нижнем регистре); res - записываемый поток (ServerResponse): res.writeHead(status, headers), res.end(body). Сокет открывается только вызовом server.listen()."
+    sources:
+      - "https://nodejs.org/api/http.html#httpcreateserveroptions-requestlistener"
+      - "https://nodejs.org/api/http.html#class-httpincomingmessage"
+      - "https://nodejs.org/api/http.html#class-httpserverresponse"
+  - kind: "internals"
+    text: "Для разбора адреса запроса используют класс URL: new URL(req.url, 'http://localhost') даёт pathname и searchParams (значения декодируются из процентной записи). Ответ статического типа проще проверить как чистую функцию (запрос в ответ), чем поднимать сервер."
+    sources:
+      - "https://nodejs.org/api/url.html#class-url"
+      - "https://nodejs.org/api/url.html#class-urlsearchparams"
+  - kind: "security"
+    text: "Тело запроса и заголовки - недоверенный ввод. Ограничивайте размер тела, проверяйте Content-Length как целое число и сравнивайте его с реально полученными данными; не доверяйте путям из URL (см. урок про файловую систему) и никогда не склеивайте их с путями на диске без проверки."
+    sources:
+      - "https://nodejs.org/en/learn/getting-started/security-best-practices"
+  - kind: "misconception"
+    text: "«Content-Length - это длина строки» - нет: это длина в байтах. Для 'Привет' это 12, а не 6. Ошибка приводит к обрезанному или зависшему ответу."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Какой код статуса уместен, если путь существует, но метод для него не поддерживается?
+      options:
+        - "404 Not Found"
+        - "405 Method Not Allowed"
+        - "400 Bad Request"
+        - "500 Internal Server Error"
+      answer: 1
+      explanation: "405 сообщает, что ресурс есть, но метод не подходит; ответ должен содержать заголовок Allow."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Каким должно быть значение Content-Length для тела 'Привет!' в utf8? (Кириллическая буква - 2 байта.)
+      answer: 13
+      tolerance: 0
+      explanation: "Шесть кириллических букв по 2 байта плюс один байт для '!': 13."
+    - id: "q3"
+      type: "multiple"
+      prompt: |
+        Что входит в HTTP-запрос?
+      options:
+        - "Стартовая строка с методом, целью и версией"
+        - "Заголовки"
+        - "Пустая строка перед телом"
+        - "Обязательное тело у любого метода"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Тело необязательно: у GET его обычно нет."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Когда сервер Node.js начинает принимать соединения?
+      options:
+        - "Сразу после http.createServer()"
+        - "После server.listen()"
+        - "После require('node:http')"
+        - "Когда придёт первый запрос"
+      answer: 1
+      explanation: "createServer только создаёт объект; сокет открывается вызовом listen."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Какая строка завершает тело в формате chunked?
+      options:
+        - "Пустая строка"
+        - "Кусок нулевого размера: 0, затем пустая строка"
+        - "Строка с текстом END"
+        - "Строка Content-Length: 0"
+      answer: 1
+      explanation: "Тело заканчивается куском размером 0 (и необязательными трейлерами)."
+exercise:
+  id: "nodejs.fundamentals.http-fundamentals.exercise"
+  title: "Разбор HTTP-запроса и ответ без сети"
+  prompt: |
+    **Сокеты в этом задании не открываются.** Программа читает из stdin **один целый HTTP-запрос** как текст (строки заканчиваются `\r\n` или просто `\n`), разбирает его, выбирает маршрут и печатает **ответ**. Так же устроена логика любого сервера на `node:http`, только без `listen`.
+
+    **Формат ответа** (печатается как есть, строки через `\n`):
+
+    ```
+    HTTP/1.1 <код> <текст из http.STATUS_CODES>
+    Content-Type: <тип>
+    Content-Length: <длина тела в байтах>
+    Allow: <методы>       (только для 405)
+    Connection: close
+    (пустая строка)
+    <тело>
+    ```
+
+    По умолчанию `Content-Type: text/plain; charset=utf-8`. Для ошибок тело - `<код> <текст>`, например `404 Not Found`.
+
+    **Проверки запроса по порядку:**
+
+    1. Стартовая строка `МЕТОД цель ВЕРСИЯ` из ровно трёх частей через пробел и версия вида `HTTP/N.N`, иначе **400**. Версия не `HTTP/1.0` и не `HTTP/1.1` - **505**.
+    2. Каждая строка заголовков - `имя: значение` (имя непустое, без пробелов), иначе **400**. Имена приводятся к нижнему регистру, значения обрезаются; повторяющийся заголовок объединяется через `", "`. Для `HTTP/1.1` обязателен `Host`, иначе **400**.
+    3. Метода нет в `http.METHODS` - **501**. Цель не начинается с `/` - **400**.
+    4. Путь - `pathname` цели (`new URL(цель, "http://localhost")`). Пути нет в таблице - **404**. Метод не разрешён для пути - **405** с заголовком `Allow`.
+    5. Для `POST`: нет `Content-Length` - **411**; значение не из цифр - **400**; тело короче заявленного - **400**; лишние байты после тела отбросьте.
+
+    **Маршруты:**
+
+    | путь | методы | ответ |
+    |---|---|---|
+    | `/` | GET, HEAD | `Welcome` |
+    | `/hello` | GET, HEAD | `Hello, <name>!`, имя из параметра `name` (по умолчанию `world`) |
+    | `/headers` | GET, HEAD | JSON (`application/json`) с заголовками запроса, ключи отсортированы по алфавиту |
+    | `/echo` | POST | тело запроса как есть; `Content-Type` берётся из запроса, а если его нет - по умолчанию |
+    | `/sum` | POST | тело - JSON `{"numbers":[...]}`; ответ `{"sum":<сумма>}` (`application/json`); другой формат или невалидный JSON - **400** |
+
+    В заголовке `Allow` методы перечисляются в порядке таблицы: для GET-путей `GET, HEAD`, для POST-путей `POST`. На `HEAD` ответ тот же, что на `GET` (включая `Content-Length`), но **после пустой строки тела нет**.
+
+    **Пример.** Запрос
+
+    ```
+    GET /hello?name=Ann HTTP/1.1
+    Host: example.com
+
+    ```
+
+    даёт
+
+    ```
+    HTTP/1.1 200 OK
+    Content-Type: text/plain; charset=utf-8
+    Content-Length: 11
+    Connection: close
+
+    Hello, Ann!
+    ```
+
+    **Что дано.** Заготовка читает stdin в `Buffer` и печатает результат `handle(raw)`; сама функция всегда возвращает 500.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Разделите сообщение на голову и тело по первому пустому месту: /\\r?\\n\\r?\\n/. Работайте с Buffer: голова - raw.subarray(0, m.index).toString('utf8'), тело - raw.subarray(m.index + m[0].length). Тогда Content-Length можно сравнивать с байтами."
+    - "Сделайте вспомогательную функцию response(status, body, { type, allow, head }): статусная строка `HTTP/1.1 ${status} ${http.STATUS_CODES[status]}`, затем Content-Type, Content-Length: Buffer.byteLength(body), Allow при наличии, Connection: close, пустая строка и тело (для HEAD - без тела). Ошибки: response(code, `${code} ${http.STATUS_CODES[code]}`)."
+    - "Проверки идут в указанном порядке: версия, заголовки, Host, метод в http.METHODS, цель, путь (404), метод для пути (405). Таблица маршрутов в виде объекта { '/hello': { GET: handler } } делает 404 и 405 однострочными проверками; HEAD обрабатывайте как GET без тела."
+    - "Для POST: проверьте content-length (411, /^\\d+$/ → 400, body.length < len → 400), затем payload = body.subarray(0, len). Для /sum оберните JSON.parse в try/catch и проверьте Array.isArray(data.numbers) и что все элементы - конечные числа."
+  tests:
+    - id: "hello"
+      title: "Пример из условия"
+      stdin: "GET /hello?name=Ann HTTP/1.1\r\nHost: example.com\r\n\r\n"
+      expected: "HTTP/1.1 200 OK\nContent-Type: text/plain; charset=utf-8\nContent-Length: 11\nConnection: close\n\nHello, Ann!\n"
+      hint: "Параметр name берётся из searchParams, Content-Length равен длине тела в байтах."
+    - id: "root-head"
+      title: "HEAD с русским именем"
+      stdin: "HEAD /hello?name=%D0%90%D0%BD%D0%BD%D0%B0 HTTP/1.1\r\nHost: example.com\r\n\r\n"
+      expected: "HTTP/1.1 200 OK\nContent-Type: text/plain; charset=utf-8\nContent-Length: 16\nConnection: close\n\n\n"
+      hint: "На HEAD нет тела, но Content-Length посчитан для тела GET: 'Hello, Анна!' - 16 байтов."
+    - id: "post-echo"
+      title: "POST /echo с типом из запроса"
+      stdin: "POST /echo HTTP/1.1\r\nHost: x\r\nContent-Type: text/x-note\r\nContent-Length: 12\r\n\r\nПривет"
+      expected: "HTTP/1.1 200 OK\nContent-Type: text/x-note\nContent-Length: 12\nConnection: close\n\nПривет\n"
+      hint: "Тело - 12 байтов; Content-Type берётся из запроса."
+    - id: "not-found-405"
+      title: "404 и 405 (скрытый)"
+      stdin: "DELETE /hello HTTP/1.1\r\nHost: x\r\n\r\n"
+      expected: "HTTP/1.1 405 Method Not Allowed\nContent-Type: text/plain; charset=utf-8\nContent-Length: 22\nAllow: GET, HEAD\nConnection: close\n\n405 Method Not Allowed\n"
+      hidden: true
+      hint: "Путь известен, метод нет: 405 и Allow: GET, HEAD."
+    - id: "not-found-404"
+      title: "Неизвестный путь (скрытый)"
+      stdin: "GET /nope HTTP/1.1\r\nHost: x\r\n\r\n"
+      expected: "HTTP/1.1 404 Not Found\nContent-Type: text/plain; charset=utf-8\nContent-Length: 13\nConnection: close\n\n404 Not Found\n"
+      hidden: true
+      hint: "Пути нет в таблице: 404 Not Found, тело '404 Not Found'."
+    - id: "post-allow"
+      title: "GET на POST-маршрут (скрытый)"
+      stdin: "GET /sum HTTP/1.1\r\nHost: x\r\n\r\n"
+      expected: "HTTP/1.1 405 Method Not Allowed\nContent-Type: text/plain; charset=utf-8\nContent-Length: 22\nAllow: POST\nConnection: close\n\n405 Method Not Allowed\n"
+      hidden: true
+      hint: "У /sum только POST: Allow: POST."
+    - id: "sum"
+      title: "Сумма из JSON (скрытый)"
+      stdin: "POST /sum HTTP/1.1\r\nhost: x\r\nCONTENT-LENGTH: 26\r\n\r\n{\"numbers\":[1,2.5,3,-0.5]}"
+      expected: "HTTP/1.1 200 OK\nContent-Type: application/json\nContent-Length: 9\nConnection: close\n\n{\"sum\":6}\n"
+      hidden: true
+      hint: "Имена заголовков нечувствительны к регистру; сумма 6."
+    - id: "sum-bad"
+      title: "Невалидный JSON (скрытый)"
+      stdin: "POST /sum HTTP/1.1\r\nHost: x\r\nContent-Length: 8\r\n\r\n{numbers"
+      expected: "HTTP/1.1 400 Bad Request\nContent-Type: text/plain; charset=utf-8\nContent-Length: 15\nConnection: close\n\n400 Bad Request\n"
+      hidden: true
+      hint: "JSON.parse бросает исключение: ответ 400."
+    - id: "short-body"
+      title: "Тело короче заявленного (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 20\r\n\r\nabc"
+      expected: "HTTP/1.1 400 Bad Request\nContent-Type: text/plain; charset=utf-8\nContent-Length: 15\nConnection: close\n\n400 Bad Request\n"
+      hidden: true
+      hint: "Получено 3 байта из 20: 400 Bad Request."
+    - id: "extra-body"
+      title: "Лишние байты отбрасываются (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 3\r\n\r\nabcdef"
+      expected: "HTTP/1.1 200 OK\nContent-Type: text/plain; charset=utf-8\nContent-Length: 3\nConnection: close\n\nabc\n"
+      hidden: true
+      hint: "Берутся ровно 3 байта: abc."
+    - id: "sum-bad2"
+      title: "Нечисла в массиве (скрытый)"
+      stdin: "POST /sum HTTP/1.1\r\nHost: x\r\nContent-Length: 19\r\n\r\n{\"numbers\":[1,\"2\"]}"
+      expected: "HTTP/1.1 400 Bad Request\nContent-Type: text/plain; charset=utf-8\nContent-Length: 15\nConnection: close\n\n400 Bad Request\n"
+      hidden: true
+      hint: "Все элементы должны быть конечными числами; строка '2' - 400."
+    - id: "validation"
+      title: "Ошибки разбора (скрытый)"
+      stdin: "GET / HTTP/2.0\r\nHost: x\r\n\r\n"
+      expected: "HTTP/1.1 505 HTTP Version Not Supported\nContent-Type: text/plain; charset=utf-8\nContent-Length: 30\nConnection: close\n\n505 HTTP Version Not Supported\n"
+      hidden: true
+      hint: "Версия HTTP/2.0 допустима по формату, но не поддерживается: 505."
+    - id: "no-host"
+      title: "Нет Host в HTTP/1.1 (скрытый)"
+      stdin: "GET / HTTP/1.1\r\nAccept: */*\r\n\r\n"
+      expected: "HTTP/1.1 400 Bad Request\nContent-Type: text/plain; charset=utf-8\nContent-Length: 15\nConnection: close\n\n400 Bad Request\n"
+      hidden: true
+      hint: "HTTP/1.1 без Host - 400; для HTTP/1.0 Host не нужен."
+    - id: "http10"
+      title: "HTTP/1.0 и LF-строки (скрытый)"
+      stdin: "GET /headers?x=1 HTTP/1.0\nAccept: */*\nX-Dup: a\nx-dup:  b \n\n"
+      expected: "HTTP/1.1 200 OK\nContent-Type: application/json\nContent-Length: 31\nConnection: close\n\n{\"accept\":\"*/*\",\"x-dup\":\"a, b\"}\n"
+      hidden: true
+      hint: "Строки могут заканчиваться просто \\n; дубликаты объединяются через ', '; ключи JSON отсортированы."
+    - id: "no-length"
+      title: "POST без Content-Length (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\nHost: x\r\n\r\nabc"
+      expected: "HTTP/1.1 411 Length Required\nContent-Type: text/plain; charset=utf-8\nContent-Length: 19\nConnection: close\n\n411 Length Required\n"
+      hidden: true
+      hint: "Без длины тела POST-запрос получает 411 Length Required."
+    - id: "bad-line"
+      title: "Плохая стартовая строка (скрытый)"
+      stdin: "GET /\r\nHost: x\r\n\r\n"
+      expected: "HTTP/1.1 400 Bad Request\nContent-Type: text/plain; charset=utf-8\nContent-Length: 15\nConnection: close\n\n400 Bad Request\n"
+      hidden: true
+      hint: "Меньше трёх частей - 400 Bad Request."
+    - id: "bad-method"
+      title: "Неизвестный метод и цель (скрытый)"
+      stdin: "FETCH / HTTP/1.1\r\nHost: x\r\n\r\n"
+      expected: "HTTP/1.1 501 Not Implemented\nContent-Type: text/plain; charset=utf-8\nContent-Length: 19\nConnection: close\n\n501 Not Implemented\n"
+      hidden: true
+      hint: "FETCH нет в http.METHODS: 501 Not Implemented."
+    - id: "bad-header"
+      title: "Заголовок без двоеточия (скрытый)"
+      stdin: "GET / HTTP/1.1\r\nHost: x\r\nBroken header\r\n\r\n"
+      expected: "HTTP/1.1 400 Bad Request\nContent-Type: text/plain; charset=utf-8\nContent-Length: 15\nConnection: close\n\n400 Bad Request\n"
+      hidden: true
+      hint: "Строка заголовка без двоеточия - 400."
+challenge:
+  id: "nodejs.fundamentals.http-fundamentals.challenge"
+  title: "Несколько запросов подряд и chunked"
+  prompt: |
+    **Сокеты не открываются.** На вход подаётся поток байтов из **нескольких HTTP-запросов, записанных подряд** (так клиент отправляет их по одному соединению: pipelining). Разделить их нужно самостоятельно, определив границу каждого запроса.
+
+    Для каждого запроса по порядку (номер `n` с единицы):
+
+    1. Прочитайте стартовую строку (`МЕТОД цель HTTP/1.0` или `HTTP/1.1`) и заголовки до пустой строки. Строки заканчиваются `\r\n` или `\n`. Имена заголовков нечувствительны к регистру.
+    2. Тело: если `Transfer-Encoding` содержит `chunked` - читайте куски (`<размер в hex>[;расширение]`, строка, `размер` байтов данных, конец строки), пока не придёт кусок размера 0; затем строки трейлеров до пустой строки. Иначе, если есть `Content-Length` - ровно столько байтов. Иначе тела нет.
+    3. Напечатайте `#<n> <МЕТОД> <цель> body=<число байтов тела> -> <статус>`, где статус `200` для `GET /` и `POST /echo`, а для всего остального `404`.
+    4. Если заголовок `Connection` равен `close` (без учёта регистра), после строки запроса напечатайте `closed by client` и **остановитесь**: остальные байты игнорируются.
+
+    Остановка и ошибки:
+
+    * Данные закончились раньше, чем запрос прочитан целиком - напечатайте `#<n> incomplete` и остановитесь.
+    * Неверная стартовая строка (не три части или другая версия), строка заголовка без `:`, нецифровой `Content-Length` или неверный размер куска - `#<n> 400 bad request` и остановитесь.
+
+    В конце всегда печатается `requests=<число полностью разобранных запросов>`. Пустой ввод даёт только `requests=0`.
+
+    **Пример.** Ввод (`\r\n` в строках)
+
+    ```
+    GET / HTTP/1.1
+    Host: a
+
+    POST /echo HTTP/1.1
+    Transfer-Encoding: chunked
+
+    5
+    hello
+    0
+
+    ```
+
+    даёт
+
+    ```
+    #1 GET / body=0 -> 200
+    #2 POST /echo body=5 -> 200
+    requests=2
+    ```
+
+    **Что дано.** Заготовка читает весь ввод в `Buffer` и печатает `requests=0`.
+  entryFile: "main.js"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Держите позицию pos в Buffer. Функция readLine() ищет байт 0x0a от pos, отбрасывает предшествующий 0x0d и сдвигает pos; если перевода строки нет - данные закончились (null → incomplete)."
+    - "Цикл while (pos < raw.length): стартовая строка, затем строки заголовков до пустой. Для chunked: в цикле читайте строку размера, parseInt(строка.split(';')[0], 16); размер 0 - выход; иначе возьмите ровно размер байтов (если их не хватает - incomplete) и пропустите конец строки (необязательный \\r и \\n)."
+    - "После трейлеров для размера 0 читайте строки до пустой. Для Content-Length: проверьте /^\\d+$/, затем возьмите столько байтов; не хватает - incomplete. Метки: удобно завести внешний цикл с меткой и делать break метка при остановке."
+    - "Статус по ключу `${method} ${target}`: 'GET /' и 'POST /echo' дают 200, остальное 404. Заголовок connection сравнивайте после toLowerCase(). Счётчик requests увеличивайте после успешной печати строки запроса."
+  tests:
+    - id: "basic"
+      title: "Два запроса и chunked"
+      stdin: "GET / HTTP/1.1\r\nHost: a\r\n\r\nPOST /echo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n"
+      expected: "#1 GET / body=0 -> 200\n#2 POST /echo body=5 -> 200\nrequests=2\n"
+      hint: "Тело chunked: 5 байтов; затем кусок 0 и пустая строка завершают запрос."
+    - id: "content-length"
+      title: "Content-Length и три запроса подряд"
+      stdin: "POST /echo HTTP/1.1\r\nHost: a\r\nContent-Length: 4\r\n\r\nabcdGET /x HTTP/1.1\r\nHost: a\r\n\r\nGET / HTTP/1.0\r\n\r\n"
+      expected: "#1 POST /echo body=4 -> 200\n#2 GET /x body=0 -> 404\n#3 GET / body=0 -> 200\nrequests=3\n"
+      hint: "Тело читается по длине, следующий запрос начинается сразу после 4 байтов."
+    - id: "connection-close"
+      title: "Connection: close обрывает разбор"
+      stdin: "GET / HTTP/1.1\r\nConnection: Close\r\n\r\nGET / HTTP/1.1\r\n\r\n"
+      expected: "#1 GET / body=0 -> 200\nclosed by client\nrequests=1\n"
+      hint: "Остальные запросы игнорируются."
+    - id: "chunk-ext"
+      title: "Куски, расширения, трейлеры (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\ntransfer-encoding: gzip, chunked\r\n\r\nA;name=v\r\n0123456789\r\n3\r\nabc\r\n0\r\nX-Sum: 1\r\n\r\nGET / HTTP/1.1\r\n\r\n"
+      expected: "#1 POST /echo body=13 -> 200\n#2 GET / body=0 -> 200\nrequests=2\n"
+      hidden: true
+      hint: "Размер куска в hex: A это 10; после нулевого куска читаются трейлеры до пустой строки."
+    - id: "incomplete"
+      title: "Оборванный запрос (скрытый)"
+      stdin: "GET / HTTP/1.1\r\n\r\nPOST /echo HTTP/1.1\r\nContent-Length: 10\r\n\r\nabc"
+      expected: "#1 GET / body=0 -> 200\n#2 incomplete\nrequests=1\n"
+      hidden: true
+      hint: "Не хватает 7 байтов тела: #2 incomplete, requests=1."
+    - id: "incomplete-chunk"
+      title: "Оборванный chunked (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhel"
+      expected: "#1 incomplete\nrequests=0\n"
+      hidden: true
+      hint: "Данных куска меньше, чем заявлено: incomplete."
+    - id: "bad-lines"
+      title: "Плохие запросы (скрытый)"
+      stdin: "GET / HTTP/1.1\r\n\r\nGET /x HTTP/3\r\n\r\nGET / HTTP/1.1\r\n\r\n"
+      expected: "#1 GET / body=0 -> 200\n#2 400 bad request\nrequests=1\n"
+      hidden: true
+      hint: "После плохой стартовой строки обработка останавливается; requests=1."
+    - id: "bad-length"
+      title: "Плохие длины (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\nContent-Length: 4x\r\n\r\nabcd"
+      expected: "#1 400 bad request\nrequests=0\n"
+      hidden: true
+      hint: "Нецифровой Content-Length - 400 bad request."
+    - id: "bad-chunk"
+      title: "Плохой размер куска (скрытый)"
+      stdin: "POST /echo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nhi\r\n0\r\n\r\n"
+      expected: "#1 400 bad request\nrequests=0\n"
+      hidden: true
+      hint: "parseInt даёт NaN: 400 bad request."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "requests=0\n"
+      hidden: true
+      hint: "Печатается только requests=0."
+    - id: "lf-only"
+      title: "Только LF и пустое тело (скрытый)"
+      stdin: "GET / HTTP/1.1\nHost: a\n\nPOST /echo HTTP/1.1\nContent-Length: 0\n\n"
+      expected: "#1 GET / body=0 -> 200\n#2 POST /echo body=0 -> 200\nrequests=2\n"
+      hidden: true
+      hint: "Content-Length: 0 - тело пустое, запрос полный."

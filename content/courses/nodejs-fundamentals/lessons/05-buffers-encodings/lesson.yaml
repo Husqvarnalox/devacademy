@@ -1,0 +1,199 @@
+id: "nodejs.fundamentals.buffers-encodings"
+title: "Buffer, кодировки и двоичные данные"
+goal: "Работать с байтами в Node.js: создавать и разрезать Buffer, переводить между utf8, hex, base64 и latin1, читать и писать числа заданной разрядности и порядка байтов и понимать, чем длина строки отличается от длины в байтах."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "nodejs.fundamentals.streams-backpressure"
+related:
+  - "python.fundamentals.strings"
+  - "rust.fundamentals.collections-and-iterators"
+  - "java.fundamentals.text-and-io"
+  - "go.fundamentals.maps-and-slices-deep-dive"
+next:
+  - "nodejs.fundamentals.filesystem-paths"
+objectives:
+  - "Различать строку (последовательность символов) и Buffer (последовательность байтов) и объяснять, что делает кодировка."
+  - "Создавать Buffer через Buffer.from, alloc и concat и использовать subarray, copy, compare и equals."
+  - "Переводить данные между utf8, hex, base64, base64url и latin1 и предсказывать результат для не-ASCII текста."
+  - "Читать и записывать целые числа методами readUInt16BE, readInt32LE и другими, выбирая порядок байтов."
+  - "Разбирать простой двоичный протокол с заголовком и длиной полезной нагрузки и находить усечённые данные."
+masteryCriteria:
+  - "Вы объясняете, почему 'Привет'.length равно 6, а Buffer.byteLength('Привет') равно 12."
+  - "Вы понимаете, что subarray не копирует память, а slice строки и Buffer.from(buffer) - копия."
+  - "Вы по спецификации кадра пишете разбор с проверкой границ и не выходите за пределы буфера."
+  - "Вы знаете, что Buffer.from('zz', 'hex') не сообщает об ошибке, и проверяете вход сами."
+tags:
+  - "nodejs"
+  - "buffer"
+  - "encoding"
+  - "utf8"
+  - "base64"
+  - "hex"
+  - "endianness"
+  - "binary"
+facts:
+  - kind: "internals"
+    text: "Buffer - подкласс Uint8Array: массив байтов фиксированной длины. Любой метод Uint8Array работает и с Buffer, но Buffer добавляет кодировки (utf8, hex, base64, base64url, latin1, ucs2) и методы чтения и записи чисел."
+    sources:
+      - "https://nodejs.org/api/buffer.html#buffer"
+      - "https://nodejs.org/api/buffer.html#buffers-and-character-encodings"
+  - kind: "internals"
+    text: "buf.subarray(start, end) возвращает новый Buffer, который разделяет память с исходным: изменение одного видно в другом. Метод buf.slice() у Buffer ведёт себя так же, но объявлен устаревшим в пользу subarray (как и у Uint8Array)."
+    sources:
+      - "https://nodejs.org/api/buffer.html#bufsubarraystart-end"
+      - "https://nodejs.org/api/buffer.html#bufslicestart-end"
+  - kind: "internals"
+    text: "Buffer.alloc(n) создаёт буфер, заполненный нулями. Buffer.allocUnsafe(n) не очищает память и может содержать старые данные, поэтому его используют только когда буфер сразу целиком перезаписывается."
+    sources:
+      - "https://nodejs.org/api/buffer.html#static-method-bufferallocunsafesize"
+  - kind: "internals"
+    text: "При декодировании некорректных байтов UTF-8 методом toString('utf8') каждая неверная последовательность заменяется символом U+FFFD. Для байтовых данных (изображения, сжатые файлы) строка в utf8 - потеря информации; их держат в Buffer или кодируют base64 или hex."
+    sources:
+      - "https://nodejs.org/api/buffer.html#buffers-and-character-encodings"
+  - kind: "security"
+    text: "Buffer.from(str, 'hex') при нечётной длине или неверном символе молча обрезает результат на первой ошибке. Данные из внешнего источника проверяйте регулярным выражением до декодирования. Читая размеры из заголовка, всегда сравнивайте их с реальной длиной буфера."
+    sources:
+      - "https://nodejs.org/api/buffer.html#static-method-bufferfromstring-encoding"
+  - kind: "misconception"
+    text: "«Длина строки - это число байтов» - нет: str.length считает единицы UTF-16, а размер в байтах зависит от кодировки. Для utf8 используйте Buffer.byteLength(str). Эмодзи занимает 4 байта в utf8 и 2 единицы в str.length."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: |
+        Сколько байтов занимает строка 'Привет' в кодировке utf8? (Кириллическая буква занимает 2 байта.)
+      answer: 12
+      tolerance: 0
+      explanation: "Шесть букв по два байта: Buffer.byteLength('Привет') равно 12, а 'Привет'.length равно 6."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что произойдёт с исходным буфером после buf2 = buf.subarray(0, 2); buf2[0] = 255?
+      options:
+        - "Ничего: buf2 - копия"
+        - "buf[0] тоже станет 255"
+        - "Будет выброшено исключение"
+        - "buf станет короче на 2 байта"
+      answer: 1
+      explanation: "subarray разделяет память с исходным буфером. Чтобы получить копию, используйте Buffer.from(buf2)."
+    - id: "q3"
+      type: "multiple"
+      prompt: |
+        Какие кодировки поддерживает buf.toString()?
+      options:
+        - "utf8"
+        - "hex"
+        - "base64"
+        - "json"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "json - не кодировка: для JSON используют JSON.parse(buf.toString())."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Байты 0x01 0x02 читаются как readUInt16BE(0). Какое получится число?
+      options:
+        - "258"
+        - "513"
+        - "3"
+        - "2"
+      answer: 0
+      explanation: "Big-endian: старший байт первый, 0x0102 = 258. Little-endian дал бы 0x0201 = 513."
+    - id: "q5"
+      type: "short"
+      prompt: |
+        Как называется метод Buffer, который склеивает массив буферов в один? Введите имя метода без скобок.
+      answer:
+        - "concat"
+        - "Buffer.concat"
+      explanation: "Buffer.concat([a, b]) возвращает новый буфер."
+exercise:
+  id: "nodejs.fundamentals.buffers-encodings.exercise"
+  title: "Разбор двоичных кадров"
+  prompt: |
+    Каждая непустая строка ввода - одно сообщение: поток байтов в шестнадцатеричной записи (регистр цифр любой). Сообщение - последовательность **кадров**:
+
+    ```
+    тип: 1 байт | длина: 2 байта, big-endian | данные: ровно «длина» байтов
+    ```
+
+    Для сообщения номер `i` (с единицы) выведите `message <i>`, затем по строке на кадр и в конце `frames=<число полностью разобранных кадров>`.
+
+    Типы кадров:
+
+    * `0x01` - текст в utf8: `text: <строка>`;
+    * `0x02` - список беззнаковых 32-битных чисел big-endian: `u32: <числа через пробел>`; если длина не кратна 4, выведите `bad u32 payload`;
+    * `0x03` - список знаковых 16-битных чисел little-endian: `i16le: <числа>`; если длина нечётна, `bad i16 payload`;
+    * `0x04` - произвольные байты: `b64: <данные в base64>`;
+    * `0x05` - текст latin1: `latin1: <строка>`;
+    * любой другой тип: `unknown type 0x<две hex-цифры>` (строчными).
+
+    Кадр с неверной нагрузкой (`bad ...`) и неизвестный тип считаются разобранными, разбор продолжается. Если до конца данных не хватает байтов на заголовок или на данные, выведите `truncated at offset <смещение начала кадра>` и закончите разбор сообщения. Пустые данные у текстового кадра дают `text: ` без символов после двоеточия и пробела. Если строка не является корректной hex-записью (нечётное число цифр или посторонний символ), выведите `invalid hex` и `frames=0`.
+
+    **Пример.** Ввод
+
+    ```
+    010003616263040002ff00
+    ```
+
+    даёт
+
+    ```
+    message 1
+    text: abc
+    b64: /wA=
+    frames=2
+    ```
+
+    **Что дано.** Заготовка читает строки и печатает результат функции `decodeFrames(hex)`; сама функция пока пуста.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Сначала проверьте строку регулярным выражением /^([0-9a-fA-F]{2})*$/: Buffer.from(hex, \"hex\") при ошибке не бросает исключение, а молча обрезает данные. Затем data = Buffer.from(hex, \"hex\")."
+    - "Цикл while (offset < data.length). Если offset + 3 > data.length - заголовок усечён. Иначе type = data.readUInt8(offset), length = data.readUInt16BE(offset + 1), данные начинаются с offset + 3. Если start + length > data.length - усечён кадр."
+    - "payload = data.subarray(start, start + length) - без копирования. Для кодировок: payload.toString(\"utf8\"), toString(\"base64\"), toString(\"latin1\"). Числа читайте readUInt32BE(i) и readInt16LE(i) с шагом 4 и 2."
+    - "Усечённый кадр не увеличивает счётчик frames и завершает цикл (break). После обработки кадра offset = start + length. Для неизвестного типа: `unknown type 0x${type.toString(16).padStart(2, \"0\")}`."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "010003616263040002ff00\n"
+      expected: "message 1\ntext: abc\nb64: /wA=\nframes=2\n"
+      hint: "Сначала текстовый кадр abc, затем байты ff 00 в base64."
+    - id: "types"
+      title: "Все типы кадров"
+      stdin: "01000cd09fd180d0b8d0b2d0b5d18202000800000100ffffffff030004feff2c01\n04000368693f050003e974e9\n"
+      expected: "message 1\ntext: Привет\nu32: 256 4294967295\ni16le: -2 300\nframes=3\nmessage 2\nb64: aGk/\nlatin1: été\nframes=2\n"
+      hint: "u32 - big-endian без знака, i16 - little-endian со знаком, latin1 - один байт на символ."
+    - id: "truncated"
+      title: "Усечённые данные"
+      stdin: "0100\n01000361\n010001610200\n010001610100\n"
+      expected: "message 1\ntruncated at offset 0\nframes=0\nmessage 2\ntruncated at offset 0\nframes=0\nmessage 3\ntext: a\ntruncated at offset 4\nframes=1\nmessage 4\ntext: a\ntruncated at offset 4\nframes=1\n"
+      hint: "Заголовок короче трёх байтов или данных меньше длины: truncated at offset <начало кадра>, смещение считайте от начала сообщения."
+    - id: "unknown-bad"
+      title: "Неизвестный тип и неверная нагрузка (скрытый)"
+      stdin: "09000002000301020303000101010000ab00020102\n\n"
+      expected: "message 1\nunknown type 0x09\nbad u32 payload\nbad i16 payload\ntext: \nunknown type 0xab\nframes=5\n"
+      hidden: true
+      hint: "Такие кадры считаются разобранными; пустой текст печатает 'text: ' с пробелом; тип выводится двумя hex-цифрами строчными."
+    - id: "invalid-hex"
+      title: "Некорректный hex (скрытый)"
+      stdin: "0\nzz\n01 00 01 61\n0100016\n0100016G\n0100016A\n"
+      expected: "message 1\ninvalid hex\nframes=0\nmessage 2\ninvalid hex\nframes=0\nmessage 3\ninvalid hex\nframes=0\nmessage 4\ninvalid hex\nframes=0\nmessage 5\ninvalid hex\nframes=0\nmessage 6\ntext: j\nframes=1\n"
+      hidden: true
+      hint: "Нечётное число цифр, посторонние символы и пробелы - invalid hex; регистр цифр не важен."
+    - id: "invalid-utf8"
+      title: "Некорректный utf8 (скрытый)"
+      stdin: "010003ff61c3\n010007f09f9880206f6b\n010009e697a5e69cace8aa9e\n"
+      expected: "message 1\ntext: �a�\nframes=1\nmessage 2\ntext: 😀 ok\nframes=1\nmessage 3\ntext: 日本語\nframes=1\n"
+      hidden: true
+      hint: "toString('utf8') заменяет неверные последовательности на U+FFFD; эмодзи и иероглифы приходят целыми."
+    - id: "long-frame"
+      title: "Длинный кадр и длина из двух байтов (скрытый)"
+      stdin: "04012c07070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070707070701000178\n"
+      expected: "message 1\nb64: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcH\ntext: x\nframes=2\n"
+      hidden: true
+      hint: "Длина — два байта big-endian: 300 это 01 2c; не читайте её одним байтом."

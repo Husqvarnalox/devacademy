@@ -1,0 +1,202 @@
+id: "nodejs.fundamentals.modules-esm-cjs"
+title: "Модули: CommonJS и ESM, разрешение путей, package.json"
+goal: "Объяснять, как Node.js выбирает формат модуля и находит файл, чем различаются require и import, и читать поля type и exports в package.json."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "nodejs.fundamentals.event-loop-architecture"
+related:
+  - "nodejs.first-steps.modules-and-event-loop"
+  - "javascript.fundamentals.modules-and-testing"
+  - "go.fundamentals.packages-modules-testing"
+  - "python.fundamentals.how-python-runs"
+next:
+  - "nodejs.fundamentals.async-patterns"
+objectives:
+  - "Определять формат файла (CommonJS или ESM) по расширению, полю type и ближайшему package.json."
+  - "Различать загрузку через require и import: синхронность, кеш, живые привязки, строгий режим, top-level await."
+  - "Объяснять порядок разрешения спецификатора: встроенный модуль, относительный путь, пакет из node_modules, поле exports."
+  - "Использовать import.meta (url, filename, dirname, resolve) и createRequire в ES-модуле."
+  - "Читать exports с подпутями, условиями import, require, node, default и шаблонами со звёздочкой."
+masteryCriteria:
+  - "Вы по package.json и имени файла называете формат модуля и объясняете выбор."
+  - "Вы предсказываете, что вернёт require для ES-модуля в Node.js 22 и когда это невозможно."
+  - "Вы по полю exports определяете, какой файл получит import и require для заданного подпути, и когда будет ERR_PACKAGE_PATH_NOT_EXPORTED."
+  - "Вы заменяете __dirname и __filename в ES-модуле на import.meta.dirname и import.meta.filename."
+tags:
+  - "nodejs"
+  - "modules"
+  - "esm"
+  - "commonjs"
+  - "package-json"
+  - "exports"
+  - "import-meta"
+  - "resolution"
+facts:
+  - kind: "internals"
+    text: "Формат файла определяется так: .mjs - ESM, .cjs - CommonJS; для .js смотрят поле type в ближайшем package.json (module или commonjs). Если типа нет, Node.js 22 по умолчанию проверяет синтаксис файла и запускает его как ESM, когда находит import или export верхнего уровня."
+    sources:
+      - "https://nodejs.org/api/packages.html#determining-module-system"
+  - kind: "internals"
+    text: "Поле exports в package.json ограничивает публичные точки входа пакета. Ключи - подпути (\".\" или \"./name\"), значения - строка, объект с условиями (node, import, require, default) или null. Порядок ключей в объекте условий важен: действует первое подошедшее. Недоступный подпуть даёт ошибку ERR_PACKAGE_PATH_NOT_EXPORTED."
+    sources:
+      - "https://nodejs.org/api/packages.html#package-entry-points"
+      - "https://nodejs.org/api/packages.html#conditional-exports"
+  - kind: "internals"
+    text: "Подпути со звёздочкой (\"./features/*\": \"./src/features/*.js\") подставляют совпавший фрагмент в цель; при нескольких подходящих ключах выбирается ключ с самым длинным префиксом до звёздочки. Цель null закрывает подпуть."
+    sources:
+      - "https://nodejs.org/api/packages.html#subpath-patterns"
+  - kind: "historical"
+    text: "В ES-модуле нет __filename и __dirname; вместо них import.meta.filename и import.meta.dirname (добавлены в Node.js 20.11 и 21.2). До этого использовали fileURLToPath(import.meta.url)."
+    sources:
+      - "https://nodejs.org/api/esm.html#importmetadirname"
+      - "https://nodejs.org/api/esm.html#importmetafilename"
+  - kind: "historical"
+    text: "В Node.js 22 (начиная с 22.12) require() умеет загружать ES-модуль, если в нём нет top-level await. Результат - объект пространства имён модуля; чтобы получить именно значение, ES-модуль может экспортировать его под именем \"module.exports\". Проверено на Node.js 22.15."
+    sources:
+      - "https://nodejs.org/docs/latest-v22.x/api/modules.html#loading-ecmascript-modules-using-require"
+  - kind: "misconception"
+    text: "«import всегда асинхронный, а require синхронный» - упрощение. Статический import разбирается до выполнения кода, а загрузка графа модулей асинхронна; require выполняет файл прямо в точке вызова. Динамический import() возвращает промис и работает и из CommonJS."
+  - kind: "misconception"
+    text: "«Относительный import в ESM можно писать без расширения» - в ESM расширение обязательно ('./util.js'), в отличие от CommonJS, где require('./util') добавляет .js, .json, .node и ищет index."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Файл app.js лежит в каталоге с package.json, где указано "type": "module". Как он будет выполнен?
+      options:
+        - "Как CommonJS, потому что расширение .js"
+        - "Как ES-модуль"
+        - "Node.js откажется его запускать"
+        - "Зависит от наличия require в коде"
+      answer: 1
+      explanation: "Для .js решающее значение имеет поле type в ближайшем package.json."
+    - id: "q2"
+      type: "multiple"
+      prompt: |
+        Что верно для ES-модуля в Node.js?
+      options:
+        - "Доступен await на верхнем уровне"
+        - "Код всегда выполняется в строгом режиме"
+        - "Доступны переменные __dirname и __filename"
+        - "Можно получить URL файла через import.meta.url"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "__dirname и __filename есть только в CommonJS; в ESM их заменяют import.meta.dirname и import.meta.filename."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        В package.json: "exports": { ".": "./index.js" }. Что получит import "pkg/secret.js" из другого пакета?
+      options:
+        - "Файл secret.js в корне пакета"
+        - "Ошибку ERR_PACKAGE_PATH_NOT_EXPORTED"
+        - "undefined"
+        - "Файл index.js"
+      answer: 1
+      explanation: "При наличии exports доступны только перечисленные подпути."
+    - id: "q4"
+      type: "short"
+      prompt: |
+        Как называется условие в exports, которое подходит для ES-модуля, подключающего пакет через import? Ответьте одним словом.
+      answer:
+        - "import"
+      explanation: "Условия import и require выбираются по способу загрузки; default - запасной вариант."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при require() ES-модуля, в котором есть await на верхнем уровне?
+      options:
+        - "Модуль загрузится синхронно"
+        - "require вернёт промис"
+        - "Будет выброшена ошибка ERR_REQUIRE_ASYNC_MODULE"
+        - "Await будет проигнорирован"
+      answer: 2
+      explanation: "require выполняет граф синхронно, поэтому модули с top-level await загрузить так нельзя; используйте import()."
+exercise:
+  id: "nodejs.fundamentals.modules-esm-cjs.exercise"
+  title: "Разрешение exports и формат модуля"
+  prompt: |
+    Файл-модуль нельзя запустить из упражнения целым пакетом, поэтому смоделируйте две части работы Node.js на одном файле.
+
+    Первая строка ввода - JSON с полями `package.json` (`type` необязателен, `exports` есть всегда). Дальше идут команды, по одной в строке:
+
+    * `format <файл>` - вывести `<файл>: <формат>`. Формат: `.mjs` - `esm`, `.cjs` - `commonjs`, `.json` - `json`, `.js` - `esm` при `"type": "module"` и `commonjs` иначе; любое другое расширение - `unknown`. Определение по синтаксису не моделируется.
+    * `resolve <import|require> <подпуть>` - вывести файл, который выбирает Node.js по полю `exports`; подпуть - `.` или `./имя`. Если подпуть не экспортирован, выведите `ERR_PACKAGE_PATH_NOT_EXPORTED: <подпуть>`.
+
+    Правила `resolve`:
+
+    1. Если `exports` - строка, массив или объект без ключей, начинающихся с `.`, он означает `{ ".": exports }`.
+    2. Сначала ищется ключ, равный подпути. Затем ключи с одной `*`: ключ подходит, если подпуть начинается с части до `*`, заканчивается частью после `*` и не короче ключа; `*` подставляется вместо всех `*` в цели. Из подходящих выбирается ключ с самым длинным префиксом до `*`, при равенстве - самый длинный ключ.
+    3. Цель - строка (результат), `null` (подпуть закрыт, ошибка) или объект условий. В объекте условий перебираются ключи в заданном порядке; подходят `node`, `default` и условие команды (`import` или `require`). Берётся первый подошедший ключ, цель которого что-то вернула; если не вернулась ни одна, подпуть считается неэкспортированным.
+
+    Неизвестная команда: `unknown command: <слово>`.
+
+    **Пример.** Ввод
+
+    ```
+    {"type":"module","exports":{".":{"import":"./esm/index.js","require":"./cjs/index.cjs"},"./features/*":"./src/features/*.js"}}
+    resolve require .
+    resolve import ./features/a/b
+    format app.js
+    ```
+
+    даёт
+
+    ```
+    ./cjs/index.cjs
+    ./src/features/a/b.js
+    app.js: esm
+    ```
+
+    **Что дано.** Заготовка читает ввод и разбирает команды; тело четырёх функций пустое. Это модуль ESM: файл начинается с `import` и использует `await` на верхнем уровне.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Начните с normalizeExports и resolveTarget: строка возвращается как есть (после подстановки звёздочки), null означает запрет, объект условий перебирается через Object.entries в порядке ключей."
+    - "В resolveTarget для объекта условий вызовите себя рекурсивно для подошедшего ключа (node, default или mode) и верните первый результат, не равный undefined. Значение null тоже результат: оно останавливает поиск."
+    - "В resolveExports сначала Object.hasOwn(map, subpath) для точного ключа. Иначе пройдите по ключам с одной звёздочкой: prefix = key.slice(0, star), suffix = key.slice(star + 1), проверьте startsWith, endsWith и длину, запомните ключ с самым длинным prefix."
+    - "Совпавший фрагмент для подстановки - subpath.slice(prefix.length, subpath.length - suffix.length). Если итог не строка (undefined или null), выведите ERR_PACKAGE_PATH_NOT_EXPORTED: и подпуть."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "{\"type\":\"module\",\"exports\":{\".\":{\"import\":\"./esm/index.js\",\"require\":\"./cjs/index.cjs\"},\"./features/*\":\"./src/features/*.js\"}}\nresolve require .\nresolve import ./features/a/b\nformat app.js\n"
+      expected: "./cjs/index.cjs\n./src/features/a/b.js\napp.js: esm\n"
+      hint: "Условие выбирается по режиму команды, а * заменяется совпавшей частью."
+    - id: "string-exports"
+      title: "exports - строка"
+      stdin: "{\"exports\":\"./main.js\"}\nresolve import .\nresolve require .\nresolve import ./other\n"
+      expected: "./main.js\n./main.js\nERR_PACKAGE_PATH_NOT_EXPORTED: ./other\n"
+      hint: "Строка означает { \".\": строка }; любой другой подпуть не экспортирован."
+    - id: "formats"
+      title: "Форматы по расширению и type"
+      stdin: "{\"type\":\"commonjs\",\"exports\":\"./x.js\"}\nformat a.js\nformat b.mjs\nformat c.cjs\nformat data.json\nformat run.sh\n"
+      expected: "a.js: commonjs\nb.mjs: esm\nc.cjs: commonjs\ndata.json: json\nrun.sh: unknown\n"
+      hint: "Расширения .mjs и .cjs важнее поля type; без type и при commonjs файл .js - commonjs."
+    - id: "conditions-order"
+      title: "Порядок условий и default (скрытый)"
+      stdin: "{\"exports\":{\".\":{\"default\":\"./any.js\",\"import\":\"./esm.js\"},\"./a\":{\"node\":{\"require\":\"./a.cjs\",\"default\":\"./a.js\"},\"default\":\"./a-browser.js\"},\"./b\":{\"import\":\"./b.mjs\"},\"./c\":{\"node\":{\"require\":\"./c.cjs\"},\"default\":\"./c.js\"}}}\nresolve import .\nresolve require .\nresolve import ./a\nresolve require ./a\nresolve require ./b\nresolve import ./b\nresolve import ./c\nresolve require ./c\n"
+      expected: "./any.js\n./any.js\n./a.js\n./a.cjs\nERR_PACKAGE_PATH_NOT_EXPORTED: ./b\n./b.mjs\n./c.js\n./c.cjs\n"
+      hidden: true
+      hint: "Берётся первый подходящий ключ в порядке записи; вложенные условия разбираются рекурсивно, а если внутри ничего не подошло, поиск идёт дальше."
+    - id: "patterns"
+      title: "Шаблоны и закрытые подпути (скрытый)"
+      stdin: "{\"type\":\"module\",\"exports\":{\"./features/*\":\"./src/features/*.js\",\"./features/internal/*\":null,\"./data/*.json\":\"./data/*.json\",\"./lib/*/index\":{\"import\":\"./lib/*/index.mjs\",\"require\":\"./lib/*/index.cjs\"}}}\nresolve import ./features/a\nresolve import ./features/a/b\nresolve import ./features/internal/x\nresolve import ./data/x.json\nresolve import ./data/x.txt\nresolve require ./lib/foo/index\nresolve import ./lib/index\n"
+      expected: "./src/features/a.js\n./src/features/a/b.js\nERR_PACKAGE_PATH_NOT_EXPORTED: ./features/internal/x\n./data/x.json\nERR_PACKAGE_PATH_NOT_EXPORTED: ./data/x.txt\n./lib/foo/index.cjs\nERR_PACKAGE_PATH_NOT_EXPORTED: ./lib/index\n"
+      hidden: true
+      hint: "Побеждает шаблон с самым длинным префиксом; null закрывает путь; суффикс после * должен совпасть; * может покрывать вложенные каталоги."
+    - id: "exact-vs-pattern"
+      title: "Точный ключ раньше шаблона (скрытый)"
+      stdin: "{\"exports\":{\".\":\"./i.js\",\"./*\":\"./all/*.js\",\"./util\":\"./u.js\",\"./package.json\":\"./package.json\"}}\nresolve import ./util\nresolve import ./other\nresolve import ./package.json\nresolve import .\nresolve import ./\nfoo bar\n"
+      expected: "./u.js\n./all/other.js\n./package.json\n./i.js\nERR_PACKAGE_PATH_NOT_EXPORTED: ./\nunknown command: foo\n"
+      hidden: true
+      hint: "Точный ключ имеет приоритет над шаблонами; шаблон ./* подходит к любому ./имя; неизвестная команда печатает unknown command."
+    - id: "null-fallthrough"
+      title: "null в exports и в условиях (скрытый)"
+      stdin: "{\"exports\":{\".\":null,\"./x\":{\"require\":null,\"default\":\"./x.js\"}}}\nresolve import .\nresolve require ./x\nresolve import ./x\n"
+      expected: "ERR_PACKAGE_PATH_NOT_EXPORTED: .\nERR_PACKAGE_PATH_NOT_EXPORTED: ./x\n./x.js\n"
+      hidden: true
+      hint: "null из подошедшего условия останавливает поиск и даёт ошибку; без подходящего условия идёт следующий ключ."

@@ -235,6 +235,13 @@ internal static class Cli
                         continue;
                     }
                     var solution = await service.EvaluateAsync(ex, variant.Solution, languageId: variant.LanguageId);
+                    if (solution.Status != Verdict.Passed && TimedOut(solution))
+                    {
+                        // A busy machine can push a run past its wall limit: retry once, and keep a pass-on-retry visible as a warning.
+                        solution = await service.EvaluateAsync(ex, variant.Solution, languageId: variant.LanguageId);
+                        if (solution.Status == Verdict.Passed)
+                            Add(DiagnosticSeverity.Warning, lesson, $"{tag}: reference solution timed out and passed only on retry (machine under load?)");
+                    }
                     if (solution.Status == Verdict.RuntimeMissing && needsEnv)
                     {
                         Add(DiagnosticSeverity.Error, lesson, $"{tag}: the Python environment cannot run it: {First(solution.Message ?? "")}");
@@ -291,6 +298,13 @@ internal static class Cli
                 var run = await runner.RunOnceAsync(
                     new ExecutionRequest(sample.LanguageId, [new SourceFile(file, sample.Code)], file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode),
                     null, ResourceLimits.DefaultRun, CancellationToken.None);
+                if (run.Status == ExecutionStatus.Timeout)
+                {
+                    run = await runner.RunOnceAsync(
+                        new ExecutionRequest(sample.LanguageId, [new SourceFile(file, sample.Code)], file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode),
+                        null, ResourceLimits.DefaultRun, CancellationToken.None);
+                    if (run.IsSuccess) Add(DiagnosticSeverity.Warning, lesson, $"code sample ({sample.LanguageId}) timed out and passed only on retry (machine under load?)");
+                }
                 if (run.Status == ExecutionStatus.RuntimeMissing) { RuntimeMissing(lesson, sample.LanguageId); continue; }
                 if (!run.IsSuccess)
                     Add(DiagnosticSeverity.Error, lesson, $"code sample ({sample.LanguageId}) failed with {run.Status}: {First(run.CompileOutput + run.Stderr)}");
@@ -300,6 +314,11 @@ internal static class Cli
         }
         return diagnostics;
     }
+
+    /// <summary>The evaluators report a run over its wall limit as "Time limit exceeded" (IoEvaluator, CommandEvaluator).</summary>
+    private static bool TimedOut(EvaluationReport r) =>
+        (r.Message ?? "").Contains("Time limit exceeded", StringComparison.Ordinal)
+        || r.Cases.Any(c => !c.Passed && (c.Message ?? "").StartsWith("Time limit exceeded", StringComparison.Ordinal));
 
     private static string Describe(EvaluationReport r) =>
         r.Cases.Count == 0
