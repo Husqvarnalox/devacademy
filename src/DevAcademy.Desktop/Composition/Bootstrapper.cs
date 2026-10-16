@@ -85,6 +85,7 @@ public static class Bootstrapper
         services.AddSingleton<IFileTrash>(_ => FileTrash.CreateForCurrentOs());
         services.AddSingleton<ProjectFileOps>();
         services.AddSingleton<WorkspaceServices>();
+        services.AddSingleton<LanguageIntelligenceService>();
 
         services.AddSingleton<WindowHolder>();
         services.AddSingleton<IDialogService, AvaloniaDialogService>();

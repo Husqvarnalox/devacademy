@@ -6,6 +6,8 @@ using AvaloniaEdit.Document;
 using AvaloniaEdit.Search;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
+using Avalonia.Threading;
+using DevAcademy.Desktop.Controls.Lsp;
 
 namespace DevAcademy.Desktop.Controls;
 
@@ -19,7 +21,13 @@ public sealed class CodeEditorControl : ContentControl
     public static readonly StyledProperty<TextDocument?> DocumentProperty = AvaloniaProperty.Register<CodeEditorControl, TextDocument?>(nameof(Document));
     public static readonly StyledProperty<bool> IsReadOnlyProperty = AvaloniaProperty.Register<CodeEditorControl, bool>(nameof(IsReadOnly));
 
+    /// <summary>Optional: connects the editor to a language server (see <see cref="Lsp.LspTarget"/>).</summary>
+    public static readonly StyledProperty<LspTarget?> LspTargetProperty = AvaloniaProperty.Register<CodeEditorControl, LspTarget?>(nameof(LspTarget));
+
     private readonly TextEditor _editor;
+    private readonly LspPopups _popups;
+    private EditorLspBinding? _lsp;
+    private int _lspGeneration;
     private SearchPanel? _search;
     private TextMate.Installation? _textMate;
     private RegistryOptions? _registry;
@@ -32,8 +40,10 @@ public sealed class CodeEditorControl : ContentControl
         DocumentProperty.Changed.AddClassHandler<CodeEditorControl>((c, e) =>
         {
             if (e.NewValue is TextDocument doc) c._editor.Document = doc;
+            c.RebuildLsp();
         });
         IsReadOnlyProperty.Changed.AddClassHandler<CodeEditorControl>((c, e) => c._editor.IsReadOnly = e.NewValue is true);
+        LspTargetProperty.Changed.AddClassHandler<CodeEditorControl>((c, _) => c.RebuildLsp());
     }
 
     public CodeEditorControl()
@@ -60,7 +70,11 @@ public sealed class CodeEditorControl : ContentControl
         };
         try { _search = SearchPanel.Install(_editor); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Search panel unavailable: {ex.Message}"); }
-        Content = _editor;
+        _popups = new LspPopups(_editor.TextArea.TextView);
+        var host = new Grid();
+        host.Children.Add(_editor);
+        foreach (var p in _popups.All) host.Children.Add(p);
+        Content = host;
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
     }
 
@@ -69,6 +83,43 @@ public sealed class CodeEditorControl : ContentControl
     public string? FileName { get => GetValue(FileNameProperty); set => SetValue(FileNameProperty, value); }
     public TextDocument? Document { get => GetValue(DocumentProperty); set => SetValue(DocumentProperty, value); }
     public bool IsReadOnly { get => GetValue(IsReadOnlyProperty); set => SetValue(IsReadOnlyProperty, value); }
+    public LspPopups Popups => _popups;
+    public LspTarget? LspTarget { get => GetValue(LspTargetProperty); set => SetValue(LspTargetProperty, value); }
+    /// <summary>The live language-server binding, or null when there is no target or no usable server.</summary>
+    public EditorLspBinding? Lsp => _lsp;
+
+    /// <summary>Applies the language server's formatting to the whole document (Shift+Alt+F).</summary>
+    public Task<bool> FormatDocumentAsync() => _lsp?.FormatDocumentAsync() ?? Task.FromResult(false);
+
+    private IBrush? BrushFor(string key) => this.TryFindResource(key, ActualThemeVariant, out var v) ? v as IBrush : null;
+
+    /// <summary>
+    /// Drops the current binding at once (so edits caused by switching files are never sent to the old file) and attaches a new
+    /// one on the next dispatcher turn, when sibling bindings (Text/Document) have settled.
+    /// </summary>
+    private void RebuildLsp()
+    {
+        _lsp?.Dispose();
+        _lsp = null;
+        var generation = ++_lspGeneration;
+        if (LspTarget is null) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (generation != _lspGeneration || _lsp is not null || !IsAttachedToVisualTree()) return;
+            AttachLsp();
+        }, DispatcherPriority.Background);
+    }
+
+    private bool IsAttachedToVisualTree() => TopLevel.GetTopLevel(this) is not null;
+
+    private void AttachLsp()
+    {
+        var target = LspTarget;
+        if (target is null || _editor.Document is null) return;
+        if (target.Document is not null && !ReferenceEquals(target.Document, _editor.Document)) return;
+        _lsp = EditorLspBinding.TryCreate(_editor, target, _popups, BrushFor);
+        _lsp?.PublishDiagnostics();
+    }
 
     /// <summary>Opens the find panel (Ctrl/Cmd+F is handled by the panel itself); with <paramref name="replace"/> the replace box is shown.</summary>
     public void OpenSearch(bool replace)
@@ -81,12 +132,12 @@ public sealed class CodeEditorControl : ContentControl
     }
 
     /// <summary>Moves the caret to a 1-based line (clamped) and scrolls it into view.</summary>
-    public int GoToLine(int line)
+    public int GoToLine(int line, int column = 1)
     {
         var doc = _editor.Document;
         var target = Math.Clamp(line, 1, Math.Max(1, doc.LineCount));
         _editor.TextArea.Caret.Line = target;
-        _editor.TextArea.Caret.Column = 1;
+        _editor.TextArea.Caret.Column = Math.Clamp(column, 1, doc.GetLineByNumber(target).Length + 1);
         _editor.ScrollToLine(target);
         _editor.TextArea.Focus();
         return target;
@@ -102,11 +153,15 @@ public sealed class CodeEditorControl : ContentControl
         EnsureTextMate();
         PushText(Text);
         UpdateGrammar();
+        RebuildLsp();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _lsp?.Dispose();
+        _lsp = null;
+        _lspGeneration++;
         _textMate?.Dispose();
         _textMate = null;
     }

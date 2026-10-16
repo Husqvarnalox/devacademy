@@ -1,0 +1,5 @@
+id: python-stdlib
+title: Стандартная библиотека Python
+description: "Путь по курсу «Стандартная библиотека Python»: collections, heapq и bisect, itertools, functools, pathlib и tempfile, json, csv и struct, datetime и zoneinfo, decimal и statistics, subprocess и logging. Требует знания основ Python."
+goal: general
+targets: [python-stdlib]

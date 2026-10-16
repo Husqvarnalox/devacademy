@@ -1,0 +1,165 @@
+id: python.stdlib.json-csv-struct
+title: "json, csv, struct: форматы данных"
+goal: Надёжно читать и писать JSON и CSV, учитывать соответствие типов, кодировки и правило newline='', а двоичные форматы описывать через struct с явным порядком байт.
+difficulty: medium
+estimatedMinutes: 80
+prerequisites: [python.fundamentals.dicts-and-sets, python.fundamentals.strings, python.fundamentals.errors-and-files, python.stdlib.pathlib-os-shutil-tempfile]
+related: [python.stdlib.decimal-fractions-math-statistics-random, python.stdlib.datetime-and-time]
+next: [python.stdlib.datetime-and-time]
+objectives:
+  - Описать соответствие типов JSON и Python и назвать значения, которые JSON не умеет хранить (set, datetime, Decimal, bytes, NaN как стандарт).
+  - Управлять выводом json.dumps (ensure_ascii, indent, sort_keys, separators) и сериализовать собственные типы через default=.
+  - Читать числа без потери точности через parse_float=Decimal.
+  - Читать и писать CSV через csv.reader, DictReader и writer, объяснять правило newline='' и назначение quoting и dialect.
+  - Упаковывать и распаковывать двоичные структуры через struct с явным порядком байт (< или >) и размером без выравнивания.
+masteryCriteria:
+  - Вы объясняете, почему json.loads(json.dumps(x)) не всегда равен x (ключи-числа, кортежи, NaN).
+  - Вы пишете CSV так, что поля с запятыми, кавычками и переводами строк читаются обратно без искажений.
+  - Вы знаете, чем '<BI' отличается от нативного '@BI' по размеру и переносимости.
+tags: [python, json, csv, struct, serialization, encoding, binary]
+facts:
+  - kind: internals
+    text: >-
+      JSON допускает только строки в качестве ключей объекта. Python при json.dumps преобразует числовые ключи в строки, а при json.loads они остаются строками, поэтому {1: "a"} после цикла
+      dumps/loads превращается в {"1": "a"}. Кортежи сериализуются как массивы и читаются обратно как списки.
+    sources:
+      - https://docs.python.org/3/library/json.html#py-to-json-table
+  - kind: security
+    text: >-
+      json.loads безопасен для недоверенного ввода в смысле выполнения кода (в отличие от pickle), но не защищает от огромных или глубоко вложенных документов; ограничивайте размер входа до разбора.
+      Стандартный модуль по умолчанию принимает нестандартные NaN, Infinity, -Infinity; для строгой проверки передавайте parse_constant, а при записи allow_nan=False.
+    sources:
+      - https://docs.python.org/3/library/json.html
+      - https://docs.python.org/3/library/pickle.html
+  - kind: misconception
+    text: >-
+      «csv-файл - это строки, разделённые запятыми, и их можно разбирать line.split(',')». Нет: поля могут быть в кавычках и содержать запятые, удвоенные кавычки и переводы строк.
+      Документация csv требует открывать файлы с newline='', чтобы модуль сам обрабатывал переводы строк внутри полей.
+    sources:
+      - https://docs.python.org/3/library/csv.html
+  - kind: internals
+    text: >-
+      struct по умолчанию использует нативный порядок байт, размер и выравнивание (формат '@'), поэтому struct.calcsize('@BI') обычно равно 8, а не 5. Префиксы '<' (little-endian), '>' и '!' (сетевой порядок)
+      отключают выравнивание и задают стандартные размеры, поэтому для файловых и сетевых форматов нужно указывать порядок байт явно.
+    sources:
+      - https://docs.python.org/3/library/struct.html#byte-order-size-and-alignment
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        import json
+        print(json.loads(json.dumps({1: "a", 2: (3, 4)})))
+        Что выведет код?
+      options:
+        - "{1: 'a', 2: (3, 4)}"
+        - "{'1': 'a', '2': [3, 4]}"
+        - "{'1': 'a', '2': (3, 4)}"
+        - "TypeError"
+      answer: 1
+      explanation: >-
+        JSON-ключи - всегда строки, а кортеж сериализуется как массив и читается как список. Круговое преобразование не обязано возвращать исходный объект.
+    - id: q2
+      type: single
+      prompt: Зачем при открытии CSV-файла передают newline=''?
+      options:
+        - "Чтобы файл читался быстрее"
+        - "Чтобы модуль csv сам обрабатывал переводы строк, в том числе внутри полей в кавычках, а текстовый слой их не искажал"
+        - "Чтобы убрать пустые строки"
+        - "Чтобы файл открывался в бинарном режиме"
+      answer: 1
+      explanation: >-
+        Без newline='' универсальный режим переводов строк может преобразовать \r\n внутри значения, а при записи на Windows добавить лишний \r (пустые строки между записями).
+    - id: q3
+      type: numeric
+      prompt: Чему равно struct.calcsize('<BHI')?
+      answer: 7
+      tolerance: 0
+      explanation: >-
+        1 (B) + 2 (H) + 4 (I) = 7: при '<' нет выравнивания, размеры стандартные. Нативный '@BHI' дал бы больше из-за выравнивания.
+    - id: q4
+      type: single
+      prompt: Как сериализовать объект datetime.date в json.dumps?
+      options:
+        - "json.dumps умеет это по умолчанию"
+        - "Передать default=функция, возвращающая, например, isoformat() для date, и поднимающая TypeError для остальных типов"
+        - "Добавить ensure_ascii=False"
+        - "Преобразовать в set"
+      answer: 1
+      explanation: >-
+        Параметр default вызывается для объектов, которые модуль не умеет кодировать. Для остальных типов нужно поднять TypeError, чтобы не скрыть ошибку.
+    - id: q5
+      type: multiple
+      prompt: Какие значения Python json.dumps по умолчанию НЕ может сериализовать (без default=)? Выберите все.
+      options:
+        - "set"
+        - "datetime.datetime"
+        - "list"
+        - "decimal.Decimal"
+      answer: [0, 1, 3]
+      explanation: >-
+        Стандартный кодировщик знает dict, list, tuple, str, int, float, bool и None. Множества, даты и Decimal требуют default=.
+exercise:
+  id: python.stdlib.json-csv-struct.exercise
+  title: Конвертер форматов
+  prompt: |
+    В файле `convert_task.py` реализуйте шесть функций. Ничего не читайте и не печатайте; работайте только с переданными строками и байтами.
+
+    1. `csv_to_json(csv_text)` - превращает CSV-текст с заголовком в строку JSON: список объектов, все значения строки. Используйте `csv.DictReader` и `json.dumps(..., ensure_ascii=False)` (кириллица остаётся буквами, а не `\uXXXX`). Поля могут быть в кавычках, содержать запятые, удвоенные кавычки и переводы строк. Если в строке меньше полей, чем в заголовке, недостающие значения - `""`; если **больше** - `ValueError`. Только заголовок или пустой текст дают `"[]"`.
+    2. `json_to_csv(json_text)` - обратное преобразование: вход - JSON-массив плоских объектов. Столбцы - объединение ключей в порядке первого появления; отсутствующее значение и `null` - пустая ячейка; `true`/`false` - `true`/`false`; остальное - `str(значение)`. Строки разделяются `"\n"`, значения с запятыми, кавычками и переводами строк экранируются стандартными правилами CSV. Пустой массив (нет столбцов) даёт `""`.
+    3. `dumps_stable(obj)` - JSON без пробелов (`separators=(",", ":")`), ключи отсортированы, кириллица без экранирования. Через `default=` поддержите `datetime.date` и `datetime.datetime` (`isoformat()`), `decimal.Decimal` (строка `str(x)`) и `set`/`frozenset` (отсортированный список). Остальные типы - `TypeError`.
+    4. `pack_message(version, text)` - сообщение в формате «порядок байт big-endian: 1 байт версия, 4 байта длина полезной нагрузки (беззнаковая), затем UTF-8 текст». `version` вне `0..255` - `ValueError`.
+    5. `unpack_message(data)` - обратное действие, возвращает `(version, text)`. Слишком короткие данные или длина, не совпадающая с реальной, - `ValueError`.
+
+    6. `sum_prices(json_text)` - вход JSON-массив объектов с полем `"price"`; верните сумму как `decimal.Decimal` без потери точности (читайте числа через `parse_float=Decimal`).
+
+    **Примеры.**
+
+    ```python
+    csv_to_json('name,city\n"Ли, Анна",Москва\n')   # '[{"name": "Ли, Анна", "city": "Москва"}]'
+    dumps_stable({"b": {1, 2}, "a": "я"})           # '{"a":"я","b":[1,2]}'
+    pack_message(1, "hi")                           # b'\x01\x00\x00\x00\x02hi'
+    ```
+  entryFile: convert_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Для csv используйте io.StringIO(текст, newline='') и csv.DictReader; для записи - csv.writer(io.StringIO(), lineterminator='\\n'). Не разбирайте CSV через split(','): поля бывают в кавычках."
+    - "csv_to_json: DictReader(..., restkey=None, restval=''); если в строке есть ключ None - в ней больше полей, чем в заголовке. json_to_csv: соберите список столбцов, затем для каждой строки сформируйте список ячеек и вызовите writerow; пустой список столбцов обработайте отдельно."
+    - "dumps_stable: json.dumps(obj, default=_default, sort_keys=True, ensure_ascii=False, separators=(',', ':')), где _default возвращает isoformat() для date (datetime - её подкласс), str(x) для Decimal, sorted(x) для множеств и иначе поднимает TypeError. sum_prices: json.loads(text, parse_float=Decimal)."
+    - "pack/unpack: HEADER = struct.Struct('>BI'); pack: HEADER.pack(version, len(payload)) + payload (поймайте struct.error и поднимите ValueError); unpack: проверьте len(data) >= HEADER.size, затем HEADER.unpack_from(data) и сравните длину оставшейся части с объявленной. Размер '>BI' - 5 байт."
+  tests:
+    - id: csv-json-basic
+      title: csv_to_json - обычный CSV
+      hint: Результат - строка JSON; сравнивается разобранное значение, значения - строки. Кириллица не должна экранироваться.
+    - id: json-csv-basic
+      title: json_to_csv - обычный массив
+      hint: Первая строка - заголовок, строки разделены '\n', порядок столбцов - по первому появлению ключа.
+    - id: stable-basic
+      title: dumps_stable - сортировка и компактность
+      hint: Ключи сортируются, разделители без пробелов, ensure_ascii=False.
+    - id: pack-basic
+      title: pack_message - формат
+      hint: '">BI" - big-endian без выравнивания: 5 байт заголовка. Длина - число байт в UTF-8, а не символов.'
+    - id: csv-edge
+      title: csv_to_json - кавычки, переводы строк, короткие и длинные строки (скрытый)
+      hidden: true
+      hint: Откройте источник как StringIO(text, newline=''); короткая строка дополняется '' (restval), длинная даёт ключ None в DictReader - поднимите ValueError.
+    - id: json-csv-edge
+      title: json_to_csv - экранирование, null, bool, пропуски (скрытый)
+      hidden: true
+      hint: Не склеивайте строки вручную - используйте csv.writer. null и отсутствующий ключ дают пустую ячейку, True/False - true/false.
+    - id: stable-default
+      title: dumps_stable - default= для своих типов (скрытый)
+      hidden: true
+      hint: datetime является подклассом date, isoformat подходит обоим; Decimal - строкой; set - отсортированным списком; прочее - TypeError.
+    - id: unpack-errors
+      title: unpack_message - ошибки и границы (скрытый)
+      hidden: true
+      hint: Проверьте длину заголовка и совпадение объявленной длины с фактической; не доверяйте входным данным. Версия вне 0..255 при упаковке - ValueError.
+    - id: sum-prices
+      title: sum_prices без потери точности (скрытый)
+      hidden: true
+      hint: json.loads(text, parse_float=Decimal) читает 0.1 как Decimal('0.1'); сумма Decimal('0.1') + Decimal('0.2') равна Decimal('0.3').

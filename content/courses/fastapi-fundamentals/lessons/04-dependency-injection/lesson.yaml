@@ -1,0 +1,187 @@
+id: fastapi.fundamentals.dependency-injection
+title: Внедрение зависимостей (Depends)
+goal: Выносить общие части обработчиков в зависимости, понимать порядок их разрешения, кэширование в рамках запроса, очистку ресурсов через yield и подмену зависимостей в тестах.
+difficulty: medium
+estimatedMinutes: 90
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [fastapi.fundamentals.pydantic-models, python.advanced.context-managers]
+related: [python.advanced.decorators, python.advanced.functions-as-objects]
+next: [fastapi.fundamentals.errors-and-status-codes]
+objectives:
+  - Объяснить, что Depends принимает вызываемый объект, а FastAPI сам вызывает его для каждого запроса и подставляет результат.
+  - Строить цепочки зависимостей и объяснить кэширование результата в рамках одного запроса (use_cache) и его отключение.
+  - Писать зависимости с yield для ресурсов (сессия, транзакция, соединение) и объяснять, когда выполняется код после yield, в том числе при исключении.
+  - Использовать классы как зависимости и Annotated-алиасы для переиспользования.
+  - Подменять зависимости в тестах через app.dependency_overrides и не забывать очищать подмену.
+masteryCriteria:
+  - Вы пишете зависимость-репозиторий и тест, где она заменена заглушкой без изменения кода обработчика.
+  - Вы предсказываете, сколько раз вызовется зависимость, объявленная в обработчике и в двух подзависимостях.
+  - Вы объясняете, почему исключение из обработчика попадает внутрь зависимости с yield и как это использовать для отката транзакции.
+tags: [fastapi, dependency-injection, depends, yield, dependency-overrides, testing]
+facts:
+  - kind: internals
+    text: >-
+      FastAPI при регистрации маршрута строит дерево зависимостей по сигнатурам (Depends в аргументах и параметрах декоратора). Во время запроса зависимости вычисляются от листьев
+      к корню; результаты хранятся в кэше запроса по ключу (вызываемый объект, параметры безопасности), поэтому одна и та же зависимость, объявленная несколько раз, выполняется
+      один раз за запрос. use_cache=False отключает это.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/dependencies/sub-dependencies/
+      - https://fastapi.tiangolo.com/tutorial/dependencies/
+  - kind: internals
+    text: >-
+      Зависимость-генератор (yield) выполняет код до yield перед обработчиком, а код после yield - после него; исключение, возникшее в обработчике, выбрасывается внутрь
+      генератора в точке yield, поэтому try/except/finally в зависимости видит ошибки обработчика. Параметр scope у Depends ("function" или "request") управляет тем, закончится ли
+      зависимость до отправки ответа клиенту или после него.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/
+  - kind: realworld
+    text: >-
+      app.dependency_overrides - словарь «оригинальная зависимость -> замена»; ключом служит сам объект-функция из Depends. Это штатный способ подставить тестовую
+      базу, часы или клиент внешнего сервиса без изменения обработчиков. После теста словарь нужно очищать, иначе подмена повлияет на следующие тесты.
+    sources:
+      - https://fastapi.tiangolo.com/advanced/testing-dependencies/
+  - kind: misconception
+    text: >-
+      «Depends - это глобальный синглтон». Нет: зависимость вызывается заново на каждый запрос (кэш живёт только внутри запроса). Если нужен один объект на процесс,
+      его создают на уровне модуля или в lifespan, а зависимость лишь возвращает его.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/dependencies/
+  - kind: historical
+    text: >-
+      Декоратор @app.on_event("startup") объявлен устаревшим в пользу lifespan - асинхронного контекстного менеджера, который открывает ресурсы процесса до yield
+      и закрывает их после. В установленной версии вызов on_event выдаёт DeprecationWarning.
+    sources:
+      - https://fastapi.tiangolo.com/advanced/events/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        def get_db(): ...
+        def a(db=Depends(get_db)): ...
+        def b(db=Depends(get_db), a_=Depends(a)): ...
+        Сколько раз за один запрос к маршруту, использующему b, будет вызвана get_db?
+      options: ["Один раз", "Два раза", "Ни разу", "Столько раз, сколько в процессе работает запросов"]
+      answer: 0
+      explanation: "Результат зависимости кэшируется в пределах запроса: get_db вызывается один раз и значение используется в b и в a. Отключить - Depends(get_db, use_cache=False)."
+    - id: q2
+      type: single
+      prompt: "Обработчик выбросил HTTPException(404). Что произойдёт с кодом после yield в зависимости-генераторе?"
+      options:
+        - "Не выполнится"
+        - "Исключение будет выброшено внутрь генератора в точке yield; блоки except/finally выполнятся"
+        - "Выполнится, но исключение туда не попадёт"
+        - "Выполнится только если обработчик завершился успешно"
+      answer: 1
+      explanation: "Именно поэтому в зависимости с транзакцией пишут try: yield ... except: rollback; raise ... else: commit или используют finally."
+    - id: q3
+      type: multiple
+      prompt: "Что верно про app.dependency_overrides?"
+      options:
+        - "Ключ - оригинальная функция зависимости, значение - заменяющая"
+        - "Подмену нужно очищать после теста"
+        - "Замена обязана иметь точно такие же параметры запроса, как оригинал"
+        - "Подмена влияет только на текущий тест автоматически"
+      answer: [0, 1]
+      explanation: "Словарь общий для приложения и живёт, пока вы его не очистите. Замена сама является зависимостью: FastAPI разбирает параметры по её сигнатуре, поэтому она может отличаться от оригинала."
+    - id: q4
+      type: single
+      prompt: "Зачем Annotated-алиас вида Repo = Annotated[TodoRepo, Depends(get_repo)]?"
+      options:
+        - "Чтобы FastAPI работал быстрее"
+        - "Чтобы не повторять Depends в каждой сигнатуре и сохранить тип параметра для проверки типов"
+        - "Он обязателен для yield-зависимостей"
+        - "Без него dependency_overrides не работает"
+      answer: 1
+      explanation: "Алиас переиспользуется во всех обработчиках, сигнатура остаётся обычной аннотацией типа, статический анализатор видит TodoRepo."
+    - id: q5
+      type: short
+      prompt: "Каким параметром Depends отключается кэширование результата в рамках запроса? (напишите имя параметра)"
+      answer: ["use_cache"]
+      explanation: "Depends(dep, use_cache=False)."
+exercise:
+  id: fastapi.fundamentals.dependency-injection.exercise
+  title: Репозиторий как зависимость
+  prompt: |
+    В файле `todo_api.py` уже есть класс `TodoRepo` (методы `add(title)`, `get(todo_id)`, `list()`, `delete(todo_id)`), общий экземпляр `PROD_REPO` и журнал `AUDIT`. Реализуйте приложение так, чтобы тесты могли подменить репозиторий через `app.dependency_overrides`:
+
+    * `get_repo() -> TodoRepo` возвращает `PROD_REPO`; алиас `Repo = Annotated[TodoRepo, Depends(get_repo)]`. **Обработчики не должны обращаться к `PROD_REPO` напрямую.**
+    * Класс-зависимость `Pagination` с параметрами запроса `limit` (`1..50`, по умолчанию `10`) и `offset` (`>= 0`, по умолчанию `0`).
+    * Зависимость с `yield` `audit_scope()`: добавляет в `AUDIT` строку `"open"`, отдаёт `AUDIT`, а в `finally` добавляет `"close"` (даже если обработчик упал).
+    * `POST /todos` с телом `{"title": str}` (непустая строка) -> `201`, `{"id", "title", "done": false}`; использует `audit_scope`, внутри добавляет в журнал `"created:<id>"`.
+    * `GET /todos` -> список задач с учётом `Pagination` (срез `[offset:offset+limit]`).
+    * `GET /todos/{todo_id}` -> задача или `404` с `{"detail": "todo not found"}`.
+    * `DELETE /todos/{todo_id}` -> `204`; использует `audit_scope`; при успехе добавляет `"deleted:<id>"`; нет задачи - `404`.
+  entryFile: todo_api.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Сначала зависимость: `def get_repo(): return PROD_REPO`, алиас `Repo = Annotated[TodoRepo, Depends(get_repo)]`, и в обработчике `def f(repo: Repo)`. Тест подменит именно функцию `get_repo` - поэтому напрямую обращаться к `PROD_REPO` в обработчиках нельзя."
+    - "Класс как зависимость: параметры `__init__` разбираются как параметры запроса: `def __init__(self, limit: Annotated[int, Query(ge=1, le=50)] = 10, offset: Annotated[int, Query(ge=0)] = 0)`. В обработчике: `page: Annotated[Pagination, Depends()]`."
+    - "Зависимость с yield: `def audit_scope(): AUDIT.append('open'); try: yield AUDIT; finally: AUDIT.append('close')`. Подключите её параметром `audit: Annotated[list, Depends(audit_scope)]` в POST и DELETE и пишите в `audit.append(...)` внутри обработчика."
+    - "Для 404 используйте `HTTPException(404, 'todo not found')` ДО добавления `deleted:...`. Исключение из обработчика попадёт в генератор и выполнит `finally`, поэтому `close` будет записан и при ошибке. DELETE с `status_code=204` не возвращает тело."
+  tests:
+    - id: override-repo
+      title: Репозиторий подменяется через dependency_overrides
+      hint: "Обработчики должны получать репозиторий только через Depends(get_repo); если обратиться к PROD_REPO напрямую, подмена не сработает."
+    - id: pagination
+      title: Pagination как класс-зависимость
+      hint: "Срез [offset:offset+limit] от списка репозитория; значения по умолчанию limit=10, offset=0."
+    - id: get-404
+      title: GET /todos/{id} - 404
+      hint: "repo.get вернёт None для неизвестного id: превратите это в HTTPException(404, 'todo not found')."
+    - id: default-repo
+      title: Без подмены используется PROD_REPO (скрытый)
+      hidden: true
+      hint: "get_repo() должна возвращать именно PROD_REPO, один и тот же объект для всех запросов."
+    - id: audit-order
+      title: Порядок записей в журнале при успехе (скрытый)
+      hidden: true
+      hint: "Ожидается open, затем created:<id>, затем close. Код после yield выполняется после обработчика."
+    - id: audit-on-error
+      title: close при ошибке обработчика (скрытый)
+      hidden: true
+      hint: "Оберните yield в try/finally: исключение из обработчика бросается внутрь генератора, и finally записывает close. 404 при удалении не должно добавлять deleted:."
+    - id: pagination-bounds
+      title: Границы limit и offset (скрытый)
+      hidden: true
+      hint: "Query(ge=1, le=50) и Query(ge=0) внутри __init__ зависимости; нарушение даёт 422 с loc ['query', 'limit']."
+    - id: openapi-params
+      title: Зависимости не становятся параметрами запроса (скрытый)
+      hidden: true
+      hint: "В схеме GET /todos должны быть только limit и offset: Repo и аудит - внутренние детали, а не часть контракта."
+challenge:
+  id: fastapi.fundamentals.dependency-injection.challenge
+  title: Транзакция как зависимость
+  prompt: |
+    В файле `bank_task.py` есть учебная база `Database` (счета в словаре) с методом `begin()`, возвращающим транзакцию `Transaction`: она работает с **копией** данных, `commit()` записывает копию в базу, `rollback()` отбрасывает. Реализуйте:
+
+    * Зависимость с `yield` `unit_of_work()`: открывает транзакцию (`DB.begin()`), отдаёт её обработчику; если обработчик завершился успешно - `commit()`, если выбросил исключение - `rollback()` и исключение пробрасывается дальше.
+    * `POST /transfer` с телом `{"src": str, "dst": str, "amount": int > 0}`: списывает `amount` со счёта `src` и зачисляет на `dst` внутри транзакции (`tx.accounts`). Неизвестный счёт - `404` (`{"detail": "account not found"}`); недостаточно средств - `409` (`{"detail": "insufficient funds"}`). При любой ошибке оба баланса должны остаться в исходном состоянии: проверьте, что вы не фиксируете частичных изменений (тест это проверяет).
+  entryFile: bank_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Структура зависимости: `tx = DB.begin(); try: yield tx; except Exception: tx.rollback(); raise; else: tx.commit()`. Исключение из обработчика (в том числе HTTPException) приходит именно в точку yield."
+    - "В обработчике получайте транзакцию как `tx: Annotated[Transaction, Depends(unit_of_work)]` и работайте с `tx.accounts`, а не с `DB.accounts`."
+    - "Порядок: проверьте существование src и dst (404), затем баланс (409), затем измените оба счёта. Даже если вы измените счёт до проверки, откат отменит изменения - но не забудьте `raise`, а не `return`."
+  tests:
+    - id: transfer-ok
+      title: Успешный перевод фиксируется
+      hint: "После успеха tx.commit() переносит копию в DB.accounts; балансы src и dst меняются на amount."
+    - id: errors-rollback
+      title: Ошибки откатывают транзакцию
+      hint: "404 и 409 - это исключения HTTPException; зависимость должна вызвать rollback() и пробросить исключение дальше."
+    - id: no-partial
+      title: Нет частичных изменений (скрытый)
+      hidden: true
+      hint: "Нельзя оставлять списание, если зачисление не удалось: работайте с tx.accounts и позвольте откату всё отменить."
+    - id: amount-validation
+      title: Невалидная сумма отклоняется (скрытый)
+      hidden: true
+      hint: "422 возвращается до вызова обработчика; проверьте, что тело разбирается моделью с amount > 0."

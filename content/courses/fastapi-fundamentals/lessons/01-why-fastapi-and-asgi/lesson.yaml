@@ -1,0 +1,152 @@
+id: fastapi.fundamentals.why-fastapi-and-asgi
+title: Зачем FastAPI и как устроен ASGI
+goal: Объяснить жизненный цикл HTTP-запроса в ASGI-приложении, понять, что FastAPI добавляет поверх Starlette, и написать первые эндпоинты с правильными кодами статуса.
+difficulty: easy
+estimatedMinutes: 60
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [python.advanced.decorators, python.advanced.typing-fundamentals]
+related: [python.advanced.functions-as-objects]
+next: [fastapi.fundamentals.path-query-body]
+objectives:
+  - Сравнить WSGI и ASGI и назвать, что именно передаётся в ASGI-приложение (scope, receive, send).
+  - Написать минимальное ASGI-приложение без фреймворка и вызвать его вручную.
+  - Объяснить, какую часть работы делает Starlette (маршрутизация, middleware, ответы), а какую FastAPI (разбор параметров, валидация, OpenAPI).
+  - Создать приложение FastAPI, проверить его через TestClient и выбрать верный код статуса (200, 201, 204, 404, 405, 422).
+  - Объяснить, чем def-обработчик отличается от async def-обработчика.
+masteryCriteria:
+  - Вы пишете эндпоинт с status_code=201 и эндпоинт с 204 без тела и проверяете оба через TestClient.
+  - Вы объясняете, почему блокирующий вызов внутри async def-обработчика останавливает весь event loop.
+  - Вы показываете, что /openapi.json строится из аннотаций типов и сигнатур, а не пишется вручную.
+tags: [fastapi, asgi, starlette, testclient, http]
+facts:
+  - kind: internals
+    text: >-
+      ASGI-приложение - это асинхронный вызываемый объект с тремя аргументами: scope (словарь с описанием соединения: type, method, path, headers),
+      receive (корутина, возвращающая события от клиента, например http.request) и send (корутина для событий ответа: http.response.start и http.response.body).
+      Спецификация описывает HTTP, WebSocket и lifespan как три типа scope.
+    sources:
+      - https://asgi.readthedocs.io/en/latest/specs/main.html
+      - https://asgi.readthedocs.io/en/latest/specs/www.html
+  - kind: historical
+    text: >-
+      WSGI (PEP 3333) описывает синхронный интерфейс «функция принимает environ и start_response, возвращает итерируемое тело». Он не рассчитан на долгоживущие соединения
+      и асинхронность, поэтому для WebSocket и async-кода появился ASGI.
+    sources:
+      - https://peps.python.org/pep-3333/
+      - https://asgi.readthedocs.io/en/latest/introduction.html
+  - kind: internals
+    text: >-
+      FastAPI - надстройка над Starlette: класс FastAPI наследуется от Starlette, маршрутизация, middleware и ответы приходят из Starlette, а разбор параметров,
+      валидация через Pydantic, внедрение зависимостей и генерация схемы OpenAPI добавляет FastAPI.
+    sources:
+      - https://fastapi.tiangolo.com/
+      - https://www.starlette.io/
+  - kind: performance
+    text: >-
+      Обработчик, объявленный через обычный def, FastAPI выполняет в пуле потоков, чтобы не блокировать event loop. Обработчик async def выполняется прямо в цикле событий:
+      блокирующий вызов внутри него (time.sleep, requests.get, тяжёлые вычисления) останавливает обслуживание всех запросов этого процесса.
+    sources:
+      - https://fastapi.tiangolo.com/async/
+  - kind: misconception
+    text: >-
+      «async def всегда быстрее». Асинхронность помогает, когда обработчик ждёт ввода-вывода через await-совместимые библиотеки; для CPU-нагрузки и блокирующих драйверов
+      она ничего не даёт, а с блокирующим кодом внутри хуже обычного def.
+    sources:
+      - https://fastapi.tiangolo.com/async/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Какую сигнатуру имеет ASGI-приложение?"
+      options:
+        - "def app(environ, start_response)"
+        - "async def app(scope, receive, send)"
+        - "def app(request) -> Response"
+        - "async def app(request, response)"
+      answer: 1
+      explanation: "ASGI: scope описывает соединение, receive отдаёт события клиента, send принимает события ответа. Первый вариант - WSGI."
+    - id: q2
+      type: multiple
+      prompt: "Что добавляет FastAPI поверх Starlette?"
+      options:
+        - "Разбор и валидацию параметров по аннотациям типов"
+        - "Генерацию схемы OpenAPI и страницы /docs"
+        - "Сам протокол ASGI"
+        - "Систему внедрения зависимостей Depends"
+      answer: [0, 1, 3]
+      explanation: "ASGI - отдельная спецификация, а маршрутизацию, middleware и ответы даёт Starlette. Валидация, OpenAPI и Depends - вклад FastAPI (с Pydantic)."
+    - id: q3
+      type: single
+      prompt: "В обработчике async def вызван time.sleep(5). Что произойдёт с другими запросами к тому же процессу?"
+      options:
+        - "Ничего: каждый запрос в своём потоке"
+        - "Они будут ждать, пока цикл событий занят блокирующим вызовом"
+        - "FastAPI автоматически перенесёт вызов в пул потоков"
+        - "Будет выброшено исключение"
+      answer: 1
+      explanation: "async def исполняется в event loop. Блокирующий вызов не отдаёт управление, поэтому остальные задачи стоят. Решения: обычный def, await-совместимая библиотека или run_in_threadpool."
+    - id: q4
+      type: single
+      prompt: "Какой код статуса уместен для успешного DELETE, после которого тело ответа не нужно?"
+      options: ["200 с телом null", "201", "204", "404"]
+      answer: 2
+      explanation: "204 No Content означает успех без тела. В FastAPI задайте status_code=204 и ничего не возвращайте."
+    - id: q5
+      type: short
+      prompt: "Каким кодом FastAPI ответит, если параметр пути объявлен int, а пришло /items/abc?"
+      answer: ["422"]
+      explanation: "Ошибка валидации входных данных - 422 с телом {\"detail\": [...]} (Starlette-часть не знает о типах, это работа FastAPI/Pydantic)."
+exercise:
+  id: fastapi.fundamentals.why-fastapi-and-asgi.exercise
+  title: Первые эндпоинты
+  prompt: |
+    В файле `api_task.py` создайте приложение `app = FastAPI()` и реализуйте небольшой API «задач». Тесты вызывают его через `TestClient`.
+
+    * `GET /health` -> `200`, тело `{"status": "ok"}`.
+    * `GET /hello/{name}` -> `200`, тело `{"message": "Hello, <name>!"}`.
+    * `POST /jobs` (без тела запроса) -> **`201`**, тело `{"id": <n>, "status": "queued"}`. Номера выдаются подряд, начиная с 1. Задачу нужно сохранить.
+    * `GET /jobs/{job_id}` (`job_id` - целое) -> `200` и сохранённая задача; если такой нет, `404` с телом `{"detail": "job not found"}` (`raise HTTPException(status_code=404, detail=...)`).
+    * `DELETE /jobs/{job_id}` -> **`204`** без тела; если задачи нет - `404` как выше.
+    * Функция `reset_state()` очищает хранилище и начинает нумерацию заново с 1 (тесты вызывают её перед сценарием).
+
+    Не добавляйте запуск сервера (`uvicorn.run`): в тестах приложение работает в процессе.
+  entryFile: api_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с `@app.get(\"/hello/{name}\")` и параметра `name: str` - имя в фигурных скобках пути и имя параметра функции должны совпадать. Код статуса по умолчанию 200; для создания и удаления он другой."
+    - "Статус задаётся в декораторе: `@app.post(\"/jobs\", status_code=201)`, `@app.delete(\"/jobs/{job_id}\", status_code=204)`. Хранилище - словарь на уровне модуля плюс счётчик; `reset_state` должна менять именно их."
+    - "Для 404 используйте `from fastapi import HTTPException` и `raise HTTPException(status_code=404, detail=\"job not found\")`. Объявите `job_id: int` - тогда `/jobs/abc` даст 422 без вашего кода."
+    - "Скелет: `JOBS: dict[int, dict] = {}; _next = 1`; в `create_job` используйте `global _next`, создайте `{\"id\": _next, \"status\": \"queued\"}`, положите в JOBS, увеличьте `_next`. В DELETE после `del JOBS[job_id]` ничего не возвращайте (`return None`)."
+  tests:
+    - id: health
+      title: GET /health
+      hint: "Верните словарь {\"status\": \"ok\"}; FastAPI сам превратит его в JSON с кодом 200."
+    - id: hello
+      title: GET /hello/{name}
+      hint: "Имя параметра функции должно совпадать с именем в фигурных скобках пути."
+    - id: create-job
+      title: POST /jobs возвращает 201
+      hint: "Добавьте status_code=201 в декоратор и верните словарь {\"id\": 1, \"status\": \"queued\"} для первой задачи."
+    - id: job-sequence
+      title: Нумерация и сохранение задач (скрытый)
+      hidden: true
+      hint: "Каждая новая задача получает следующий номер; GET /jobs/{id} должен вернуть ту же задачу, а reset_state сбрасывает и хранилище, и счётчик."
+    - id: job-not-found
+      title: 404 и 422 для GET /jobs/{job_id} (скрытый)
+      hidden: true
+      hint: "Для несуществующего id - HTTPException(404, detail='job not found'); для /jobs/abc ответит сам FastAPI (422), если параметр объявлен как int."
+    - id: delete-204
+      title: DELETE возвращает 204 без тела (скрытый)
+      hidden: true
+      hint: "status_code=204 и пустое тело: не возвращайте словарь. После удаления повторный GET даёт 404, повторный DELETE - тоже 404."
+    - id: unicode-and-method
+      title: Юникод в пути и 405 (скрытый)
+      hidden: true
+      hint: "Параметр пути декодируется из UTF-8 автоматически. Неподдерживаемый метод (например, PUT /health) FastAPI отклонит кодом 405 сам - не объявляйте лишних маршрутов."
+    - id: openapi
+      title: Схема OpenAPI описывает маршруты (скрытый)
+      hidden: true
+      hint: "Схема строится из объявленных маршрутов; проверьте, что путь записан как /jobs/{job_id}, а не /jobs/<id>."

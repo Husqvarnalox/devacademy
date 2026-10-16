@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:lsp="using:DevAcademy.Desktop.ViewModels.Lsp"
              xmlns:ctl="using:DevAcademy.Desktop.Controls"
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.SessionView"
@@ -104,8 +105,16 @@
 
     <!-- Editor -->
     <Border Grid.Row="3" Background="{DynamicResource PanelBrush}">
-      <ctl:CodeEditorControl Name="CodeEditor" Text="{Binding SelectedFile.Content, Mode=TwoWay}" FileName="{Binding SelectedFile.Path}"
-                             AutomationProperties.Name="{loc:T Editor_Name}" />
+      <Grid RowDefinitions="*,Auto">
+        <ctl:CodeEditorControl Name="CodeEditor" LspTarget="{Binding SelectedFile.Lsp}" Text="{Binding SelectedFile.Content, Mode=TwoWay}" FileName="{Binding SelectedFile.Path}"
+                               AutomationProperties.Name="{loc:T Editor_Name}" />
+        <Border Grid.Row="1" Classes="bar" Padding="8,2" IsVisible="{Binding HasLsp}">
+          <Button Name="LspStatusButton" Classes="link" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Left"
+                  Command="{Binding LspHelpCommand}" ToolTip.Tip="{Binding LspStatus.Tooltip}">
+            <TextBlock Text="{Binding LspStatus.Text}" FontSize="12" Classes.warn="{Binding LspStatus.NeedsHelp}" Classes.danger="{Binding LspStatus.IsError}" />
+          </Button>
+        </Border>
+      </Grid>
     </Border>
 
     <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows" />
@@ -159,6 +168,27 @@
                     <TextBlock Text="{Binding Path}" Classes="caption" />
                     <Border Classes="codeout"><SelectableTextBlock Text="{Binding Content}" Classes="mono" /></Border>
                   </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="{Binding ProblemsHeader}" IsVisible="{Binding HasLsp}">
+        <ScrollViewer>
+          <StackPanel Margin="10,8" Spacing="2">
+            <TextBlock Text="{loc:T Out_NoProblems}" Classes="muted" IsVisible="{Binding !Problems.Count}" />
+            <ItemsControl ItemsSource="{Binding Problems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="lsp:ProblemItemViewModel">
+                  <Button Padding="4,3" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          Command="{Binding $parent[UserControl].((vm:ExerciseSessionViewModel)DataContext).OpenProblemCommand}" CommandParameter="{Binding}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding Glyph}" Classes.danger="{Binding IsError}" Classes.warn="{Binding IsWarning}" />
+                      <TextBlock Text="{Binding Location}" Classes="mono muted" />
+                      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Button>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

@@ -1,0 +1,208 @@
+id: python.stdlib.collections
+title: "collections: Counter, defaultdict, deque, namedtuple"
+goal: Выбирать специализированные контейнеры из модуля collections вместо ручных циклов и знать стоимость их операций.
+difficulty: easy
+estimatedMinutes: 60
+prerequisites: [python.fundamentals.dicts-and-sets, python.fundamentals.lists, python.fundamentals.functions]
+related: [python.advanced.iterators-and-generators, python.advanced.dunder-methods-and-dataclasses]
+next: [python.stdlib.heapq-and-bisect]
+objectives:
+  - Подсчитывать элементы через Counter, получать most_common и объяснять порядок при равных счётчиках.
+  - Группировать данные через defaultdict и не допускать утечки фабричного поведения наружу.
+  - Использовать deque как очередь и как скользящее окно с maxlen, обосновывая выбор стоимостью операций.
+  - Описывать записи через namedtuple и понимать, чем они отличаются от обычного кортежа и от dataclass.
+  - Назвать назначение ChainMap и привести пример слоёв настроек.
+masteryCriteria:
+  - Вы объясняете, почему list.pop(0) в цикле квадратичен, а deque.popleft() нет.
+  - Вы знаете, что обращение к отсутствующему ключу defaultdict создаёт его, и умеете этого избегать.
+  - Вы пишете агрегацию лога (счётчики, группы, последние N записей) без ручных проверок «ключ уже есть».
+tags: [python, collections, counter, defaultdict, deque, namedtuple, chainmap]
+facts:
+  - kind: internals
+    text: >-
+      Counter - подкласс dict. Метод most_common() сортирует по убыванию счётчика, а элементы с равными счётчиками идут в порядке первого появления,
+      потому что сортировка устойчива, а словари помнят порядок вставки (гарантия для dict - с Python 3.7).
+    sources:
+      - https://docs.python.org/3/library/collections.html#collections.Counter
+      - https://docs.python.org/3/library/stdtypes.html#dict
+  - kind: performance
+    text: >-
+      deque поддерживает добавление и удаление с обоих концов за O(1), а доступ по индексу в середине - O(n). Поэтому deque подходит для очередей,
+      а list - для произвольного доступа по индексу. list.pop(0) и list.insert(0, x) сдвигают все элементы, то есть стоят O(n).
+    sources:
+      - https://docs.python.org/3/library/collections.html#collections.deque
+      - https://docs.python.org/3/library/stdtypes.html#mutable-sequence-types
+  - kind: misconception
+    text: >-
+      «defaultdict безопасен для чтения отсутствующих ключей». Нет: d[key] для отсутствующего ключа вызывает default_factory и сохраняет результат в словаре,
+      поэтому проверка d[key] в условии тихо раздувает словарь. Для чтения без вставки используйте d.get(key) или key in d.
+    sources:
+      - https://docs.python.org/3/library/collections.html#collections.defaultdict
+  - kind: real-world
+    text: >-
+      namedtuple создаёт подкласс tuple с именованными полями без словаря атрибутов на экземпляр, поэтому запись занимает столько же памяти, сколько обычный кортеж.
+      Если нужны значения по умолчанию, методы и изменяемость - берите dataclass.
+    sources:
+      - https://docs.python.org/3/library/collections.html#collections.namedtuple
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что вернёт Counter("bbaacc").most_common(2)?
+      options:
+        - "[('a', 2), ('b', 2)]"
+        - "[('b', 2), ('a', 2)]"
+        - "[('c', 2), ('a', 2)]"
+        - "Результат не определён"
+      answer: 1
+      explanation: >-
+        Все счётчики равны 2, поэтому порядок определяется порядком первого появления: b, затем a, затем c. Это следствие устойчивой сортировки и порядка вставки в dict.
+    - id: q2
+      type: single
+      prompt: |
+        d = defaultdict(list)
+        if d["x"]:
+            pass
+        print(len(d))
+        Что выведет код?
+      options:
+        - "0"
+        - "1"
+        - "KeyError"
+        - "None"
+      answer: 1
+      explanation: >-
+        Чтение d["x"] вызывает default_factory и вставляет ключ со значением [], поэтому в словаре уже один ключ. Для проверки без вставки используйте "x" in d или d.get("x").
+    - id: q3
+      type: multiple
+      prompt: Какие операции у deque выполняются за O(1)? Выберите все верные.
+      options:
+        - "append и appendleft"
+        - "pop и popleft"
+        - "d[len(d) // 2] (доступ к середине)"
+        - "insert(0, x) в list, для сравнения"
+      answer: [0, 1]
+      explanation: >-
+        Оба конца deque - O(1). Доступ к середине у deque - O(n), а list.insert(0, x) сдвигает все элементы и тоже O(n).
+    - id: q4
+      type: short
+      prompt: Какой параметр конструктора deque ограничивает размер, отбрасывая самые старые элементы при переполнении? (одно слово)
+      answer: ["maxlen"]
+      explanation: >-
+        deque(iterable, maxlen=N) хранит не более N последних элементов: при добавлении с одного конца элемент с противоположного конца вытесняется.
+    - id: q5
+      type: single
+      prompt: Чем namedtuple принципиально отличается от dataclass по умолчанию?
+      options:
+        - "namedtuple изменяем, dataclass нет"
+        - "namedtuple - это неизменяемый кортеж с именами полей, его можно распаковывать и сравнивать как кортеж"
+        - "namedtuple хранит поля в __dict__ каждого экземпляра"
+        - "Различий нет"
+      answer: 1
+      explanation: >-
+        Экземпляр namedtuple - настоящий tuple: неизменяемый, итерируемый, распаковываемый. Обычный dataclass изменяем и не является кортежем.
+exercise:
+  id: python.stdlib.collections.exercise
+  title: Агрегация журнала
+  prompt: |
+    В файле `logstats.py` реализуйте разбор и агрегацию строк журнала формата `ДАТА УРОВЕНЬ СЕРВИС сообщение...`, например
+    `2024-01-05 ERROR db connection timeout`. Сообщение может содержать пробелы или отсутствовать. Ничего не читайте и не печатайте.
+
+    1. `Entry` - `namedtuple` с полями `date`, `level`, `service`, `message`.
+    2. `parse(line)` - возвращает `Entry`. Если в строке меньше трёх полей, поднимите `ValueError`. Отсутствующее сообщение - пустая строка.
+    3. `count_levels(lines)` - `Counter` по уровням.
+    4. `top_error_services(lines, n)` - список из `n` самых частых сервисов среди строк уровня `ERROR` в виде пар `(сервис, число)`; при равенстве - в порядке первого появления.
+    5. `messages_by_service(lines)` - **обычный `dict`** `сервис -> список сообщений` в порядке появления (используйте `defaultdict` внутри, но верните `dict`, чтобы чтение отсутствующего ключа поднимало `KeyError`).
+    6. `last_lines(lines, n)` - список последних `n` строк (как есть), используя `deque(maxlen=n)`; `n == 0` даёт `[]`.
+
+    **Примеры.**
+
+    ```python
+    parse("2024-01-05 WARN web slow")        # Entry(date='2024-01-05', level='WARN', service='web', message='slow')
+    count_levels(["d ERROR a x", "d INFO a y"])   # Counter({'ERROR': 1, 'INFO': 1})
+    last_lines(["a", "b", "c"], 2)          # ['b', 'c']
+    ```
+  entryFile: logstats.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Для каждой функции подберите контейнер: Counter считает, defaultdict(list) группирует, deque(maxlen=n) хранит хвост. Строку разбирайте один раз в parse и переиспользуйте её."
+    - "parse: parts = line.split(maxsplit=3) разбивает не больше чем на 4 части, сохраняя пробелы внутри сообщения. Если частей 3, добавьте пустое сообщение; если меньше 3 - ValueError."
+    - "top_error_services: Counter(e.service for e in map(parse, lines) if e.level == 'ERROR').most_common(n). messages_by_service: group = defaultdict(list); group[e.service].append(e.message); в конце верните dict(group)."
+    - "last_lines: return list(deque(lines, maxlen=n)). Для n == 0 deque(maxlen=0) корректно остаётся пустым. Entry = namedtuple('Entry', ['date', 'level', 'service', 'message'])."
+  tests:
+    - id: parse-basic
+      title: parse - обычная строка
+      hint: Четыре поля; сообщение со всеми пробелами внутри, поэтому делите с maxsplit=3.
+    - id: count-levels
+      title: count_levels
+      hint: Верните Counter (или подкласс dict), ключи - уровни.
+    - id: top-errors
+      title: top_error_services
+      hint: Учитываются только строки с уровнем ERROR; результат - список пар (сервис, число).
+    - id: group-basic
+      title: messages_by_service
+      hint: Сообщения каждого сервиса идут в порядке появления в журнале.
+    - id: parse-edge
+      title: parse - нет сообщения и ошибки (скрытый)
+      hidden: true
+      hint: "Строка из трёх полей даёт message == ''; из двух полей и меньше - ValueError."
+    - id: top-tie-order
+      title: top_error_services - порядок при равенстве (скрытый)
+      hidden: true
+      hint: Counter.most_common сохраняет порядок первого появления при равных счётчиках; не сортируйте результат заново по имени.
+    - id: group-plain-dict
+      title: messages_by_service возвращает обычный dict (скрытый)
+      hidden: true
+      hint: Преобразуйте defaultdict в dict перед возвратом, иначе чтение d['нет'] вернёт [] вместо KeyError.
+    - id: last-lines
+      title: last_lines - границы (скрытый)
+      hidden: true
+      hint: n больше длины даёт все строки, n == 0 даёт пустой список. Для итераторов на входе не стройте промежуточный список.
+challenge:
+  id: python.stdlib.collections.challenge
+  title: LRU-кэш на OrderedDict
+  prompt: |
+    В файле `lru_task.py` реализуйте класс `LRUCache(capacity)` - кэш фиксированной ёмкости с вытеснением **наименее недавно использованного** ключа.
+
+    * `get(key, default=None)` - возвращает значение и помечает ключ как только что использованный; отсутствующий ключ даёт `default`.
+    * `put(key, value)` - добавляет или обновляет значение (ключ становится самым свежим). Если после добавления размер больше `capacity`, вытесняется самый старый ключ.
+    * `len(cache)` - число хранимых ключей; `key in cache` не меняет порядок использования; `keys()` возвращает список ключей от самого старого к самому свежему.
+    * `capacity <= 0` - `ValueError` в конструкторе.
+    * Обе операции `get` и `put` должны работать за O(1): используйте `collections.OrderedDict` (`move_to_end`, `popitem(last=False)`), а не поиск по списку.
+  entryFile: lru_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "OrderedDict хранит порядок вставки и умеет перемещать ключ в конец. Конец - самые свежие, начало - кандидаты на вытеснение."
+    - "get: если ключ есть, вызовите self._data.move_to_end(key) и верните значение. put: запишите self._data[key] = value, затем move_to_end(key)."
+    - "После put проверьте len(self._data) > self.capacity и вытесните самый старый ключ методом popitem(last=False)."
+    - "Скелет: def get(self, key, default=None): if key not in self._data: return default; self._data.move_to_end(key); return self._data[key]. Оператор in не должен менять порядок - не вызывайте get внутри __contains__."
+  tests:
+    - id: lru-basic
+      title: Базовое вытеснение
+      hint: При переполнении исчезает ключ, к которому дольше всех не обращались.
+    - id: lru-get-refresh
+      title: get обновляет свежесть
+      hint: Успешный get должен перенести ключ в конец порядка.
+    - id: lru-update
+      title: Обновление существующего ключа
+      hint: put существующего ключа не увеличивает размер и делает ключ самым свежим.
+    - id: lru-contains-pure
+      title: in и keys не меняют порядок (скрытый)
+      hidden: true
+      hint: Проверка наличия и перечисление ключей не должны считаться обращением.
+    - id: lru-capacity-error
+      title: Некорректная ёмкость (скрытый)
+      hidden: true
+      hint: Для capacity <= 0 поднимайте ValueError в __init__.
+    - id: lru-big
+      title: Много операций (скрытый)
+      hidden: true
+      hint: 200 тысяч операций должны выполниться быстро; значит, get и put - O(1), без list.remove и поиска.

@@ -10,6 +10,16 @@ namespace DevAcademy.Desktop.Tests;
 /// <summary>Renders real frames of the main screens to PNG for visual review. Runs only when DEVACADEMY_SCREENSHOTS points at an output dir.</summary>
 public class ScreenshotTests
 {
+    /// <summary>Lets theme transitions (Expander chevron, hover fades) finish before a frame is captured.</summary>
+    private static void Settle()
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            Thread.Sleep(100);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData("Light")]
     [InlineData("Dark")]
@@ -26,7 +36,7 @@ public class ScreenshotTests
 
         void Save(string name)
         {
-            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Settle();
             using var frame = window.CaptureRenderedFrame();
             using var file = File.Create(Path.Combine(dir!, $"{theme.ToLowerInvariant()}-{name}.png"));
             frame?.Save(file, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
@@ -68,7 +78,7 @@ public class ScreenshotTests
 
         void Save(string name)
         {
-            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Settle();
             using var frame = window.CaptureRenderedFrame();
             using var file = File.Create(Path.Combine(dir!, $"{theme.ToLowerInvariant()}-{name}.png"));
             frame?.Save(file, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
@@ -112,7 +122,7 @@ public class ScreenshotTests
 
         void Save(string name)
         {
-            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Settle();
             using var frame = window.CaptureRenderedFrame();
             using var file = File.Create(Path.Combine(dir!, $"{theme.ToLowerInvariant()}-{name}.png"));
             frame?.Save(file, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());

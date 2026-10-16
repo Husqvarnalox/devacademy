@@ -64,6 +64,7 @@
               </Border>
             </StackPanel>
           </Border>
+          <views:LanguageServersView Name="LanguageServersSection" DataContext="{Binding LanguageServers}" />
           <views:PythonEnvironmentsView Name="PythonSection" DataContext="{Binding Python}" />
           <views:MlAccelerationView Name="MlSection" DataContext="{Binding Ml}" />
         </StackPanel>

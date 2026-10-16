@@ -1,0 +1,14 @@
+id: python-backend-developer
+title: Python для бэкенд-разработчика
+description: "Путь к веб-API на Python. Сначала «Основы Python» и «Продвинутый Python», затем «Стандартная библиотека Python», после этого «FastAPI: основы»: ASGI, параметры и тела запросов, модели Pydantic v2, зависимости, ошибки, аутентификация с токенами и тестирование. Базы данных и ORM, WebSocket, фоновые задачи, развёртывание и JWT-аутентификация целиком пока запланированы и в путь не входят."
+goal: backend
+targets: [fastapi-fundamentals]
+stages:
+  - title: Python core
+    courses: [python-fundamentals]
+  - title: Продвинутый Python
+    courses: [python-advanced]
+  - title: Стандартная библиотека
+    courses: [python-stdlib]
+  - title: FastAPI
+    courses: [fastapi-fundamentals]

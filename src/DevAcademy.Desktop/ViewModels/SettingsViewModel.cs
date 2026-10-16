@@ -61,12 +61,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         Ai = new AiSettingsViewModel(s, nav);
         Python = new PythonEnvironmentsViewModel(s);
         Ml = new MlAccelerationViewModel(s);
+        LanguageServers = new LanguageServersViewModel(s);
         Python.EnvironmentsChanged += () => _ = Ml.RefreshEnvironmentsAsync();
     }
 
     public AiSettingsViewModel Ai { get; }
     public PythonEnvironmentsViewModel Python { get; }
     public MlAccelerationViewModel Ml { get; }
+    public LanguageServersViewModel LanguageServers { get; }
     [ObservableProperty] private int _selectedTab;
 
     public IReadOnlyList<Choice<ThemeChoice>> Themes { get; }
@@ -94,6 +96,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         await DetectRuntimesAsync();
         await Python.LoadAsync();
         await Ml.LoadAsync();
+        await LanguageServers.LoadAsync();
     }
 
     partial void OnSelectedThemeChanged(Choice<ThemeChoice> value)

@@ -1,0 +1,155 @@
+id: "python.numpy.ndarray-vs-list"
+title: "ndarray и список: буфер, dtype, shape, strides"
+goal: "Понять, как устроен ndarray (типизированный непрерывный буфер с shape, dtype и strides) и почему векторные операции быстрее циклов по спискам."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "python.fundamentals.lists"
+  - "python.fundamentals.functions"
+related:
+  - "python.advanced.iterators-and-generators"
+  - "python.advanced.classes-and-objects"
+next:
+  - "python.numpy.dtypes-and-casting"
+seeAlso:
+  - "SIMD и кэш процессора как причины скорости векторных операций (отдельного урока пока нет)"
+objectives:
+  - "Назвать составные части ndarray: буфер данных, dtype, shape, strides - и вычислить nbytes и strides для заданной формы и dtype."
+  - "Объяснить, почему поэлементные операции над ndarray быстрее цикла по списку: цикл на C по типизированному буферу против диспетчеризации для каждого PyObject."
+  - "Измерить время через time.perf_counter с повторами и объяснить, откуда берётся разброс измерений."
+  - "Не путать list * k и ndarray * k и приводить входные данные через np.asarray."
+masteryCriteria:
+  - "describe(a) возвращает верные shape, dtype, itemsize, nbytes, strides и c_contiguous, в том числе для транспонированного массива и среза с шагом."
+  - "c_strides(shape, itemsize) совпадает со strides настоящего C-непрерывного массива для 1D, 2D, 3D и формы ()."
+  - "scale_all корректно работает и для списка, и для ndarray, возвращает float64 и не меняет вход."
+tags:
+  - "numpy"
+  - "ndarray"
+  - "dtype"
+  - "strides"
+  - "vectorization"
+  - "performance"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Документация NumPy описывает ndarray как однородный многомерный массив: все элементы имеют один dtype, а strides хранят для каждой оси число байтов, на которое нужно сместиться к следующему элементу. Поэтому транспонирование и срезы можно реализовать, не копируя данные."
+    sources:
+      - "https://numpy.org/doc/stable/reference/arrays.ndarray.html"
+  - kind: "performance"
+    text: "Скорость NumPy достигается тем, что цикл выполняется в скомпилированном коде по плотному буферу, а не тем, что «числа в NumPy быстрее». Цикл Python по элементам массива обычно медленнее, чем по списку, потому что каждый элемент приходится упаковывать в скалярный объект."
+    sources:
+      - "https://numpy.org/doc/stable/user/whatisnumpy.html"
+  - kind: "misconception"
+    text: "«Векторизация всегда экономит память». Нет: промежуточные выражения вроде a * b + c создают временные массивы, и пиковое потребление может быть больше, чем у цикла. Выигрыш обычно во времени, а не в памяти."
+    sources:
+      - "https://numpy.org/doc/stable/user/whatisnumpy.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему a + b для двух больших ndarray обычно быстрее поэлементного сложения списков в цикле Python?"
+      options:
+        - "Цикл идёт на C по плотному буферу однотипных чисел, без диспетчеризации для каждого PyObject"
+        - "NumPy использует GPU по умолчанию"
+        - "ndarray хранит числа в сжатом виде"
+        - "Интерпретатор Python отключает проверку типов глобально"
+      answer: 0
+      explanation: "Проверка типа и выбор ядра выполняются один раз на весь массив, а сам цикл исполняется скомпилированным кодом без вызовов методов объектов."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Массив dtype=float32 формы (6, 5). Сколько байтов занимает его буфер данных (nbytes)? Ответ - число."
+      answer: 120
+      tolerance: 0
+      explanation: "size = 30 элементов, itemsize float32 = 4 байта, nbytes = 30 * 4 = 120."
+    - id: "q3"
+      type: "single"
+      prompt: "Чему равны strides C-непрерывного массива int64 формы (3, 4)?"
+      options:
+        - "(32, 8)"
+        - "(8, 32)"
+        - "(12, 4)"
+        - "(3, 4)"
+      answer: 0
+      explanation: "Последняя ось: шаг равен itemsize = 8 байт. Первая ось: 4 элемента * 8 = 32 байта."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения о замере времени верны?"
+      options:
+        - "Один замер ненадёжен: на него влияют другие процессы, кэши, частота процессора и сборщик мусора"
+        - "Минимум из нескольких повторов меньше подвержен шуму, чем среднее"
+        - "Абсолютные секунды переносимы между машинами"
+        - "time.perf_counter - монотонные часы высокого разрешения, подходящие для замеров"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Секунды зависят от машины; устойчивы отношения и порядок величины. perf_counter подходит для интервалов."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт [1, 2, 3] * 2 и np.array([1, 2, 3]) * 2?"
+      options:
+        - "Список из шести элементов и массив [2 4 6]"
+        - "В обоих случаях [2, 4, 6]"
+        - "Ошибку в первом случае"
+        - "Массив из шести элементов и список [2, 4, 6]"
+      answer: 0
+      explanation: "Для списка * означает повторение, для массива - поэлементное умножение."
+exercise:
+  id: "python.numpy.ndarray-vs-list.exercise"
+  title: "Метаданные массива, шаги и масштабирование"
+  prompt: |
+    В файле `ndarray_task.py` реализуйте три функции. NumPy 2.x доступен (`import numpy as np`); ничего не печатайте.
+
+    1. `describe(a)` - вернуть словарь с ключами `shape` (кортеж), `dtype` (строка, например `"int32"`), `itemsize`, `nbytes` (обычные `int`), `strides` (кортеж) и `c_contiguous` (обычный `bool`).
+    2. `scale_all(values, k)` - умножить каждый элемент `values` (список **или** ndarray, возможно вложенный) на число `k`. Верните новый `ndarray` с `dtype=float64` и той же формой; вход не менять.
+    3. `c_strides(shape, itemsize)` - вычислить `strides` C-непрерывного массива **без** NumPy: кортеж из `int`; для `shape=()` верните `()`.
+
+    Тесты проверяют значения, форму и dtype, а также срезы и транспонирование.
+
+    **Пример.**
+
+    ```python
+    a = np.arange(12, dtype=np.int32).reshape(3, 4)
+    describe(a)   # shape (3, 4), dtype 'int32', itemsize 4, nbytes 48, strides (16, 4), c_contiguous True
+    scale_all([1, 2, 3], 2)   # array([2., 4., 6.])
+    c_strides((3, 4), 8)      # (32, 8)
+    ```
+  entryFile: "ndarray_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "describe - это просто чтение атрибутов массива: shape, dtype, itemsize, nbytes, strides и flags. Следите за типами значений: строка для dtype и bool для флага."
+    - "scale_all: сначала приведите вход к массиву функцией np.asarray с dtype=np.float64, потом умножайте. Для списка выражение values * k повторило бы список."
+    - "c_strides: идите по форме справа налево. Последний шаг равен itemsize, каждый следующий (влево) равен предыдущему шагу, умноженному на длину оси справа от него."
+    - "Скелет c_strides: strides = []; step = itemsize; for dim in reversed(shape): strides.append(step); step *= dim; затем верните tuple(reversed(strides))."
+  tests:
+    - id: "describe-basic"
+      title: "describe на C-непрерывном массиве"
+      hint: "dtype нужно вернуть строкой (a.dtype.name), c_contiguous - через a.flags['C_CONTIGUOUS'], приведённым к bool."
+    - id: "scale-array"
+      title: "scale_all на ndarray"
+      hint: "Результат должен быть ndarray float64; исходный массив менять нельзя."
+    - id: "c-strides-2d"
+      title: "c_strides для 1D и 2D"
+      hint: "Для (3, 4) и itemsize 8 получается (32, 8): последняя ось идёт с шагом itemsize."
+    - id: "scale-list"
+      title: "scale_all на списке (скрытый)"
+      hidden: true
+      hint: "list * 2 повторяет список. Преобразуйте вход через np.asarray(values, dtype=np.float64) до умножения."
+    - id: "describe-noncontiguous"
+      title: "Срез с шагом и транспонирование (скрытый)"
+      hidden: true
+      hint: "describe должен читать метаданные самого переданного объекта, а не копировать его: у a[:, ::2] и a.T особые strides и c_contiguous False."
+    - id: "c-strides-nd"
+      title: "c_strides для 3D, пустой формы и осей длины 1 (скрытый)"
+      hidden: true
+      hint: "Для shape=() верните (); оси длины 1 всё равно участвуют в произведении, которое даёт шаг предыдущей оси."
+    - id: "describe-itemsizes"
+      title: "Разные dtype (скрытый)"
+      hidden: true
+      hint: "Не фиксируйте размеры: берите a.itemsize и a.nbytes из массива, у bool itemsize 1, у complex128 - 16."

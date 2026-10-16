@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.LanguageServersView"
+             x:DataType="vm:LanguageServersViewModel">
+  <Border Classes="panel" Padding="14,12">
+    <StackPanel Spacing="10">
+      <TextBlock Text="{loc:T Settings_LspTitle}" Classes="h3" />
+      <TextBlock Text="{loc:T Settings_LspIntro}" Classes="muted" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <CheckBox Content="{loc:T Settings_LspEnabled}" IsChecked="{Binding Enabled}" />
+        <Button Content="{loc:T Runtimes_Refresh}" Command="{Binding RefreshCommand}" />
+      </StackPanel>
+      <ItemsControl ItemsSource="{Binding Rows}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:LanguageServerRowViewModel">
+            <Border Padding="0,8" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource LineBrush}">
+              <StackPanel Spacing="3">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Text="{Binding Language}" FontWeight="SemiBold" Classes="mono" />
+                  <TextBlock Text="{Binding Server}" VerticalAlignment="Center" />
+                  <Border Classes="badge"><TextBlock Text="{Binding State}" FontSize="12" /></Border>
+                  <TextBlock Text="{Binding Version}" Classes="caption" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding Path}" Classes="caption mono" TextWrapping="Wrap" IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBox Text="{Binding OverrideCommand}" PlaceholderText="{loc:T Settings_LspOverrideHint}" MinWidth="320" FontSize="12"
+                           AutomationProperties.Name="{loc:T Settings_LspOverride}" />
+                  <Button Content="{loc:T Settings_LspSave}" Command="{Binding SaveOverrideCommand}" />
+                  <Button Content="{loc:T Settings_LspInstall}" Command="{Binding InstallCommand}" IsVisible="{Binding CanInstall}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

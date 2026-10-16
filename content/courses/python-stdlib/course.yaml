@@ -1,0 +1,21 @@
+id: python-stdlib
+version: 1.0.0
+title: "Python: стандартная библиотека"
+description: >-
+  Курс для тех, кто знает язык и хочет уверенно пользоваться «батарейками в комплекте»: collections, heapq и bisect,
+  itertools, functools и operator, pathlib и безопасная работа с файлами, json, csv и struct, datetime и zoneinfo,
+  decimal, fractions, statistics и random, subprocess и logging. Для каждого модуля разобраны назначение, основные API,
+  типичные ошибки, стоимость операций и ограничения. Каждый урок проверяется запуском кода.
+languageId: python
+level: 3
+track: python
+requires: [python-fundamentals]
+lessons:
+  - 01-collections
+  - 02-heapq-and-bisect
+  - 03-itertools-functools-operator
+  - 04-pathlib-os-shutil-tempfile
+  - 05-json-csv-struct
+  - 06-datetime-and-time
+  - 07-decimal-fractions-math-statistics-random
+  - 08-subprocess-and-logging

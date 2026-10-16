@@ -8,16 +8,19 @@
     <Project Path="src/DevAcademy.Domain/DevAcademy.Domain.csproj" />
     <Project Path="src/DevAcademy.Execution/DevAcademy.Execution.csproj" />
     <Project Path="src/DevAcademy.Infrastructure/DevAcademy.Infrastructure.csproj" />
+    <Project Path="src/DevAcademy.LanguageServices/DevAcademy.LanguageServices.csproj" />
     <Project Path="src/DevAcademy.Terminal/DevAcademy.Terminal.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DevAcademy.AI.Tests/DevAcademy.AI.Tests.csproj" />
     <Project Path="tests/DevAcademy.Application.Tests/DevAcademy.Application.Tests.csproj" />
+    <Project Path="tests/DevAcademy.Cli.Tests/DevAcademy.Cli.Tests.csproj" />
     <Project Path="tests/DevAcademy.Content.Tests/DevAcademy.Content.Tests.csproj" />
     <Project Path="tests/DevAcademy.Desktop.Tests/DevAcademy.Desktop.Tests.csproj" />
     <Project Path="tests/DevAcademy.Domain.Tests/DevAcademy.Domain.Tests.csproj" />
     <Project Path="tests/DevAcademy.Execution.Tests/DevAcademy.Execution.Tests.csproj" />
     <Project Path="tests/DevAcademy.Infrastructure.Tests/DevAcademy.Infrastructure.Tests.csproj" />
+    <Project Path="tests/DevAcademy.LanguageServices.Tests/DevAcademy.LanguageServices.Tests.csproj" />
     <Project Path="tests/DevAcademy.Terminal.Tests/DevAcademy.Terminal.Tests.csproj" />
   </Folder>
 </Solution>

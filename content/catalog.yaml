@@ -9,7 +9,7 @@ tracks:
       что происходит внутри интерпретатора, и проверяется запуском вашего кода.
     languageId: python
     status: available
-    courses: [python-fundamentals, python-advanced]
+    courses: [python-fundamentals, python-advanced, python-stdlib, python-numpy]
   - id: javascript
     kind: language
     title: JavaScript
@@ -186,10 +186,12 @@ tracks:
     title: Классическое машинное обучение
     description: >-
       Доступен курс «Основы машинного обучения» (четыре урока на чистом Python): постановка задачи, train/validation/test, переобучение и утечки данных,
-      линейная регрессия с градиентным спуском, метрики классификации, метод k ближайших соседей. Запланированы деревья и ансамбли, метод опорных векторов,
-      кластеризация, кросс-валидация, регуляризация и подготовка признаков.
+      линейная регрессия с градиентным спуском, метрики классификации, метод k ближайших соседей. Затем курс «Классическое ML с нуля на NumPy» (четыре урока):
+      векторизованная линейная регрессия (lstsq, нормальные уравнения, градиентный спуск), логистическая регрессия, k-means с k-means++ и PCA через SVD;
+      этап с библиотекой scikit-learn пока запланирован и описан только текстом. Запланированы деревья и ансамбли, метод опорных векторов,
+      кросс-валидация, регуляризация и подготовка признаков.
     status: available
-    courses: [ml-foundations]
+    courses: [ml-foundations, ml-classical-numpy]
   - id: deep-learning
     kind: machine-learning
     title: Глубокое обучение
@@ -226,9 +228,13 @@ tracks:
     title: FastAPI
     description: >-
       Фреймворк для HTTP API на Python: описание запросов и ответов через аннотации типов и Pydantic, внедрение зависимостей,
-      автоматическая OpenAPI-документация, асинхронные обработчики поверх ASGI.
+      автоматическая OpenAPI-документация, асинхронные обработчики поверх ASGI. Сейчас доступен один курс «FastAPI: основы» из семи уроков
+      (ASGI, параметры и тело запроса, Pydantic v2, зависимости, ошибки, основы аутентификации, структура и тесты); примеры проверяются
+      в процессе через TestClient без сети и сервера. База данных и ORM, WebSocket, фоновые задачи, развёртывание и полноценный JWT
+      пока запланированы и в курс не входят.
     languageId: python
-    status: planned
+    status: available
+    courses: [fastapi-fundamentals]
   - id: react
     kind: framework
     title: React

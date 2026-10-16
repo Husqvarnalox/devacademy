@@ -24,7 +24,7 @@ indicative, the status column as factual.
 | 8 | First curriculum | Partial | Python Fundamentals (10 lessons) + intro courses of 2 lessons for C#, JavaScript, Node.js, PHP, TypeScript (content is being authored; `content/catalog.yaml` is the truth) |
 | 9 | Algorithms: problems list, exercise language variants, complexity/editorial, sorting visualization | Partial | Mechanisms Done; the Algorithms track itself is `planned` in the catalog |
 | 10 | Framework and ML courses | Planned | All framework/ML tracks are `planned`; no stub courses |
-| 11 | Developer-IDE features: PTY terminal, LSP, DAP, project workspaces, notebooks | Planned | None implemented |
+| 11 | Developer-IDE features: PTY terminal, LSP, DAP, project workspaces, notebooks | In progress | PTY terminal, project workspaces, LSP implemented; DAP, notebooks planned |
 | 12 | Packaging, CI, updates | Partial | GitHub Actions CI (build, format check, tests on 5 RIDs, content validation, self-contained single-file publish for 6 RIDs); no installers, signing, notarization or auto-update. CI results on non-macOS runners are not yet reported as verified here |
 | 13 | Web platform (ASP.NET Core host, PostgreSQL, sandboxed runners) | Planned | Requires a separate security model ([SECURITY_MODEL.md](SECURITY_MODEL.md) §6) |
 

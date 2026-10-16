@@ -1,0 +1,212 @@
+id: "ml.numpy.logistic-regression"
+title: "Логистическая регрессия с нуля: сигмоида, устойчивая потеря, градиентный спуск"
+goal: "Реализовать бинарную логистическую регрессию на NumPy с численно устойчивой сигмоидой и логистической потерей и обучить её градиентным спуском."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "ml.numpy.linear-regression"
+  - "ml.foundations.classification-metrics"
+related:
+  - "python.numpy.reductions-and-axis"
+next:
+  - "ml.numpy.kmeans"
+seeAlso:
+  - "Стадия B: LogisticRegression и SGDClassifier в scikit-learn - запланирована, пока описана текстом"
+objectives:
+  - "Записать модель p = sigmoid(Xb w), логистическую потерю и её градиент Xbᵀ (p - y) / n в матричной форме."
+  - "Реализовать сигмоиду без переполнения и потерю по логитам через np.logaddexp."
+  - "Проверить градиент конечными разностями и объяснить, почему потеря при w = 0 равна ln 2."
+  - "Обучить модель пакетным спуском на сгенерированных данных с фиксированным seed и измерить точность."
+  - "Объяснить поведение на линейно разделимых данных и роль L2-регуляризации и порога классификации."
+masteryCriteria:
+  - "sigmoid и log_loss не вызывают FloatingPointError под np.errstate(over='raise') на логитах до ±1000."
+  - "gradient совпадает с конечными разностями log_loss с допуском 1e-6."
+  - "fit даёт точность не ниже 0.95 на двух облаках точек (seed 0) и не ниже 0.94 на новой выборке."
+tags:
+  - "ml"
+  - "numpy"
+  - "logistic-regression"
+  - "log-loss"
+  - "numerical-stability"
+  - "gradient-descent"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "np.logaddexp(x1, x2) вычисляет log(exp(x1) + exp(x2)) без промежуточного переполнения и полезна для логарифмов вероятностей, которые настолько малы, что хранить их как обычные числа нельзя."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.logaddexp.html"
+  - kind: "real-world"
+    text: "В документации scikit-learn LogisticRegression по умолчанию использует L2-регуляризацию, параметр C задаёт обратную силу регуляризации, а решатель по умолчанию - lbfgs."
+    sources:
+      - "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html"
+      - "https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression"
+  - kind: "misconception"
+    text: "«Логистическая регрессия - это регрессия». Несмотря на название, модель решает задачу классификации: она оценивает вероятность класса, а метку получают сравнением с порогом."
+    sources:
+      - "https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: "Чему равна логистическая потеря при w = 0 (с точностью до трёх знаков после запятой)?"
+      answer: 0.693
+      tolerance: 0.001
+      explanation: "При w = 0 все вероятности равны 0.5, и потеря равна ln 2 = 0.693 независимо от меток."
+    - id: "q2"
+      type: "single"
+      prompt: "Почему np.log(sigmoid(z)) плохо подходит для потери?"
+      options:
+        - "При очень отрицательном z сигмоида округляется до 0, и логарифм даёт -inf"
+        - "Сигмоида не определена при z = 0"
+        - "np.log не работает с массивами"
+        - "Потеря вообще не нужна"
+      answer: 0
+      explanation: "Нужно считать потерю по логитам через logaddexp(0, z) - y z."
+    - id: "q3"
+      type: "single"
+      prompt: "Какова форма градиента Xb.T @ (p - y) / n при Xb формы (n, d + 1)?"
+      options:
+        - "(d + 1,)"
+        - "(n,)"
+        - "(n, d + 1)"
+        - "скаляр"
+      answer: 0
+      explanation: "Один компонент градиента на каждый вес, включая смещение."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Что происходит на линейно разделимых данных при обучении без регуляризации?"
+      options:
+        - "Веса неограниченно растут по мере обучения"
+        - "Потеря стремится к нулю, но не достигает его"
+        - "Градиентный спуск сходится к конечному минимуму за одну эпоху"
+        - "Вероятности стремятся к 0 и 1"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Нет конечного минимума: чем больше веса, тем увереннее предсказания и тем меньше потеря."
+    - id: "q5"
+      type: "single"
+      prompt: "Что делает повышение порога классификации с 0.5 до 0.9?"
+      options:
+        - "Число положительных меток не увеличивается"
+        - "Число положительных меток растёт"
+        - "Меняются веса модели"
+        - "Изменяется потеря обучения"
+      answer: 0
+      explanation: "Порог применяется после обучения к уже посчитанным вероятностям: p >= 0.9 строже, чем p >= 0.5."
+exercise:
+  id: "ml.numpy.logistic-regression.exercise"
+  title: "Логистическая регрессия с нуля"
+  prompt: |
+    В файле `logreg_task.py` (функция `add_bias` уже написана) реализуйте пять функций. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `sigmoid(z)` - устойчивая сигмоида для массива: не должно быть `FloatingPointError` под `np.errstate(over='raise')` для `|z|` до 1000; результат `float64` той же формы.
+    2. `log_loss(z, y)` - средняя потеря **по логитам**: `mean(logaddexp(0, z) - y * z)`, возвращает `float`.
+    3. `gradient(Xb, y, w)` - градиент средней потери `Xbᵀ (sigmoid(Xb w) - y) / n`; `Xb` уже со столбцом единиц.
+    4. `fit(X, y, lr, epochs)` - пакетный спуск с началом `w = 0`; `X` без смещения; верните `w` формы `(d + 1,)`, `w[0]` - смещение.
+    5. `predict(X, w, threshold=0.5)` - метки `int64` (0 или 1): `1`, если `sigmoid(Xb w) >= threshold`.
+
+    Тесты используют данные из двух гауссовых облаков с `np.random.default_rng` и явные допуски; скрытые проверяют краевые логиты, градиент конечными разностями и разделимые данные.
+
+    **Пример.**
+
+    ```python
+    sigmoid(np.array([0.0]))        # [0.5]
+    log_loss(np.zeros(2), np.array([0.0, 1.0]))   # ln 2 = 0.6931...
+    ```
+  entryFile: "logreg_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Начните с sigmoid и log_loss, они независимы от остального. log_loss: np.mean(np.logaddexp(0.0, z) - y * z), приведите к float."
+    - "Устойчивая sigmoid: создайте out = np.empty_like(z), маску pos = z >= 0; для pos считайте 1 / (1 + exp(-z)), для остальных e = exp(z); e / (1 + e). Так аргумент exp всегда неположителен."
+    - "gradient: Xb.T @ (sigmoid(Xb @ w) - y) / n. fit: add_bias(X), w = нули, затем epochs раз w = w - lr * gradient(Xb, y, w). predict: sigmoid(add_bias(X) @ w) >= threshold, затем astype(np.int64)."
+    - "Если тест с конечными разностями падает, проверьте знак и деление на n. Если падает тест на краевые значения, ищите np.exp от положительного числа или np.log(sigmoid(...)) в log_loss."
+  tests:
+    - id: "sigmoid-basic"
+      title: "sigmoid: значения и симметрия"
+      hint: "sigmoid(z) + sigmoid(-z) = 1, sigmoid(0) = 0.5."
+    - id: "log-loss-values"
+      title: "log_loss на маленьком примере"
+      hint: "mean(logaddexp(0, z) - y * z), результат float."
+    - id: "gradient-small"
+      title: "gradient при w = 0"
+      hint: "При w = 0 вероятности равны 0.5: Xb.T @ (0.5 - y) / n."
+    - id: "fit-accuracy"
+      title: "fit и predict: точность на двух облаках"
+      hint: "Начало w = 0, lr = 0.5, 500 эпох; predict возвращает int64."
+    - id: "sigmoid-extreme"
+      title: "sigmoid без переполнения (скрытый)"
+      hidden: true
+      hint: "Для z >= 0 используйте 1 / (1 + exp(-z)), для z < 0 - exp(z) / (1 + exp(z))."
+    - id: "log-loss-extreme"
+      title: "log_loss на больших логитах (скрытый)"
+      hidden: true
+      hint: "np.logaddexp(0, z) не переполняется; не вызывайте np.exp(z) напрямую и не берите log от сигмоиды."
+    - id: "gradient-finite-diff"
+      title: "Градиент и конечные разности (скрытый)"
+      hidden: true
+      hint: "Проверьте деление на n и знак: p - y, а не y - p."
+    - id: "fit-loss-and-generalization"
+      title: "Убывание потери и обобщение (скрытый)"
+      hidden: true
+      hint: "Потеря после 500 эпох должна быть меньше, чем после 5, а та меньше ln 2."
+    - id: "predict-threshold"
+      title: "Порог классификации (скрытый)"
+      hidden: true
+      hint: "Используйте >= (а не >) и приведите результат к int64."
+    - id: "separable-finite"
+      title: "Разделимые данные (скрытый)"
+      hidden: true
+      hint: "Веса растут, но вычисления не должны переполняться; это тот же устойчивый sigmoid."
+challenge:
+  id: "ml.numpy.logistic-regression.challenge"
+  title: "L2-регуляризованная логистическая регрессия"
+  prompt: |
+    В файле `l2_task.py` реализуйте три функции для потери с L2-штрафом (смещение `w[0]` **не штрафуется**):
+
+    `L(w) = mean(logaddexp(0, z) - y z) + 0.5 * lam * sum(w[1:]^2)`, где `z = Xb w`.
+
+    1. `loss_l2(Xb, y, w, lam)` - значение `L` как `float`.
+    2. `gradient_l2(Xb, y, w, lam)` - градиент: `Xbᵀ (sigmoid(Xb w) - y) / n`, плюс `lam * w[j]` для `j >= 1` и `0` для смещения.
+    3. `fit_l2(X, y, lr, epochs, lam)` - пакетный спуск с началом `w = 0`, `X` без смещения.
+
+    Сигмоида `_sigmoid` уже есть в файле. Тесты проверяют градиент конечными разностями, сходимость, убывание нормы весов с ростом `lam`, нештрафуемое смещение и ограниченность весов на разделимых данных.
+  entryFile: "l2_task.py"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "harness"
+  harness: "challenge/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Штраф влияет на потерю добавкой 0.5 * lam * np.sum(w[1:] ** 2). Срез w[1:] пропускает смещение."
+    - "В градиенте: g = Xb.T @ (sigmoid(Xb @ w) - y) / n, затем g[1:] += lam * w[1:]. Производная от 0.5 * lam * w_j^2 равна lam * w_j."
+    - "fit_l2: добавьте столбец единиц слева, w = нули, цикл w = w - lr * gradient_l2(...). Проверьте градиент конечными разностями на маленьком наборе."
+  tests:
+    - id: "loss-values"
+      title: "loss_l2: значение и нештрафуемое смещение"
+      hint: "Штраф только по w[1:]."
+    - id: "gradient-finite-diff"
+      title: "Градиент и конечные разности"
+      hint: "g[1:] += lam * w[1:]; смещение не трогайте."
+    - id: "fit-l2-converges"
+      title: "Сходимость: малая норма градиента"
+      hint: "Начало w = 0, цикл без изменения lr."
+    - id: "lambda-shrinks"
+      title: "Норма весов убывает с ростом lam (скрытый)"
+      hidden: true
+      hint: "Больший штраф тянет веса к нулю."
+    - id: "bias-not-penalized"
+      title: "Смещение не штрафуется (скрытый)"
+      hidden: true
+      hint: "При большой lam смещение должно остаться большим, если классы несбалансированы."
+    - id: "separable-bounded"
+      title: "Разделимые данные: ограниченные веса (скрытый)"
+      hidden: true
+      hint: "При lam > 0 потеря имеет конечный минимум, и вес не растёт бесконечно."

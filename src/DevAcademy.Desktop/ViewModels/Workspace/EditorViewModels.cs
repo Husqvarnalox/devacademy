@@ -37,6 +37,8 @@ public sealed partial class EditorTabViewModel : ObservableObject
     /// <summary>The tab currently shown in its group (drives the tab highlight).</summary>
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private string? _saveError;
+    /// <summary>How this tab's editor talks to a language server (null: none for this file).</summary>
+    [ObservableProperty] private DevAcademy.Desktop.Controls.Lsp.LspTarget? _lsp;
 
     public string Title => Path.GetFileName(FullPath);
     public string RelativePath => Path.GetRelativePath(Root, FullPath).Replace('\\', '/');

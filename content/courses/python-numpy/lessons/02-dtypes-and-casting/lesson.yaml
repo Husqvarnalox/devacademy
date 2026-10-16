@@ -1,0 +1,157 @@
+id: "python.numpy.dtypes-and-casting"
+title: "dtype, приведение типов и переполнение"
+goal: "Создавать массивы нужного dtype, предсказывать тип результата операций, понимать заворачивание целых в узких типах и ограниченную точность float."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "python.numpy.ndarray-vs-list"
+  - "python.fundamentals.numbers-and-operators"
+related:
+  - "python.fundamentals.numbers-and-operators"
+next:
+  - "python.numpy.views-and-copies"
+objectives:
+  - "Назвать диапазон целого типа по числу бит и объяснить, что арифметика в массивах идёт по модулю 2^N без предупреждений."
+  - "Предсказать dtype результата операции через np.result_type и правила NumPy 2 для Python-скаляров."
+  - "Применять astype осознанно: знать, что он копирует, отбрасывает дробную часть и не защищает от выхода за диапазон."
+  - "Сравнивать вещественные результаты через np.isclose / np.allclose с явными rtol и atol."
+masteryCriteria:
+  - "wrap_add воспроизводит заворачивание в int8, uint8 и int64, а widen_add даёт верную сумму uint8-массивов в int64."
+  - "to_uint8 ограничивает значения, округляет через rint и возвращает uint8 нужной формы."
+  - "promoted_dtype совпадает с np.result_type на смешанных парах знаковых, беззнаковых и вещественных типов."
+tags:
+  - "numpy"
+  - "dtype"
+  - "casting"
+  - "overflow"
+  - "float-precision"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Согласно документации NumPy, для типа результата бинарной операции используется приведение типов (promotion), а начиная с NumPy 2.0 (NEP 50) Python-скаляры в таких операциях считаются «слабыми» и не расширяют dtype массива."
+    sources:
+      - "https://numpy.org/doc/stable/reference/arrays.promotion.html"
+      - "https://numpy.org/doc/stable/numpy_2_0_migration_guide.html"
+  - kind: "misconception"
+    text: "«Переполнение в NumPy вызовет исключение». Для операций над массивами фиксированной ширины этого не происходит: результат молча берётся по модулю 2^N. Предупреждение RuntimeWarning выдаётся для скаляров NumPy, но не для массивов."
+    sources:
+      - "https://numpy.org/doc/stable/user/basics.types.html"
+  - kind: "internals"
+    text: "np.finfo и np.iinfo сообщают машинную точность и границы типов; например, у float64 eps около 2.2e-16. Целые выше 2^24 уже не все представимы в float32."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.finfo.html"
+      - "https://numpy.org/doc/stable/reference/generated/numpy.iinfo.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно np.array([200], dtype=np.uint8) + np.array([100], dtype=np.uint8)?"
+      options:
+        - "[44]"
+        - "[300]"
+        - "OverflowError"
+        - "[255]"
+      answer: 0
+      explanation: "Арифметика по модулю 256: 300 - 256 = 44. Для массивов исключения нет."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой dtype у np.array([1, 2, 3], dtype=np.int8) / 2?"
+      options:
+        - "float64"
+        - "int8"
+        - "int64"
+        - "float16"
+      answer: 0
+      explanation: "Оператор / всегда возвращает вещественный результат; int8 с Python-числом даёт float64."
+    - id: "q3"
+      type: "single"
+      prompt: "Чему равно np.array([-1.9]).astype(np.int64)?"
+      options:
+        - "[-1]"
+        - "[-2]"
+        - "[1]"
+        - "[0]"
+      answer: 0
+      explanation: "astype отбрасывает дробную часть к нулю, а не округляет."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "astype всегда создаёт копию"
+        - "np.result_type('int8', 'uint8') равно int16"
+        - "Для массивов NumPy предупреждает о каждом целочисленном переполнении"
+        - "Вещественные результаты лучше сравнивать через np.isclose с явными допусками"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Для массивов переполнение молчаливое; остальные утверждения верны."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Чему равно максимальное значение типа uint16? Ответ - число."
+      answer: 65535
+      tolerance: 0
+      explanation: "2^16 - 1 = 65535."
+exercise:
+  id: "python.numpy.dtypes-and-casting.exercise"
+  title: "Заворачивание, расширение и перевод в uint8"
+  prompt: |
+    В файле `dtype_task.py` реализуйте четыре функции. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `wrap_add(a, b, dtype)` - привести `a` и `b` к `dtype` (строка вроде `"int8"`) и сложить; переполнение должно «заворачиваться». Верните ndarray этого dtype.
+    2. `widen_add(a, b)` - сложить два целочисленных массива **без переполнения**; результат `int64`, входы не менять.
+    3. `to_uint8(x)` - перевести вещественные значения диапазона `[0, 1]` в `uint8` яркости `0..255`: значения вне `[0, 1]` обрезать, затем округлить через `np.rint(x * 255)`.
+    4. `promoted_dtype(a, b)` - имя dtype (строка), в который NumPy приведёт сумму массивов типов `a` и `b`.
+
+    Тесты проверяют значения, форму и dtype.
+
+    **Пример.**
+
+    ```python
+    wrap_add([100], [100], "int8")          # array([-56], dtype=int8)
+    widen_add(np.array([200], np.uint8), np.array([100], np.uint8))   # array([300])
+    to_uint8([0.0, 0.5, 1.0])               # array([  0, 128, 255], dtype=uint8)
+    promoted_dtype("int8", "uint8")         # 'int16'
+    ```
+  entryFile: "dtype_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "wrap_add: np.asarray(a, dtype=dtype) приводит данные к нужному типу; сумма двух массивов одного dtype остаётся в этом dtype и заворачивается сама."
+    - "widen_add: расширьте оба операнда до int64 (astype(np.int64)) ДО сложения. Если сложить в исходном типе и расширить потом, переполнение уже случится."
+    - "to_uint8: порядок такой - обрезать (np.clip) до [0, 1], умножить на 255, округлить np.rint, только потом astype(np.uint8). astype без rint отбрасывает дробную часть."
+    - "promoted_dtype: np.result_type(np.dtype(a), np.dtype(b)).name возвращает строку с именем общего типа."
+  tests:
+    - id: "wrap-add-basic"
+      title: "wrap_add без переполнения"
+      hint: "Результат должен иметь указанный dtype (например int16), а не int64."
+    - id: "widen-add-basic"
+      title: "widen_add: тип и значения"
+      hint: "Результат - ndarray int64."
+    - id: "to-uint8-basic"
+      title: "to_uint8: 0, 0.5 и 1"
+      hint: "0.5 * 255 = 127.5 округляется rint до 128; тип результата uint8."
+    - id: "promoted-basic"
+      title: "promoted_dtype: простые пары"
+      hint: "Верните именно строку: np.result_type(...).name."
+    - id: "widen-add-overflow"
+      title: "widen_add на uint8 у границы (скрытый)"
+      hidden: true
+      hint: "Приведите к int64 до сложения: uint8 200 + 100 должно быть 300, а не 44. Входные массивы менять нельзя."
+    - id: "wrap-add-overflow"
+      title: "wrap_add заворачивается как в dtype (скрытый)"
+      hidden: true
+      hint: "Не расширяйте тип сами и не используйте Python-int для сложения: нужна арифметика массивов целевого dtype."
+    - id: "to-uint8-clip-round"
+      title: "to_uint8: обрезка и округление (скрытый)"
+      hidden: true
+      hint: "Сначала np.clip(x, 0, 1), потом np.rint(x * 255), потом astype(np.uint8). Значения вроде 1.2 или -0.1 нельзя отдавать в astype напрямую."
+    - id: "promoted-more"
+      title: "promoted_dtype: знаковые, беззнаковые и вещественные (скрытый)"
+      hidden: true
+      hint: "Не перечисляйте случаи вручную: np.result_type знает все правила, включая uint64 + int64 = float64."

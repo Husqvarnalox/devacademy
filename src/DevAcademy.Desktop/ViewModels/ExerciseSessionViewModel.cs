@@ -2,7 +2,14 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevAcademy.Application.Services;
+using Avalonia.Threading;
 using DevAcademy.Desktop.Composition;
+using DevAcademy.Desktop.Controls.Lsp;
+using DevAcademy.Desktop.Services;
+using DevAcademy.Desktop.ViewModels.Lsp;
+using DevAcademy.LanguageServices.Hosting;
+using DevAcademy.LanguageServices.Protocol;
+using DevAcademy.LanguageServices.Workspace;
 using DevAcademy.Desktop.Localization;
 using DevAcademy.Domain;
 using DevAcademy.Execution;
@@ -12,7 +19,7 @@ namespace DevAcademy.Desktop.ViewModels;
 /// <summary>Editor + console + tests + hints for one exercise (or a throw-away scratch buffer).</summary>
 public sealed partial class ExerciseSessionViewModel : ObservableObject
 {
-    public const int ConsoleTab = 0, TestsTab = 1, HintsTab = 2;
+    public const int ConsoleTab = 0, TestsTab = 1, HintsTab = 2, ProblemsTab = 3;
 
     private readonly AppServices _s;
     private readonly string _lessonId;
@@ -34,6 +41,115 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
         Title = title ?? exercise?.Title ?? "";
         Files.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasMultipleFiles));
         if (exercise is { Evaluation: EvaluationKind.Command }) _outputTab = TestsTab;
+        Problems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ProblemsHeader));
+        var weak = new WeakReference<ExerciseSessionViewModel>(this);
+        Action<ServerStatus>? handler = null;
+        handler = st =>
+        {
+            if (weak.TryGetTarget(out var vm)) vm.OnServerStatus(st);
+            else s.Language.Manager.StatusChanged -= handler;
+        };
+        s.Language.Manager.StatusChanged += handler;
+    }
+
+    // ------------------------------------------------------------------ language server
+
+    private WorkspaceMirror? _mirror;
+    private int _lspGeneration;
+
+    /// <summary>Server diagnostics of every file that has been opened in the editor, last known state per file.</summary>
+    public ObservableCollection<ProblemItemViewModel> Problems { get; } = [];
+    public string ProblemsHeader => Problems.Count == 0 ? Loc.T("Out_Problems") : Loc.F("Out_ProblemsCount", Problems.Count);
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasLsp))] private LspStatusView _lspStatus = LspStatusView.None;
+    public bool HasLsp => LspStatus.IsVisible;
+
+    /// <summary>Asks the view to move the caret of the selected file (1-based line and column).</summary>
+    public event Action<int, int>? RevealRequested;
+
+    private void OnServerStatus(ServerStatus st)
+    {
+        if (st.LanguageId != LanguageId) return;
+        Dispatcher.UIThread.Post(RefreshLspStatus);
+    }
+
+    private void RefreshLspStatus()
+    {
+        var m = _s.Language.Manager;
+        var def = m.DefinitionFor(LanguageId);
+        LspStatus = def is null ? LspStatusView.None : LspStatusView.From(m.GetStatus(LanguageId, _mirror?.Root ?? _s.Language.MirrorBaseDirectory), def);
+    }
+
+    private async Task AttachLspAsync(IReadOnlyList<EditorFileViewModel> files)
+    {
+        var generation = ++_lspGeneration;
+        Problems.Clear();
+        var svc = _s.Language;
+        if (svc.Manager.DefinitionFor(LanguageId) is null || !svc.Enabled)
+        {
+            _mirror = null;
+            RefreshLspStatus();
+            return;
+        }
+        try
+        {
+            var mirror = svc.MirrorFor(Exercise?.Id ?? "scratch-" + _lessonId, LanguageId);
+            await mirror.PrepareAsync(files.Select(f => (f.Path, f.Content)));
+            if (generation != _lspGeneration) return;
+            _mirror = mirror;
+            foreach (var f in files)
+                f.Lsp = new LspTarget
+                {
+                    Service = svc,
+                    LanguageId = LanguageId,
+                    Root = mirror.Root,
+                    FilePath = mirror.PathFor(f.Path),
+                    DiagnosticsSink = OnDiagnostics,
+                    Navigate = NavigateTo,
+                };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"LSP workspace unavailable: {ex.Message}");
+        }
+        RefreshLspStatus();
+    }
+
+    private void OnDiagnostics(LspTarget target, IReadOnlyList<Diagnostic> diagnostics)
+    {
+        if (!Files.Any(f => ReferenceEquals(f.Lsp, target))) return;
+        var rel = _mirror?.RelativeOf(target.FilePath) ?? Path.GetFileName(target.FilePath);
+        for (var i = Problems.Count - 1; i >= 0; i--)
+            if (Problems[i].Path == rel) Problems.RemoveAt(i);
+        foreach (var d in diagnostics.OrderBy(d => d.Range.Start.Line).ThenBy(d => d.Range.Start.Character))
+            Problems.Add(ProblemItemViewModel.From(rel, d));
+    }
+
+    private bool NavigateTo(LspNavigation nav)
+    {
+        var rel = _mirror?.RelativeOf(nav.FilePath);
+        var file = rel is null ? null : Files.FirstOrDefault(f => f.Path == rel);
+        if (file is null) return false;
+        SelectedFile = file;
+        RevealRequested?.Invoke(nav.Line, nav.Column);
+        return true;
+    }
+
+    [RelayCommand]
+    private void OpenProblem(ProblemItemViewModel? problem)
+    {
+        if (problem is null) return;
+        var file = Files.FirstOrDefault(f => f.Path == problem.Path);
+        if (file is null) return;
+        SelectedFile = file;
+        RevealRequested?.Invoke(problem.Line, problem.Column);
+    }
+
+    [RelayCommand]
+    private async Task LspHelpAsync()
+    {
+        if (LspStatus is not { NeedsHelp: true, Definition: { } def }) return;
+        if (await LanguageServerInstaller.OfferAsync(_s, def)) await AttachLspAsync(Files.ToList());
+        else RefreshLspStatus();
     }
 
     public Exercise? Exercise { get; }
@@ -198,12 +314,15 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
             }
             SelectedFile = added.FirstOrDefault(f => f.Path == EntryFile) ?? added.FirstOrDefault();
             foreach (var f in old) { f.PropertyChanged -= OnFileChanged; Files.Remove(f); }
+            _ = AttachLspAsync(added);
         }
         finally { _loading = false; }
     }
 
     private void OnFileChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (!_loading && e.PropertyName == nameof(EditorFileViewModel.Content) && sender is EditorFileViewModel mirrored)
+            _mirror?.Schedule(mirrored.Path, mirrored.Content);
         if (_loading || IsScratch || e.PropertyName != nameof(EditorFileViewModel.Content) || sender is not EditorFileViewModel f) return;
         _dirty.Add(f.Path);
         StatusMessage = null;

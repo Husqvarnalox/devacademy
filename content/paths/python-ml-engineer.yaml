@@ -1,5 +1,14 @@
 id: python-ml-engineer
 title: Python для инженера машинного обучения
-description: "Первые шаги к ML на Python. Сначала курс «Основы Python», затем «Основы машинного обучения»: разбиение данных, линейная регрессия с градиентным спуском, метрики классификации и k ближайших соседей, всё на стандартной библиотеке. Остальные темы трека (деревья, ансамбли, регуляризация, нейросети) пока запланированы."
+description: "Путь к классическому ML на Python. Сначала «Основы Python» и «Продвинутый Python», затем «NumPy: массивы и векторизация», «Основы машинного обучения» на чистом Python и «Классическое ML с нуля на NumPy»: векторизованная линейная регрессия, логистическая регрессия, k-means и PCA. Этап с библиотекой scikit-learn пока запланирован. Остальные темы трека (деревья, ансамбли, нейросети) тоже запланированы."
 goal: ml
-targets: [ml-foundations]
+targets: [ml-classical-numpy]
+stages:
+  - title: Python core
+    courses: [python-fundamentals, python-advanced]
+  - title: NumPy
+    courses: [python-numpy]
+  - title: Основы машинного обучения
+    courses: [ml-foundations]
+  - title: Классическое ML на NumPy
+    courses: [ml-classical-numpy]

@@ -1,0 +1,217 @@
+id: fastapi.fundamentals.auth-basics
+title: Основы аутентификации и авторизации
+goal: Реализовать вход по паролю с безопасным хранением хеша, выдачу и проверку непрозрачных токенов, ответы 401 и 403 и проверку ролей через зависимости; понимать, как устроены JWT и OAuth2 и где их ловушки.
+difficulty: hard
+estimatedMinutes: 120
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [fastapi.fundamentals.errors-and-status-codes, fastapi.fundamentals.dependency-injection]
+related: [python.advanced.decorators]
+next: [fastapi.fundamentals.testing-and-structure]
+objectives:
+  - Различать аутентификацию («кто вы») и авторизацию («что вам можно») и сопоставлять их с кодами 401 и 403.
+  - Хранить пароли только в виде медленного хеша с солью (hashlib.scrypt), сравнивать значения через hmac.compare_digest и объяснять, почему обычный SHA-256 не подходит.
+  - Выдавать непрозрачный токен через secrets.token_urlsafe, хранить его на сервере, проверять в зависимости и отзывать.
+  - Использовать OAuth2PasswordBearer для извлечения Bearer-токена и описания схемы в OpenAPI и объяснять, чем он является (и чем не является).
+  - Реализовывать проверку роли фабрикой зависимостей и не допускать эскалации прав через тело запроса.
+  - Объяснить устройство JWT и назвать его типичные ловушки (alg, срок жизни, отзыв, хранение), а также почему в курсе JWT не реализуется.
+masteryCriteria:
+  - Вы пишете регистрацию и вход, при которых в базе нет пароля в открытом виде, а ответ API не содержит ни пароля, ни хеша.
+  - Вы возвращаете 401 для отсутствующего или недействительного токена и 403 для недостатка прав и одинаковый ответ для «нет такого пользователя» и «неверный пароль».
+  - Вы объясняете, какие угрозы закрывают соль, медленный хеш, постоянное время сравнения и случайность токена.
+tags: [fastapi, auth, oauth2, tokens, password-hashing, scrypt, security, roles]
+facts:
+  - kind: security
+    text: >-
+      Пароли хранят только в виде хеша, который вычисляется медленной функцией с солью и настраиваемой стоимостью: Argon2id, scrypt, bcrypt или PBKDF2. Быстрые хеши общего назначения
+      (SHA-256, MD5) подбираются на GPU миллиардами попыток в секунду. В стандартной библиотеке Python есть hashlib.scrypt и hashlib.pbkdf2_hmac; в продакшене чаще
+      используют проверенные библиотеки (argon2-cffi, bcrypt), которые выбирают безопасные параметры и формат хранения.
+    sources:
+      - https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+      - https://docs.python.org/3/library/hashlib.html#hashlib.scrypt
+  - kind: security
+    text: >-
+      Сравнение секретов (хеш, токен) обычным == завершается на первом отличающемся байте, и время ответа может выдавать, сколько начальных байтов совпало. hmac.compare_digest
+      сравнивает за время, не зависящее от позиции первого различия. Токены, предназначенные для безопасности, генерируйте модулем secrets (secrets.token_urlsafe), а не random.
+    sources:
+      - https://docs.python.org/3/library/hmac.html#hmac.compare_digest
+      - https://docs.python.org/3/library/secrets.html
+  - kind: internals
+    text: >-
+      OAuth2PasswordBearer в FastAPI - это зависимость, которая достаёт токен из заголовка Authorization: Bearer ... и описывает схему в OpenAPI (кнопка Authorize в /docs).
+      Она не проверяет токен, не выдаёт его и не хранит пользователей: проверка - ваш код. Без заголовка зависимость отвечает 401 с WWW-Authenticate: Bearer.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/security/first-steps/
+      - https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/
+  - kind: internals
+    text: >-
+      JWT (RFC 7519) - три части base64url, разделённые точками: заголовок, полезная нагрузка (claims) и подпись. Подпись защищает целостность, но не скрывает содержимое: нагрузку
+      читает любой. Проверяющий обязан сам фиксировать допустимые алгоритмы и проверять срок действия (exp), издателя (iss) и адресата (aud).
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc7519
+      - https://www.rfc-editor.org/rfc/rfc8725
+  - kind: misconception
+    text: >-
+      «JWT безопаснее обычного токена». Это лишь формат. Самодостаточный подписанный токен нельзя отозвать до истечения срока без дополнительного хранилища, а ошибки проверки
+      (принятие alg=none, подмена алгоритма, отсутствие проверки exp) приводят к полному обходу аутентификации. Непрозрачный токен с серверным хранилищем проще отозвать и проверить.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc8725
+  - kind: security
+    text: >-
+      Сценарий OAuth 2.0 «Resource Owner Password Credentials» (клиент принимает логин и пароль пользователя) нежелателен в современных рекомендациях по безопасности OAuth;
+      в документации FastAPI он используется как простой учебный пример. Для реального входа для сторонних приложений применяют код авторизации с PKCE через провайдера идентификации.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc9700
+      - https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/
+  - kind: realworld
+    text: >-
+      Стандартная форма входа OAuth2PasswordRequestForm принимает поля application/x-www-form-urlencoded и требует установленного пакета python-multipart, которого в окружении курса нет.
+      Поэтому в упражнениях вход принимает JSON-тело; для продакшена с форм-логином пакет нужно установить.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/security/simple-oauth2/
+      - https://fastapi.tiangolo.com/tutorial/request-forms/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Пользователь прислал корректный токен, но эндпоинт только для администраторов. Какой код?"
+      options: ["401", "403", "404 всегда", "422"]
+      answer: 1
+      explanation: "Личность установлена (аутентификация прошла), но прав недостаточно: 403. 401 - когда токена нет или он недействителен."
+    - id: q2
+      type: multiple
+      prompt: "Что делает хранение пароля безопаснее?"
+      options:
+        - "Случайная соль для каждого пароля"
+        - "Медленная функция (scrypt, argon2, bcrypt) вместо одного прохода SHA-256"
+        - "Хранить пароль в базе в base64"
+        - "Сравнивать хеши через hmac.compare_digest"
+      answer: [0, 1, 3]
+      explanation: "Base64 - кодировка, а не защита. Соль защищает от радужных таблиц и одинаковых хешей, медленная функция замедляет подбор, compare_digest убирает утечку по времени."
+    - id: q3
+      type: single
+      prompt: "Почему вход должен отвечать одинаково для «пользователь не найден» и «неверный пароль»?"
+      options:
+        - "Так быстрее работает"
+        - "Чтобы нельзя было перебором выяснить, какие имена зарегистрированы (user enumeration)"
+        - "Этого требует HTTP"
+        - "Чтобы не писать две ветки"
+      answer: 1
+      explanation: "Разные ответы раскрывают существование аккаунта. Тот же эффект даёт и разное время ответа, поэтому в продакшене хеширование выполняют и для несуществующего пользователя."
+    - id: q4
+      type: single
+      prompt: "Что делает OAuth2PasswordBearer(tokenUrl='login')?"
+      options:
+        - "Выдаёт токены и проверяет пароли"
+        - "Достаёт Bearer-токен из заголовка Authorization и описывает схему в OpenAPI; проверка токена остаётся за вами"
+        - "Шифрует токен"
+        - "Создаёт таблицу пользователей"
+      answer: 1
+      explanation: "Это только извлечение токена и документация. tokenUrl - подсказка для интерфейса /docs, куда отправлять логин."
+    - id: q5
+      type: multiple
+      prompt: "Какие утверждения о JWT верны?"
+      options:
+        - "Нагрузка подписанного JWT не зашифрована: её может прочитать любой, у кого есть токен"
+        - "Проверяющий должен сам ограничить допустимые алгоритмы и проверять exp"
+        - "JWT легко отозвать до истечения срока без серверного хранилища"
+        - "Пароли и секреты нельзя класть в claims"
+      answer: [0, 1, 3]
+      explanation: "Подпись обеспечивает целостность, а не конфиденциальность. Отзыв требует чёрного списка или короткого срока жизни с refresh-токенами."
+exercise:
+  id: fastapi.fundamentals.auth-basics.exercise
+  title: Регистрация, вход и роли
+  prompt: |
+    В файле `auth_api.py` уже есть приложение, хранилища `USERS` (id -> запись) и `TOKENS` (токен -> id пользователя), `reset_state()` и `oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")`. Реализуйте:
+
+    **Пароли.**
+
+    * `hash_password(password) -> str` - строка `scrypt$16384$8$1$<salt hex>$<hash hex>`: параметры `n=16384, r=8, p=1`, случайная соль 16 байт (`secrets.token_bytes`), длина хеша 32 байта. У двух вызовов с одним паролем строки разные.
+    * `verify_password(password, stored) -> bool` - пересчитывает хеш с параметрами и солью из `stored` и сравнивает через `hmac.compare_digest`. Неверный формат `stored` -> `False` (без исключения).
+    * `create_user(username, password, role="user") -> dict` - сохраняет запись `{"id", "username", "role", "password_hash"}` (id с 1), возвращает её; повторное имя -> `ValueError`.
+
+    **API.** (ответы с пользователем содержат только `id`, `username`, `role`).
+
+    * `POST /register` (`username` 3-20 символов, `password` от 8 символов) -> `201`; роль всегда `"user"`, даже если клиент прислал `role`; занятое имя -> `409` `{"detail": "username taken"}`.
+    * `POST /login` (тело `username`, `password`) -> `{"access_token": <secrets.token_urlsafe(32)>, "token_type": "bearer"}`; токен сохраняется в `TOKENS`. Неизвестный пользователь **и** неверный пароль -> одинаковый ответ `401` `{"detail": "invalid credentials"}` с заголовком `WWW-Authenticate: Bearer`.
+    * Зависимость `get_current_user` (на основе `oauth2_scheme`): токен не из `TOKENS` -> `401` `{"detail": "invalid token"}` с `WWW-Authenticate: Bearer`. Без заголовка `oauth2_scheme` сама отвечает 401.
+    * `GET /me` -> текущий пользователь. `POST /logout` -> `204`, токен удаляется из `TOKENS`.
+    * `GET /admin/users` -> список всех пользователей; только для роли `admin` (фабрика зависимостей `require_role("admin")`); иначе `403` `{"detail": "admin only"}`; без токена - `401`.
+  entryFile: auth_api.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Хеш: `hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)`. Формат строки: `'$'.join(['scrypt', '16384', '8', '1', salt.hex(), digest.hex()])`. При проверке разберите `stored.split('$')`, оберните в `try/except (ValueError, IndexError)` и сравните `hmac.compare_digest(candidate, expected)`."
+    - "Входная модель регистрации (`username`, `password` с ограничениями длины) и выходная `UserOut(id, username, role)` - разные классы; роль не принимайте из тела. Для логина создайте отдельную модель без ограничений длины. Не добавляйте в `UserOut` ни `password_hash`, ни `password`."
+    - "Зависимость: `def get_current_user(token: Annotated[str, Depends(oauth2_scheme)])`: `uid = TOKENS.get(token)`; если `None` - `HTTPException(401, 'invalid token', headers={'WWW-Authenticate': 'Bearer'})`. Фабрика ролей: `def require_role(role): def checker(user: Annotated[dict, Depends(get_current_user)]): ...; return checker` (403 при несовпадении)."
+    - "Для login используйте одну ветку отказа: найдите пользователя по имени; если не найден или `verify_password` вернул False - один и тот же `HTTPException(401, 'invalid credentials', headers=...)`. Для logout получите токен вторым `Depends(oauth2_scheme)` (значение закэшируется) и сделайте `TOKENS.pop(token, None)`; статус 204, тело не возвращайте."
+  tests:
+    - id: register-no-leak
+      title: Регистрация - 201, без пароля и хеша, роль user
+      hint: "Ответ строится через UserOut; пароль хранится только как password_hash в USERS; роль не берётся из тела."
+    - id: login-and-me
+      title: Вход выдаёт токен, /me возвращает пользователя
+      hint: "token_type='bearer'; /me читает токен из заголовка Authorization: Bearer <token> и возвращает запись без хеша."
+    - id: unauthorized
+      title: Нет токена или токен чужой - 401 с WWW-Authenticate
+      hint: "Без заголовка ответит oauth2_scheme; для неизвестного токена бросьте HTTPException(401, headers={'WWW-Authenticate': 'Bearer'})."
+    - id: login-failures
+      title: Одинаковый ответ на неверный пароль и неизвестного пользователя (скрытый)
+      hidden: true
+      hint: "Оба случая - один и тот же статус, detail и заголовок. Не раскрывайте, что именно не так."
+    - id: hash-format
+      title: Формат и соль хеша (скрытый)
+      hidden: true
+      hint: "scrypt$16384$8$1$<salt>$<hash>: два вызова с одним паролем дают разные строки; пароль не должен входить в строку; verify_password(password, hash) -> True, чужой пароль -> False."
+    - id: verify-robust
+      title: verify_password не падает на мусоре (скрытый)
+      hidden: true
+      hint: "Некорректный stored (пустая строка, чужой формат, не hex) должен давать False, а не исключение. Используйте hmac.compare_digest."
+    - id: roles
+      title: 401, 403 и 200 на /admin/users (скрытый)
+      hidden: true
+      hint: "Сначала аутентификация (401), затем роль (403). Фабрика require_role('admin') возвращает зависимость, которая использует get_current_user."
+    - id: logout-revokes
+      title: Выход отзывает токен, токены независимы (скрытый)
+      hidden: true
+      hint: "После POST /logout тот же токен даёт 401. Два входа выдают разные токены (secrets.token_urlsafe(32)); выход одного не отзывает другой."
+    - id: openapi-security
+      title: Схема безопасности в OpenAPI (скрытый)
+      hidden: true
+      hint: "Зависимость oauth2_scheme добавляет схему OAuth2PasswordBearer в components.securitySchemes; она должна использоваться в /me."
+challenge:
+  id: fastapi.fundamentals.auth-basics.challenge
+  title: Токены с истечением срока
+  prompt: |
+    В файле `session_task.py` реализуйте хранилище сессий с временем жизни и проверку токена через зависимость, время в которой можно подменить в тестах.
+
+    * `TokenStore`: `issue(user, ttl, now) -> str` выдаёт токен (`secrets.token_urlsafe(32)`) и запоминает `(user, expires_at = now + ttl)`; `resolve(token, now) -> str | None` возвращает пользователя, пока `now < expires_at` (на границе токен уже недействителен); просроченный токен **удаляется** при обращении; `revoke(token)`; `revoke_user(user) -> int` отзывает все токены пользователя и возвращает их число; `__len__` - число хранимых токенов.
+    * `get_now() -> float` (зависимость, возвращает `time.time()`), `STORE = TokenStore()`.
+    * `POST /session/{user}` -> `{"token": ...}` со сроком жизни `TTL = 60` секунд (константа модуля), время берётся из `get_now`.
+    * `GET /whoami` с заголовком `Authorization: Bearer <token>` (используйте `OAuth2PasswordBearer`) -> `{"user": ...}`; недействительный или просроченный токен -> `401` с `WWW-Authenticate: Bearer`.
+  entryFile: session_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Структура: словарь `token -> (user, expires_at)`. Время всегда передавайте параметром - класс не должен вызывать time.time() сам, иначе его нельзя тестировать."
+    - "В resolve: найдите запись; если `now >= expires_at`, удалите её и верните None. В revoke_user соберите список токенов пользователя и удалите их, верните количество."
+    - "Зависимость для времени: `now: Annotated[float, Depends(get_now)]` в обоих эндпоинтах; тест подменит `get_now` через `app.dependency_overrides`."
+  tests:
+    - id: store-basic
+      title: issue и resolve
+      hint: "Токен действителен для now < expires_at; токены разных пользователей независимы."
+    - id: expiry
+      title: Истечение и удаление просроченных токенов
+      hint: "now >= expires_at - уже недействителен; при resolve просроченная запись удаляется, len уменьшается."
+    - id: revoke
+      title: revoke и revoke_user (скрытый)
+      hidden: true
+      hint: "revoke_user возвращает число отозванных токенов пользователя и не трогает чужие."
+    - id: api-clock
+      title: API с подменой времени (скрытый)
+      hidden: true
+      hint: "get_now подменяется через dependency_overrides: сессия создаётся при t=1000, /whoami при t=1059 работает, при t=1060 даёт 401."

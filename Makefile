@@ -5,9 +5,15 @@ CLI      := src/DevAcademy.Cli
 CONTENT  := content
 RID      ?= $(shell dotnet --info 2>/dev/null | awk '/^ *RID:/ {print $$2; exit}')
 CONFIG   ?= Release
+PYENV    ?= .venv-content
+PYTHON   ?= python3
+# Windows venvs keep the interpreter in Scripts/; the CLI finds either layout, this only decides how to create it.
+PYENV_BIN := $(if $(filter Windows_NT,$(OS)),Scripts,bin)
+# Use the content venv automatically when it exists (otherwise exercises that need packages only warn).
+PYENV_ARG = $(if $(wildcard $(PYENV)),--python-env $(PYENV),)
 
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
-        runtimes publish clean
+        python-env runtimes publish clean
 
 help:
 	@echo "setup             restore packages and report detected language runtimes"
@@ -19,6 +25,7 @@ help:
 	@echo "lint              whitespace/format verification (no changes)"
 	@echo "format            apply formatting"
 	@echo "validate-content  validate content + run reference solutions and samples"
+	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
 	@echo "clean             remove build outputs"
@@ -52,7 +59,14 @@ format:
 	dotnet format whitespace $(SLN)
 
 validate-content:
-	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions
+	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG)
+	@if [ -z "$(PYENV_ARG)" ]; then echo "note: no $(PYENV); exercises that need Python packages were skipped (run: make python-env)"; fi
+
+python-env:
+	@echo "NOTE: this downloads packages from PyPI into $(PYENV) (nothing is installed globally)."
+	$(PYTHON) -m venv $(PYENV)
+	$(PYENV)/$(PYENV_BIN)/python -m pip install --disable-pip-version-check -r tools/python-dev-requirements.txt
+	-dotnet run --project $(CLI) -- python-env-check --python-env $(PYENV) --content $(CONTENT)
 
 runtimes:
 	dotnet run --project $(CLI) -- runtimes

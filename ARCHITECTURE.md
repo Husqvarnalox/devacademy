@@ -25,6 +25,7 @@ src/
   DevAcademy.AI              AI Integration Layer: IModelProvider + OpenAI/Anthropic/Gemini/OpenRouter HTTP clients
   DevAcademy.Application     use cases: catalog, learning path, evaluation, progress, reviews, hints, tutor
   DevAcademy.Infrastructure  SQLite repositories + migrations, OS secret store, app data paths, backup/export
+  DevAcademy.LanguageServices LSP client + server host (JSON-RPC over stdio, registry, workspace mirror); no UI types
   DevAcademy.Desktop         Avalonia MVVM presentation layer + composition root
   DevAcademy.Cli             headless tool: validate-content [--run-solutions], list, runtimes (used by make/CI)
 tests/                       one xUnit v3 project per src project
@@ -302,9 +303,38 @@ lesson test cases (`CommandEvaluator`, `JUnitReportParser`, `GoTestJsonParser`).
   and console are hidden (nothing to run), only "Submit" grades.
 * `--run-solutions` checks that the solution passes all cases and the starter does not.
 
-## 18. Not implemented today
+## 18. Language servers (LSP) — Implemented
 
-Web version, accounts, sync, PostgreSQL, LSP, DAP, PTY terminal, project workspaces, Python
+Completion, hover, signature help, go to definition, formatting and diagnostics come from **real language servers**
+(clangd, gopls, pyright, typescript-language-server, rust-analyzer, jdtls, csharp-ls, intelephense, kotlin-language-server).
+The app contains no parser or completion engine; `DevAcademy.LanguageServices` (no Avalonia types) is a thin client + host:
+
+* `JsonRpc/`: Content-Length framing (partial reads, several messages per read, UTF-8 byte lengths) and a JSON-RPC 2.0
+  connection (one reader loop, one ordered writer loop; request correlation, `$/cancelRequest`, server-to-client requests answered,
+  protocol errors logged). `Protocol/`: minimal typed LSP records, UTF-16/UTF-8/UTF-32 position conversion honouring the negotiated
+  `positionEncoding`, incremental change computation (AvaloniaEdit reports a change after it happened, so ranges are derived from the
+  after-buffer). `LspClient`: initialize (snippetSupport off), didOpen/Change/Save/Close, completion(+resolve), hover, definition,
+  signatureHelp, formatting, diagnostics stream, shutdown/exit with a kill timeout.
+* `Servers/`: the registry is **data** (`LanguageServerRegistry.Defaults`), a user override command per language (Settings), detection
+  (PATH, `~/go/bin`, `~/.cargo/bin`, Homebrew, `.dotnet/tools`, the runner cache `language-servers/node_modules/.bin`). npm-based servers
+  (pyright, typescript-language-server+typescript, intelephense) are installed **only on an explicit user action** that first shows the
+  exact `npm install` command (same consent pattern as the TypeScript types provisioner); nothing is downloaded automatically.
+* `Hosting/`: `LanguageServerManager` starts one session per (server, workspace root) lazily, shared by all editors, stopped when idle
+  or on exit. A crashed server is restarted with backoff (max 3, documents re-opened, stale-version diagnostics dropped); the state
+  (Starting/Ready/Restarting/Error/NotInstalled/Disabled) is visible in the UI.
+* `Workspace/WorkspaceMirror`: lesson exercises are in-memory buffers, but servers need files. Each exercise/language has a stable
+  directory `<app data>/lsp-workspaces/<exerciseId>/<lang>` that mirrors the editor files (debounced writes) plus scaffolding
+  (`go.mod`, `compile_flags.txt -std=c++20`, `pyrightconfig.json`, `tsconfig.json`, ...). Project workspaces use the real project root.
+* Desktop: `LanguageIntelligenceService` (settings `lsp.enabled`, `lsp.command.<language>`), `CodeEditorControl.LspTarget` + `EditorLspBinding`
+  (squiggles from theme brushes, completion window with trigger characters and Ctrl/Cmd+Space, hover popup rendered by the existing
+  markdown renderer, signature help, F12 / Cmd(Ctrl)+click, Shift+Alt+F), a Problems tab (lessons) / list (projects), the status item
+  "LSP: gopls ✓ / не установлен (как установить) / ошибка" and Settings → Runtimes → language servers.
+* Known limits: only files open in an editor are known to the server (others are read from disk); other-project-file definitions open a
+  tab, files outside the project show a read-only peek; no rename/code actions/semantic tokens (TextMate keeps highlighting).
+
+## 19. Not implemented today
+
+Web version, accounts, sync, PostgreSQL, DAP, PTY terminal, project workspaces, Python
 environment manager (in progress), ML runtime manager, notebooks, Windows OS
 sandbox, installers/auto-update, comparison mode. Framework and ML courses do not exist yet (catalog
 tracks are `planned`). See [ROADMAP.md](ROADMAP.md); the UI shows these as **Planned**.

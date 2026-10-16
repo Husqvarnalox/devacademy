@@ -1,0 +1,208 @@
+id: python.stdlib.heapq-and-bisect
+title: "heapq и bisect: кучи и упорядоченные списки"
+goal: Применять min-куча и бинарный поиск по отсортированному списку, зная инварианты, стоимость операций и способы устойчивого разрешения равных приоритетов.
+difficulty: medium
+estimatedMinutes: 75
+prerequisites: [python.stdlib.collections, python.fundamentals.lists, python.fundamentals.functions]
+related: [python.advanced.iterators-and-generators, python.advanced.functions-as-objects]
+next: [python.stdlib.itertools-functools-operator]
+objectives:
+  - Сформулировать инвариант min-кучи и объяснить, почему heap[0] - наименьший элемент, а остальной список не отсортирован.
+  - Использовать heappush, heappop, heapify, heappushpop и heapreplace, называя их стоимость.
+  - Получать максимум через отрицание или обёртку и устойчиво разрешать равные приоритеты кортежем (приоритет, счётчик, элемент).
+  - Выбирать между nlargest/nsmallest, sorted и heap для задач «top-k».
+  - Применять bisect_left, bisect_right и insort на отсортированном списке и объяснить, почему insort стоит O(n).
+masteryCriteria:
+  - Вы объясняете, почему heapq.heapify за O(n), а n вызовов heappush - O(n log n).
+  - Вы строите очередь с приоритетами, которая не падает с TypeError на несравнимых элементах и сохраняет порядок поступления при равных приоритетах.
+  - Вы считаете элементы в диапазоне [lo, hi) отсортированного списка двумя вызовами bisect_left.
+tags: [python, heapq, bisect, priority-queue, binary-search, top-k]
+facts:
+  - kind: internals
+    text: >-
+      heapq реализует бинарную кучу поверх обычного списка Python: для каждого k выполняется heap[k] <= heap[2*k+1] и heap[k] <= heap[2*k+2]. Это min-куча; максимальный элемент требует отрицания ключа или обёртки.
+      Индексация с нуля в этом описании отличается от учебников, где корень имеет индекс 1, но инвариант тот же.
+    sources:
+      - https://docs.python.org/3/library/heapq.html
+  - kind: performance
+    text: >-
+      heappush и heappop работают за O(log n), heapify - за O(n), чтение heap[0] - за O(1). Функции nlargest и nsmallest для небольшого k быстрее полной сортировки, а при k, близком к размеру входа,
+      документация советует использовать sorted(...)[:k].
+    sources:
+      - https://docs.python.org/3/library/heapq.html#heapq.nlargest
+  - kind: misconception
+    text: >-
+      «Список, превращённый в кучу, отсортирован». Нет: гарантирован только инвариант между родителем и потомками. Чтобы получить отсортированный порядок, нужно последовательно извлекать минимум (heappop) или вызвать sorted.
+    sources:
+      - https://docs.python.org/3/library/heapq.html
+  - kind: performance
+    text: >-
+      bisect.insort ищет позицию за O(log n), но вставка в list сдвигает хвост, поэтому одна вставка стоит O(n). Ключевой параметр key у функций bisect добавлен в Python 3.10.
+    sources:
+      - https://docs.python.org/3/library/bisect.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        import heapq
+        h = [5, 1, 4]
+        heapq.heapify(h)
+        print(h[0])
+        Что выведет код?
+      options:
+        - "5"
+        - "1"
+        - "4"
+        - "Весь список отсортирован: [1, 4, 5], поэтому 1, но это не гарантировано для h[0]"
+      answer: 1
+      explanation: >-
+        heapify превращает список в min-кучу, и h[0] всегда наименьший элемент. Остальные элементы лишь удовлетворяют инварианту родитель <= потомки.
+    - id: q2
+      type: single
+      prompt: Как получить max-кучу с помощью heapq для чисел?
+      options:
+        - "heapq.heapify(h, reverse=True)"
+        - "Хранить отрицательные значения (-x) и менять знак при извлечении"
+        - "heapq.heappop(h, last=True)"
+        - "Отсортировать список по убыванию - этого достаточно для heappush"
+      answer: 1
+      explanation: >-
+        У heapq нет параметра reverse. Классическое решение - класть в кучу -x (или обёртку с обратным сравнением) и менять знак на выходе.
+    - id: q3
+      type: single
+      prompt: |
+        Зачем в кортеже (priority, counter, item) нужен counter?
+      options:
+        - "Чтобы кучу можно было печатать"
+        - "Чтобы при равных priority не сравнивались item (они могут быть несравнимы) и сохранялся порядок поступления"
+        - "Чтобы heappush работал за O(1)"
+        - "Это необязательно: Python всегда сравнивает только первый элемент кортежа"
+      answer: 1
+      explanation: >-
+        Кортежи сравниваются поэлементно: при равных priority Python дошёл бы до item и мог бы поднять TypeError. Уникальный возрастающий counter решает проблему и даёт устойчивость (FIFO среди равных).
+    - id: q4
+      type: single
+      prompt: Во сколько раз вырастет ориентировочно время bisect.insort при увеличении списка с 10^5 до 10^6 элементов (list, вставка в случайное место)?
+      options:
+        - "Почти не изменится (O(log n))"
+        - "Примерно в 10 раз (сдвиг хвоста O(n))"
+        - "Примерно в 100 раз"
+        - "В 10^6 раз"
+      answer: 1
+      explanation: >-
+        Поиск позиции O(log n), но сдвиг элементов списка линеен, и он доминирует. Для частых вставок в отсортированную структуру нужна другая структура (куча, сбалансированное дерево, внешняя библиотека).
+    - id: q5
+      type: numeric
+      prompt: |
+        a = [1, 2, 2, 2, 5]
+        Чему равно bisect.bisect_right(a, 2) - bisect.bisect_left(a, 2)?
+      answer: 3
+      tolerance: 0
+      explanation: >-
+        bisect_left(a, 2) == 1, bisect_right(a, 2) == 4. Разность - число элементов, равных 2.
+exercise:
+  id: python.stdlib.heapq-and-bisect.exercise
+  title: Топ-k и планировщик с приоритетами
+  prompt: |
+    В файле `prio_task.py` реализуйте четыре элемента. Ничего не читайте и не печатайте.
+
+    1. `top_k(items, k, key=None)` - список `k` наибольших элементов по убыванию. При равных ключах сохраняется порядок во входных данных. `k` больше длины даёт все элементы, `k <= 0` - пустой список.
+    2. `TaskQueue` - очередь с приоритетами (меньшее число = важнее). Методы `push(priority, item)`, `pop()` (возвращает `item`), `peek()` (возвращает `item` без удаления), `__len__`. При равных приоритетах - порядок поступления (FIFO). `item` может быть любым объектом, в том числе несравнимым (например, `dict`). `pop`/`peek` на пустой очереди - `IndexError`.
+    3. `schedule(tasks)` - моделирует один обработчик, которому нужна 1 единица времени на задачу. `tasks` - список `(arrival, priority, name)`. В каждый момент `t` обработчик берёт готовую (`arrival <= t`) задачу с наименьшим `priority`, при равных - ту, что раньше стоит во входном списке. Если готовых задач нет, время прыгает к ближайшему `arrival`. Начальное время - минимальный `arrival`. Верните список `(время_старта, name)`; пустой вход даёт `[]`.
+    4. `count_in_range(sorted_values, lo, hi)` - сколько элементов отсортированного списка лежит в полуинтервале `[lo, hi)`, за O(log n) (используйте `bisect`). При `hi <= lo` - `0`.
+
+    **Примеры.**
+
+    ```python
+    top_k([5, 1, 9, 3], 2)                 # [9, 5]
+    schedule([(0, 2, "a"), (0, 1, "b"), (5, 1, "c")])   # [(0, 'b'), (1, 'a'), (5, 'c')]
+    count_in_range([1, 2, 2, 5, 7], 2, 7)  # 3
+    ```
+  entryFile: prio_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "top_k - почти готовое heapq.nlargest(k, items, key=key); а вот TaskQueue и schedule требуют настоящей кучи. Начните с TaskQueue: в куче лежат кортежи (priority, номер_по_порядку, item)."
+    - "TaskQueue: self._heap = []; self._counter = itertools.count(); push: heappush(self._heap, (priority, next(self._counter), item)); pop: heappop(...)[2]. Пустая куча сама поднимет IndexError при heappop, а для peek обратитесь к self._heap[0][2]."
+    - "schedule: отсортируйте индексы задач по arrival (sorted даёт устойчивый порядок). Цикл: пока есть неразобранные задачи или куча не пуста - добавляйте в кучу все задачи с arrival <= t; если куча пуста, t = arrival следующей задачи; иначе pop, запись (t, name), t += 1."
+    - "count_in_range: return max(0, bisect_left(sorted_values, hi) - bisect_left(sorted_values, lo)). Для schedule кладите в кучу (priority, индекс_во_входе, name) - индекс заменяет счётчик и даёт нужную устойчивость."
+  tests:
+    - id: topk-basic
+      title: top_k - обычные данные
+      hint: Результат отсортирован по убыванию; ключ key применяется к элементам.
+    - id: queue-basic
+      title: TaskQueue - порядок по приоритету
+      hint: Меньшее число извлекается раньше; pop возвращает item, а не кортеж.
+    - id: schedule-basic
+      title: schedule - базовый сценарий
+      hint: Время старта растёт на 1 за задачу; среди готовых берётся наименьший priority.
+    - id: range-basic
+      title: count_in_range - базовый сценарий
+      hint: Левая граница включается, правая - нет. Два bisect_left.
+    - id: topk-edge
+      title: top_k - границы и ничьи (скрытый)
+      hidden: true
+      hint: "k > len даёт все элементы, k <= 0 даёт []; при равных ключах сохраняется порядок входа (так ведёт себя nlargest)."
+    - id: queue-ties-unorderable
+      title: TaskQueue - равные приоритеты и несравнимые объекты (скрытый)
+      hidden: true
+      hint: Добавьте в кортеж счётчик между приоритетом и item, иначе при равных приоритетах сравниваются dict и возникает TypeError.
+    - id: queue-empty
+      title: TaskQueue - пустая очередь и peek (скрытый)
+      hidden: true
+      hint: peek не удаляет элемент; pop и peek пустой очереди поднимают IndexError.
+    - id: schedule-gaps
+      title: schedule - простои и ничьи (скрытый)
+      hidden: true
+      hint: Когда готовых задач нет, переходите к ближайшему arrival, а не прибавляйте 1. При равном priority побеждает задача раньше стоящая во входном списке.
+    - id: range-edge
+      title: count_in_range - дубликаты и границы (скрытый)
+      hidden: true
+      hint: Дубликаты считаются все; hi <= lo даёт 0; значения вне диапазона списка не ломают поиск.
+    - id: schedule-big
+      title: schedule - большой вход (скрытый)
+      hidden: true
+      hint: 50 тысяч задач должны обрабатываться за O(n log n); не ищите минимум линейным проходом на каждом шаге.
+challenge:
+  id: python.stdlib.heapq-and-bisect.challenge
+  title: Бегущая медиана на двух кучах
+  prompt: |
+    В файле `median_task.py` реализуйте класс `RunningMedian` для потока чисел.
+
+    * `add(x)` - добавляет число за O(log n).
+    * `median()` - медиана всех добавленных чисел за O(1): для нечётного количества - средний элемент, для чётного - среднее двух средних (результат `float`). Пустой поток - `ValueError`.
+    * `__len__` - сколько чисел добавлено.
+    * Идея: нижняя половина данных хранится в max-куче (через отрицание), верхняя - в min-куче; размеры отличаются не более чем на 1. Хранить все числа в отсортированном списке с `insort` нельзя: тест проверяет скорость на 200 тысячах чисел.
+  entryFile: median_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Держите две кучи: low (max-куча, хранит -x) и high (min-куча). Все элементы low не больше любого элемента high, а len(low) равна len(high) или на 1 больше."
+    - "add: сначала положите x в low (heappush(low, -x)), затем перенесите самый большой элемент low в high: heappush(high, -heappop(low)). Если high стала больше low, верните наименьший элемент high обратно в low."
+    - "median: если len(low) > len(high), ответ -low[0]; иначе (-low[0] + high[0]) / 2. Пустой поток - ValueError."
+    - "Для нечётного количества верните число как есть (int остаётся int), для чётного - результат деления на 2 (float). Скелет add: heappush(low, -x); heappush(high, -heappop(low)); if len(high) > len(low): heappush(low, -heappop(high))."
+  tests:
+    - id: median-basic
+      title: Нечётное и чётное количество
+      hint: Нечётное - средний элемент, чётное - среднее двух средних.
+    - id: median-empty
+      title: Пустой поток
+      hint: median() без добавленных чисел поднимает ValueError.
+    - id: median-negative
+      title: Отрицательные и повторяющиеся значения (скрытый)
+      hidden: true
+      hint: Отрицание для max-кучи не должно ломаться на отрицательных числах и нуле.
+    - id: median-random
+      title: Сверка с эталоном на случайных данных (скрытый)
+      hidden: true
+      hint: После каждого add медиана должна совпадать с statistics.median от всех добавленных чисел.
+    - id: median-fast
+      title: Скорость (скрытый)
+      hidden: true
+      hint: 200 тысяч операций add/median должны выполняться быстро - O(log n) на add.

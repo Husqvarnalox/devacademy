@@ -97,7 +97,7 @@
                           <TextBlock Text="{Binding PlacementText}" TextWrapping="Wrap" VerticalAlignment="Center" />
                           <Button Grid.Column="1" Content="{loc:T Placement_Skip}" Command="{Binding TakePlacementCommand}" Margin="12,0,0,0" />
                         </Grid>
-                        <Expander Header="{loc:T Path_Lessons}">
+                        <Expander Header="{loc:T Path_Lessons}" HorizontalAlignment="Stretch">
                           <ItemsControl ItemsSource="{Binding Lessons}">
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="vm:PathLessonViewModel">

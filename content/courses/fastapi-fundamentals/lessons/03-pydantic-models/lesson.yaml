@@ -1,0 +1,190 @@
+id: fastapi.fundamentals.pydantic-models
+title: Модели Pydantic v2
+goal: Описывать входные и выходные данные моделями Pydantic v2 с ограничениями, валидаторами и сериализацией, читать ошибки валидации и избегать типичных ловушек.
+difficulty: medium
+estimatedMinutes: 90
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [fastapi.fundamentals.path-query-body, python.advanced.dunder-methods-and-dataclasses]
+related: [python.advanced.typing-fundamentals]
+next: [fastapi.fundamentals.dependency-injection]
+objectives:
+  - Объяснить, что Pydantic выполняет парсинг и валидацию во время создания модели, а не проверку типов статическим анализатором.
+  - Задавать ограничения через Field и Annotated (gt/ge/lt/le, min_length, pattern, decimal_places) и настраивать модель через ConfigDict (extra, str_strip_whitespace, frozen).
+  - Писать @field_validator и @model_validator и знать, когда выбирать режим before или after.
+  - Различать model_validate, model_validate_json, model_dump (mode python или json), model_dump_json, by_alias, exclude_none, exclude_unset и computed_field.
+  - Читать ValidationError.errors() и превращать её в понятный клиенту список.
+  - Правильно объяснить, почему изменяемое значение по умолчанию безопасно в модели Pydantic, но опасно в обычных функциях, и почему всё же предпочтителен default_factory.
+masteryCriteria:
+  - Вы пишете модель заказа с вложенными моделями, ограничениями, проверкой на уровне модели и вычисляемым полем и проверяете её на граничных данных.
+  - Вы предсказываете loc и type ошибки для вложенного поля списка (например, items.0.qty).
+  - Вы объясняете, чем extra="forbid" отличается от поведения по умолчанию, и когда это уместно.
+tags: [pydantic, validation, serialization, fastapi, models, v2]
+facts:
+  - kind: internals
+    text: >-
+      Pydantic v2 строит для модели схему валидации при определении класса и исполняет её в pydantic-core, ядре на Rust. Поэтому поля проверяются при создании экземпляра,
+      а сообщения об ошибках содержат машинно-читаемый type (например, int_parsing, string_too_short) и путь loc.
+    sources:
+      - https://docs.pydantic.dev/latest/concepts/models/
+      - https://docs.pydantic.dev/latest/errors/errors/
+  - kind: misconception
+    text: >-
+      «Изменяемое значение по умолчанию в модели Pydantic общее для всех экземпляров, как в def f(x=[])». Нет: Pydantic копирует изменяемые значения по умолчанию для каждого экземпляра.
+      Обычные классы, функции и стандартные dataclasses так себя не ведут (dataclass вообще запрещает list как значение по умолчанию), поэтому привычку использовать default_factory
+      сохраняйте и в моделях: она явно выражает намерение.
+    sources:
+      - https://docs.pydantic.dev/latest/concepts/models/
+      - https://docs.python.org/3/library/dataclasses.html#mutable-default-values
+  - kind: realworld
+    text: >-
+      По умолчанию Pydantic в режиме lax приводит совместимые типы ("5" -> 5), а лишние входные ключи игнорирует. Режим strict (ConfigDict(strict=True) или Field(strict=True))
+      запрещает приведение, а extra="forbid" превращает лишние ключи в ошибку extra_forbidden. Для API, где опечатка в имени поля должна быть замечена, extra="forbid" полезен.
+    sources:
+      - https://docs.pydantic.dev/latest/concepts/strict_mode/
+      - https://docs.pydantic.dev/latest/api/config/
+  - kind: security
+    text: >-
+      Тип SecretStr скрывает значение в repr и при сериализации (выводит маску), но это защита от случайной утечки в логах, а не шифрование. Значение доступно через get_secret_value().
+    sources:
+      - https://docs.pydantic.dev/latest/api/types/
+  - kind: historical
+    text: >-
+      Pydantic v2 изменил имена API: dict() -> model_dump(), parse_obj() -> model_validate(), validator -> field_validator, Config -> model_config. Старые имена в v2
+      работают с предупреждением PydanticDeprecatedSince20 и будут удалены.
+    sources:
+      - https://docs.pydantic.dev/latest/migration/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        class M(BaseModel):
+            tags: list[str] = []
+        a = M(); b = M(); a.tags.append("x")
+        Чему равно b.tags?
+      options: ['["x"]', "[]", "Ошибка при создании модели", "None"]
+      answer: 1
+      explanation: "Pydantic копирует изменяемое значение по умолчанию для каждого экземпляра, поэтому b.tags остаётся пустым. Для обычных функций и классов такой гарантии нет."
+    - id: q2
+      type: single
+      prompt: "Какой type у ошибки, если в модели extra=\"forbid\", а клиент прислал неизвестное поле?"
+      options: ["value_error", "extra_forbidden", "missing", "unexpected_keyword"]
+      answer: 1
+      explanation: "extra_forbidden, а loc указывает на лишний ключ."
+    - id: q3
+      type: multiple
+      prompt: "Какие вызовы относятся к Pydantic v2 (и не помечены как устаревшие)?"
+      options: ["model_dump()", "model_validate()", ".dict()", "@field_validator"]
+      answer: [0, 1, 3]
+      explanation: ".dict() - API v1, в v2 оставлен как устаревший и выдаёт PydanticDeprecatedSince20."
+    - id: q4
+      type: single
+      prompt: "Что вернёт Order.model_dump(mode=\"json\") для поля Decimal('1.50')?"
+      options: ["Decimal('1.50')", "строку '1.50'", "число 1.5", "ошибку"]
+      answer: 1
+      explanation: "В режиме json Decimal сериализуется строкой, чтобы не потерять точность. В режиме python остаётся Decimal."
+    - id: q5
+      type: single
+      prompt: "Валидатор @model_validator(mode=\"after\") получает..."
+      options: ["словарь исходных данных", "уже созданный и проверенный экземпляр модели", "только имя поля", "строку JSON"]
+      answer: 1
+      explanation: "mode=\"after\" вызывается после проверки всех полей и получает готовый экземпляр (self); mode=\"before\" получает сырые входные данные."
+exercise:
+  id: fastapi.fundamentals.pydantic-models.exercise
+  title: Модель заказа
+  prompt: |
+    В файле `models_task.py` опишите модели Pydantic v2 и две функции. Используйте только API v2.
+
+    **`Address`**: `street` и `city` - непустые строки (пробелы по краям обрезаются), `zip` - строка из ровно пяти цифр.
+
+    **`OrderItem`**: `sku` - строка; пробелы по краям обрезаются, регистр приводится к верхнему, итоговое значение должно соответствовать `^[A-Z0-9-]{3,12}$` (то есть `" ab-1 "` допустимо и станет `"AB-1"`); `qty` - целое от 1 до 100; `unit_price` - `Decimal` строго больше 0 не более чем с двумя знаками после запятой.
+
+    **`Order`**: `items` - список `OrderItem` длиной от 1 до 50; `address: Address`; `coupon: str | None = None` (если задан, должен начинаться с `SALE-`, иначе ошибка валидации); `tags: list[str]` - по умолчанию пустой список **свой для каждого экземпляра**. Артикулы `sku` в одном заказе не должны повторяться (ошибка на уровне модели). Вычисляемое поле `total: Decimal` - сумма `qty * unit_price` по всем позициям (оно должно попадать в `model_dump`).
+
+    Все три модели **запрещают лишние поля** (`extra="forbid"`).
+
+    Функции:
+
+    * `parse_or_errors(data: dict) -> dict` - при успехе `{"ok": True, "order": <Order>}`, при `ValidationError` - `{"ok": False, "errors": [{"loc": "items.0.qty", "type": "less_than_equal"}, ...]}`: `loc` - элементы пути, соединённые точкой (для ошибок уровня всей модели - пустая строка), `type` - из ошибки Pydantic.
+    * `to_payload(order: Order) -> dict` - `order.model_dump(mode="json", exclude_none=True)`: Decimal превращаются в строки, `None`-поля пропускаются.
+  entryFile: models_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с `OrderItem`: `qty: int = Field(ge=1, le=100)`, `unit_price: Decimal = Field(gt=0, decimal_places=2)`. Конфигурация - `model_config = ConfigDict(extra=\"forbid\", str_strip_whitespace=True)`. Это API v2, не `class Config`."
+    - "Для sku нужен порядок: сначала очистить и поднять регистр, потом проверить шаблон. Проще всего `Annotated[str, BeforeValidator(...), StringConstraints(pattern=...)]` или `@field_validator(\"sku\", mode=\"before\")`. Учтите, что `StringConstraints(to_upper=True, pattern=...)` проверяет шаблон до преобразования."
+    - "Проверки уровня заказа (повторы sku) - `@model_validator(mode=\"after\")` с `raise ValueError(...)`; коду купона подойдёт `@field_validator(\"coupon\")` (проверяйте `is None`). `total` - `@computed_field` поверх `@property`, возвращающего `sum(..., Decimal(0))`."
+    - "Плоский список ошибок: `[{\"loc\": \".\".join(str(p) for p in e[\"loc\"]), \"type\": e[\"type\"]} for e in exc.errors()]`. Для `tags` используйте `Field(default_factory=list)`."
+  tests:
+    - id: normalize-and-total
+      title: Нормализация sku и расчёт total
+      hint: "Артикул обрезается и переводится в верхний регистр до проверки шаблона; total - сумма qty * unit_price в Decimal."
+    - id: field-errors
+      title: Ошибки ограничений - loc и type
+      hint: "Для вложенного поля loc выглядит как items.0.qty; тип ошибки задаёт ограничение: greater_than_equal, less_than_equal, greater_than, decimal_max_places."
+    - id: payload
+      title: to_payload - JSON-режим
+      hint: "model_dump(mode='json', exclude_none=True): Decimal станут строками, coupon=None пропадёт, total входит как вычисляемое поле."
+    - id: forbid-extra
+      title: Лишние поля запрещены (скрытый)
+      hidden: true
+      hint: "model_config = ConfigDict(extra='forbid') нужен в каждой из трёх моделей, включая вложенные; тип ошибки - extra_forbidden."
+    - id: model-rules
+      title: Купон и повтор sku (скрытый)
+      hidden: true
+      hint: "Купон должен начинаться с 'SALE-'. Повтор sku проверяется в model_validator(mode='after'); ошибка уровня модели имеет пустой loc."
+    - id: default-isolation
+      title: tags не разделяются между заказами (скрытый)
+      hidden: true
+      hint: "Field(default_factory=list) создаёт новый список для каждого экземпляра."
+    - id: list-bounds
+      title: Границы списка позиций (скрытый)
+      hidden: true
+      hint: "Field(min_length=1, max_length=50) на списке; тип ошибки too_short / too_long, loc - items."
+    - id: price-precision
+      title: Точность цены и граничные значения (скрытый)
+      hidden: true
+      hint: "Decimal с decimal_places=2 отклоняет 1.234, но принимает 1.5 и 0.01; ноль и отрицательные цены недопустимы (greater_than)."
+challenge:
+  id: fastapi.fundamentals.pydantic-models.challenge
+  title: Бронирование с camelCase-API
+  prompt: |
+    JSON-API принимает и отдаёт поля в `camelCase`, а в коде Python используются `snake_case`. В файле `booking_task.py` реализуйте:
+
+    * Базовую модель `ApiModel` с настройками: `alias_generator=to_camel` (из `pydantic.alias_generators`), `populate_by_name=True`, `extra="forbid"`.
+    * `Booking(ApiModel)`: `guest_name: str` (не пустая), `check_in: date`, `check_out: date`; ошибка валидации, если `check_out` не позже `check_in`; вычисляемое поле `nights: int` (число ночей).
+    * `booking_from_json(text: str) -> Booking` - через `model_validate_json`.
+    * `booking_to_json(booking: Booking) -> str` - JSON с ключами в camelCase, включая `nights`.
+
+    Экземпляр можно создавать и по именам Python (`Booking(guest_name=..., check_in=..., check_out=...)`), и по псевдонимам.
+  entryFile: booking_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Псевдонимы генерирует `alias_generator=to_camel`, а `populate_by_name=True` разрешает ещё и snake_case при создании. Всё это - `model_config = ConfigDict(...)` в базовом классе."
+    - "`nights` - `@computed_field` над `@property`; проверка порядка дат - `@model_validator(mode=\"after\")`, возвращающий self."
+    - "Сериализация с псевдонимами: `booking.model_dump_json(by_alias=True)`. Без `by_alias` ключи останутся в snake_case."
+  tests:
+    - id: roundtrip
+      title: JSON туда и обратно
+      hint: "model_validate_json читает camelCase; model_dump_json(by_alias=True) пишет camelCase, computed_field nights включается."
+    - id: python-names
+      title: Создание по именам Python
+      hint: "Нужен populate_by_name=True в конфигурации."
+    - id: date-order
+      title: Порядок дат
+      hidden: true
+      hint: "check_out <= check_in - ошибка (тип value_error), включая равные даты."
+    - id: forbid-and-blank
+      title: Лишние поля и пустое имя (скрытый)
+      hidden: true
+      hint: "extra='forbid' даёт extra_forbidden; пустая строка запрещена через Field(min_length=1)."
+    - id: nights
+      title: Число ночей (скрытый)
+      hidden: true
+      hint: "nights равно разности дат в днях; через границу месяца и в високосный год считается корректно, если вычитать date из date."

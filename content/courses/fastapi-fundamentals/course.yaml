@@ -1,0 +1,57 @@
+id: fastapi-fundamentals
+version: 1.0.0
+title: "FastAPI: основы"
+description: >-
+  Курс по созданию HTTP API на FastAPI для тех, кто прошёл «Python: продвинутый уровень». Семь уроков: ASGI и жизненный цикл запроса,
+  параметры пути, запроса и тело, модели Pydantic v2, внедрение зависимостей, ошибки и коды статуса, основы аутентификации и авторизации,
+  структура проекта и тестирование. Все упражнения проверяются в процессе через fastapi.testclient.TestClient: без сети и без запуска сервера.
+  База данных, WebSocket, фоновые задачи и развёртывание в курс не входят (в планах отдельных курсов).
+languageId: python
+level: 3
+track: fastapi
+requires: [python-advanced]
+lessons:
+  - 01-why-fastapi-and-asgi
+  - 02-path-query-body
+  - 03-pydantic-models
+  - 04-dependency-injection
+  - 05-errors-and-status-codes
+  - 06-auth-basics
+  - 07-testing-and-structure
+framework:
+  id: fastapi
+  version: "0.143.x"
+  docs:
+    - https://fastapi.tiangolo.com/
+    - https://docs.pydantic.dev/latest/
+    - https://www.starlette.io/
+    - https://asgi.readthedocs.io/en/latest/
+  compatibility: "Python >= 3.10 (курс проверен на 3.14); FastAPI 0.143.x; Pydantic v2 (проверено 2.14.x); Starlette 1.8.x; httpx 0.28.x; pytest 9.x. Pydantic v1 API не используется."
+  deprecated:
+    - feature: "@app.on_event(\"startup\") / @app.on_event(\"shutdown\")"
+      status: deprecated
+      note: "В установленной версии вызов выдаёт DeprecationWarning: используйте обработчик lifespan (asynccontextmanager, параметр FastAPI(lifespan=...))."
+    - feature: "Методы Pydantic v1: .dict(), .json(), .parse_obj(), @validator, class Config, Optional-поля без значения по умолчанию как необязательные"
+      status: deprecated
+      note: "В Pydantic v2 это PydanticDeprecatedSince20: используйте model_dump(), model_dump_json(), model_validate(), @field_validator, model_config = ConfigDict(...). Поле Optional[int] без значения по умолчанию в v2 обязательное."
+    - feature: "Зависимости без Annotated (def f(x: int = Depends(dep)))"
+      status: legacy
+      note: "Рабочий старый стиль, но в документации рекомендован Annotated[int, Depends(dep)]: сигнатуру можно переиспользовать и вызывать как обычную функцию."
+    - feature: "fastapi.status.HTTP_422_UNPROCESSABLE_ENTITY"
+      status: renamed
+      note: "В установленной версии доступны оба имени; новое HTTP_422_UNPROCESSABLE_CONTENT соответствует актуальному названию кода в RFC 9110. В примерах курса используется число 422."
+    - feature: "Starlette TestClient поверх httpx"
+      status: deprecated
+      note: "Starlette 1.8 при импорте testclient с установленным только httpx выдаёт StarletteDeprecationWarning (рекомендует httpx2). Предупреждение уходит в stderr и на работу тестов не влияет; в курсе зафиксирован httpx 0.28."
+  migrationNotes: |
+    **Pydantic v1 -> v2 (что важно для кода FastAPI).**
+
+    * `.dict()` -> `model_dump()`, `.json()` -> `model_dump_json()`, `.parse_obj(x)` -> `model_validate(x)`, `.copy(update=...)` -> `model_copy(update=...)`.
+    * `@validator("f")` -> `@field_validator("f")` (+ `@classmethod`), `@root_validator` -> `@model_validator(mode="before" | "after")`.
+    * `class Config: ...` -> `model_config = ConfigDict(...)`; `orm_mode=True` -> `from_attributes=True`.
+    * `Field(regex=...)` -> `Field(pattern=...)`; `min_items/max_items` -> `min_length/max_length`.
+    * `Optional[int]` без `= None` теперь обязательное поле (может быть `None`, но должно быть передано).
+    * Ошибки валидации имеют новую форму: `type`, `loc`, `msg`, `input`, `ctx` (поля `type` теперь вида `int_parsing`, `string_too_short`).
+
+    **FastAPI.** Новый код пишите в стиле `Annotated[...]` для `Query`, `Path`, `Body`, `Depends`, `Header`; события запуска - через `lifespan`.
+    Новая мажорная версия фреймворка требует нового издания курса: примеры не обновляются «молча».

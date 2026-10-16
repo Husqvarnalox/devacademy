@@ -336,5 +336,12 @@ An exercise value overrides the lesson value. Missing packages give a `RuntimeMi
 Settings -> Runtimes (nothing is installed automatically). `accelerator: required` disables Run/Submit when no usable
 accelerator is found in the selected environment; use it only for GPU-only exercises. The validator rejects
 bad specifiers, option-like or URL packages, duplicates, and the fields on non-Python exercises.
+
+Validating such content: `make python-env` creates `.venv-content` from `tools/python-dev-requirements.txt` (downloads from PyPI;
+nothing is installed globally), after which `make validate-content` passes `--python-env .venv-content` automatically.
+`devacademy validate-content --run-solutions --python-env <venv dir>` runs exercises and theory samples whose lesson declares
+`requires` with that environment's interpreter (bin/python or Scripts/python.exe) and checks the Python version and packages against it;
+without the flag they only produce a warning ("requires packages ...; pass --python-env"). `devacademy python-env-check --python-env <dir>`
+lists every requirement found in the content and whether the environment satisfies it.
 Theory can embed the optimiser lab: a fenced block `visualize gradient-descent function=rosenbrock optimizer=adam lr=0.02`
 (all arguments optional; functions `quadratic|rosenbrock|double-well`, optimizers `gd|momentum|adam`).

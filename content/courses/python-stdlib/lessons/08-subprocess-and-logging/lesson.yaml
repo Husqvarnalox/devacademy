@@ -1,0 +1,172 @@
+id: python.stdlib.subprocess-and-logging
+title: "subprocess и logging: внешние программы и журналы"
+goal: Безопасно запускать внешние программы через subprocess и настраивать журналирование через logging так, чтобы записи были управляемыми, ленивыми и содержали трассировки ошибок.
+difficulty: hard
+estimatedMinutes: 90
+prerequisites: [python.fundamentals.errors-and-files, python.advanced.context-managers, python.stdlib.pathlib-os-shutil-tempfile]
+related: [python.stdlib.json-csv-struct, python.advanced.decorators]
+next: []
+objectives:
+  - Запускать программы через subprocess.run со списком аргументов, capture_output, text, timeout и check, различать returncode, CalledProcessError и TimeoutExpired.
+  - Объяснить, почему shell=True с пользовательским вводом опасен, и заменить его списком аргументов.
+  - Описать иерархию логгеров, уровни, handlers, formatters и propagate, настроить basicConfig один раз.
+  - Писать записи с ленивым форматированием и фиксировать исключения через logger.exception.
+  - Проверять журналирование в тестах, подключая собственный handler.
+masteryCriteria:
+  - Вы не используете shell=True со строками, в которые попадают внешние данные, и передаёте аргументы списком.
+  - Вы всегда задаёте timeout для внешнего процесса, который может зависнуть, и обрабатываете TimeoutExpired.
+  - Вы пишете logger.info("x=%s", x), а не logger.info(f"x={x}"), и используете logger.exception внутри except.
+  - Вы создаёте логгеры через getLogger(__name__) и настраиваете handlers только в точке входа приложения, а не в библиотеке.
+tags: [python, subprocess, logging, security, shell-injection, handlers, stdlib]
+facts:
+  - kind: security
+    text: >-
+      При shell=True строка команды передаётся оболочке, которая интерпретирует метасимволы (;, &&, |, $(...), обратные кавычки). Если в строку попадают данные пользователя,
+      возможна инъекция команд. Документация subprocess рекомендует по возможности передавать список аргументов без оболочки.
+    sources:
+      - https://docs.python.org/3/library/subprocess.html#security-considerations
+  - kind: internals
+    text: >-
+      Логгеры образуют дерево по именам с точкой: логгер "app.db" - потомок "app". Запись, обработанная handlers логгера, по умолчанию передаётся (propagate=True)
+      handlers его предков вплоть до корневого. Уровень записи сравнивается с эффективным уровнем логгера (ближайший заданный у предков), а у handler есть собственный уровень.
+    sources:
+      - https://docs.python.org/3/library/logging.html#logger-objects
+      - https://docs.python.org/3/howto/logging.html
+  - kind: performance
+    text: >-
+      logger.debug("x=%s", x) не форматирует строку, если уровень DEBUG выключен, а f-строка в аргументе вычисляется всегда, даже если запись будет отброшена. Для дорогих вычислений
+      аргументов проверяйте logger.isEnabledFor(logging.DEBUG).
+    sources:
+      - https://docs.python.org/3/howto/logging.html#optimization
+  - kind: misconception
+    text: >-
+      «basicConfig можно вызывать повторно для смены настроек». Если у корневого логгера уже есть handlers, вызов basicConfig ничего не делает, пока не указан force=True (Python 3.8+).
+    sources:
+      - https://docs.python.org/3/library/logging.html#logging.basicConfig
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Как безопаснее всего запустить программу с аргументом, пришедшим от пользователя?
+      options:
+        - 'subprocess.run(f"convert {name} out.png", shell=True)'
+        - 'subprocess.run(["convert", name, "out.png"], check=True)'
+        - 'os.system("convert " + name + " out.png")'
+        - 'subprocess.run("convert " + name + " out.png", shell=True, check=True)'
+      answer: 1
+      explanation: >-
+        Список аргументов не проходит через оболочку, поэтому метасимволы в name не интерпретируются. (Если name начинается с дефиса, программа может принять его за опцию - используйте "--" там, где программа это поддерживает.)
+    - id: q2
+      type: single
+      prompt: Что произойдёт при subprocess.run([sys.executable, "-c", "import sys; sys.exit(3)"]) без check?
+      options:
+        - "Будет исключение CalledProcessError"
+        - "Вернётся CompletedProcess с returncode == 3, исключения нет"
+        - "Вернётся None"
+        - "Вернётся CompletedProcess с returncode == 0"
+      answer: 1
+      explanation: >-
+        Исключение CalledProcessError бросается только при check=True. Без него нужно самому проверять returncode.
+    - id: q3
+      type: single
+      prompt: Какой вызов правильный для записи ошибки с трассировкой внутри блока except?
+      options:
+        - 'logger.info("failed")'
+        - 'logger.exception("failed")'
+        - 'logger.warning(f"failed {exc}")'
+        - 'print("failed")'
+      answer: 1
+      explanation: >-
+        exception - это error с exc_info=True: в запись попадает трассировка активного исключения. Вне блока except трассировки не будет.
+    - id: q4
+      type: single
+      prompt: |
+        Логгер "app.db" имеет уровень WARNING, а handler добавлен только к логгеру "app" (уровень NOTSET у handler). Что произойдёт при logging.getLogger("app.db").info("x")?
+      options:
+        - "Запись будет обработана handler-ом родителя"
+        - "Запись будет отброшена, потому что INFO ниже эффективного уровня WARNING логгера app.db"
+        - "Возникнет исключение"
+        - "Запись уйдёт в stderr через lastResort"
+      answer: 1
+      explanation: >-
+        Уровень проверяется у логгера, на котором вызван метод. Handler-ы родителей получают запись уже прошедшей эту проверку (их уровни логгеров не проверяются, только уровни самих handler-ов).
+    - id: q5
+      type: multiple
+      prompt: Что верно про ленивое форматирование в logging?
+      options:
+        - 'logger.debug("n=%s", n) не строит строку, если DEBUG выключен'
+        - 'logger.debug(f"n={n}") строит строку всегда'
+        - 'Аргументы логирования нужно оборачивать в str() заранее'
+        - 'record.args хранит аргументы подстановки'
+      answer: [0, 1, 3]
+      explanation: >-
+        Форматирование выполняется при выдаче записи handler-ом. str() заранее не нужен.
+exercise:
+  id: python.stdlib.subprocess-and-logging.exercise
+  title: Безопасные процессы и проверяемый журнал
+  prompt: |
+    В файле `ops_task.py` реализуйте функции. Для запуска Python-кода в дочернем процессе используйте `sys.executable` (интерпретатор, который выполняет ваше решение). Ничего не печатайте.
+
+    1. `run_python(code, timeout=5)` - запускает `[sys.executable, "-c", code]` и возвращает кортеж `(returncode, stdout, stderr)` (строки, текстовый режим). Исключений при ненулевом коде быть не должно.
+    2. `run_checked(code, timeout=5)` - то же, но возвращает `stdout.strip()`, а при ненулевом коде завершения поднимает `RuntimeError`, сообщение которого содержит код возврата и `stderr` процесса.
+    3. `run_with_timeout(code, timeout)` - возвращает `stdout.strip()` процесса, а если процесс не уложился в `timeout` секунд, возвращает строку `"timeout"` (процесс должен быть остановлен).
+    4. `safe_echo(arg)` - запускает дочерний Python, который печатает свой первый аргумент командной строки (`sys.argv[1]`), и возвращает его stdout без завершающего перевода строки. `arg` передаётся **отдельным элементом списка**, без оболочки.
+    5. `make_logger(name, handler, level=logging.INFO)` - возвращает `logging.getLogger(name)` с уровнем `level`, добавленным `handler` (если он ещё не добавлен: повторный вызов не должен дублировать handler) и `propagate = False`.
+    6. `log_operation(logger, user, action, ok)` - при успехе пишет `INFO`-запись `"user=%s action=%s"`, при неудаче - `ERROR`-запись `"user=%s action=%s failed"`. Форматирование **ленивое**: значения передаются аргументами, а не через f-строку.
+    7. `safe_divide(logger, a, b)` - возвращает `a / b`; при `ZeroDivisionError` записывает через `logger.exception("division failed a=%s b=%s", a, b)` и возвращает `None`.
+
+    **Примеры.**
+
+    ```python
+    run_python("print(1+1)")                  # (0, '2\n', '')
+    run_with_timeout("import time; time.sleep(5)", 0.5)   # 'timeout'
+    safe_echo("a; echo hacked")               # 'a; echo hacked'
+    ```
+  entryFile: ops_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Все три функции запуска строятся на одном вызове subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=timeout). Различаются только обработка returncode и исключений."
+    - "run_checked: используйте check=True и перехватите subprocess.CalledProcessError (у него есть returncode и stderr). run_with_timeout: перехватите subprocess.TimeoutExpired - run сам убьёт процесс перед этим."
+    - "safe_echo: subprocess.run([sys.executable, '-c', 'import sys; print(sys.argv[1])', arg], ...) - аргумент после кода попадает в sys.argv[1]. make_logger: if handler not in logger.handlers: logger.addHandler(handler)."
+    - "log_operation: logger.info('user=%s action=%s', user, action) и logger.error('user=%s action=%s failed', user, action). safe_divide: try: return a / b; except ZeroDivisionError: logger.exception('division failed a=%s b=%s', a, b); return None."
+  tests:
+    - id: run-basic
+      title: run_python - вывод и код возврата
+      hint: Верните кортеж (returncode, stdout, stderr); stdout сохраняет завершающий перевод строки.
+    - id: checked-basic
+      title: run_checked - успешный запуск
+      hint: Успех возвращает stdout.strip(), например '2' для print(1+1).
+    - id: echo-safe
+      title: safe_echo - аргумент без оболочки
+      hint: Передайте arg отдельным элементом списка; метасимволы ; $ ` | не интерпретируются.
+    - id: logger-basic
+      title: make_logger и log_operation
+      hint: Уровень записи INFO при успехе и ERROR при неудаче; сообщение собирается из msg и args.
+    - id: checked-fail
+      title: run_checked - ошибка процесса (скрытый)
+      hidden: true
+      hint: При ненулевом коде поднимите RuntimeError, в тексте которого код возврата и stderr процесса.
+    - id: timeout
+      title: run_with_timeout (скрытый)
+      hidden: true
+      hint: subprocess.run(timeout=...) бросает TimeoutExpired; перехватите его и верните 'timeout'. Быстрый процесс возвращает свой stdout.
+    - id: run-stderr
+      title: run_python - stderr и ненулевой код (скрытый)
+      hidden: true
+      hint: Без check=True исключения не будет; ошибка Python попадает в stderr, код возврата 1.
+    - id: log-lazy
+      title: log_operation - ленивое форматирование (скрытый)
+      hidden: true
+      hint: record.msg должно остаться форматной строкой с %s, а record.args - кортежем (user, action).
+    - id: log-exception
+      title: safe_divide - logger.exception (скрытый)
+      hidden: true
+      hint: Запись должна иметь уровень ERROR и непустой exc_info (трассировка ZeroDivisionError); функция возвращает None.
+    - id: logger-idempotent
+      title: make_logger - без дублей handler (скрытый)
+      hidden: true
+      hint: Повторный вызов с тем же handler не должен добавлять его второй раз, иначе каждая запись будет выдана дважды. propagate должен быть False.

@@ -1,0 +1,7 @@
+id: py.hello
+title: Hello
+goal: Print text
+difficulty: intro
+estimatedMinutes: 10
+objectives: [print]
+next: [py.vars]

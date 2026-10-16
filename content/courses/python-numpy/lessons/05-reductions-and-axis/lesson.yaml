@@ -1,0 +1,152 @@
+id: "python.numpy.reductions-and-axis"
+title: "Редукции, оси и устойчивые статистики"
+goal: "Уверенно применять sum/mean/argmax по осям с keepdims, понимать ddof и считать дисперсию и softmax численно устойчиво."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "python.numpy.broadcasting"
+related:
+  - "python.numpy.dtypes-and-casting"
+  - "python.fundamentals.numbers-and-operators"
+next:
+  - "python.numpy.linear-algebra"
+objectives:
+  - "Определить форму результата редукции по любой оси или кортежу осей и использовать keepdims=True."
+  - "Различать значение и индекс (max и argmax) и предсказывать результат argmax при равных элементах."
+  - "Объяснить ddof и разницу между смещённой и несмещённой оценками дисперсии."
+  - "Показать на примере катастрофическое сокращение в формуле E[x^2] - E[x]^2 и вычислить дисперсию двухпроходным способом."
+  - "Реализовать устойчивый softmax вычитанием максимума строки."
+masteryCriteria:
+  - "col_means и row_argmax верны на квадратной несимметричной матрице (ловит перепутанную ось)."
+  - "variance совпадает с эталоном при ddof=0 и ddof=1, остаётся верной при смещении 1e9 и бросает ValueError при n - ddof <= 0."
+  - "stable_softmax не даёт nan/inf на значениях порядка 1000 и каждая строка суммируется в 1."
+tags:
+  - "numpy"
+  - "reductions"
+  - "axis"
+  - "keepdims"
+  - "variance"
+  - "numerical-stability"
+  - "softmax"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "В документации numpy.sum сказано, что для вещественных чисел сложение по быстрой оси выполняется попарным суммированием, у которого погрешность растёт значительно медленнее, чем у последовательного цикла. Это деталь реализации, и результат может отличаться от обычного цикла в последних разрядах."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.sum.html"
+  - kind: "misconception"
+    text: "«np.var и np.std считают несмещённую оценку». По умолчанию ddof=0, то есть деление на n; несмещённая оценка по выборке получается при ddof=1. В pandas по умолчанию ddof=1, поэтому результаты могут расходиться."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.var.html"
+  - kind: "internals"
+    text: "Для вычисления дисперсии потока данных за один проход применяют алгоритм Велфорда; наивная формула через средний квадрат и квадрат среднего подвержена катастрофическому сокращению при большом среднем."
+    sources:
+      - "https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "a.shape == (5, 8). Какая форма у a.mean(axis=0)?"
+      options:
+        - "(8,)"
+        - "(5,)"
+        - "(5, 1)"
+        - "()"
+      answer: 0
+      explanation: "axis=0 убирает первую ось: остаётся одно значение на каждый из 8 столбцов."
+    - id: "q2"
+      type: "single"
+      prompt: "Какая форма у a.sum(axis=1, keepdims=True) при a.shape == (5, 8)?"
+      options:
+        - "(5, 1)"
+        - "(5,)"
+        - "(1, 8)"
+        - "(8,)"
+      answer: 0
+      explanation: "Ось 1 свёрнута, но сохранена с длиной 1."
+    - id: "q3"
+      type: "numeric"
+      prompt: "Чему равна np.var([1, 2, 3, 4, 5], ddof=1)? Ответ - число."
+      answer: 2.5
+      tolerance: 1e-09
+      explanation: "Сумма квадратов отклонений от среднего 3 равна 10; при ddof=1 делим на 4: 2.5."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему формула E[x^2] - (E[x])^2 опасна для данных вида 1e9 + шум?"
+      options:
+        - "Вычитаются два огромных почти равных числа, значащие цифры теряются"
+        - "Она неверна математически"
+        - "NumPy не умеет возводить в квадрат большие числа"
+        - "Она всегда даёт отрицательный результат"
+      answer: 0
+      explanation: "Математически формула верна, но в float64 разность чисел порядка 1e18 теряет точность."
+    - id: "q5"
+      type: "single"
+      prompt: "Зачем в softmax вычитают максимум строки?"
+      options:
+        - "Чтобы exp не переполнялся; результат от сдвига не меняется"
+        - "Чтобы строки суммировались в 1"
+        - "Чтобы результат стал целым"
+        - "Это требуется определением softmax"
+      answer: 0
+      explanation: "Softmax инвариантен к сдвигу, а после вычитания максимума все показатели не больше 0."
+exercise:
+  id: "python.numpy.reductions-and-axis.exercise"
+  title: "Оси, устойчивый softmax и дисперсия"
+  prompt: |
+    В файле `reduce_task.py` реализуйте четыре функции. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `col_means(a)` - среднее по каждому столбцу 2D-массива: `float64`, форма `(число столбцов,)`.
+    2. `row_argmax(a)` - для каждой строки индекс максимального элемента (первый при равенстве): целые числа, форма `(число строк,)`.
+    3. `stable_softmax(a)` - softmax по строкам 2D-массива; обязан работать при значениях порядка 1000 и больше (без `nan` и `inf`, даже внутри `np.errstate(all="raise")`). Результат `float64` той же формы.
+    4. `variance(a, ddof=0)` - дисперсия 1D-массива `sum((a - mean)^2) / (n - ddof)`; **не** используйте `np.var` и формулу `E[x^2] - E[x]^2`. При `n - ddof <= 0` бросьте `ValueError`. Результат - `float`.
+
+    **Пример.**
+
+    ```python
+    col_means(np.array([[1, 2], [3, 4]]))        # array([2., 3.])
+    row_argmax(np.array([[1, 9, 3], [7, 2, 5]])) # array([1, 0])
+    variance(np.array([1.0, 2.0, 3.0, 4.0]), ddof=1)   # 1.6667
+    ```
+  entryFile: "reduce_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "col_means - mean по axis=0, row_argmax - argmax по axis=1. Запомните: axis=k убирает k-ю ось."
+    - "stable_softmax: вычтите из каждой строки её максимум (a.max(axis=1, keepdims=True)), потом exp, потом поделите на сумму по строке (тоже keepdims=True)."
+    - "variance: двухпроходный алгоритм - сначала mean, потом отклонения d = a - mean, затем (d * d).sum() / (n - ddof). Проверку n - ddof <= 0 сделайте до деления."
+    - "Приводите вход к float64 через np.asarray(a, dtype=np.float64), чтобы целые массивы не давали сюрпризов; результат variance оберните в float(...)."
+  tests:
+    - id: "col-means"
+      title: "col_means: значения, форма, dtype"
+      hint: "mean(axis=0) для результата по столбцам; для целых входов результат float64."
+    - id: "row-argmax"
+      title: "row_argmax: индексы по строкам"
+      hint: "argmax(axis=1) возвращает индекс столбца максимума в каждой строке."
+    - id: "softmax-basic"
+      title: "stable_softmax на небольших значениях"
+      hint: "exp(a - max) / сумма по строке; строки суммируются в 1."
+    - id: "variance-basic"
+      title: "variance: ddof=0 и ddof=1"
+      hint: "Делитель n - ddof."
+    - id: "axis-square-nonsymmetric"
+      title: "Квадратная несимметричная матрица (скрытый)"
+      hidden: true
+      hint: "col_means: axis=0, row_argmax: axis=1. На квадратной матрице перепутанная ось не вызывает ошибку, но даёт другой ответ."
+    - id: "softmax-large-values"
+      title: "softmax на значениях ±1000 и 5000 (скрытый)"
+      hidden: true
+      hint: "Вычтите максимум строки до exp (keepdims=True), иначе exp(1000) = inf и результат nan."
+    - id: "variance-large-offset"
+      title: "Дисперсия при смещении 1e9 (скрытый)"
+      hidden: true
+      hint: "Не используйте E[x^2] - E[x]^2: сначала вычтите среднее, потом возводите в квадрат."
+    - id: "variance-errors-and-ints"
+      title: "ValueError и целые входы (скрытый)"
+      hidden: true
+      hint: "При n - ddof <= 0 (включая пустой массив) бросайте ValueError; целый вход приводите к float64."

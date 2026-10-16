@@ -1,0 +1,12 @@
+id: py-basics
+version: 1.0.0
+title: Python Basics
+description: Basics
+languageId: python
+level: 0
+track: python
+lessons: [01-hello, 02-vars]
+framework:
+  id: demo
+  version: "1.x"
+  docs: [https://docs.python.org/3/]

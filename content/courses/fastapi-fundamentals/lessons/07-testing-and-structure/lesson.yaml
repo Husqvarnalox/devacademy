@@ -1,0 +1,160 @@
+id: fastapi.fundamentals.testing-and-structure
+title: Тестирование и структура приложения
+goal: Разбить приложение на роутеры, собрать его фабрикой с настройками из окружения, тестировать в процессе через TestClient и httpx.AsyncClient и изолировать тесты друг от друга.
+difficulty: medium
+estimatedMinutes: 100
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [fastapi.fundamentals.auth-basics, fastapi.fundamentals.dependency-injection]
+related: [fastapi.fundamentals.why-fastapi-and-asgi]
+next: []
+objectives:
+  - Делить приложение на APIRouter с prefix и tags и подключать их через include_router.
+  - Собирать приложение фабрикой create_app(settings) с собственным состоянием вместо глобальных объектов.
+  - Читать настройки из переменных окружения в неизменяемый dataclass с проверкой значений (и объяснять, чем это отличается от pydantic-settings).
+  - Запускать lifespan в тестах и понимать, когда он выполняется (TestClient как менеджер контекста) и когда нет.
+  - Выбирать между TestClient и httpx.AsyncClient с ASGITransport и писать независимые тесты (чистое состояние, очистка dependency_overrides).
+masteryCriteria:
+  - Вы создаёте два экземпляра приложения в одном процессе и показываете, что они не делят данные.
+  - Вы пишете тест, который проверяет поведение через публичный API, подменяя только настройки или зависимости.
+  - Вы объясняете, почему тест, в котором ASGITransport не запускает lifespan, может вести себя иначе, чем TestClient в with.
+tags: [fastapi, testing, testclient, httpx, apirouter, settings, lifespan, structure]
+facts:
+  - kind: internals
+    text: >-
+      APIRouter - «мини-приложение» с маршрутами, общими prefix, tags и dependencies; app.include_router(router) копирует его маршруты в приложение. Маршруты роутера объявляются
+      с путями относительно prefix, а пустой путь "" означает сам prefix (без завершающего слеша).
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/bigger-applications/
+      - https://fastapi.tiangolo.com/reference/apirouter/
+  - kind: internals
+    text: >-
+      fastapi.testclient.TestClient вызывает приложение в процессе без сети и сервера (Starlette поверх httpx). Событие lifespan запускается только если клиент использован как менеджер
+      контекста (with TestClient(app) as client); обычный вызов без with lifespan не запускает.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/testing/
+      - https://fastapi.tiangolo.com/advanced/testing-events/
+  - kind: internals
+    text: >-
+      Для асинхронных тестов используют httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test"). ASGITransport вызывает ASGI-приложение напрямую, без сети, но
+      сам lifespan не запускает: если он нужен, его запускают отдельно (например, через менеджер контекста самого приложения или библиотеку asgi-lifespan).
+    sources:
+      - https://fastapi.tiangolo.com/advanced/async-tests/
+      - https://www.python-httpx.org/advanced/transports/#asgi
+  - kind: realworld
+    text: >-
+      Настройки читаются из окружения (двенадцатифакторное приложение): конфигурация отделена от кода, секреты не коммитятся. Пакет pydantic-settings добавляет к этому разбор типов, .env-файлы
+      и вложенные структуры, но это отдельный пакет, который в окружении курса не установлен; простой неизменяемый dataclass с функцией чтения окружения покрывает небольшие сервисы.
+    sources:
+      - https://12factor.net/config
+      - https://fastapi.tiangolo.com/advanced/settings/
+  - kind: realworld
+    text: >-
+      Изоляция тестов: состояние (хранилища, кэши, счётчики) не должно жить в глобальных объектах модуля, которые переживают тест. Фабрика приложения создаёт чистое состояние на каждый вызов;
+      app.dependency_overrides очищают после теста; подмена окружения выполняется через явные параметры, а не изменением os.environ.
+    sources:
+      - https://fastapi.tiangolo.com/advanced/testing-dependencies/
+  - kind: historical
+    text: >-
+      События @app.on_event("startup"/"shutdown") устарели; для запуска и остановки используют параметр lifespan у FastAPI (асинхронный менеджер контекста). Совмещать оба подхода в одном
+      приложении нельзя: при указании lifespan обработчики on_event игнорируются.
+    sources:
+      - https://fastapi.tiangolo.com/advanced/events/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Когда выполняется lifespan при использовании TestClient?"
+      options:
+        - "Всегда при создании клиента"
+        - "Только если клиент использован как менеджер контекста: with TestClient(app) as client"
+        - "Никогда"
+        - "Только для async def тестов"
+      answer: 1
+      explanation: "Без with старт и остановка не выполняются. ASGITransport тоже не запускает lifespan сам."
+    - id: q2
+      type: multiple
+      prompt: "Что помогает изолировать тесты друг от друга?"
+      options:
+        - "Фабрика create_app, возвращающая приложение с собственным состоянием"
+        - "Глобальный словарь в модуле, общий для всех тестов"
+        - "Очистка app.dependency_overrides после теста"
+        - "Передача настроек параметром вместо правки os.environ"
+      answer: [0, 2, 3]
+      explanation: "Глобальное состояние переживает тест и делает результат зависимым от порядка запуска."
+    - id: q3
+      type: single
+      prompt: "Для чего нужен prefix у APIRouter?"
+      options:
+        - "Для шифрования путей"
+        - "Чтобы не повторять общий начальный сегмент пути в каждом маршруте группы"
+        - "Он обязателен"
+        - "Он включает аутентификацию"
+      answer: 1
+      explanation: "Вместе с tags и dependencies роутера он задаёт общие свойства группы маршрутов."
+    - id: q4
+      type: single
+      prompt: "Когда имеет смысл httpx.AsyncClient с ASGITransport вместо TestClient?"
+      options:
+        - "Когда тест сам async и ему нужно делать await других асинхронных вызовов (база, очередь) в том же цикле событий"
+        - "Всегда, TestClient устарел"
+        - "Когда нужен настоящий сетевой сервер"
+        - "Чтобы тесты шли быстрее в любом случае"
+      answer: 0
+      explanation: "TestClient синхронный и сам запускает цикл событий для приложения; для async-тестов с общим циклом используют AsyncClient. Для обычных тестов TestClient проще."
+    - id: q5
+      type: short
+      prompt: "Какой параметр FastAPI заменил устаревшие @app.on_event('startup') и ('shutdown')? (одно слово)"
+      answer: ["lifespan"]
+      explanation: "FastAPI(lifespan=...) принимает асинхронный менеджер контекста: код до yield - запуск, после - остановка."
+exercise:
+  id: fastapi.fundamentals.testing-and-structure.exercise
+  title: Фабрика приложения с роутерами и настройками
+  prompt: |
+    В файле `shop_app.py` заданы `Settings`, зависимости `get_store` и `get_settings`, модели `ItemIn`, `ItemOut` и два пустых роутера. Реализуйте:
+
+    * `load_settings(env=None) -> Settings`: читает `SHOP_APP_NAME` (строка), `SHOP_MAX_ITEMS` (целое), `SHOP_DEBUG` (`1`/`true`/`yes`/`on` без учёта регистра - `True`, всё остальное и отсутствие - `False`) из `env` (по умолчанию `os.environ`). Отсутствующие значения - из `Settings()`. Нечисловой `SHOP_MAX_ITEMS` -> `ValueError`, в сообщении которого есть имя переменной. `Settings` должен остаться неизменяемым.
+    * Маршруты на `items_router` (prefix `/items`) и `meta_router`:
+      * `POST /items` с телом `{"name": str}` (непустая строка) -> `201`, `{"id", "name"}`, id с 1; если элементов уже `max_items` -> `409` `{"detail": "limit reached"}` и ничего не сохраняется;
+      * `GET /items` -> список; `GET /items/{item_id}` -> элемент или `404` `{"detail": "item not found"}`;
+      * `GET /info` -> `{"app": <app_name>, "debug": <debug>, "items": <число элементов>}`.
+    * `create_app(settings=None) -> FastAPI`: **каждый вызов** создаёт новое приложение с `title=settings.app_name`, собственными `app.state.items = {}` и `app.state.settings`, подключёнными роутерами и `lifespan`, который ставит `app.state.started = True` при запуске и `app.state.closed = True` при остановке (до запуска оба `False`).
+  entryFile: shop_app.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Настройки: прочитайте `raw = env.get('SHOP_MAX_ITEMS')`; если не `None`, `int(raw)` в `try/except ValueError` и `raise ValueError(f'SHOP_MAX_ITEMS must be an integer, got {raw!r}')`. Флаг: `env.get('SHOP_DEBUG', '').strip().lower() in {'1', 'true', 'yes', 'on'}`. `Settings` уже `frozen=True`."
+    - "Маршруты объявляйте декораторами роутеров: `@items_router.post('', status_code=201, response_model=ItemOut)`. Пустая строка пути означает сам prefix `/items`. Состояние берите зависимостями `Store` и `Config` (они читают `request.app.state`), а не глобальными переменными."
+    - "Состояние должно жить в `app.state`, который создаётся внутри `create_app`: `app.state.items = {}`. Тогда два приложения не делят данные. Модульные роутеры без состояния можно подключать к любому числу приложений."
+    - "Lifespan - вложенная в `create_app` функция с `@asynccontextmanager`: `app.state.started = True; yield; app.state.closed = True`; передайте её как `FastAPI(title=..., lifespan=lifespan)`. Начальные значения `started` и `closed` (False) задайте сразу после создания приложения. Затем `app.include_router(items_router)` и `app.include_router(meta_router)`."
+  tests:
+    - id: settings-from-env
+      title: Настройки читаются из окружения
+      hint: "Значения по умолчанию из Settings(); SHOP_DEBUG принимает 1/true/yes/on в любом регистре; плохое число - ValueError с именем переменной."
+    - id: items-crud
+      title: Создание и чтение элементов
+      hint: "POST -> 201 {id, name}; GET /items/{id} -> 404 {'detail': 'item not found'}; пустое имя -> 422 (Field(min_length=1) уже в ItemIn)."
+    - id: info-route
+      title: Маршрут /info
+      hint: "Возвращает app_name, debug и количество элементов из app.state."
+    - id: app-isolation
+      title: Приложения не делят состояние (скрытый)
+      hidden: true
+      hint: "app.state.items = {} создаётся внутри create_app, а не на уровне модуля. Нумерация id в каждом приложении начинается с 1."
+    - id: item-limit
+      title: Лимит элементов (скрытый)
+      hidden: true
+      hint: "Проверяйте len(store) >= settings.max_items до сохранения; при отказе ничего не записывайте."
+    - id: lifespan-flags
+      title: Lifespan запускается при входе в with (скрытый)
+      hidden: true
+      hint: "До with оба флага False; после входа started=True; после выхода closed=True. Это поведение TestClient как менеджера контекста."
+    - id: async-client
+      title: Сценарий через httpx.AsyncClient (скрытый)
+      hidden: true
+      hint: "ASGITransport не запускает lifespan, поэтому состояние (items, settings) нужно создавать в create_app, а не в lifespan."
+    - id: router-openapi
+      title: Роутеры, теги и заголовок в OpenAPI (скрытый)
+      hidden: true
+      hint: "tags задаются в APIRouter(tags=[...]); title приложения - settings.app_name."

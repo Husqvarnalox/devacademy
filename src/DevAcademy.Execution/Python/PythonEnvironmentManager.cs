@@ -76,6 +76,20 @@ public sealed class PythonEnvironmentManager
         ? System.IO.Path.Combine(envPath, "Scripts", "python.exe")
         : System.IO.Path.Combine(envPath, "bin", "python");
 
+    /// <summary>
+    /// Finds the interpreter of an arbitrary virtual-environment directory (not necessarily one this manager owns), e.g. a venv created
+    /// with <c>python -m venv</c>. The host's layout is tried first (<c>Scripts/python.exe</c> on Windows, <c>bin/python</c> elsewhere),
+    /// then the other one. Null when the directory holds no interpreter.
+    /// </summary>
+    public string? ResolveInterpreter(string envDir)
+    {
+        string dir = System.IO.Path.GetFullPath(envDir);
+        string[] unix = [System.IO.Path.Combine(dir, "bin", "python"), System.IO.Path.Combine(dir, "bin", "python3")];
+        string[] windows = [System.IO.Path.Combine(dir, "Scripts", "python.exe")];
+        IEnumerable<string> candidates = _isWindows ? windows.Concat(unix) : unix.Concat(windows);
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
     public bool IsUvAvailable => _runner.Find("uv") is not null;
 
     // ---------------------------------------------------------------- list / create / delete

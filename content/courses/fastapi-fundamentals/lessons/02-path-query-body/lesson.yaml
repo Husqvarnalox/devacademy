@@ -1,0 +1,151 @@
+id: fastapi.fundamentals.path-query-body
+title: Параметры пути, запроса и тело запроса
+goal: Принимать данные через path, query и body с проверкой типов и ограничений, читать форму ответа 422 и не раскрывать лишние поля через response_model.
+difficulty: easy
+estimatedMinutes: 75
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [fastapi.fundamentals.why-fastapi-and-asgi]
+related: [python.advanced.typing-fundamentals]
+next: [fastapi.fundamentals.pydantic-models]
+objectives:
+  - Объяснить правило, по которому FastAPI определяет источник параметра - путь, строка запроса или тело.
+  - Задавать ограничения через Annotated[..., Path(...)], Annotated[..., Query(...)] и значения по умолчанию.
+  - Читать тело ответа 422 - поля type, loc, msg, input, ctx - и находить по loc источник ошибки.
+  - Принимать тело запроса как модель Pydantic и отделять входную модель от выходной.
+  - Использовать response_model или аннотацию возвращаемого значения, чтобы отфильтровать лишние поля (пароль, хеш, внутренние флаги).
+masteryCriteria:
+  - Вы предсказываете, какой из параметров функции окажется path, query или body, не запуская код.
+  - Вы пишете эндпоинт регистрации, ответ которого не содержит password и password_hash, и подтверждаете это тестом.
+  - Вы объясняете, чем 422 от FastAPI отличается от 400, который возвращает код приложения, и когда возникает 500 из-за ResponseValidationError.
+tags: [fastapi, path-params, query-params, request-body, response-model, validation]
+facts:
+  - kind: internals
+    text: >-
+      Правило определения источника параметра: если имя есть в шаблоне пути - это параметр пути; если тип - Pydantic-модель, то это тело запроса;
+      простые типы (int, str, bool, float) и их Optional по умолчанию считаются параметрами строки запроса; для списка в строке запроса нужно явное Query().
+      Явные Path(), Query(), Body(), Header(), Cookie() переопределяют вывод по умолчанию.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/path-params/
+      - https://fastapi.tiangolo.com/tutorial/query-params/
+      - https://fastapi.tiangolo.com/tutorial/body/
+  - kind: security
+    text: >-
+      response_model - не только документация: FastAPI валидирует и фильтрует возвращаемые данные по этой модели, поэтому поля, которых в ней нет (например, password_hash),
+      в ответ не попадут. Это основной способ не раскрыть лишнее при возврате объекта из базы данных. Отдельные модели для входа и выхода также защищают от
+      mass assignment: клиент не может выставить поля, которых нет во входной модели.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/response-model/
+      - https://fastapi.tiangolo.com/tutorial/extra-models/
+  - kind: realworld
+    text: >-
+      Ошибки валидации в FastAPI имеют вид {"detail": [{"type", "loc", "msg", "input", "ctx"}]}; loc - путь к проблемному значению, начинающийся с источника
+      ("path", "query", "body", "header"). Поля type, msg и ctx приходят из Pydantic v2.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/handling-errors/
+      - https://docs.pydantic.dev/latest/errors/errors/
+  - kind: misconception
+    text: >-
+      «Если тип в аннотации int, то в строке запроса может быть только число». Строка запроса всегда текст; FastAPI/Pydantic в режиме "lax" преобразует "5" в 5 и отвергает "abc".
+      Преобразование - часть валидации, а не гарантия того, что клиент отправил число.
+    sources:
+      - https://docs.pydantic.dev/latest/concepts/conversion_table/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что будет параметром тела запроса?
+        @app.post("/orders/{order_id}")
+        def f(order_id: int, note: str, order: OrderIn): ...
+      options:
+        - "order_id"
+        - "note"
+        - "order"
+        - "все три"
+      answer: 2
+      explanation: "order_id есть в пути (path), note - простой тип без Path/Body, поэтому query; Pydantic-модель OrderIn - тело запроса."
+    - id: q2
+      type: single
+      prompt: "Клиент отправил GET /items/abc, а в функции item_id: int. Что в loc первого элемента detail?"
+      options: ['["item_id"]', '["path", "item_id"]', '["query", "item_id"]', '["body", "item_id"]']
+      answer: 1
+      explanation: "loc начинается с источника параметра, затем имя: [\"path\", \"item_id\"]."
+    - id: q3
+      type: multiple
+      prompt: "Что защищает ответ эндпоинта регистрации от утечки поля password_hash?"
+      options:
+        - "response_model=UserOut, где нет такого поля"
+        - "Аннотация возвращаемого значения -> UserOut"
+        - "Имя поля, начинающееся с подчёркивания"
+        - "Нужно вручную удалять поле перед return - других способов нет"
+      answer: [0, 1]
+      explanation: "FastAPI использует response_model (или аннотацию результата) для фильтрации. Подчёркивание само по себе ничего не скрывает."
+    - id: q4
+      type: single
+      prompt: "Обработчик объявлен с response_model=UserOut, но вернул данные без обязательного поля id. Какой статус получит клиент?"
+      options: ["422", "400", "500", "200 с пустым id"]
+      answer: 2
+      explanation: "Это ошибка сервера: ответ не соответствует собственной схеме (ResponseValidationError), поэтому 500, а не 422 - 422 относится к запросу клиента."
+    - id: q5
+      type: numeric
+      prompt: "Эндпоинт принимает limit: Annotated[int, Query(ge=1, le=100)]. Сколько из значений 0, 1, 100, 101 пройдут проверку?"
+      answer: 2
+      tolerance: 0
+      explanation: "Проходят 1 и 100: границы ge/le включаются. 0 и 101 дадут 422."
+exercise:
+  id: fastapi.fundamentals.path-query-body.exercise
+  title: Пользователи без утечки пароля
+  prompt: |
+    В файле `users_api.py` уже есть приложение, хранилище `USERS` и заглушка хеширования `_fake_hash` (настоящее хеширование - в уроке про аутентификацию). Реализуйте:
+
+    * Модель `UserCreate` (тело запроса): `username` - строка длиной 3-20 символов, `password` - строка не короче 8 символов.
+    * Модель `UserOut`: **только** `id: int` и `username: str`.
+    * `POST /users` -> `201`, ответ - `UserOut`. В `USERS` сохраняется запись с полями `id`, `username`, `password_hash` (через `_fake_hash`). Номера идут с 1. Если имя уже занято - `409` и `{"detail": "username taken"}`.
+    * `GET /users/{user_id}` -> `UserOut`; `user_id` должен быть `>= 1` (иначе `422`); нет такого пользователя - `404` и `{"detail": "user not found"}`.
+    * `GET /users?q=&limit=&offset=` -> список `UserOut`, отсортированный по `id`. `q` - необязательная подстрока имени (без учёта регистра); `limit` - `1..100`, по умолчанию `10`; `offset` - `>= 0`, по умолчанию `0`.
+
+    Ответы должны строиться через `response_model` или аннотацию возвращаемого значения, а не ручным копированием полей: пароль и `password_hash` не должны попасть в ответ нигде, в том числе в схему OpenAPI (`UserOut`). `reset_state()` очищает хранилище и счётчик.
+  entryFile: users_api.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Три источника данных: в пути - `user_id`, в строке запроса - `q`, `limit`, `offset`, в теле - модель `UserCreate`. Ограничения задавайте через `Annotated[int, Query(ge=1, le=100)]` и `Annotated[int, Path(ge=1)]`, а длины строк - через `Field(min_length=..., max_length=...)` в модели."
+    - "Входная и выходная модели - разные классы: `UserOut` не содержит пароля. В декораторе укажите `response_model=UserOut` (для списка - `list[UserOut]`) и `status_code=201` для POST. Тогда можно возвращать словарь хранилища целиком - лишнее будет отфильтровано."
+    - "Для 409 и 404 используйте `HTTPException(status_code=..., detail=...)`. В списке: отфильтруйте по `q` (`q.lower() in u['username'].lower()`), отсортируйте по id, срежьте `[offset:offset + limit]`."
+    - "Скелет POST: `if any(u['username'] == body.username for u in USERS.values()): raise HTTPException(409, 'username taken')`; затем `record = {'id': _next_id, 'username': body.username, 'password_hash': _fake_hash(body.password)}`; сохраните в USERS и увеличьте счётчик через `global`."
+  tests:
+    - id: create-user
+      title: POST /users - 201 и только id с username
+      hint: "response_model=UserOut оставит в ответе только поля модели; статус 201 задаётся в декораторе."
+    - id: get-user
+      title: GET /users/{user_id}
+      hint: "Верните запись из хранилища; response_model отфильтрует лишнее. Отсутствующий id - 404."
+    - id: list-users
+      title: GET /users - список и фильтр q
+      hint: "q необязателен (`str | None = None`); сравнивайте подстроку без учёта регистра."
+    - id: no-leak
+      title: Пароль и хеш не попадают в ответы (скрытый)
+      hidden: true
+      hint: "Проверяются все ответы: создание, получение, список. Не возвращайте password из входной модели и не добавляйте поле password_hash в UserOut."
+    - id: body-validation
+      title: Валидация тела - 422 с верным loc (скрытый)
+      hidden: true
+      hint: "Ограничения длины задаются в модели: Field(min_length=3, max_length=20) и Field(min_length=8). В ответе 422 loc должен указывать на ['body', 'username'] или ['body', 'password']."
+    - id: duplicate
+      title: Повторное имя - 409 (скрытый)
+      hidden: true
+      hint: "Перед созданием проверьте занятость имени; при конфликте не увеличивайте счётчик id."
+    - id: param-constraints
+      title: Ограничения path и query (скрытый)
+      hidden: true
+      hint: "user_id=0, limit=0, limit=101, offset=-1 должны давать 422 с loc ['path', 'user_id'] / ['query', 'limit'] / ['query', 'offset']; границы 1 и 100 допустимы."
+    - id: paging
+      title: Пагинация limit/offset и порядок (скрытый)
+      hidden: true
+      hint: "Сортировка по id, затем срез [offset:offset + limit]; значения по умолчанию - limit=10, offset=0."
+    - id: openapi-schema
+      title: Схема UserOut без пароля (скрытый)
+      hidden: true
+      hint: "Модель должна называться UserOut и содержать ровно поля id и username; UserCreate при этом может содержать password."

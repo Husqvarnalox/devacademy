@@ -696,4 +696,51 @@
   <data name="Framework_Deprecated" xml:space="preserve"><value>Устаревшее</value></data>
   <data name="Framework_Migration" xml:space="preserve"><value>Заметки по миграции</value></data>
   <data name="Framework_Docs" xml:space="preserve"><value>Документация</value></data>
+  <data name="Lsp_Ready" xml:space="preserve"><value>LSP: {0} ✓</value></data>
+  <data name="Lsp_Starting" xml:space="preserve"><value>LSP: {0} запускается…</value></data>
+  <data name="Lsp_Restarting" xml:space="preserve"><value>LSP: {0} перезапускается…</value></data>
+  <data name="Lsp_Error" xml:space="preserve"><value>LSP: {0} — ошибка</value></data>
+  <data name="Lsp_Stopped" xml:space="preserve"><value>LSP: {0} (запустится при вводе)</value></data>
+  <data name="Lsp_NotInstalled" xml:space="preserve"><value>LSP: {0} не установлен (как установить)</value></data>
+  <data name="Lsp_Disabled" xml:space="preserve"><value>LSP: выключен в настройках</value></data>
+  <data name="Lsp_HowToInstallTitle" xml:space="preserve"><value>Установка языкового сервера</value></data>
+  <data name="Lsp_InstallConfirm" xml:space="preserve"><value>Будет выполнена команда:
+
+{0}
+
+Пакеты скачиваются из сети в каталог кеша приложения. Продолжить?</value></data>
+  <data name="Lsp_InstallButton" xml:space="preserve"><value>Установить</value></data>
+  <data name="Lsp_InstallDone" xml:space="preserve"><value>{0} установлен.</value></data>
+  <data name="Lsp_InstallFailed" xml:space="preserve"><value>Не удалось установить {0}:
+{1}</value></data>
+  <data name="Lsp_ManualInstall" xml:space="preserve"><value>{0} нужно установить вручную:
+
+{1}</value></data>
+  <data name="Lsp_ManualInstallNoNpm" xml:space="preserve"><value>{0} можно поставить через npm, но npm не найден. Установите Node.js или:
+
+{1}</value></data>
+  <data name="Out_Problems" xml:space="preserve"><value>Проблемы</value></data>
+  <data name="Out_ProblemsCount" xml:space="preserve"><value>Проблемы ({0})</value></data>
+  <data name="Out_NoProblems" xml:space="preserve"><value>Сервер языка не нашёл проблем.</value></data>
+  <data name="Lsp_Format" xml:space="preserve"><value>Форматировать документ (Shift+Alt+F)</value></data>
+  <data name="Lsp_StatusTip" xml:space="preserve"><value>Языковой сервер: подсказки, автодополнение и диагностика.</value></data>
+  <data name="Settings_LspTitle" xml:space="preserve"><value>Языковые серверы (LSP)</value></data>
+  <data name="Settings_LspIntro" xml:space="preserve"><value>Автодополнение, подсказки и диагностика в редакторе приходят от настоящих языковых серверов. Серверы запускаются при открытии файла и останавливаются при простое.</value></data>
+  <data name="Settings_LspEnabled" xml:space="preserve"><value>Включить языковые серверы</value></data>
+  <data name="Settings_LspLanguage" xml:space="preserve"><value>Язык</value></data>
+  <data name="Settings_LspServer" xml:space="preserve"><value>Сервер</value></data>
+  <data name="Settings_LspStatus" xml:space="preserve"><value>Состояние</value></data>
+  <data name="Settings_LspPath" xml:space="preserve"><value>Путь</value></data>
+  <data name="Settings_LspVersion" xml:space="preserve"><value>Версия</value></data>
+  <data name="Settings_LspOverride" xml:space="preserve"><value>Своя команда</value></data>
+  <data name="Settings_LspOverrideHint" xml:space="preserve"><value>например /opt/bin/gopls</value></data>
+  <data name="Settings_LspSave" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Settings_LspInstall" xml:space="preserve"><value>Установить…</value></data>
+  <data name="Lsp_State_NotInstalled" xml:space="preserve"><value>не установлен</value></data>
+  <data name="Lsp_State_Disabled" xml:space="preserve"><value>выключен</value></data>
+  <data name="Lsp_State_Starting" xml:space="preserve"><value>запускается</value></data>
+  <data name="Lsp_State_Ready" xml:space="preserve"><value>работает</value></data>
+  <data name="Lsp_State_Restarting" xml:space="preserve"><value>перезапуск</value></data>
+  <data name="Lsp_State_Error" xml:space="preserve"><value>ошибка</value></data>
+  <data name="Lsp_State_Stopped" xml:space="preserve"><value>найден, не запущен</value></data>
 </root>

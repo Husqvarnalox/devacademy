@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: pip
+          cache-dependency-path: tools/python-dev-requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -46,8 +48,20 @@ jobs:
       # Real toolchains present on the runner image; missing ones are skipped by the tests themselves.
       - name: Code execution engine tests
         run: dotnet test tests/DevAcademy.Execution.Tests -c Release --no-build
+      # Course content may declare `requires: { packages }`; they live in a throwaway venv, never in the runner's global Python.
+      - name: Python content environment (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: make python-env
+      - name: Python content environment (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          python -m venv .venv-content
+          .venv-content/Scripts/python.exe -m pip install --disable-pip-version-check -r tools/python-dev-requirements.txt
+      - name: Check Python environment against content
+        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- python-env-check --python-env .venv-content --content content
       - name: Validate content (runs reference solutions where toolchains exist)
-        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions
+        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions --python-env .venv-content
 
   publish:
     needs: test

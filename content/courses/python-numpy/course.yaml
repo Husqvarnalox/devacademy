@@ -1,0 +1,19 @@
+id: python-numpy
+version: 1.0.0
+title: "NumPy: массивы и векторизация"
+description: >-
+  Шесть уроков о том, как устроен ndarray и почему код на NumPy быстрее циклов Python: типизированный непрерывный буфер, dtype и приведение типов,
+  переполнение целых, представления и копии, broadcasting, редукции по осям и устойчивое вычисление среднего и дисперсии, основы линейной алгебры
+  (matmul, solve против inv, нормы). Каждый урок содержит запускаемые примеры и упражнение с автоматической проверкой значений, формы и dtype.
+  Уроки детерминированы: фиксированные seed через np.random.default_rng, явные допуски, только CPU. Нужен NumPy 2.x в выбранном окружении Python.
+languageId: python
+level: 3
+track: python
+requires: [python-fundamentals, python-advanced]
+lessons:
+  - 01-ndarray-vs-list
+  - 02-dtypes-and-casting
+  - 03-views-and-copies
+  - 04-broadcasting
+  - 05-reductions-and-axis
+  - 06-linear-algebra-basics

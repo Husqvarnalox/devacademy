@@ -1,0 +1,168 @@
+id: "ml.numpy.linear-regression"
+title: "Векторизованная линейная регрессия: lstsq, нормальные уравнения, градиентный спуск"
+goal: "Реализовать линейную регрессию для многих признаков матрицами тремя способами и объяснить, чем они различаются по устойчивости и сложности."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "ml.foundations.linear-regression"
+  - "python.numpy.linear-algebra"
+related:
+  - "python.numpy.reductions-and-axis"
+  - "python.numpy.broadcasting"
+next:
+  - "ml.numpy.logistic-regression"
+seeAlso:
+  - "Стадия B: LinearRegression, Ridge и SGDRegressor в scikit-learn - запланирована, пока описана текстом"
+objectives:
+  - "Записать линейную регрессию матрицами с добавленным столбцом единиц и вывести градиент (2/n) Xbᵀ (Xb w - y)."
+  - "Решить задачу через нормальные уравнения (np.linalg.solve) и через np.linalg.lstsq и сравнить результаты."
+  - "Объяснить, почему cond(XᵀX) = cond(X)² делает нормальные уравнения менее устойчивыми и как lstsq справляется с вырожденными признаками."
+  - "Реализовать пакетный градиентный спуск с записью истории потерь и оценить сходимость и расходимость по lr."
+  - "Сравнить сложность по времени: O(n d²) для прямых методов и O(n d) на эпоху для спуска."
+masteryCriteria:
+  - "fit_normal и fit_lstsq совпадают в пределах 1e-8 на хорошо обусловленных данных с фиксированным seed."
+  - "fit_gd сходится к решению lstsq с допуском 1e-6, history[0] равно MSE при w = 0, а при малом lr история не растёт."
+  - "fit_lstsq даёт веса, воспроизводящие y на данных с дублирующим столбцом и восстанавливает коэффициенты полинома степени 8 с допуском 1e-6."
+tags:
+  - "ml"
+  - "numpy"
+  - "linear-regression"
+  - "lstsq"
+  - "normal-equations"
+  - "gradient-descent"
+  - "conditioning"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "В документации NumPy np.linalg.lstsq возвращает решение задачи наименьших квадратов и, если система недоопределена или матрица не полного ранга, решение с минимальной евклидовой нормой; реализация основана на SVD через LAPACK."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html"
+  - kind: "internals"
+    text: "Число обусловленности матрицы XᵀX равно квадрату числа обусловленности X (в спектральной норме), поэтому нормальные уравнения теряют вдвое больше значащих цифр, чем методы на основе QR или SVD."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.cond.html"
+  - kind: "real-world"
+    text: "В документации scikit-learn сказано, что LinearRegression реализует обычный метод наименьших квадратов, а для вычислений использует scipy.linalg.lstsq. Для больших объёмов данных предлагается SGDRegressor."
+    sources:
+      - "https://scikit-learn.org/stable/modules/linear_model.html"
+      - "https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html"
+  - kind: "misconception"
+    text: "«Нормальные уравнения - это и есть как решается линейная регрессия на практике». В практических библиотеках чаще применяют разложения матрицы данных (QR, SVD), потому что они устойчивее; нормальные уравнения остаются полезным учебным и быстрым вариантом для хорошо обусловленных задач."
+    sources:
+      - "https://scikit-learn.org/stable/modules/linear_model.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какая форма у градиента (2/n) * Xb.T @ (Xb @ w - y), если Xb имеет форму (100, 4)?"
+      options:
+        - "(4,)"
+        - "(100,)"
+        - "(100, 4)"
+        - "(4, 4)"
+      answer: 0
+      explanation: "Xb.T имеет форму (4, 100), остаток - (100,), произведение - (4,): по одному значению на вес."
+    - id: "q2"
+      type: "single"
+      prompt: "Во сколько раз (в смысле показателя степени) число обусловленности нормальных уравнений больше, чем у X?"
+      options:
+        - "cond(XᵀX) = cond(X)², то есть показатель вдвое больше"
+        - "Они одинаковы"
+        - "cond(XᵀX) = cond(X) / 2"
+        - "Оно всегда равно 1"
+      answer: 0
+      explanation: "Возведение в квадрат: cond(X) около 1e6 даёт около 1e12 у XᵀX."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно о np.linalg.lstsq?"
+      options:
+        - "Устойчив к вырожденным признакам: возвращает решение минимальной нормы"
+        - "Решает нормальные уравнения через inv"
+        - "Использует разложение матрицы (SVD) и не возводит cond в квадрат"
+        - "Всегда медленнее градиентного спуска"
+      answer:
+        - 0
+        - 2
+      explanation: "lstsq не обращает матрицу и не строит XᵀX; скорость зависит от размеров задачи."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Сколько весов (включая смещение) у модели с 7 признаками? Ответ - число."
+      answer: 8
+      tolerance: 0
+      explanation: "7 весов признаков и ещё один вес смещения."
+    - id: "q5"
+      type: "single"
+      prompt: "Когда имеет смысл градиентный спуск вместо прямого решения?"
+      options:
+        - "Когда данных или признаков так много, что прямое решение слишком дорого, или модель не имеет прямого решения"
+        - "Всегда, потому что он точнее"
+        - "Когда признаки линейно зависимы"
+        - "Только для классификации"
+      answer: 0
+      explanation: "Для линейной регрессии прямое решение существует и точнее; спуск нужен для масштаба и обобщается на модели без формулы."
+exercise:
+  id: "ml.numpy.linear-regression.exercise"
+  title: "Три способа обучить линейную регрессию"
+  prompt: |
+    В файле `linreg_task.py` реализуйте пять функций. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `add_bias(X)` - добавить **слева** столбец единиц: `(n, d)` -> `(n, d + 1)`, `float64`.
+    2. `mse(Xb, y, w)` - `mean((Xb @ w - y)^2)`, число типа `float`. `Xb` уже содержит столбец смещения.
+    3. `fit_normal(X, y)` - нормальные уравнения `(XbᵀXb) w = Xbᵀ y` через `np.linalg.solve`; `X` без смещения, результат `w` формы `(d + 1,)`, `w[0]` - смещение.
+    4. `fit_lstsq(X, y)` - то же через `np.linalg.lstsq(Xb, y, rcond=None)`.
+    5. `fit_gd(X, y, lr, epochs)` - пакетный градиентный спуск с началом `w = 0`, градиент `(2/n) Xbᵀ (Xb w - y)`. Верните `(w, history)`, где `history` - массив длины `epochs + 1`: MSE до первого шага и после каждого шага.
+
+    Тесты используют данные с фиксированным seed (`np.random.default_rng`), проверяют формы, значения с явными допусками и поведение на вырожденных и плохо обусловленных признаках.
+
+    **Пример.**
+
+    ```python
+    Xb = add_bias(np.array([[1.0], [2.0]]))     # [[1, 1], [1, 2]]
+    w = fit_lstsq(np.array([[1.0], [2.0], [3.0]]), np.array([3.0, 5.0, 7.0]))   # около [1, 2]
+    ```
+  entryFile: "linreg_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Начните с add_bias и mse: np.hstack([np.ones((n, 1)), X]) и mean от квадрата остатка. Остальные функции используют add_bias."
+    - "fit_normal: A = Xb.T @ Xb, rhs = Xb.T @ y, затем np.linalg.solve(A, rhs). fit_lstsq: np.linalg.lstsq(Xb, y, rcond=None) возвращает кортеж, нужен первый элемент."
+    - "fit_gd: w = np.zeros(d + 1); в цикле grad = (2 / n) * Xb.T @ (Xb @ w - y); w = w - lr * grad. Историю заполните до цикла (для w = 0) и после каждого шага."
+    - "Если история растёт при маленьком lr, проверьте знак шага. Если lstsq-тесты на вырожденных признаках падают, убедитесь, что вы не обращаете XᵀX и не используете solve для lstsq."
+  tests:
+    - id: "add-bias"
+      title: "add_bias: форма, dtype и столбец единиц"
+      hint: "Столбец единиц должен стоять первым: np.hstack([np.ones((n, 1)), X])."
+    - id: "mse"
+      title: "mse на маленьком примере"
+      hint: "mean((Xb @ w - y) ** 2); верните float."
+    - id: "fit-lstsq"
+      title: "fit_lstsq восстанавливает веса"
+      hint: "w[0] - смещение, затем веса признаков; lstsq возвращает кортеж."
+    - id: "fit-normal-matches-lstsq"
+      title: "Нормальные уравнения совпадают с lstsq"
+      hint: "Решайте (Xbᵀ Xb) w = Xbᵀ y через np.linalg.solve."
+    - id: "fit-gd-converges"
+      title: "Спуск сходится к lstsq (скрытый)"
+      hidden: true
+      hint: "Градиент (2/n) * Xb.T @ (Xb @ w - y); начало w = 0; history имеет длину epochs + 1."
+    - id: "gd-history-monotone"
+      title: "history: начало, конец и монотонность (скрытый)"
+      hidden: true
+      hint: "history[0] - MSE при w = 0; после каждого шага добавляйте MSE новых весов; при маленьком lr значения не растут."
+    - id: "collinear-lstsq"
+      title: "Дублирующий признак (скрытый)"
+      hidden: true
+      hint: "lstsq допускает вырожденные признаки; не используйте solve на XᵀX для этой функции."
+    - id: "ill-conditioned-lstsq"
+      title: "Полиномиальные признаки степени 8 (скрытый)"
+      hidden: true
+      hint: "Матрица Xb плохо обусловлена; lstsq, в отличие от нормальных уравнений, сохраняет точность. Добавьте смещение через add_bias."
+    - id: "gd-edge-cases"
+      title: "epochs = 0 и слишком большой lr (скрытый)"
+      hidden: true
+      hint: "При epochs=0 верните нули и history из одного значения; при lr=5 спуск должен расходиться, не маскируйте это обрезкой."

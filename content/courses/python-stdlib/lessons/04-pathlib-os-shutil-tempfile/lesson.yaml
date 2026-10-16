@@ -1,0 +1,163 @@
+id: python.stdlib.pathlib-os-shutil-tempfile
+title: "pathlib, os, shutil, tempfile: файловая система"
+goal: Работать с путями через pathlib, безопасно записывать файлы атомарно, использовать временные каталоги и осторожно копировать и удалять деревья.
+difficulty: medium
+estimatedMinutes: 80
+prerequisites: [python.fundamentals.errors-and-files, python.fundamentals.strings, python.advanced.context-managers]
+related: [python.stdlib.json-csv-struct, python.stdlib.subprocess-and-logging]
+next: [python.stdlib.json-csv-struct]
+objectives:
+  - Строить пути оператором / и методами Path, различать Path и str и знать, когда нужен str(path) или os.fspath.
+  - Находить файлы через glob и rglob, читать метаданные через stat и отличать is_file, is_dir, is_symlink.
+  - Записывать файл атомарно по схеме «временный файл в том же каталоге + os.replace».
+  - Использовать tempfile.TemporaryDirectory и mkstemp и объяснять, чем они безопаснее ручных имён в общем каталоге.
+  - Копировать и удалять деревья через shutil.copytree и rmtree и предотвращать выход за пределы базового каталога (path traversal).
+masteryCriteria:
+  - Вы объясняете, почему запись напрямую в целевой файл может оставить его повреждённым, а os.replace в пределах одной файловой системы заменяет файл целиком.
+  - Вы пишете функцию safe_join(base, *parts), которая не даёт выйти из base через .. или абсолютный путь.
+  - Вы знаете, что rmtree необратим, и проверяете путь до вызова.
+tags: [python, pathlib, os, shutil, tempfile, filesystem, atomic-write, security]
+facts:
+  - kind: internals
+    text: >-
+      os.replace(src, dst) атомарно заменяет dst, если оба пути находятся на одной файловой системе (на POSIX это rename). Поэтому временный файл создают в том же каталоге, что и целевой,
+      а не в системном /tmp, который может быть другой файловой системой. Если процесс прервётся до os.replace, целевой файл останется прежним.
+    sources:
+      - https://docs.python.org/3/library/os.html#os.replace
+  - kind: security
+    text: >-
+      Склейка недоверенного имени с базовым каталогом уязвима для path traversal: Path(base) / "../x" выходит из base, а абсолютный компонент (Path("/base") / "/etc/passwd") полностью отбрасывает base.
+      Проверяйте результат: resolved.is_relative_to(base.resolve()) (Python 3.9+) после resolve(), который учитывает символические ссылки.
+    sources:
+      - https://docs.python.org/3/library/pathlib.html#pathlib.PurePath.is_relative_to
+      - https://docs.python.org/3/library/pathlib.html#pathlib.Path.resolve
+  - kind: misconception
+    text: >-
+      «tempfile.mktemp безопасна, если имя случайное». Функция mktemp только возвращает имя; между проверкой и созданием файла другой процесс может подменить его (гонка). Документация объявляет её небезопасной и
+      рекомендует mkstemp, NamedTemporaryFile и TemporaryDirectory, которые создают объект сразу и атомарно.
+    sources:
+      - https://docs.python.org/3/library/tempfile.html#tempfile.mktemp
+  - kind: real-world
+    text: >-
+      shutil.rmtree удаляет дерево без корзины и подтверждения. На практике страшнее всего вызов от пустой или неверно собранной строки пути. Проверяйте, что путь внутри ожидаемого каталога,
+      существует и не является символической ссылкой; rmtree на ссылку на каталог вызывает ошибку, а не удаляет цель.
+    sources:
+      - https://docs.python.org/3/library/shutil.html#shutil.rmtree
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        from pathlib import PurePosixPath
+        print(PurePosixPath("/srv/app") / "/etc/passwd")
+        Что выведет код?
+      options:
+        - "/srv/app/etc/passwd"
+        - "/etc/passwd"
+        - "/srv/app//etc/passwd"
+        - "ValueError"
+      answer: 1
+      explanation: >-
+        Абсолютный правый операнд отбрасывает левую часть. Поэтому недоверенные компоненты нельзя просто присоединять к базовому каталогу без проверки результата.
+    - id: q2
+      type: single
+      prompt: Почему временный файл для атомарной записи создают в том же каталоге, что и целевой?
+      options:
+        - "Чтобы он автоматически удалился"
+        - "Чтобы os.replace выполнялась в пределах одной файловой системы и была атомарной"
+        - "Чтобы не требовались права на запись"
+        - "Так быстрее читать"
+      answer: 1
+      explanation: >-
+        Переименование между разными файловыми системами невозможно как атомарная операция; в том же каталоге файл заменяется целиком или остаётся прежним.
+    - id: q3
+      type: single
+      prompt: Какой метод рекурсивно находит все файлы с расширением .py внутри каталога и его подкаталогов?
+      options:
+        - "path.glob('*.py')"
+        - "path.rglob('*.py')"
+        - "path.iterdir('*.py')"
+        - "path.walk('*.py')"
+      answer: 1
+      explanation: >-
+        glob('*.py') смотрит только текущий каталог (если не использовать '**'); rglob эквивалентен glob('**/*.py') и обходит всё дерево. iterdir не принимает шаблон.
+    - id: q4
+      type: multiple
+      prompt: Что из перечисленного безопасно для получения временного файла или каталога?
+      options:
+        - "tempfile.TemporaryDirectory()"
+        - "tempfile.mkstemp()"
+        - "Open('/tmp/' + str(random.random()), 'w')"
+        - "tempfile.mktemp()"
+      answer: [0, 1]
+      explanation: >-
+        TemporaryDirectory и mkstemp создают объект атомарно с безопасными правами. Ручные имена и mktemp оставляют гонку между выбором имени и созданием файла.
+    - id: q5
+      type: short
+      prompt: Какой метод Path возвращает абсолютный путь с раскрытыми символическими ссылками и разобранными «..»? (одно слово, без скобок)
+      answer: ["resolve"]
+      explanation: >-
+        Path.resolve() даёт канонический путь. Для проверки выхода из базового каталога сравнивайте результат resolve() с base.resolve() через is_relative_to.
+exercise:
+  id: python.stdlib.pathlib-os-shutil-tempfile.exercise
+  title: Безопасная работа с файлами
+  prompt: |
+    В файле `fs_task.py` реализуйте пять функций. Тесты работают во временных каталогах внутри рабочей папки; **ничего не пишите вне переданных путей** и ничего не печатайте.
+
+    1. `atomic_write(path, text)` - записывает `text` в файл `path` (UTF-8, без преобразования переводов строк) **атомарно**: данные пишутся во временный файл в **том же каталоге**, затем `os.replace`. Если запись не удалась (например, `text` не строка), исходный файл остаётся прежним, а временный файл удалён; исключение пробрасывается. Каталог назначения существует.
+    2. `list_by_ext(root)` - словарь `расширение -> отсортированный список относительных POSIX-путей` для всех **файлов** во всём дереве под `root`. Расширение в нижнем регистре с точкой (`.py`); у файла без расширения (в том числе `.gitignore`) - ключ `""`. Каталоги не включаются.
+    3. `total_size(root, pattern="*")` - сумма размеров в байтах файлов дерева, имена которых подходят под шаблон `pattern` (через `rglob`).
+    4. `safe_join(base, *parts)` - возвращает `Path` (resolved), равный `base/parts...`, если результат лежит **внутри** `base`; иначе `ValueError`. Результат равный самому `base` допустим. `..` и абсолютные компоненты, уводящие наружу, должны отвергаться.
+    5. `copy_clean(src, dst)` - копирует дерево `src` в **несуществующий** `dst` через `shutil.copytree`, пропуская каталоги `__pycache__` и файлы `*.tmp`; возвращает отсортированный список относительных POSIX-путей скопированных файлов. Если `dst` уже существует - `FileExistsError`.
+
+    **Примеры.**
+
+    ```python
+    atomic_write("out/data.txt", "привет\n")     # файл заменён целиком
+    list_by_ext("proj")        # {'.py': ['a.py', 'pkg/b.py'], '': ['Makefile']}
+    safe_join("/srv/app", "static", "a.css")   # PosixPath('/srv/app/static/a.css')
+    safe_join("/srv/app", "../etc")            # ValueError
+    ```
+  entryFile: fs_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Это четыре независимых мини-задачи. Для функций обхода сразу берите pathlib: Path(root).rglob('*') плюс проверка is_file(). Не склеивайте пути строками."
+    - "atomic_write: tempfile.mkstemp(dir=path.parent) даёт (fd, имя). Запишите через os.fdopen(fd, 'w', encoding='utf-8', newline=''), затем os.replace(имя, path). В except BaseException удалите временный файл (Path(имя).unlink(missing_ok=True)) и пробросьте исключение."
+    - "safe_join: base = Path(base).resolve(); result = base.joinpath(*parts).resolve(); если not result.is_relative_to(base) - ValueError. copy_clean: shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '*.tmp')); copytree сам поднимет FileExistsError, если dst существует."
+    - "list_by_ext: result = {}; for p in Path(root).rglob('*'): if p.is_file(): result.setdefault(p.suffix.lower(), []).append(p.relative_to(root).as_posix()); затем отсортируйте списки. У '.gitignore' suffix пустой - ключ ''. total_size: sum(p.stat().st_size for p in Path(root).rglob(pattern) if p.is_file())."
+  tests:
+    - id: atomic-basic
+      title: atomic_write - запись и замена
+      hint: Файл должен содержать ровно записанный текст в UTF-8; существующий файл заменяется целиком.
+    - id: ext-basic
+      title: list_by_ext - группировка
+      hint: Ключ - расширение с точкой в нижнем регистре; значения - отсортированные относительные пути через '/'.
+    - id: size-basic
+      title: total_size
+      hint: Считайте только файлы (is_file) во всём дереве; шаблон применяется к имени через rglob.
+    - id: join-basic
+      title: safe_join - допустимые пути
+      hint: Результат - resolved Path внутри base; пустой parts возвращает сам base.
+    - id: atomic-failure
+      title: atomic_write - сбой не портит файл (скрытый)
+      hidden: true
+      hint: При ошибке записи исходный файл должен остаться нетронутым, а временный файл - исчезнуть. Используйте try/except BaseException с удалением временного файла.
+    - id: atomic-leftovers
+      title: atomic_write - нет мусора и переносов строк (скрытый)
+      hidden: true
+      hint: После успешной записи в каталоге только целевой файл; '\n' и '\r\n' в тексте не должны преобразовываться (newline='').
+    - id: join-escape
+      title: safe_join - выход за пределы (скрытый)
+      hidden: true
+      hint: "'..', вложенные '../..' и абсолютные компоненты вроде '/etc/passwd' должны приводить к ValueError. Сравнивайте resolve() результата с resolve() базы."
+    - id: ext-edge
+      title: list_by_ext - регистр, без расширения, вложенность (скрытый)
+      hidden: true
+      hint: README.MD и a.md идут в '.md'; .gitignore и Makefile - в ''. Каталоги в результат не входят.
+    - id: copy-clean
+      title: copy_clean (скрытый)
+      hidden: true
+      hint: ignore_patterns('__pycache__', '*.tmp') пропускает и каталоги, и файлы; при существующем dst нужен FileExistsError.

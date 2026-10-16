@@ -1,0 +1,197 @@
+id: "ml.numpy.pca"
+title: "PCA через SVD: центрирование, объяснённая дисперсия, реконструкция"
+goal: "Реализовать метод главных компонент на NumPy через сингулярное разложение центрированных данных и оценить сжатие по объяснённой дисперсии и ошибке восстановления."
+difficulty: "hard"
+estimatedMinutes: 100
+prerequisites:
+  - "python.numpy.linear-algebra"
+  - "python.numpy.reductions-and-axis"
+  - "ml.numpy.linear-regression"
+related:
+  - "ml.numpy.kmeans"
+next: []
+seeAlso:
+  - "Стадия B: PCA, IncrementalPCA и TruncatedSVD в scikit-learn - запланирована, пока описана текстом"
+objectives:
+  - "Вычислить главные компоненты как правые сингулярные векторы центрированной матрицы данных."
+  - "Связать сингулярные числа с дисперсиями: s² / (n - 1) совпадает с собственными числами выборочной ковариации."
+  - "Вычислить доли объяснённой дисперсии, проекцию и обратное преобразование."
+  - "Показать, что ошибка реконструкции равна отброшенной дисперсии с множителем (n - 1)/n."
+  - "Объяснить неоднозначность знака компонент и необходимость центрирования, сравнивать результаты с точностью до знака."
+masteryCriteria:
+  - "explained_variance совпадает с собственными числами np.cov с допуском rtol 1e-8, а компоненты совпадают с собственными векторами с точностью до знака."
+  - "Данные с большим смещением (порядка 1000) обрабатываются верно за счёт центрирования."
+  - "reconstruction_error для k < d равна сумме отброшенных собственных чисел, умноженной на (n - 1)/n, а при k = d близка к нулю."
+tags:
+  - "ml"
+  - "numpy"
+  - "pca"
+  - "svd"
+  - "dimensionality-reduction"
+  - "linear-algebra"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "np.linalg.svd возвращает матрицы u, s и vh (транспонированную V): сингулярные числа s упорядочены по убыванию, а главные направления - это строки vh; при full_matrices=False возвращается тонкое разложение."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html"
+  - kind: "real-world"
+    text: "В документации scikit-learn PCA центрирует данные перед сингулярным разложением, но не масштабирует их; для больших данных и малого n_components может применяться рандомизированный SVD."
+    sources:
+      - "https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html"
+      - "https://scikit-learn.org/stable/modules/decomposition.html#pca"
+  - kind: "internals"
+    text: "np.cov по умолчанию использует делитель n - 1 (ddof=1), поэтому для сравнения с сингулярными числами центрированных данных нужно брать s² / (n - 1)."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.cov.html"
+  - kind: "misconception"
+    text: "«Первая главная компонента всегда однозначна». Сингулярный вектор определён с точностью до знака (v и -v равноправны), поэтому результаты разных реализаций сравнивают с точностью до знака."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Где находятся главные компоненты в результате U, s, Vt = np.linalg.svd(Xc, full_matrices=False)?"
+      options:
+        - "В строках Vt"
+        - "В столбцах U"
+        - "В векторе s"
+        - "В строках U"
+      answer: 0
+      explanation: "Vt - транспонированная V; компоненты - её строки, а для проекции нужен Xc @ Vt[:k].T."
+    - id: "q2"
+      type: "single"
+      prompt: "Как получить дисперсию вдоль j-й компоненты (ddof=1)?"
+      options:
+        - "s[j] ** 2 / (n - 1)"
+        - "s[j] / n"
+        - "s[j] ** 2 * n"
+        - "sqrt(s[j])"
+      answer: 0
+      explanation: "Это собственные числа выборочной ковариации Xcᵀ Xc / (n - 1)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно о знаке главной компоненты?"
+      options:
+        - "Знак произволен: v и -v одинаково допустимы"
+        - "Реконструкция данных от знака не зависит"
+        - "Координаты проекции меняют знак вместе с компонентой"
+        - "Знак всегда положителен у первого элемента"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Знак фиксирует конкретная реализация; полагаться на него нельзя."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Дисперсии вдоль трёх компонент равны 6, 3 и 1. Какова доля дисперсии, объяснённая первой компонентой? Ответ - десятичная дробь."
+      answer: 0.6
+      tolerance: 0.001
+      explanation: "6 / (6 + 3 + 1) = 0.6."
+    - id: "q5"
+      type: "single"
+      prompt: "Что случится, если не вычесть среднее перед SVD?"
+      options:
+        - "Первая компонента будет в основном указывать на среднее, а дисперсии исказятся"
+        - "Ничего, результат тот же"
+        - "Появятся комплексные числа"
+        - "Число компонент уменьшится"
+      answer: 0
+      explanation: "SVD раскладывает сами данные, а не отклонения от среднего."
+exercise:
+  id: "ml.numpy.pca.exercise"
+  title: "PCA через SVD"
+  prompt: |
+    В файле `pca_task.py` реализуйте четыре функции. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `pca_fit(X, k)` - `mean = X.mean(axis=0)`, затем `np.linalg.svd(X - mean, full_matrices=False)`. Верните `(mean, components, explained_variance, explained_variance_ratio)`: `components` формы `(k, d)` (первые `k` строк `Vt`), `explained_variance = s² / (n - 1)` длины `k`, доли - `explained_variance` по отношению к сумме дисперсий **всех** компонент. `X` менять нельзя.
+    2. `pca_transform(X, mean, components)` - `(X - mean) @ components.T`, форма `(n, k)`.
+    3. `pca_reconstruct(Z, mean, components)` - `Z @ components + mean`, форма `(n, d)`.
+    4. `reconstruction_error(X, k)` - среднее по объектам значение суммы квадратов остатка после проекции на `k` компонент и восстановления (`float`).
+
+    Тесты сравнивают результат с `np.linalg.eigh(np.cov(X.T))` **с точностью до знака компонент**, проверяют данные с большим смещением, вырожденные признаки и формулу ошибки реконструкции.
+  entryFile: "pca_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Начните с pca_fit: Xc = X - mean; U, s, Vt = np.linalg.svd(Xc, full_matrices=False); var = s ** 2 / (n - 1). Компоненты - Vt[:k]."
+    - "Доли: var[:k] / var.sum(). Сумма берётся по всем компонентам, поэтому var нельзя обрезать до k раньше времени."
+    - "transform и reconstruct - по одной строке: (X - mean) @ components.T и Z @ components + mean. Форма компонент (k, d), а не (d, k)."
+    - "reconstruction_error: вызовите pca_fit, pca_transform и pca_reconstruct, затем np.mean(np.sum((X - R) ** 2, axis=1)). Если тест с большим смещением падает, проверьте, что среднее вычитается перед svd."
+  tests:
+    - id: "shapes"
+      title: "Формы результатов"
+      hint: "components (k, d), transform (n, k), reconstruct (n, d)."
+    - id: "mean-and-orthonormal"
+      title: "Среднее и ортонормированность"
+      hint: "mean = X.mean(axis=0); components @ components.T = единичная матрица."
+    - id: "explained-variance-matches-eigh"
+      title: "Дисперсии совпадают с собственными числами ковариации"
+      hint: "s ** 2 / (n - 1), порядок по убыванию."
+    - id: "components-up-to-sign"
+      title: "Компоненты совпадают с точностью до знака"
+      hint: "Сравниваются |скалярные произведения| с собственными векторами np.cov."
+    - id: "ratio-sums-to-one"
+      title: "Доли дисперсии (скрытый)"
+      hidden: true
+      hint: "Делите на сумму дисперсий всех компонент, при k = d сумма долей равна 1."
+    - id: "centering-matters"
+      title: "Большое смещение данных (скрытый)"
+      hidden: true
+      hint: "Вычтите среднее перед SVD."
+    - id: "transform-uncorrelated"
+      title: "Координаты некоррелированы (скрытый)"
+      hidden: true
+      hint: "Ковариация координат должна быть диагональной с explained_variance на диагонали."
+    - id: "reconstruction-error"
+      title: "Ошибка равна отброшенной дисперсии (скрытый)"
+      hidden: true
+      hint: "mean(sum((X - R)^2, axis=1)); при k = d она около нуля, и она убывает с ростом k."
+    - id: "rank-deficient-no-mutation"
+      title: "Вырожденные признаки и отсутствие мутации (скрытый)"
+      hidden: true
+      hint: "Не меняйте X на месте: X - mean создаёт новый массив."
+challenge:
+  id: "ml.numpy.pca.challenge"
+  title: "Отбеливание данных (whitening)"
+  prompt: |
+    В файле `whiten_task.py` реализуйте отбеливание поверх PCA.
+
+    1. `whiten_fit_transform(X, k)` - центрируйте `X`, найдите SVD, возьмите первые `k` компонент и верните `(Z, mean, components, ev)`: `ev = s² / (n - 1)` для первых `k` компонент, `Z = (X - mean) @ components.T`, где каждый столбец поделён на `sqrt(ev[j])`, так что выборочная ковариация (`ddof=1`) равна единичной. **Если `ev[j] <= 1e-12 * max(ev)`, делитель равен 1.0**, чтобы вырожденные данные не давали `nan` и `inf` (и не выдавали предупреждений).
+    2. `unwhiten(Z, mean, components, ev)` - обратное преобразование: умножить столбцы `Z` на те же делители, затем `@ components + mean`.
+
+    Тесты проверяют единичную ковариацию, частичное `k`, обратимость, вырожденные данные и инвариантность к масштабу и сдвигу.
+  entryFile: "whiten_task.py"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "harness"
+  harness: "challenge/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Основа - то же PCA: mean, SVD, ev = s ** 2 / (n - 1), components = Vt[:k]. Вызов pca_fit из другого файла недоступен, повторите несколько строк."
+    - "Делители: scale = np.where(ev > 1e-12 * ev.max(), np.sqrt(ev), 1.0). Z = (X - mean) @ components.T / scale."
+    - "unwhiten: (Z * scale) @ components + mean; scale пересчитайте по ev тем же правилом. Проверьте обратимость при k = d."
+  tests:
+    - id: "identity-covariance"
+      title: "Единичная ковариация"
+      hint: "Делите столбцы на sqrt(ev), где ev = s^2 / (n - 1)."
+    - id: "partial-k"
+      title: "Частичное k"
+      hint: "ev и Z берутся только для первых k компонент."
+    - id: "roundtrip"
+      title: "Обратимость при k = d"
+      hint: "unwhiten домножает на те же делители и добавляет mean."
+    - id: "rank-deficient"
+      title: "Вырожденные данные (скрытый)"
+      hidden: true
+      hint: "Для компонент с почти нулевой дисперсией делитель равен 1.0, nan и предупреждений быть не должно."
+    - id: "no-mutation-and-scale"
+      title: "Инвариантность к масштабу (скрытый)"
+      hidden: true
+      hint: "Не изменяйте X на месте; после отбеливания масштаб данных не должен влиять на |Z|."

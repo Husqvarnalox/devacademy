@@ -11,4 +11,8 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DevAcademy.Cli.Tests" />
+  </ItemGroup>
+
 </Project>

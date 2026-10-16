@@ -1,0 +1,10 @@
+# Packages that course content declares in `requires: { packages: [...] }`, pinned so that
+# `devacademy validate-content --run-solutions --python-env .venv-content` is reproducible.
+# Install with `make python-env` (creates .venv-content; downloads from PyPI).
+# Verified on Python 3.14 / macOS arm64 (all wheels); versions are minimums the content may rely on.
+numpy==2.5.4
+fastapi==0.143.2
+httpx==0.28.1
+pydantic==2.14.1
+pytest==9.1.1
+uvicorn==0.54.0

@@ -1,0 +1,166 @@
+id: "ml.numpy.kmeans"
+title: "k-means с нуля: алгоритм Ллойда, k-means++ и пустые кластеры"
+goal: "Реализовать алгоритм k-means на NumPy с инициализацией k-means++, критерием сходимости и обработкой пустых кластеров и объяснить, почему результат зависит от начального состояния."
+difficulty: "medium"
+estimatedMinutes: 100
+prerequisites:
+  - "python.numpy.broadcasting"
+  - "python.numpy.reductions-and-axis"
+  - "ml.foundations.linear-regression"
+related:
+  - "ml.numpy.pca"
+  - "ml.numpy.logistic-regression"
+next:
+  - "ml.numpy.pca"
+seeAlso:
+  - "Стадия B: KMeans и MiniBatchKMeans в scikit-learn - запланирована, пока описана текстом"
+objectives:
+  - "Вычислить матрицу квадратов расстояний (n, k) через broadcasting без циклов по точкам."
+  - "Реализовать шаги назначения и обновления алгоритма Ллойда и инерцию."
+  - "Реализовать инициализацию k-means++ с явным генератором np.random.default_rng."
+  - "Сформулировать и проверить критерий остановки и свойство невозрастания инерции."
+  - "Обработать пустой кластер и вырожденные данные без nan и предупреждений."
+masteryCriteria:
+  - "kmeans на трёх хорошо разделённых облаках (seed 0) находит истинное разбиение, а центры отклоняются от истинных не более чем на 0.5."
+  - "Инерция не растёт с числом итераций, а при одинаковом seed результат полностью совпадает."
+  - "update на пустом кластере сохраняет прежний центр без RuntimeWarning, а k-means++ с D² выбирает центры из разных групп."
+tags:
+  - "ml"
+  - "numpy"
+  - "clustering"
+  - "k-means"
+  - "k-means++"
+  - "unsupervised"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "historical"
+    text: "Инициализацию k-means++ предложили Дэвид Артур и Сергей Васильвицкий в статье 2007 года: следующий центр выбирают с вероятностью, пропорциональной квадрату расстояния до ближайшего из уже выбранных, и ожидаемая инерция оказывается в пределах множителя O(log k) от оптимальной."
+    sources:
+      - "https://theory.stanford.edu/~sergei/papers/kMeansPP-soda.pdf"
+  - kind: "real-world"
+    text: "В документации scikit-learn KMeans по умолчанию использует инициализацию k-means++, запускает алгоритм несколько раз с разными начальными центрами и выбирает запуск с наименьшей инерцией; для больших наборов есть MiniBatchKMeans."
+    sources:
+      - "https://scikit-learn.org/stable/modules/clustering.html#k-means"
+      - "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html"
+  - kind: "internals"
+    text: "np.mean по пустому срезу возвращает nan и выдаёт RuntimeWarning (Mean of empty slice); именно так ведёт себя наивное обновление центра пустого кластера."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.mean.html"
+  - kind: "misconception"
+    text: "«k-means находит оптимальное разбиение». Алгоритм Ллойда гарантированно останавливается, но только в локальном минимуме инерции, и качество зависит от начальных центров, поэтому используют k-means++ и несколько запусков."
+    sources:
+      - "https://scikit-learn.org/stable/modules/clustering.html#k-means"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какая форма у массива X[:, None, :] - centers[None, :, :], если X имеет форму (100, 2), а centers - (3, 2)?"
+      options:
+        - "(100, 3, 2)"
+        - "(100, 2)"
+        - "(3, 100, 2)"
+        - "(100, 3)"
+      answer: 0
+      explanation: "Broadcasting: (100, 1, 2) и (1, 3, 2) дают (100, 3, 2); сумма квадратов по последней оси даёт (100, 3)."
+    - id: "q2"
+      type: "single"
+      prompt: "Как k-means++ выбирает очередной центр?"
+      options:
+        - "Случайно с вероятностью, пропорциональной квадрату расстояния до ближайшего выбранного центра"
+        - "Всегда самую далёкую точку"
+        - "Равномерно среди всех точек"
+        - "Как среднее всех точек"
+      answer: 0
+      explanation: "Выбор случаен (не детерминирован), но далёкие точки выбираются чаще."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно об алгоритме Ллойда?"
+      options:
+        - "Инерция не возрастает ни на шаге назначения, ни на шаге обновления"
+        - "Он находит глобальный минимум инерции"
+        - "Алгоритм останавливается за конечное число шагов"
+        - "Результат может зависеть от начальных центров"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Глобальный оптимум не гарантируется: только локальный минимум."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Точки 0, 2 и 10 на прямой разбиты на группы {0, 2} и {10} с центрами 1 и 10. Чему равна инерция?"
+      answer: 2
+      tolerance: 0
+      explanation: "(0-1)^2 + (2-1)^2 + (10-10)^2 = 2."
+    - id: "q5"
+      type: "single"
+      prompt: "Что происходит при наивном среднем по пустому кластеру?"
+      options:
+        - "Получается nan и RuntimeWarning"
+        - "Получается 0"
+        - "Бросается исключение ValueError"
+        - "Берётся ближайшая точка"
+      answer: 0
+      explanation: "np.mean пустого среза даёт nan; поэтому нужно явное правило для пустых групп."
+exercise:
+  id: "ml.numpy.kmeans.exercise"
+  title: "k-means с k-means++"
+  prompt: |
+    В файле `kmeans_task.py` функция `sq_dists` уже написана. Реализуйте остальное. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `kmeans_pp_init(X, k, rng)` - инициализация k-means++. Первый центр `X[rng.integers(n)]`; каждый следующий - строка `X[i]`, где `i = rng.choice(n, p=d2 / d2.sum())`, а `d2` - квадрат расстояния до ближайшего из уже выбранных центров. Если `d2.sum() == 0`, берите `rng.integers(n)`. Верните копию `(k, d)`, `X` не менять.
+    2. `assign(X, centers)` - индекс ближайшего центра, `int64`, при равенстве меньший индекс.
+    3. `update(X, labels, centers)` - средние по кластерам. **Пустой кластер сохраняет прежний центр**, предупреждений быть не должно, `centers` на месте не менять.
+    4. `inertia(X, centers, labels)` - сумма квадратов расстояний до центров своих групп, `float`.
+    5. `kmeans(X, k, seed=0, max_iter=100, tol=1e-6)` - алгоритм Ллойда: центры из `kmeans_pp_init(X, k, np.random.default_rng(seed))`; на каждой итерации `labels = assign`, `new = update`, сдвиг - наибольшее евклидово расстояние между новыми и старыми центрами; после обновления остановка при `сдвиг <= tol`. Всего не более `max_iter` итераций. Верните `(centers, labels, inertia, n_iter)`; `labels` и `inertia` пересчитайте по итоговым центрам.
+
+    Тесты используют сгенерированные облака с фиксированным seed и проверяют свойства (чистота кластеров, согласованность, детерминированность), а не конкретные номера кластеров.
+  entryFile: "kmeans_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "assign: np.argmin(sq_dists(X, centers), axis=1).astype(np.int64). inertia: разность X - centers[labels], затем сумма квадратов."
+    - "update: new = centers.astype(np.float64, copy=True); для каждого j посчитайте mask = labels == j и только если mask.any(), запишите X[mask].mean(axis=0). Так пустые кластеры не дадут nan."
+    - "kmeans_pp_init: centers[0] = X[rng.integers(n)]; d2 = sq_dists(X, centers[:1])[:, 0]; в цикле выберите idx через rng.choice(n, p=d2 / d2.sum()), запишите центр и обновите d2 = np.minimum(d2, расстояния до нового центра)."
+    - "kmeans: цикл for _ in range(max_iter): n_iter += 1; labels = assign; new = update; shift = sqrt(max(sum((new - centers)^2, axis=1))); centers = new; if shift <= tol: break. После цикла пересчитайте labels и inertia по итоговым центрам."
+  tests:
+    - id: "assign-basic"
+      title: "assign: ближайший центр и ничья"
+      hint: "np.argmin по строкам матрицы расстояний, результат int64."
+    - id: "update-basic"
+      title: "update: средние по кластерам"
+      hint: "X[labels == j].mean(axis=0); не меняйте входной centers."
+    - id: "inertia-basic"
+      title: "inertia на маленьком примере"
+      hint: "sum((X - centers[labels])**2), верните float."
+    - id: "kmeans-recovers-blobs"
+      title: "Три облака находятся верно"
+      hint: "Верните (centers, labels, inertia, n_iter); labels пересчитайте по итоговым центрам."
+    - id: "pp-init-d2"
+      title: "k-means++ выбирает по D² (скрытый)"
+      hidden: true
+      hint: "Вероятность rng.choice(n, p=d2 / d2.sum()), а d2 обновляйте через np.minimum после каждого нового центра."
+    - id: "update-empty-cluster"
+      title: "Пустой кластер (скрытый)"
+      hidden: true
+      hint: "Проверяйте mask.any() до вызова mean, иначе будет nan и RuntimeWarning."
+    - id: "kmeans-fixed-point"
+      title: "Точка сходимости согласована (скрытый)"
+      hidden: true
+      hint: "После цикла пересчитайте labels = assign(X, centers) и inertia по ним."
+    - id: "kmeans-inertia-monotone"
+      title: "Инерция не растёт с итерациями (скрытый)"
+      hidden: true
+      hint: "С tol=0 и одним seed больший max_iter не должен давать большую инерцию; n_iter при max_iter=1 равно 1."
+    - id: "kmeans-deterministic"
+      title: "Детерминированность по seed (скрытый)"
+      hidden: true
+      hint: "Создавайте np.random.default_rng(seed) один раз внутри kmeans и передавайте в kmeans_pp_init."
+    - id: "kmeans-degenerate"
+      title: "Одинаковые точки и k = 1 (скрытый)"
+      hidden: true
+      hint: "Если d2.sum() == 0, делите нельзя: выберите rng.integers(n). При k = 1 центр равен среднему."

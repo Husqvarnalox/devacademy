@@ -1,0 +1,153 @@
+id: fastapi.fundamentals.errors-and-status-codes
+title: Ошибки и коды статуса
+goal: Возвращать клиенту предсказуемые ошибки в едином формате, различать 4xx и 5xx, перехватывать исключения обработчиками и не раскрывать внутренние детали.
+difficulty: medium
+estimatedMinutes: 75
+requires: { python: ">=3.10", packages: ["fastapi>=0.143", "httpx>=0.28", "pydantic>=2"] }
+prerequisites: [fastapi.fundamentals.dependency-injection]
+related: [fastapi.fundamentals.path-query-body, python.advanced.classes-and-objects]
+next: [fastapi.fundamentals.auth-basics]
+objectives:
+  - "Выбирать код статуса по смыслу ошибки: 400, 401, 403, 404, 405, 409, 422 для клиентских, 500 для серверных."
+  - Использовать HTTPException и собственные исключения предметной области вместо ручной сборки ответов в каждом обработчике.
+  - Регистрировать обработчики исключений для своего класса, для HTTPException (включая 404 и 405 от роутера), для RequestValidationError и для Exception.
+  - Строить единый формат ошибки и преобразовывать список ошибок Pydantic в понятные клиенту поля.
+  - Не раскрывать клиенту текст внутренних исключений и стек вызовов и понимать, как ведёт себя TestClient при необработанных исключениях.
+masteryCriteria:
+  - Вы объясняете, почему ошибки клиента - 4xx, а необработанные исключения сервера - 5xx, и почему 5xx нельзя лечить повтором без идемпотентности.
+  - "Вы пишете обработчик, который превращает любую ошибку приложения в тело {\"error\": {\"code\", \"message\"}} и сохраняет заголовки вроде Allow и WWW-Authenticate."
+  - Вы тестируете путь ошибки так же тщательно, как успешный, включая форму тела ответа.
+tags: [fastapi, errors, http-status, exception-handlers, validation, 4xx, 5xx]
+facts:
+  - kind: internals
+    text: >-
+      fastapi.HTTPException наследуется от starlette.exceptions.HTTPException. Ошибки 404 (маршрут не найден) и 405 (метод не поддерживается) порождает роутер Starlette, и они
+      тоже являются starlette HTTPException; поэтому обработчик, зарегистрированный для StarletteHTTPException, перехватывает и их, а обработчик для fastapi.HTTPException - нет.
+    sources:
+      - https://fastapi.tiangolo.com/tutorial/handling-errors/
+      - https://www.starlette.io/exceptions/
+  - kind: internals
+    text: >-
+      Необработанное исключение в обработчике превращается в ответ 500 через ServerErrorMiddleware Starlette. Обработчик, зарегистрированный для Exception (или для кода 500),
+      вызывается этим middleware, но после ответа исключение всё равно пробрасывается дальше, чтобы сервер мог записать его в лог. Поэтому TestClient по умолчанию
+      (raise_server_exceptions=True) поднимает такое исключение в тесте; чтобы проверить сам ответ 500, передайте raise_server_exceptions=False.
+    sources:
+      - https://www.starlette.io/exceptions/
+      - https://www.starlette.io/middleware/
+  - kind: security
+    text: >-
+      Текст внутренних исключений, SQL-запросы, пути файлов и стек вызовов не должны попадать в тело ответа: это помогает атакующему. Клиенту отдают стабильный код ошибки
+      и общее сообщение, а подробности пишут в лог вместе с идентификатором запроса.
+    sources:
+      - https://owasp.org/www-community/Improper_Error_Handling
+  - kind: realworld
+    text: >-
+      Стандарт RFC 9457 («Problem Details for HTTP APIs», заменяет RFC 7807) описывает формат ошибок application/problem+json с полями type, title, status, detail, instance.
+      Единый формат ошибок можно строить по нему или по собственной схеме, главное - один формат на весь API.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc9457
+  - kind: historical
+    text: >-
+      Коду 422 в RFC 9110 присвоено название «Unprocessable Content» (раньше - «Unprocessable Entity»). В установленной версии fastapi.status содержит оба имени
+      константы: HTTP_422_UNPROCESSABLE_CONTENT и HTTP_422_UNPROCESSABLE_ENTITY.
+    sources:
+      - https://www.rfc-editor.org/rfc/rfc9110.html#name-422-unprocessable-content
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Клиент прислал корректно оформленный запрос, но пытается списать со счёта больше, чем есть. Какой код выбрать?"
+      options: ["200", "400 или 409/422 - ошибка клиента, не 5xx", "500", "404"]
+      answer: 1
+      explanation: "Это ошибка бизнес-правила на стороне клиента. 5xx означает, что сломался сервер; 409 (конфликт с состоянием ресурса) здесь обычно точнее всего."
+    - id: q2
+      type: single
+      prompt: "Чем 401 отличается от 403?"
+      options:
+        - "401 - не аутентифицирован (нет или неверные учётные данные), 403 - аутентифицирован, но прав недостаточно"
+        - "Это синонимы"
+        - "401 - ошибка сервера, 403 - клиента"
+        - "401 возвращают только для POST"
+      answer: 0
+      explanation: "401 сопровождают заголовком WWW-Authenticate; 403 говорит «я знаю, кто вы, но вам нельзя»."
+    - id: q3
+      type: single
+      prompt: "Для какого класса нужно зарегистрировать обработчик, чтобы перехватить и ваш raise HTTPException(...), и 404/405 от роутера?"
+      options: ["fastapi.HTTPException", "starlette.exceptions.HTTPException", "ValueError", "RequestValidationError"]
+      answer: 1
+      explanation: "Роутер выбрасывает starlette HTTPException; fastapi.HTTPException - его подкласс, поэтому обработчик базового класса ловит оба случая."
+    - id: q4
+      type: multiple
+      prompt: "Что нельзя возвращать клиенту в теле ответа 500?"
+      options: ["Стек вызовов", "Текст исключения с путями и SQL", "Стабильный код ошибки internal_error", "Идентификатор запроса для обращения в поддержку"]
+      answer: [0, 1]
+      explanation: "Код ошибки и идентификатор запроса безопасны и полезны; стек и тексты внутренних исключений раскрывают устройство системы."
+    - id: q5
+      type: single
+      prompt: "Вы зарегистрировали обработчик Exception, возвращающий 500 в нужном формате, но тест падает с исключением. Почему?"
+      options:
+        - "Обработчик не вызывался"
+        - "TestClient по умолчанию пробрасывает серверное исключение; нужен raise_server_exceptions=False"
+        - "Обработчики Exception не поддерживаются"
+        - "Нужно вернуть 200"
+      answer: 1
+      explanation: "Исключение пробрасывается после ответа (для логирования сервером); TestClient(app, raise_server_exceptions=False) вернёт сам ответ 500."
+exercise:
+  id: fastapi.fundamentals.errors-and-status-codes.exercise
+  title: Единый формат ошибок
+  prompt: |
+    В файле `errors_api.py` есть склад `STOCK` и функция `reset_state()`. Реализуйте API, в котором **все** ошибки (включая 404/405 роутера, ошибки валидации и необработанные исключения) приходят в одном формате:
+
+    ```json
+    {"error": {"code": "<строка>", "message": "<строка>"}}
+    ```
+
+    Классы и обработчики:
+
+    * `AppError(Exception)` с атрибутами `status_code`, `code`, `message`; подклассы `NotFound` (`404`, `"not_found"`) и `OutOfStock` (`409`, `"out_of_stock"`); сообщения задаёт вызывающий код.
+    * Обработчик `AppError` -> статус и `{"error": {"code", "message"}}`.
+    * Обработчик `starlette.exceptions.HTTPException` -> тот же статус, `code = "http_<статус>"`, `message = str(detail)`; **заголовки исключения (`Allow`, `WWW-Authenticate`) сохраняются**.
+    * Обработчик `RequestValidationError` -> `422`, `code = "validation_error"`, `message = "Invalid request"`, плюс ключ `"details"` - список `{"field": "<loc через точку>", "message": <msg ошибки>}` в порядке ошибок Pydantic (например, `body.qty`).
+    * Обработчик `Exception` -> `500`, `code = "internal_error"`, `message = "Internal server error"`; текст исключения в ответ попадать не должен.
+
+    Эндпоинты:
+
+    * `GET /stock/{item}` -> `{"item", "qty"}`; неизвестный товар -> `NotFound`.
+    * `POST /orders` с телом `{"item": str, "qty": int}` (`qty` от 1 до 10) -> `201`, `{"item", "qty", "remaining"}`; склад уменьшается. Неизвестный товар -> `NotFound`; `qty` больше остатка -> `OutOfStock`.
+    * `GET /crash` намеренно выбрасывает `RuntimeError("secret detail")`.
+  entryFile: errors_api.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с иерархии: `class AppError(Exception)` с `__init__(self, message)` и атрибутами класса `status_code`/`code`. Обработчик: `@app.exception_handler(AppError)` и `async def handler(request, exc): return JSONResponse(status_code=exc.status_code, content={...})`."
+    - "Обработчик HTTPException регистрируйте для `starlette.exceptions.HTTPException` (импортируйте как `StarletteHTTPException`) - тогда он ловит и 404/405 роутера. Передайте `headers=exc.headers` в `JSONResponse`, иначе пропадёт `Allow`."
+    - "Для валидации: `@app.exception_handler(RequestValidationError)`, `exc.errors()` даёт список словарей с `loc` и `msg`; поле - `'.'.join(str(p) for p in e['loc'])`. Не используйте `exc.body` или `input` - они могут содержать чувствительные данные."
+    - "Для `Exception` верните стандартное сообщение и не включайте `str(exc)`. Остаток склада: `STOCK[item] -= qty` после проверки `qty > STOCK[item]` -> `OutOfStock`. `POST` с `status_code=201`."
+  tests:
+    - id: not-found
+      title: NotFound - единый формат
+      hint: "Ответ: статус 404 и тело {'error': {'code': 'not_found', 'message': ...}}. Сообщение любое непустое."
+    - id: out-of-stock
+      title: OutOfStock - 409
+      hint: "Проверьте остаток до списания и бросьте OutOfStock; склад не должен измениться."
+    - id: validation-shape
+      title: Ошибка валидации в едином формате
+      hint: "422, code=validation_error, message='Invalid request', details - список {'field': 'body.qty', 'message': ...}."
+    - id: router-errors
+      title: 404 и 405 роутера (скрытый)
+      hidden: true
+      hint: "Маршрута нет - роутер бросает starlette HTTPException(404), метод не разрешён - 405 с заголовком Allow. Обработчик должен быть для StarletteHTTPException и передавать headers."
+    - id: internal-no-leak
+      title: 500 без утечки деталей (скрытый)
+      hidden: true
+      hint: "В обработчике Exception не используйте str(exc). Для проверки ответа TestClient создают с raise_server_exceptions=False."
+    - id: order-success
+      title: Успешный заказ уменьшает склад (скрытый)
+      hidden: true
+      hint: "201 и remaining = остаток после списания; повторный GET /stock/{item} показывает новое значение."
+    - id: multi-errors
+      title: Несколько ошибок валидации в порядке Pydantic (скрытый)
+      hidden: true
+      hint: "Ошибки собираются все сразу: для тела {'qty': 0} (нет item, qty меньше 1) details содержит два элемента, body.item и body.qty, в порядке полей модели."

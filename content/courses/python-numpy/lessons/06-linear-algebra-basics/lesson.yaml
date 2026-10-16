@@ -1,0 +1,161 @@
+id: "python.numpy.linear-algebra"
+title: "Линейная алгебра: matmul, solve и нормы"
+goal: "Применять @ и поэлементное *, предсказывать формы matmul, решать линейные системы через np.linalg.solve (а не inv) и считать нормы."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "python.numpy.reductions-and-axis"
+related:
+  - "python.numpy.broadcasting"
+next:
+  - "ml.numpy.linear-regression"
+seeAlso:
+  - "Разложения матриц (LU, QR, SVD, собственные значения) подробно: курс «Математика для ML» (запланирован)"
+objectives:
+  - "Различать * и @ и предсказывать форму произведения для 1D и 2D операндов."
+  - "Записать аффинное преобразование X @ W + b и объяснить роль broadcasting для b."
+  - "Решать A x = b через np.linalg.solve и объяснить, почему явное обращение матрицы хуже по скорости и точности."
+  - "Объяснить число обусловленности как свойство задачи, а не алгоритма."
+  - "Считать нормы L1, L2, inf для векторов и строк матрицы и нормировать строки с обработкой нулевых."
+masteryCriteria:
+  - "matmul_shape совпадает с реальным поведением @ на формах 1D и 2D и бросает ValueError при несовпадении внутренних размеров."
+  - "affine верна на квадратных X и W (отличает @ от *)."
+  - "solve_system не использует inv, решает системы с матрицей и вектором правой части, даёт малый остаток на матрице Гильберта и пробрасывает LinAlgError."
+tags:
+  - "numpy"
+  - "linalg"
+  - "matmul"
+  - "solve"
+  - "norm"
+  - "conditioning"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "np.linalg.solve в документации NumPy реализован через процедуру gesv из LAPACK (LU-разложение с частичным выбором ведущего элемента); для вырожденной матрицы выбрасывается numpy.linalg.LinAlgError."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html"
+  - kind: "misconception"
+    text: "«Чтобы решить систему, надо найти обратную матрицу». Документация и учебники по численным методам рекомендуют решать систему напрямую: это быстрее и даёт меньшую погрешность. Явная обратная нужна, только если вы действительно используете её элементы."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.solve.html"
+      - "https://numpy.org/doc/stable/reference/generated/numpy.linalg.inv.html"
+  - kind: "internals"
+    text: "Оператор @ вызывает np.matmul; для 2D массивов он совпадает с np.dot, а для массивов размерности выше двух matmul трактует их как стопки матриц, и поведение отличается от dot."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.matmul.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какая форма у A @ B, если A имеет форму (5, 3), а B - (3, 7)?"
+      options:
+        - "(5, 7)"
+        - "(3, 3)"
+        - "(7, 5)"
+        - "ValueError"
+      answer: 0
+      explanation: "Внутренние размеры 3 совпадают; результат (m, k) = (5, 7)."
+    - id: "q2"
+      type: "single"
+      prompt: "A и B - квадратные матрицы 2x2. Чем A * B отличается от A @ B?"
+      options:
+        - "* перемножает элементы с одинаковыми позициями, @ - матричное произведение"
+        - "Ничем"
+        - "* вызывает ошибку для матриц"
+        - "@ работает только для векторов"
+      answer: 0
+      explanation: "Это разные операции с разными результатами, обе допустимы на квадратных матрицах."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Почему np.linalg.solve(A, b) предпочтительнее inv(A) @ b?"
+      options:
+        - "Выполняет меньше арифметических операций"
+        - "Даёт меньшую погрешность (малый остаток)"
+        - "Работает и для вырожденных матриц"
+        - "Не строит всю обратную матрицу"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Для вырожденной матрицы обе операции не работают: solve бросает LinAlgError."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Чему равна евклидова норма вектора [3, 4]? Ответ - число."
+      answer: 5
+      tolerance: 1e-09
+      explanation: "sqrt(9 + 16) = 5."
+    - id: "q5"
+      type: "single"
+      prompt: "Что такое большое число обусловленности cond(A)?"
+      options:
+        - "Свойство задачи: решение A x = b сильно чувствительно к малым возмущениям данных"
+        - "Свойство алгоритма solve: он работает неточно"
+        - "Размер матрицы"
+        - "Количество нулей в A"
+      answer: 0
+      explanation: "Обусловленность описывает задачу; хороший алгоритм не добавляет ошибок сверх неизбежных."
+exercise:
+  id: "python.numpy.linear-algebra.exercise"
+  title: "Формы matmul, аффинное преобразование, solve и нормы"
+  prompt: |
+    В файле `linalg_task.py` реализуйте пять функций. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `matmul_shape(s1, s2)` - форма результата `a @ b` для форм `s1`, `s2` (1D или 2D) **без** вызова `matmul`: `(n,)@(n,)` -> `()`, `(n,)@(n,k)` -> `(k,)`, `(m,n)@(n,)` -> `(m,)`, `(m,n)@(n,k)` -> `(m,k)`. При несовпадении внутренних размеров - `ValueError`.
+    2. `affine(X, W, b)` - `X @ W + b` (`X` - `(n, d)`, `W` - `(d, k)`, `b` - `(k,)`), результат `float64` формы `(n, k)`.
+    3. `solve_system(A, b)` - решение `A x = b` через `np.linalg.solve` (в тестах `np.linalg.inv` и `pinv` запрещены); `b` - вектор или матрица; для вырожденной `A` пробросьте `np.linalg.LinAlgError`.
+    4. `row_norms(a, ord=2)` - нормы строк (`ord` равно 1, 2 или `np.inf`): `float64`, форма `(число строк,)`.
+    5. `normalize_rows(a)` - поделить строки на их L2-норму; нулевые строки остаются нулевыми. `float64`, форма не меняется.
+
+    **Пример.**
+
+    ```python
+    matmul_shape((3, 4), (4,))              # (3,)
+    solve_system(np.array([[3., 1.], [1., 2.]]), np.array([9., 8.]))   # array([2., 3.])
+    normalize_rows(np.array([[3., 4.]]))    # array([[0.6, 0.8]])
+    ```
+  entryFile: "linalg_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "matmul_shape: внутренние размеры - последняя ось s1 и первая ось s2; они должны совпасть. Результат - s1 без последней оси плюс s2 без первой."
+    - "affine: приведите входы к float64 и вычислите X @ W + b. Оператор * здесь не подходит: на квадратных матрицах он даст другой ответ без ошибки."
+    - "solve_system: np.linalg.solve(A, b) принимает и вектор, и матрицу правых частей. Не вызывайте inv и pinv."
+    - "normalize_rows: нормы строк - np.linalg.norm(a, axis=1, keepdims=True); делите через np.divide(..., where=norms != 0, out=np.zeros_like(a)), чтобы нулевые строки остались нулями. row_norms - norm с ord и axis=1."
+  tests:
+    - id: "matmul-shape-basic"
+      title: "matmul_shape: стандартные случаи"
+      hint: "Результат - s1[:-1] + s2[1:]."
+    - id: "affine-basic"
+      title: "affine: значения и форма"
+      hint: "X @ W + b; результат float64 формы (n, k)."
+    - id: "solve-basic"
+      title: "solve_system: простая система"
+      hint: "np.linalg.solve(A, b)."
+    - id: "row-norms"
+      title: "row_norms: L1, L2, inf"
+      hint: "np.linalg.norm(a, ord=ord, axis=1)."
+    - id: "matmul-shape-errors"
+      title: "Несогласованные формы (скрытый)"
+      hidden: true
+      hint: "Если последний размер s1 не равен первому размеру s2, бросайте ValueError."
+    - id: "square-matmul-vs-star"
+      title: "affine на квадратных матрицах (скрытый)"
+      hidden: true
+      hint: "Поэлементное * на квадратных матрицах допустимо и даёт другой ответ; нужен @. Целые входы приведите к float64."
+    - id: "solve-not-inv"
+      title: "solve_system без явного обращения (скрытый)"
+      hidden: true
+      hint: "Не вызывайте np.linalg.inv и pinv: используйте np.linalg.solve; он принимает и матрицу правых частей."
+    - id: "solve-singular-and-hilbert"
+      title: "Вырожденная матрица и матрица Гильберта (скрытый)"
+      hidden: true
+      hint: "Не перехватывайте LinAlgError. На плохо обусловленной матрице остаток ||Ax - b|| у solve мал, а у inv(A) @ b - нет."
+    - id: "normalize-rows"
+      title: "normalize_rows: нулевая строка и квадратная матрица (скрытый)"
+      hidden: true
+      hint: "Нормы строк нужны формы (n, 1): keepdims=True; нулевую норму не делите (where=norms != 0)."

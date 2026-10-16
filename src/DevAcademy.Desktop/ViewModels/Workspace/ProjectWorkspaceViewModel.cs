@@ -3,7 +3,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevAcademy.Application.Workspace;
 using DevAcademy.Desktop.Composition;
+using DevAcademy.Desktop.Controls.Lsp;
+using DevAcademy.Desktop.ViewModels.Lsp;
+using DevAcademy.LanguageServices.Protocol;
+using DevAcademy.LanguageServices.Servers;
 using DevAcademy.Desktop.Localization;
+using DevAcademy.Desktop.Services;
 using DevAcademy.Execution;
 using DevAcademy.Infrastructure.Workspace;
 using DevAcademy.Terminal;
@@ -43,6 +48,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         var first = new EditorGroupViewModel { IsActive = true };
         Groups.Add(first);
         _activeGroup = first;
+        StartLspTracking();
         Search.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(WorkspaceSearchViewModel.FileQuery) or nameof(WorkspaceSearchViewModel.TextQuery))
@@ -70,6 +76,91 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _showSearch;
     [ObservableProperty] private bool _showTextHits;
+
+    // ---------------------------------------------------------------- language server
+
+    private Action<DevAcademy.LanguageServices.Hosting.ServerStatus>? _statusHandler;
+
+    /// <summary>Diagnostics of all open files (last known per file), paths relative to the project root.</summary>
+    public ObservableCollection<ProblemItemViewModel> Problems { get; } = [];
+    public string ProblemsHeader => Problems.Count == 0 ? Loc.T("Out_Problems") : Loc.F("Out_ProblemsCount", Problems.Count);
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasLsp))] private LspStatusView _lspStatus = LspStatusView.None;
+    public bool HasLsp => LspStatus.IsVisible;
+
+    private void StartLspTracking()
+    {
+        Problems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ProblemsHeader));
+        _statusHandler = _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshLspStatus);
+        _services.Language.Manager.StatusChanged += _statusHandler;
+        ActiveGroup.PropertyChanged += OnActiveGroupProperty;
+    }
+
+    partial void OnActiveGroupChanged(EditorGroupViewModel? oldValue, EditorGroupViewModel newValue)
+    {
+        if (oldValue is not null) oldValue.PropertyChanged -= OnActiveGroupProperty;
+        newValue.PropertyChanged += OnActiveGroupProperty;
+        RefreshLspStatus();
+    }
+
+    private void OnActiveGroupProperty(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EditorGroupViewModel.ActiveTab)) RefreshLspStatus();
+    }
+
+    public void RefreshLspStatus()
+    {
+        if (_disposed) return;
+        var m = _services.Language.Manager;
+        if (ActiveGroup.ActiveTab?.Lsp is { } t && m.DefinitionFor(t.LanguageId) is { } def)
+            LspStatus = LspStatusView.From(m.GetStatus(t.LanguageId, t.Root), def);
+        else LspStatus = LspStatusView.None;
+    }
+
+    private LspTarget? BuildLspTarget(EditorTabViewModel tab)
+    {
+        var svc = _services.Language;
+        if (!svc.Enabled || LanguageServerRegistry.LanguageForExtension(tab.FullPath) is not { } lang || svc.Manager.DefinitionFor(lang) is not { } def) return null;
+        return new LspTarget
+        {
+            Service = svc,
+            LanguageId = lang,
+            Root = LanguageServerRegistry.FindRoot(tab.FullPath, Root, def),
+            FilePath = tab.FullPath,
+            Document = tab.Document,
+            DiagnosticsSink = OnDiagnostics,
+            Navigate = nav =>
+            {
+                if (!IsInside(nav.FilePath) || !File.Exists(nav.FilePath)) return false;
+                _ = OpenFileAsync(nav.FilePath, nav.Line);
+                return true;
+            },
+        };
+    }
+
+    private void OnDiagnostics(LspTarget target, IReadOnlyList<Diagnostic> diagnostics)
+    {
+        if (_disposed) return;
+        var rel = Path.GetRelativePath(Root, target.FilePath).Replace('\\', '/');
+        for (var i = Problems.Count - 1; i >= 0; i--)
+            if (Problems[i].Path == rel) Problems.RemoveAt(i);
+        foreach (var d in diagnostics.OrderBy(d => d.Range.Start.Line).ThenBy(d => d.Range.Start.Character))
+            Problems.Add(ProblemItemViewModel.From(rel, d));
+    }
+
+    [RelayCommand]
+    private async Task OpenProblemAsync(ProblemItemViewModel? problem)
+    {
+        if (problem is not null) await OpenFileAsync(Path.Combine(Root, problem.Path), problem.Line);
+    }
+
+    [RelayCommand]
+    private async Task LspHelpAsync()
+    {
+        if (LspStatus is not { NeedsHelp: true, Definition: { } def }) return;
+        if (await LanguageServerInstaller.OfferAsync(_services, def))
+            foreach (var t in AllTabs.ToList()) t.Lsp = BuildLspTarget(t);
+        RefreshLspStatus();
+    }
 
     public ITerminalSession? ActiveSession => ActiveTerminal?.Session;
     public bool HasActiveTerminal => ActiveTerminal is not null;
@@ -253,6 +344,11 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
 
         var target = group ?? ActiveGroup;
         var tab = new EditorTabViewModel(fullPath, Root, content);
+        tab.Lsp = BuildLspTarget(tab);
+        tab.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(EditorTabViewModel.FullPath)) tab.Lsp = BuildLspTarget(tab);
+        };
         target.Tabs.Add(tab);
         target.ActiveTab = tab;
         if (activate) ActivateGroup(target);
@@ -637,6 +733,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     {
         if (_disposed) return;
         _disposed = true;
+        if (_statusHandler is not null) _services.Language.Manager.StatusChanged -= _statusHandler;
         _watcher?.Dispose();
         foreach (var t in Terminals.ToList()) t.Dispose();
         Terminals.Clear();

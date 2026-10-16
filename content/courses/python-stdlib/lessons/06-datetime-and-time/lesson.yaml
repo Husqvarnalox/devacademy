@@ -1,0 +1,169 @@
+id: python.stdlib.datetime-and-time
+title: "datetime и time: даты, пояса, измерение времени"
+goal: Отличать наивное время от осведомлённого, работать с часовыми поясами через zoneinfo, избегать ловушек летнего времени и выбирать правильные часы для измерения интервалов.
+difficulty: hard
+estimatedMinutes: 90
+prerequisites: [python.fundamentals.numbers-and-operators, python.fundamentals.strings, python.stdlib.json-csv-struct]
+related: [python.stdlib.decimal-fractions-math-statistics-random, python.stdlib.subprocess-and-logging]
+next: [python.stdlib.decimal-fractions-math-statistics-random]
+objectives:
+  - Различать naive и aware объекты datetime и объяснять, почему их нельзя сравнивать и вычитать друг из друга.
+  - Создавать aware-время через timezone.utc и zoneinfo.ZoneInfo, преобразовывать между поясами через astimezone.
+  - Описать два вида неоднозначности летнего времени (несуществующее и повторяющееся локальное время) и параметр fold.
+  - Разбирать и форматировать ISO 8601 через fromisoformat и isoformat, отличать их от strftime и strptime.
+  - Выбирать time.time, time.monotonic и time.perf_counter в зависимости от задачи.
+masteryCriteria:
+  - Вы объясняете, почему разность двух aware-времён с одним и тем же ZoneInfo считается по локальным часам стенных часов, а не по UTC, и умеете получить реальный интервал.
+  - Вы храните и передаёте время в UTC (или с явным смещением) и переводите в локальный пояс только для показа.
+  - 'Вы пишете тесты на время без datetime.now(): с фиксированными датами.'
+tags: [python, datetime, zoneinfo, timezone, dst, iso8601, time, monotonic]
+facts:
+  - kind: internals
+    text: >-
+      Объект datetime без tzinfo называется naive: он не знает, к какому поясу относится. Сравнение naive и aware даёт TypeError для упорядочения и False для равенства, а вычитание - TypeError.
+      Метод astimezone() у naive-объекта предполагает системный локальный пояс, что делает код зависимым от машины.
+    sources:
+      - https://docs.python.org/3/library/datetime.html#aware-and-naive-objects
+  - kind: historical
+    text: >-
+      Модуль zoneinfo добавлен в Python 3.9 (PEP 615) и использует базу часовых поясов IANA. Если в системе нет базы (типичный случай Windows), нужен пакет tzdata из PyPI,
+      иначе ZoneInfo("Europe/Berlin") вызывает ZoneInfoNotFoundError. Методы datetime.utcnow() и utcfromtimestamp() объявлены устаревшими в Python 3.12.
+    sources:
+      - https://peps.python.org/pep-0615/
+      - https://docs.python.org/3/library/zoneinfo.html
+      - https://docs.python.org/3/library/datetime.html#datetime.datetime.utcnow
+  - kind: misconception
+    text: >-
+      «Вычитание двух aware-datetime всегда даёт реальный интервал». Если у обоих объектов один и тот же объект tzinfo, Python вычитает локальные «стенные» значения и игнорирует смещения;
+      через переход на летнее время так можно потерять или добавить час. Для реального интервала приведите оба значения к UTC.
+    sources:
+      - https://docs.python.org/3/library/datetime.html#datetime.datetime.__sub__
+  - kind: performance
+    text: >-
+      time.time() возвращает «настенное» время и может прыгать назад или вперёд при синхронизации часов, поэтому им нельзя измерять длительность. time.monotonic() никогда не идёт назад, но не связано с календарём;
+      time.perf_counter() - монотонные часы с максимально доступной точностью для коротких интервалов.
+    sources:
+      - https://docs.python.org/3/library/time.html#time.monotonic
+      - https://docs.python.org/3/library/time.html#time.perf_counter
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        from datetime import datetime, timezone
+        a = datetime(2024, 1, 1, 12)
+        b = datetime(2024, 1, 1, 12, tzinfo=timezone.utc)
+        print(a == b)
+        print(a < b)
+        Что произойдёт?
+      options:
+        - "True и False"
+        - "False, затем TypeError"
+        - "TypeError в обоих случаях"
+        - "False и False"
+      answer: 1
+      explanation: >-
+        Равенство naive и aware возвращает False, а упорядочение (<) поднимает TypeError: сравнить их нельзя без явного указания пояса.
+    - id: q2
+      type: single
+      prompt: Чем измерять время выполнения участка кода?
+      options:
+        - "time.time(): оно самое точное"
+        - "time.perf_counter() или time.monotonic(): они не идут назад при коррекции системных часов"
+        - "datetime.now()"
+        - "datetime.utcnow()"
+      answer: 1
+      explanation: >-
+        Настенные часы (time.time, datetime.now) корректируются, поэтому разность может быть отрицательной или неточной. Монотонные часы для интервалов надёжны.
+    - id: q3
+      type: single
+      prompt: |
+        В Europe/Berlin 31 марта 2024 часы переводятся с 02:00 на 03:00. Что это за локальное время 02:30?
+      options:
+        - "Обычное локальное время"
+        - "Несуществующее: такого времени на стенных часах в этот день не было"
+        - "Неоднозначное: оно встречается дважды"
+        - "Время в UTC"
+      answer: 1
+      explanation: >-
+        При переходе на летнее время часы перескакивают с 02:00 на 03:00, поэтому локальные значения 02:00-02:59 не существуют. Обратный переход осенью создаёт повторяющийся час (параметр fold).
+    - id: q4
+      type: single
+      prompt: Какой вызов возвращает текущее время в UTC как aware-объект?
+      options:
+        - "datetime.utcnow()"
+        - "datetime.now(timezone.utc)"
+        - "datetime.now()"
+        - "datetime.today()"
+      answer: 1
+      explanation: >-
+        datetime.now(timezone.utc) возвращает aware-время. utcnow() возвращает naive-объект и устарел в 3.12, now() и today() дают naive локальное время.
+    - id: q5
+      type: short
+      prompt: Какой метод datetime разбирает строку ISO 8601 вида "2024-03-10T12:30:00+02:00"? (имя метода без скобок, например fromtimestamp)
+      answer: ["fromisoformat", "datetime.fromisoformat"]
+      explanation: >-
+        datetime.fromisoformat разбирает ISO 8601 (в Python 3.11+ почти все варианты формата, включая суффикс Z). Для произвольных форматов используется strptime.
+exercise:
+  id: python.stdlib.datetime-and-time.exercise
+  title: Время без сюрпризов
+  prompt: |
+    В файле `time_task.py` реализуйте шесть функций. Все входные значения фиксированы, текущее время (`now`) не используется. Нужна база часовых поясов IANA: на Windows установите пакет `tzdata`. Ничего не печатайте.
+
+    1. `parse_iso(text)` - разбирает ISO 8601 с указанным смещением (`+02:00` или `Z`) и возвращает **aware** `datetime`. Строка без смещения или мусор - `ValueError`.
+    2. `to_utc_iso(dt)` - строка ISO в UTC с суффиксом `Z`: `"2024-03-10T10:30:00Z"`; для naive `dt` - `ValueError`.
+    3. `convert_zone(text, zone_name)` - переводит момент `text` (ISO со смещением) в пояс IANA `zone_name` и возвращает `isoformat()` с локальным смещением. Неизвестный пояс - `ValueError`.
+    4. `local_to_utc(naive_text, zone_name)` - локальное «стенное» время (ISO **без** смещения) в поясе -> строка UTC с `Z`. Если такого времени не было (переход на летнее время) или оно встречается дважды (переход на зимнее), поднимите `ValueError`. Строка со смещением - тоже `ValueError`.
+    5. `add_wall_days(naive_text, zone_name, days)` - прибавляет `days` календарных дней к локальному времени, **сохраняя часы и минуты на стенных часах**, и возвращает `isoformat()` с локальным смещением нового момента.
+    6. `elapsed_hours(naive_start, naive_end, zone_name)` - **реальное** число часов (`float`) между двумя локальными временами одного пояса, с учётом перехода на летнее время.
+
+    **Примеры.**
+
+    ```python
+    to_utc_iso(parse_iso("2024-03-10T12:30:00+02:00"))      # '2024-03-10T10:30:00Z'
+    convert_zone("2024-03-31T00:30:00Z", "Europe/Berlin")   # '2024-03-31T01:30:00+01:00'
+    elapsed_hours("2024-03-30T12:00:00", "2024-03-31T12:00:00", "Europe/Berlin")   # 23.0
+    ```
+  entryFile: time_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Все функции строятся на datetime.fromisoformat, ZoneInfo, astimezone и timezone.utc. Сначала отделите задачи 'разобрать момент' (есть смещение) и 'разобрать локальное время' (смещения нет) - это разные входные данные."
+    - "parse_iso: dt = datetime.fromisoformat(text); если dt.utcoffset() is None - ValueError. to_utc_iso: dt.astimezone(timezone.utc).isoformat(), заменив '+00:00' на 'Z'. Неизвестный пояс: ZoneInfo(...) поднимает ZoneInfoNotFoundError (подкласс KeyError) - перехватите и поднимите ValueError."
+    - "local_to_utc: naive = datetime.fromisoformat(text) (aware - ValueError); a = naive.replace(tzinfo=zone, fold=0); b = naive.replace(tzinfo=zone, fold=1). Если a.utcoffset() == b.utcoffset() - время обычное. Иначе оно либо не существует (a.astimezone(utc).astimezone(zone).replace(tzinfo=None) != naive), либо неоднозначно."
+    - "add_wall_days: aware = naive.replace(tzinfo=zone); (aware + timedelta(days=days)).isoformat() - арифметика с ZoneInfo идёт по стенным часам. elapsed_hours: переведите оба значения в UTC (astimezone(timezone.utc)) и вычтите - у двух объектов с одним и тем же ZoneInfo прямое вычитание игнорирует смещения. Результат: delta.total_seconds() / 3600."
+  tests:
+    - id: parse-basic
+      title: parse_iso и to_utc_iso
+      hint: Результат parse_iso aware; to_utc_iso приводит к UTC и пишет Z вместо +00:00.
+    - id: convert-basic
+      title: convert_zone - обычная дата
+      hint: astimezone(ZoneInfo(...)).isoformat() даёт строку с локальным смещением.
+    - id: local-basic
+      title: local_to_utc - обычное время
+      hint: Локальное время в поясе переводится в UTC через replace(tzinfo=zone) и astimezone(utc).
+    - id: wall-basic
+      title: add_wall_days и elapsed_hours без перехода
+      hint: Вне перехода на летнее время 1 календарный день равен 24 часам.
+    - id: parse-errors
+      title: Ошибки разбора и неизвестный пояс (скрытый)
+      hidden: true
+      hint: Строка без смещения, мусор, naive datetime и неизвестный пояс должны давать ValueError (для пояса перехватывайте ZoneInfoNotFoundError).
+    - id: convert-dst
+      title: convert_zone через переход (скрытый)
+      hidden: true
+      hint: В ночь перехода смещение Berlin меняется с +01:00 на +02:00; не вычисляйте смещение вручную - его знает ZoneInfo.
+    - id: local-gap-fold
+      title: local_to_utc - несуществующее и неоднозначное время (скрытый)
+      hidden: true
+      hint: Сравните utcoffset при fold=0 и fold=1; если они различаются, время либо не существует, либо повторяется - в обоих случаях ValueError.
+    - id: wall-dst
+      title: add_wall_days через переход (скрытый)
+      hidden: true
+      hint: Арифметика с aware-значением того же ZoneInfo сохраняет часы на стенных часах, а смещение меняется.
+    - id: elapsed-dst
+      title: elapsed_hours через переход (скрытый)
+      hidden: true
+      hint: Через переход весна-лето сутки на стенных часах - 23 часа. Приведите оба времени к UTC перед вычитанием.

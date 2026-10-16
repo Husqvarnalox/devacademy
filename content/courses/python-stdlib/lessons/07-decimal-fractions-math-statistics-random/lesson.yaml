@@ -1,0 +1,186 @@
+id: python.stdlib.decimal-fractions-math-statistics-random
+title: "decimal, fractions, math, statistics, random: числа и вероятность"
+goal: Выбирать между float, Decimal и Fraction, считать деньги без потери копеек, применять statistics с учётом выборки и генератор random только там, где не нужна безопасность.
+difficulty: hard
+estimatedMinutes: 90
+prerequisites: [python.fundamentals.numbers-and-operators, python.fundamentals.errors-and-files, python.stdlib.json-csv-struct]
+related: [python.stdlib.datetime-and-time, python.advanced.functions-as-objects]
+next: [python.stdlib.subprocess-and-logging]
+objectives:
+  - Объяснить, почему 0.1 + 0.2 != 0.3 для float, и когда этим можно пренебречь, а когда нет.
+  - Создавать Decimal из строк, управлять точностью контекста, округлять через quantize с явным режимом и понимать разницу ROUND_HALF_UP и ROUND_HALF_EVEN.
+  - Использовать Fraction для точной рациональной арифметики и math.isclose / math.fsum для сравнения и суммирования float.
+  - Выбирать функции statistics, различая выборочное и генеральное стандартные отклонения.
+  - Использовать random.Random(seed) для воспроизводимых экспериментов и secrets для токенов и паролей, объяснять почему random для секретов непригоден.
+masteryCriteria:
+  - Вы пишете расчёт денег на Decimal, округляете один раз в конце и не создаёте Decimal из float.
+  - Вы раскладываете сумму на части так, чтобы сумма частей равнялась исходной сумме с точностью до копейки.
+  - Вы знаете, что statistics.stdev считает выборочное отклонение (делит на n-1), а pstdev - генеральное (делит на n).
+tags: [python, decimal, fractions, math, statistics, random, secrets, money, floating-point]
+facts:
+  - kind: internals
+    text: >-
+      float хранит число в двоичном формате IEEE 754 (двойная точность, 53 бита мантиссы). Десятичная дробь 0.1 не имеет конечной двоичной записи, поэтому хранится приближённо,
+      и 0.1 + 0.2 даёт 0.30000000000000004. Это свойство формата, а не ошибка Python.
+    sources:
+      - https://docs.python.org/3/tutorial/floatingpoint.html
+  - kind: misconception
+    text: >-
+      «Decimal(0.1) даёт ровно 0.1». Нет: Decimal(0.1) точно воспроизводит двоичное значение float (0.1000000000000000055511151231257827...). Для десятичных величин создавайте Decimal из строки: Decimal("0.1").
+      Режим округления по умолчанию в контексте Decimal - ROUND_HALF_EVEN (банковское округление), а не «школьное» ROUND_HALF_UP.
+    sources:
+      - https://docs.python.org/3/library/decimal.html
+  - kind: security
+    text: >-
+      Модуль random использует генератор Mersenne Twister, который детерминирован и предсказуем: по достаточному числу выходных значений можно восстановить его состояние. Документация прямо указывает,
+      что random не подходит для криптографических целей; для паролей, токенов и ключей служит модуль secrets (источник операционной системы).
+    sources:
+      - https://docs.python.org/3/library/random.html
+      - https://docs.python.org/3/library/secrets.html
+  - kind: real-world
+    text: >-
+      Для воспроизводимости документация random гарантирует, что при одинаковом seed метод random() выдаёт одну и ту же последовательность в разных версиях Python,
+      но алгоритмы остальных методов (shuffle, choice, randint) могут меняться между версиями. Для долгосрочно воспроизводимых результатов фиксируйте версию Python или сохраняйте сами данные.
+    sources:
+      - https://docs.python.org/3/library/random.html#notes-on-reproducibility
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        from decimal import Decimal
+        print(Decimal(0.1) == Decimal("0.1"))
+        Что выведет код?
+      options:
+        - "True"
+        - "False"
+        - "TypeError"
+        - "InvalidOperation"
+      answer: 1
+      explanation: >-
+        Decimal(0.1) содержит точное двоичное значение float, а Decimal("0.1") - ровно 1/10. Они разные числа.
+    - id: q2
+      type: single
+      prompt: |
+        from decimal import Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP
+        x = Decimal("2.675")
+        Что даст x.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)?
+      options:
+        - "Decimal('2.68')"
+        - "Decimal('2.67')"
+        - "Decimal('2.675')"
+        - "Decimal('2.7')"
+      answer: 0
+      explanation: >-
+        Ровно половина (5 после 7 с нулями дальше) округляется к ближайшему чётному последнему знаку: 2.675 -> 2.68, так как 8 чётная. Для 2.665 ответ был бы 2.66. ROUND_HALF_UP всегда уводит половину от нуля.
+    - id: q3
+      type: single
+      prompt: Какая функция вычисляет несмещённое выборочное стандартное отклонение (делит на n - 1)?
+      options:
+        - "statistics.pstdev"
+        - "statistics.stdev"
+        - "statistics.fmean"
+        - "math.sqrt"
+      answer: 1
+      explanation: >-
+        stdev - выборочное (n - 1), pstdev - генеральное (n). Для маленьких выборок разница заметна; stdev требует хотя бы два значения.
+    - id: q4
+      type: single
+      prompt: Каким модулем генерировать токен сброса пароля?
+      options:
+        - "random.random()"
+        - "random.Random(42)"
+        - "secrets.token_urlsafe()"
+        - "uuid.uuid1()"
+      answer: 2
+      explanation: >-
+        secrets использует криптографически стойкий источник операционной системы. Генераторы random предсказуемы, а uuid1 содержит время и адрес машины.
+    - id: q5
+      type: multiple
+      prompt: Какие утверждения о math.isclose и math.fsum верны?
+      options:
+        - "isclose(a, b) по умолчанию сравнивает с относительной точностью rel_tol=1e-09"
+        - "fsum суммирует float точнее, чем простой sum, контролируя накопление ошибки"
+        - "isclose(0.0, 1e-12) верно без abs_tol, потому что число очень мало"
+        - "fsum возвращает Decimal"
+      answer: [0, 1]
+      explanation: >-
+        При сравнении с нулём относительная точность бессмысленна, нужен abs_tol (по умолчанию он 0). fsum возвращает float.
+exercise:
+  id: python.stdlib.decimal-fractions-math-statistics-random.exercise
+  title: Деньги, статистика и воспроизводимость
+  prompt: |
+    В файле `money_task.py` реализуйте функции. Все денежные величины - `decimal.Decimal` с двумя знаками после запятой. Ничего не печатайте.
+
+    1. `parse_money(text)` - строка -> `Decimal`, приведённый к двум знакам (`quantize`). Некорректная строка, `NaN`, `Infinity` и значения с дробной частью, которая не помещается в копейки (`"1.005"`), - `ValueError`. Допустимы `"5"`, `"12.5"`, `"12.500"`, `" 3.10 "`.
+    2. `round_money(x, mode="half_up")` - округление `Decimal` до копеек; `mode` равен `"half_up"` (ROUND_HALF_UP) или `"half_even"` (ROUND_HALF_EVEN), иначе `ValueError`.
+    3. `line_total(price, qty, discount_percent)` - стоимость строки заказа: `price * qty * (100 - discount_percent) / 100` с **одним** округлением в конце (half-up). `qty < 0` или скидка вне `0..100` - `ValueError`.
+    4. `split_bill(total, n)` - делит сумму `total` на `n` частей в копейках так, чтобы сумма частей в точности равнялась `total`; лишние копейки достаются первым частям (по одной). `n < 1` или `total < 0` - `ValueError`.
+    5. `vat_included(gross, rate_percent)` - НДС, содержащийся в цене с налогом: `gross * rate / (100 + rate)`, округление half-up.
+    6. `exact_sum(strings)` - сумма чисел, заданных строками (`"1/3"`, `"0.1"`), через `fractions.Fraction`; возвращает строку `str(Fraction)`; пустой вход даёт `"0"`.
+    7. `summary(values)` - словарь `{"mean", "median", "stdev", "pstdev"}`: среднее (float), медиана, **выборочное** и **генеральное** стандартные отклонения; все значения округлены до 6 знаков. Меньше двух значений - `ValueError`.
+    8. `shuffled(items, seed)` - новый список с теми же элементами в случайном, но **воспроизводимом** порядке (`random.Random(seed)`); исходная последовательность и глобальное состояние `random` не меняются.
+    9. `new_token(nbytes=16)` - случайный секретный токен в виде hex-строки длиной `2 * nbytes`; `nbytes < 1` - `ValueError`. Генератор должен быть пригоден для секретов.
+
+    **Примеры.**
+
+    ```python
+    parse_money(" 3.1 ")                   # Decimal('3.10')
+    split_bill(Decimal("100.00"), 3)       # [Decimal('33.34'), Decimal('33.33'), Decimal('33.33')]
+    exact_sum(["1/2", "1/3", "1/3"])       # '7/6'
+    ```
+  entryFile: money_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Правило денег: Decimal из строки, вычисления без float, округление один раз в конце через quantize(Decimal('0.01'), rounding=...). Начните с parse_money и round_money - остальные функции строятся на них."
+    - "parse_money: оберните Decimal(text.strip()) в try/except InvalidOperation (это не ValueError!), проверьте d.is_finite() и что d == d.quantize(CENT). split_bill: работайте в целых копейках: cents = int(total * 100); base, rest = divmod(cents, n); первые rest частей получают base + 1."
+    - "line_total: Decimal(price) * qty * (100 - Decimal(discount)) / 100, затем round_money. summary: statistics.fmean, median, stdev, pstdev; StatisticsError является подклассом ValueError. shuffled: rng = random.Random(seed); out = list(items); rng.shuffle(out). new_token: secrets.token_hex(nbytes)."
+    - "Каркас: CENT = Decimal('0.01'); def round_money(x, mode='half_up'): rounding = {'half_up': ROUND_HALF_UP, 'half_even': ROUND_HALF_EVEN}[mode] (KeyError -> ValueError); return x.quantize(CENT, rounding=rounding). exact_sum: str(sum((Fraction(s) for s in strings), Fraction(0)))."
+  tests:
+    - id: parse-basic
+      title: parse_money - допустимые строки
+      hint: Результат всегда с двумя знаками после запятой, например Decimal('5.00').
+    - id: round-basic
+      title: round_money - режимы
+      hint: half_up округляет 2.675 до 2.68, half_even - 2.665 до 2.66 (к чётному), 2.675 до 2.68.
+    - id: total-basic
+      title: line_total
+      hint: Умножайте и делите в Decimal, округляйте один раз в конце. Скидка 10% от 19.99 * 3.
+    - id: split-basic
+      title: split_bill - делимость
+      hint: Работайте в целых копейках; сумма частей обязана быть равна total.
+    - id: parse-errors
+      title: parse_money - некорректный ввод (скрытый)
+      hidden: true
+      hint: InvalidOperation не является ValueError - перехватите его. Проверьте is_finite() и что число не требует более двух знаков.
+    - id: round-ties
+      title: round_money - половинные случаи (скрытый)
+      hidden: true
+      hint: 'Отрицательные половинки: ROUND_HALF_UP уводит от нуля (-2.675 -> -2.68), HALF_EVEN идёт к чётному. Неизвестный режим - ValueError.'
+    - id: split-edge
+      title: split_bill - границы (скрытый)
+      hidden: true
+      hint: Сумма меньше n копеек даёт нулевые части; n < 1 и отрицательная сумма - ValueError; каждая часть - Decimal с двумя знаками.
+    - id: vat-and-errors
+      title: vat_included и ошибки line_total (скрытый)
+      hidden: true
+      hint: НДС = gross * rate / (100 + rate), округление half-up. Скидка вне 0..100 и отрицательное количество дают ValueError.
+    - id: fraction-sum
+      title: exact_sum (скрытый)
+      hidden: true
+      hint: Fraction принимает строки '1/3' и '0.1'. Результат - str(Fraction); сумма 0.1 + 0.2 точно равна 3/10.
+    - id: summary-stats
+      title: summary - выборочное и генеральное (скрытый)
+      hidden: true
+      hint: stdev делит на n - 1, pstdev на n. Меньше двух значений - ValueError (StatisticsError его подкласс).
+    - id: shuffled-repro
+      title: shuffled - воспроизводимость (скрытый)
+      hidden: true
+      hint: Используйте отдельный random.Random(seed), а не глобальный random.seed(); исходный список не меняйте.
+    - id: token-secure
+      title: new_token (скрытый)
+      hidden: true
+      hint: Для секретов используйте secrets.token_hex; не random. nbytes < 1 - ValueError.

@@ -14,6 +14,7 @@
     <ProjectReference Include="..\DevAcademy.Domain\DevAcademy.Domain.csproj" />
     <ProjectReference Include="..\DevAcademy.Execution\DevAcademy.Execution.csproj" />
     <ProjectReference Include="..\DevAcademy.Infrastructure\DevAcademy.Infrastructure.csproj" />
+    <ProjectReference Include="..\DevAcademy.LanguageServices\DevAcademy.LanguageServices.csproj" />
     <ProjectReference Include="..\DevAcademy.Terminal\DevAcademy.Terminal.csproj" />
   </ItemGroup>
 

@@ -84,6 +84,14 @@ public sealed class TestHost : IDisposable
             s.AddSingleton<ILauncherService>(Launcher);
             s.AddSingleton<IThemeService>(Theme);
             s.AddSingleton<ISecretStore>(Secrets); // never the real OS keychain in tests
+            // Never start real language servers from unrelated tests; LSP tests register their own service over this one.
+            s.AddSingleton(sp =>
+            {
+                var settings = sp.GetRequiredService<DevAcademy.Application.Ports.ISettingsRepository>();
+                settings.SetAsync(LanguageIntelligenceService.EnabledKey, "false").GetAwaiter().GetResult();
+                return new LanguageIntelligenceService(sp.GetRequiredService<DevAcademy.Infrastructure.AppPaths>(),
+                    sp.GetRequiredService<DevAcademy.Execution.ExecutionOptions>(), settings);
+            });
             configure?.Invoke(s);
         });
     }

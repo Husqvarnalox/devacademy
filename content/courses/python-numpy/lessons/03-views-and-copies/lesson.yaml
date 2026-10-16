@@ -1,0 +1,199 @@
+id: "python.numpy.views-and-copies"
+title: "Индексирование: представления и копии"
+goal: "Различать представления (basic slicing) и копии (fancy и boolean indexing), проверять общую память через np.shares_memory и не менять входные данные случайно."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "python.numpy.ndarray-vs-list"
+related:
+  - "python.numpy.dtypes-and-casting"
+  - "python.fundamentals.lists"
+next:
+  - "python.numpy.broadcasting"
+objectives:
+  - "Определить по виду индекса, вернёт ли он представление или копию, и проверить это через np.shares_memory и .base."
+  - "Предсказать, изменится ли исходный массив после записи в результат индексирования."
+  - "Писать функции, которые не меняют аргументы: copy() до записи."
+  - "Объяснить, почему a[mask][0] = 1 не меняет a, а a[mask] = 1 меняет."
+masteryCriteria:
+  - "row_view и step_view возвращают представления: запись в результат меняет исходный массив."
+  - "clip_negative, positives_copy и reorder_columns возвращают копии и не меняют вход."
+  - "Задача про окна: window_view возвращает read-only представление, moving_average верно считает среднее без изменения входа."
+tags:
+  - "numpy"
+  - "indexing"
+  - "views"
+  - "copies"
+  - "shares_memory"
+requires:
+  packages:
+    - "numpy>=2"
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "Документация NumPy формулирует правило так: basic indexing возвращает представление, а advanced indexing (массив индексов, булева маска) возвращает копию. Определить, является ли результат представлением, можно по атрибуту base и функции np.shares_memory."
+    sources:
+      - "https://numpy.org/doc/stable/user/basics.copies.html"
+      - "https://numpy.org/doc/stable/user/basics.indexing.html"
+  - kind: "misconception"
+    text: "«reshape и ravel всегда возвращают представление». В документации NumPy они возвращают представление, когда это возможно, и копию иначе; flatten копирует всегда. Не стройте код на том, что копии не будет, если независимость данных важна."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.reshape.html"
+      - "https://numpy.org/doc/stable/reference/generated/numpy.ravel.html"
+  - kind: "internals"
+    text: "np.may_share_memory быстро сравнивает границы областей памяти и может ошибаться в сторону «да», а np.shares_memory даёт точный ответ ценой потенциально большего времени."
+    sources:
+      - "https://numpy.org/doc/stable/reference/generated/numpy.shares_memory.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "multiple"
+      prompt: "Какие выражения возвращают представление исходного массива a (1D)?"
+      options:
+        - "a[2:7]"
+        - "a[::2]"
+        - "a[[1, 2, 3]]"
+        - "a[a > 0]"
+      answer:
+        - 0
+        - 1
+      explanation: "Срезы - basic indexing и дают представления; список индексов и булева маска - advanced indexing и дают копии."
+    - id: "q2"
+      type: "single"
+      prompt: "a = np.arange(5); b = a[:3]; b[0] = 99. Чему равно a[0]?"
+      options:
+        - "99"
+        - "0"
+        - "Ошибка: b только для чтения"
+        - "Зависит от dtype"
+      answer: 0
+      explanation: "b - представление на тот же буфер, поэтому запись видна в a."
+    - id: "q3"
+      type: "single"
+      prompt: "a = np.array([1, -2, 3]); a[a < 0][0] = 7. Что станет с a?"
+      options:
+        - "[1, -2, 3]: запись ушла в копию"
+        - "[1, 7, 3]"
+        - "[7, -2, 3]"
+        - "Будет исключение"
+      answer: 0
+      explanation: "a[a < 0] - копия (boolean indexing), запись в её первый элемент исходный массив не затрагивает."
+    - id: "q4"
+      type: "single"
+      prompt: "Какой метод всегда создаёт копию?"
+      options:
+        - "flatten"
+        - "ravel"
+        - "reshape"
+        - "T"
+      answer: 0
+      explanation: "flatten копирует всегда; ravel и reshape возвращают представление, когда это возможно."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция NumPy для точной проверки, делят ли два массива память? (имя после np.)"
+      answer:
+        - "shares_memory"
+        - "np.shares_memory"
+      explanation: "np.shares_memory(a, b) - точная проверка; np.may_share_memory - быстрая оценка по границам."
+exercise:
+  id: "python.numpy.views-and-copies.exercise"
+  title: "Представления, копии и функции без побочных эффектов"
+  prompt: |
+    В файле `views_task.py` реализуйте пять функций. NumPy 2.x доступен; ничего не печатайте.
+
+    1. `row_view(a, i)` - **представление** i-й строки 2D-массива `a` (запись в результат меняет `a`).
+    2. `step_view(a, step)` - **представление** `a[::step]` для 1D-массива.
+    3. `positives_copy(a)` - **копия** положительных элементов `a`, не делящая память с `a`.
+    4. `clip_negative(a)` - массив, в котором отрицательные элементы заменены нулём; **входной массив менять нельзя**, результат - новый массив того же dtype и формы.
+    5. `reorder_columns(a, order)` - копия 2D-массива со столбцами в порядке `order` (список индексов).
+
+    Тесты проверяют значения, форму, dtype, а также наличие или отсутствие общей памяти.
+
+    **Пример.**
+
+    ```python
+    a = np.arange(12).reshape(3, 4)
+    row_view(a, 1)[:] = 0      # теперь вторая строка a - нули
+    clip_negative(np.array([5, -1]))   # array([5, 0]); вход не изменён
+    ```
+  entryFile: "views_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Разделите функции на две группы: row_view и step_view должны вернуть срез (представление), остальные - независимые данные."
+    - "row_view - это a[i], step_view - a[::step]. Не вызывайте copy() и не оборачивайте результат в np.array: это уберёт общую память."
+    - "clip_negative: напишите out = a.copy(), и только потом out[out < 0] = 0. Если сначала записать в a или в срез a, вы измените данные вызывающего кода."
+    - "positives_copy - булева маска a[a > 0] (она уже копирует); reorder_columns - fancy-индекс a[:, order]. Результат клиента можно безопасно менять."
+  tests:
+    - id: "row-view"
+      title: "row_view возвращает строку-представление"
+      hint: "Верните a[i]; copy() здесь лишний, проверка np.shares_memory должна быть True."
+    - id: "step-view"
+      title: "step_view возвращает представление"
+      hint: "Верните a[::step] без копирования."
+    - id: "positives-copy"
+      title: "positives_copy: значения и независимость"
+      hint: "Булева маска a[a > 0]; результат не должен делить память с a."
+    - id: "clip-negative-basic"
+      title: "clip_negative на 2D-массиве"
+      hint: "Замените отрицательные элементы нулём, сохранив dtype и форму."
+    - id: "clip-negative-no-mutation"
+      title: "clip_negative не меняет вход (скрытый)"
+      hidden: true
+      hint: "Сделайте out = a.copy() до записи по маске. Присваивание out = a не копирует."
+    - id: "view-writes-through"
+      title: "Запись через представление меняет оригинал (скрытый)"
+      hidden: true
+      hint: "row_view и step_view должны возвращать именно срезы, а не копии: запись в них видна в исходном массиве."
+    - id: "reorder-copy"
+      title: "reorder_columns возвращает независимую копию (скрытый)"
+      hidden: true
+      hint: "Список индексов даёт копию. Не пытайтесь сделать представление и не меняйте a на месте."
+    - id: "noncontiguous-input"
+      title: "Не-непрерывный вход (скрытый)"
+      hidden: true
+      hint: "Функции должны работать и с представлениями (например, base[:, ::2]); не предполагайте C-непрерывность и не меняйте base."
+challenge:
+  id: "python.numpy.views-and-copies.challenge"
+  title: "Скользящие окна без копирования"
+  prompt: |
+    В файле `window_task.py` реализуйте две функции.
+
+    1. `window_view(a, w)` - все окна длины `w` по 1D-массиву `a` как **представление** формы `(len(a) - w + 1, w)`: память не копируется, результат нельзя изменять (`writeable=False`, так как окна перекрываются). При `w < 1` или `w > len(a)` бросьте `ValueError`. Подсказка: `numpy.lib.stride_tricks.sliding_window_view`.
+    2. `moving_average(a, w)` - скользящее среднее: `float64`-массив длины `len(a) - w + 1`, вход не менять и не приводить на месте.
+
+    Не используйте циклы по элементам.
+  entryFile: "window_task.py"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "harness"
+  harness: "challenge/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Окна можно получить без копирования, если менять только shape и strides. Для этого есть готовая функция в numpy.lib.stride_tricks."
+    - "sliding_window_view(a, w) возвращает read-only представление нужной формы. Проверку границ w сделайте до вызова."
+    - "moving_average: приведите вход к float64 копией (np.asarray(a, dtype=np.float64) не меняет оригинал), возьмите window_view и вызовите mean(axis=1)."
+  tests:
+    - id: "window-shape-values"
+      title: "Форма и значения окон"
+      hint: "Окон должно быть len(a) - w + 1, каждое длины w."
+    - id: "window-is-view"
+      title: "Окна - read-only представление"
+      hint: "Не делайте копию: np.shares_memory(a, v) должно быть True, v.flags.writeable - False."
+    - id: "moving-average"
+      title: "Скользящее среднее: значения и dtype"
+      hint: "Результат float64, mean(axis=1) по окнам."
+    - id: "moving-average-no-mutation"
+      title: "Вход не изменяется (скрытый)"
+      hidden: true
+      hint: "Не записывайте в a и не меняйте её dtype на месте; приведение возвращает новый массив."
+    - id: "bad-window"
+      title: "Недопустимое окно (скрытый)"
+      hidden: true
+      hint: "При w < 1 или w > len(a) бросьте ValueError."
+    - id: "w-edge"
+      title: "Граничные размеры окна (скрытый)"
+      hidden: true
+      hint: "w = 1 даёт исходные значения, w = len(a) - одно значение (среднее всего массива)."

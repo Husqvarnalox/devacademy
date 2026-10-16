@@ -9,3 +9,4 @@ __pycache__/
 *.pyc
 TestResults/
 node_modules/
+.venv-content/
