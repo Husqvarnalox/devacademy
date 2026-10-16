@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>DevAcademy</title>
+  <!-- Flat geometric mark: a square bracket (code block) holding a run triangle. Two solid colours plus white; no gradients. -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="#243B6B"/>
+  <path d="M424 232 H312 V792 H424" fill="none" stroke="#FFFFFF" stroke-width="72" stroke-linejoin="miter" stroke-linecap="butt"/>
+  <path d="M488 332 L772 512 L488 692 Z" fill="#F2B33D"/>
+</svg>

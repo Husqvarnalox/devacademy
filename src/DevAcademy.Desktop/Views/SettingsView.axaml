@@ -102,5 +102,27 @@
     <TabItem Header="{loc:T Settings_Ai}">
       <views:AiSettingsView DataContext="{Binding Ai}" />
     </TabItem>
+    <TabItem Header="{loc:T Settings_About}">
+      <ScrollViewer>
+        <StackPanel MaxWidth="720" Spacing="10" Margin="0,12" HorizontalAlignment="Left">
+          <TextBlock Text="DevAcademy" Classes="h2" />
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+            <TextBlock Grid.Row="0" Text="{loc:T About_Version}" Classes="caption" />
+            <SelectableTextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AboutVersion}" Classes="mono" />
+            <TextBlock Grid.Row="1" Text="{loc:T About_Commit}" Classes="caption" />
+            <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding AboutCommit}" Classes="mono" />
+            <TextBlock Grid.Row="2" Text="{loc:T About_Runtime}" Classes="caption" />
+            <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding About.Runtime}" Classes="mono" />
+            <TextBlock Grid.Row="3" Text="{loc:T About_Platform}" Classes="caption" />
+            <SelectableTextBlock Grid.Row="3" Grid.Column="1" Text="{Binding About.Platform}" Classes="mono" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="4" Text="{loc:T Data_Location}" Classes="caption" />
+            <SelectableTextBlock Grid.Row="4" Grid.Column="1" Text="{Binding DataDir}" Classes="mono" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="5" Text="{loc:T About_Licenses}" Classes="caption" />
+            <SelectableTextBlock Grid.Row="5" Grid.Column="1" Text="{Binding AboutNotices}" Classes="mono" TextWrapping="Wrap" />
+          </Grid>
+          <TextBlock Text="{loc:T About_License}" Classes="muted" TextWrapping="Wrap" />
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
   </TabControl>
 </UserControl>

@@ -3,6 +3,7 @@
     <Project Path="src/DevAcademy.AI/DevAcademy.AI.csproj" />
     <Project Path="src/DevAcademy.Application/DevAcademy.Application.csproj" />
     <Project Path="src/DevAcademy.Cli/DevAcademy.Cli.csproj" />
+    <Project Path="src/DevAcademy.Debugging/DevAcademy.Debugging.csproj" />
     <Project Path="src/DevAcademy.Desktop/DevAcademy.Desktop.csproj" />
     <Project Path="src/DevAcademy.Content/DevAcademy.Content.csproj" />
     <Project Path="src/DevAcademy.Domain/DevAcademy.Domain.csproj" />
@@ -16,6 +17,7 @@
     <Project Path="tests/DevAcademy.Application.Tests/DevAcademy.Application.Tests.csproj" />
     <Project Path="tests/DevAcademy.Cli.Tests/DevAcademy.Cli.Tests.csproj" />
     <Project Path="tests/DevAcademy.Content.Tests/DevAcademy.Content.Tests.csproj" />
+    <Project Path="tests/DevAcademy.Debugging.Tests/DevAcademy.Debugging.Tests.csproj" />
     <Project Path="tests/DevAcademy.Desktop.Tests/DevAcademy.Desktop.Tests.csproj" />
     <Project Path="tests/DevAcademy.Domain.Tests/DevAcademy.Domain.Tests.csproj" />
     <Project Path="tests/DevAcademy.Execution.Tests/DevAcademy.Execution.Tests.csproj" />

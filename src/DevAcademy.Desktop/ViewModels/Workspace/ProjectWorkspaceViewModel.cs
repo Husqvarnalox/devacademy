@@ -43,6 +43,10 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         Root = Path.GetFullPath(root);
         Name = Path.GetFileName(Root.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } n ? n : Root;
         Explorer = new ExplorerViewModel(Root);
+        _debugHost = new ProjectDebugHost(this, services.Debug);
+        Debug = new DebugViewModel(services.Debug, services.Dialogs, _debugHost);
+        Debug.Attention += () => ShowDebugPanel = true;
+        _debugHost.Breakpoints.Changed += key => { if (!_restoring) _ = SaveSessionAsync(); };
         Search = new WorkspaceSearchViewModel(Root, () => Explorer.ShowIgnored);
         Language = ProjectRunProfiles.DetectLanguage(Root);
         var first = new EditorGroupViewModel { IsActive = true };
@@ -61,6 +65,10 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
 
     public string Root { get; }
     public string Name { get; }
+    internal DevAcademy.Application.Python.PythonEnvironmentService ServicesPython => _services.Python;
+    private readonly ProjectDebugHost _debugHost;
+    /// <summary>The debugger of this project (breakpoints, toolbar state, call stack, variables, watches, console).</summary>
+    public DebugViewModel Debug { get; }
     public ExplorerViewModel Explorer { get; }
     public WorkspaceSearchViewModel Search { get; }
     public ObservableCollection<EditorGroupViewModel> Groups { get; } = [];
@@ -76,6 +84,8 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _showSearch;
     [ObservableProperty] private bool _showTextHits;
+    /// <summary>The debug side panel is shown (opens by itself when a debug session starts).</summary>
+    [ObservableProperty] private bool _showDebugPanel;
 
     // ---------------------------------------------------------------- language server
 
@@ -104,7 +114,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
 
     private void OnActiveGroupProperty(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(EditorGroupViewModel.ActiveTab)) RefreshLspStatus();
+        if (e.PropertyName == nameof(EditorGroupViewModel.ActiveTab)) { RefreshLspStatus(); _ = Debug.RefreshAsync(); }
     }
 
     public void RefreshLspStatus()
@@ -205,6 +215,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         {
             await RefreshPythonChoicesAsync();
             var session = await _services.Workspace.Sessions.LoadAsync(Root);
+            _debugHost.Breakpoints.Load(session.Breakpoints);
             for (var g = 0; g < session.Groups.Count && g < 2; g++)
             {
                 var group = g == 0 ? Groups[0] : AddGroup();
@@ -222,6 +233,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
                 SelectedPython = choice;
         }
         finally { _restoring = false; }
+        await Debug.RefreshAsync();
 
         if (_services.Workspace.WatchFiles)
         {
@@ -254,7 +266,8 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         if (_restoring || _disposed) return;
         var groups = Groups.Select(g => (IReadOnlyList<string>)g.Tabs.Select(t => t.RelativePath).ToList()).ToList();
         var actives = Groups.Select(g => g.ActiveTab?.RelativePath).ToList();
-        var session = new ProjectSession(groups, actives, Math.Max(0, Groups.IndexOf(ActiveGroup)), SelectedPython?.Key);
+        var session = new ProjectSession(groups, actives, Math.Max(0, Groups.IndexOf(ActiveGroup)), SelectedPython?.Key,
+            _debugHost.Breakpoints.Snapshot());
         try { await _services.Workspace.Sessions.SaveAsync(Root, session); }
         catch (Exception ex) when (ex is not OperationCanceledException) { Status = ex.Message; }
     }
@@ -345,9 +358,15 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         var target = group ?? ActiveGroup;
         var tab = new EditorTabViewModel(fullPath, Root, content);
         tab.Lsp = BuildLspTarget(tab);
+        tab.Debug = _debugHost.Breakpoints.Get(tab.RelativePath);
         tab.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(EditorTabViewModel.FullPath)) tab.Lsp = BuildLspTarget(tab);
+            if (e.PropertyName == nameof(EditorTabViewModel.FullPath))
+            {
+                tab.Lsp = BuildLspTarget(tab);
+                tab.Debug = _debugHost.Breakpoints.Get(tab.RelativePath);
+                tab.Debug.Key = tab.RelativePath;
+            }
         };
         target.Tabs.Add(tab);
         target.ActiveTab = tab;
@@ -487,10 +506,13 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         var oldPath = node.FullPath;
         var r = _services.Workspace.FileOps.Rename(oldPath, name);
         if (!r.Ok) { Status = r.Error; return; }
+        _debugHost.Breakpoints.RenamePrefix(RelativeKey(oldPath), RelativeKey(r.Path!));
         RetargetTabs(oldPath, r.Path!);
         Explorer.RefreshDirectories([Path.GetDirectoryName(oldPath)!]);
         await SaveSessionAsync();
     }
+
+    private string RelativeKey(string full) => Path.GetRelativePath(Root, full).Replace('\\', '/');
 
     private void RetargetTabs(string oldPath, string newPath)
     {
@@ -523,6 +545,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
             r = ops.Delete(path, allowPermanent: true);
         }
         if (!r.Ok) { Status = r.Error; return; }
+        _debugHost.Breakpoints.RemovePrefix(RelativeKey(path));
         foreach (var tab in AllTabs.Where(t => t.FullPath == path || t.FullPath.StartsWith(path + Path.DirectorySeparatorChar, StringComparison.Ordinal)).ToList())
             RemoveTab(tab);
         Explorer.Selected = null;
@@ -682,7 +705,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
 
     partial void OnSelectedPythonChanged(PythonChoice? value)
     {
-        if (!_restoring && value is not null) _ = SaveSessionAsync();
+        if (!_restoring && value is not null) { _ = SaveSessionAsync(); _ = Debug.RefreshAsync(); }
     }
 
     [RelayCommand]
@@ -735,6 +758,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         _disposed = true;
         if (_statusHandler is not null) _services.Language.Manager.StatusChanged -= _statusHandler;
         _watcher?.Dispose();
+        Debug.Dispose();
         foreach (var t in Terminals.ToList()) t.Dispose();
         Terminals.Clear();
     }

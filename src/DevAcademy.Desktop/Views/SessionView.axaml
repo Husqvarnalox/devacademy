@@ -4,6 +4,7 @@
              xmlns:lsp="using:DevAcademy.Desktop.ViewModels.Lsp"
              xmlns:ctl="using:DevAcademy.Desktop.Controls"
              xmlns:loc="using:DevAcademy.Desktop.Localization"
+             xmlns:views="using:DevAcademy.Desktop.Views"
              x:Class="DevAcademy.Desktop.Views.SessionView"
              x:DataType="vm:ExerciseSessionViewModel">
   <UserControl.DataTemplates>
@@ -63,12 +64,21 @@
             </StackPanel>
     </DataTemplate>
   </UserControl.DataTemplates>
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="F5" Command="{Binding Debug.StartOrContinueCommand}" />
+    <KeyBinding Gesture="Shift+F5" Command="{Binding Debug.StopCommand}" />
+    <KeyBinding Gesture="F10" Command="{Binding Debug.StepOverCommand}" />
+    <KeyBinding Gesture="F11" Command="{Binding Debug.StepIntoCommand}" />
+    <KeyBinding Gesture="Shift+F11" Command="{Binding Debug.StepOutCommand}" />
+  </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
     <!-- Toolbar -->
     <Border Grid.Row="0" Classes="bar" Padding="8,6">
       <Grid ColumnDefinitions="Auto,*">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Button Name="RunButton" Content="{loc:T Editor_Run}" Command="{Binding RunCommand}" IsVisible="{Binding CanRun}" Classes="accent" ToolTip.Tip="{loc:T Editor_RunTip}" />
+          <Button Name="DebugButton" Content="{loc:T Dbg_Button}" Command="{Binding Debug.StartOrContinueCommand}" IsVisible="{Binding CanRun}"
+                  IsEnabled="{Binding Debug.IsAvailable}" ToolTip.Tip="{Binding Debug.AdapterText}" />
           <Button Content="{loc:T Editor_Submit}" Command="{Binding SubmitCommand}" IsVisible="{Binding CanSubmit}" ToolTip.Tip="{loc:T Editor_SubmitTip}" />
           <Button Content="{Binding HintButtonText}" Command="{Binding RevealHintCommand}" IsEnabled="{Binding CanRevealHint}" IsVisible="{Binding HasHints}" />
           <Button Content="{loc:T Editor_Reset}" Command="{Binding ResetCommand}" IsVisible="{Binding CanSubmit}" />
@@ -106,7 +116,7 @@
     <!-- Editor -->
     <Border Grid.Row="3" Background="{DynamicResource PanelBrush}">
       <Grid RowDefinitions="*,Auto">
-        <ctl:CodeEditorControl Name="CodeEditor" LspTarget="{Binding SelectedFile.Lsp}" Text="{Binding SelectedFile.Content, Mode=TwoWay}" FileName="{Binding SelectedFile.Path}"
+        <ctl:CodeEditorControl Name="CodeEditor" LspTarget="{Binding SelectedFile.Lsp}" DebugTarget="{Binding SelectedFile.Debug}" Text="{Binding SelectedFile.Content, Mode=TwoWay}" FileName="{Binding SelectedFile.Path}"
                                AutomationProperties.Name="{loc:T Editor_Name}" />
         <Border Grid.Row="1" Classes="bar" Padding="8,2" IsVisible="{Binding HasLsp}">
           <Button Name="LspStatusButton" Classes="link" Padding="0" Background="Transparent" BorderThickness="0" HorizontalAlignment="Left"
@@ -173,6 +183,9 @@
             </ItemsControl>
           </StackPanel>
         </ScrollViewer>
+      </TabItem>
+      <TabItem Header="{loc:T Dbg_Tab}" IsVisible="{Binding CanRun}">
+        <views:DebugPanelView DataContext="{Binding Debug}" IsHorizontal="True" />
       </TabItem>
       <TabItem Header="{Binding ProblemsHeader}" IsVisible="{Binding HasLsp}">
         <ScrollViewer>

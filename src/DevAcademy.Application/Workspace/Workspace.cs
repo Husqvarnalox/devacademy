@@ -18,13 +18,15 @@ public interface IRecentProjectsRepository
 
 /// <summary>
 /// Editor layout restored when a project is reopened: relative file paths per group, the active tab of each group and the selected Python
-/// environment. Paths only; text never leaves the files themselves.
+/// environment, plus breakpoint line numbers per file. Paths and numbers only; text never leaves the files themselves.
 /// </summary>
 public sealed record ProjectSession(
     IReadOnlyList<IReadOnlyList<string>> Groups,
     IReadOnlyList<string?> ActiveTabs,
     int ActiveGroup = 0,
-    string? PythonEnvironment = null)
+    string? PythonEnvironment = null,
+    /// <summary>Debugger breakpoints: project-relative path (with '/') to 1-based lines. Null in sessions saved before the debugger existed.</summary>
+    IReadOnlyDictionary<string, IReadOnlyList<int>>? Breakpoints = null)
 {
     public static ProjectSession Empty { get; } = new([[]], [null]);
 

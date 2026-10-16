@@ -19,6 +19,8 @@ make lint / format     dotnet format whitespace (verify / apply) — CI fails on
 make validate-content  validate content and run reference solutions
 make runtimes          print detected runtimes
 make publish           self-contained desktop build for RID=<rid> into artifacts/
+make package           installers for RID=<rid> on this OS into artifacts/package (see packaging/)
+make checksums         SHA256SUMS for artifacts/package;  make notices = regenerate THIRD-PARTY-NOTICES.md
 make clean
 ```
 
@@ -63,3 +65,16 @@ English for engineering docs, Russian for curriculum docs. Document reality, mar
 ## Reporting security issues
 
 See [SECURITY.md](SECURITY.md). License: MIT ([LICENSE](LICENSE)); contributions are accepted under the same license.
+
+## Release process
+
+1. Update `<Version>` in `Directory.Build.props` (the only place the version lives) and, when NuGet packages changed,
+   run `make notices` and review `THIRD-PARTY-NOTICES.md` ("Needs manual review" must be empty or justified).
+2. Merge to `main` with CI green, then tag exactly `v<Version>` (e.g. `git tag v0.2.0 && git push origin v0.2.0`).
+3. `.github/workflows/release.yml` builds six RIDs (win-x64/arm64, linux-x64/arm64, osx-x64/arm64), writes `SHA256SUMS` and
+   creates a **draft** release. Download and smoke-test the artifacts, then publish the draft by hand.
+4. macOS signing/notarization runs only if these repository secrets exist (never commit them): `MACOS_CERT_P12` (base64 .p12),
+   `MACOS_CERT_PASSWORD`, `MACOS_SIGN_IDENTITY` ("Developer ID Application: ..."), `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`
+   (app-specific password). Without them the macOS build is ad-hoc signed. Entitlements: `packaging/macos/entitlements.plist`.
+5. Local packaging: `make package` (macOS needs the official runtime pack, see PLATFORM_SUPPORT §1a; Linux needs `dpkg-deb`; Windows: Git Bash + Inno Setup).
+6. Third-party GitHub Actions are pinned to commit SHAs; update them by looking up the tag's commit (`gh api repos/<owner>/<repo>/git/ref/tags/<tag>`).

@@ -142,7 +142,7 @@ internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntim
     }
 }
 
-internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime
+internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, IDebugBuildRuntime
 {
     public string LanguageId => "go";
     public string DisplayName => "Go";
@@ -188,6 +188,17 @@ internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, env)],
             new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
     }
+
+    /// <summary>Same build with optimisation and inlining off so breakpoints and locals behave. The normal plan is unchanged.</summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
+    {
+        var env = BuildEnvironment(workingDirectory);
+        var args = new List<string> { "build", "-gcflags=all=-N -l", "-o", "prog" };
+        args.AddRange(ToolLocator.FilesWithExtensions(sourceDirectory ?? workingDirectory, ".go").Select(f => sourceDirectory is null ? f : Path.GetFullPath(f, sourceDirectory)).Where(f => !f.EndsWith("_test.go", StringComparison.Ordinal)));
+        return new BuildPlan(
+            [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, env)],
+            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+    }
 }
 
 internal sealed class JavaRuntime : ILanguageRuntime
@@ -221,7 +232,7 @@ internal sealed class JavaRuntime : ILanguageRuntime
     }
 }
 
-internal sealed class CppRuntime : ILanguageRuntime
+internal sealed class CppRuntime : ILanguageRuntime, IDebugBuildRuntime
 {
     public string LanguageId => "cpp";
     public string DisplayName => "C++";
@@ -247,9 +258,20 @@ internal sealed class CppRuntime : ILanguageRuntime
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
             new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
     }
+
+    /// <summary>-g -O0 and absolute source paths, so DWARF file names match what the editor sends as breakpoint paths.</summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
+    {
+        string src = sourceDirectory ?? workingDirectory;
+        var args = new List<string> { "-std=c++20", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
+        args.AddRange(ToolLocator.FilesWithExtensions(src, ".cpp", ".cc", ".cxx").Select(f => Path.GetFullPath(f, src)));
+        return new BuildPlan(
+            [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
+            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+    }
 }
 
-internal sealed class RustRuntime : ILanguageRuntime
+internal sealed class RustRuntime : ILanguageRuntime, IDebugBuildRuntime
 {
     public string LanguageId => "rust";
     public string DisplayName => "Rust";
@@ -268,15 +290,27 @@ internal sealed class RustRuntime : ILanguageRuntime
 
     // Single rustc invocation on the entry file: `mod x;` resolves next to it. Future cargo projects would use
     // CARGO_HOME/CARGO_TARGET_DIR below the runner cache with CARGO_NET_OFFLINE=true; plain rustc needs no cache.
-    public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
+    public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status) =>
+        new([new ProcessSpec(status.ExecutablePath!, ["--edition", "2021", "-O", "-o", "prog", entryFile], workingDirectory, ToolchainEnvironment())],
+            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+
+    // HOME is the workdir, so point the rustup shim at the real toolchain directories (read only use).
+    private static Dictionary<string, string> ToolchainEnvironment()
     {
-        // HOME is the workdir, so point the rustup shim at the real toolchain directories (read only use).
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var env = new Dictionary<string, string>();
         if (Directory.Exists(Path.Combine(home, ".rustup"))) env["RUSTUP_HOME"] = Path.Combine(home, ".rustup");
         if (Directory.Exists(Path.Combine(home, ".cargo"))) env["CARGO_HOME"] = Path.Combine(home, ".cargo");
-        return new BuildPlan(
-            [new ProcessSpec(status.ExecutablePath!, ["--edition", "2021", "-O", "-o", "prog", entryFile], workingDirectory, env)],
+        return env;
+    }
+
+    /// <summary>-g -C opt-level=0; on macOS split-debuginfo=packed keeps DWARF in prog.dSYM (the default leaves it in deleted .o files).</summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
+    {
+        var args = new List<string> { "--edition", "2021", "-g", "-C", "opt-level=0" };
+        if (OperatingSystem.IsMacOS()) args.AddRange(["-C", "split-debuginfo=packed"]);
+        args.AddRange(["-o", "prog", Path.GetFullPath(entryFile, sourceDirectory ?? workingDirectory)]);
+        return new BuildPlan([new ProcessSpec(status.ExecutablePath!, args, workingDirectory, ToolchainEnvironment())],
             new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
     }
 }

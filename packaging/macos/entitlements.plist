@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Hardened runtime + .NET: the CoreCLR JIT maps writable+executable pages (MAP_JIT). Required. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <!-- CoreCLR also needs to create executable memory outside MAP_JIT regions (stubs/precode, single-file host). Required by .NET on macOS. -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!--
+    Deliberately NOT granted: com.apple.security.cs.disable-library-validation. Every Mach-O in the bundle (including the
+    SkiaSharp/HarfBuzz/SQLite dylibs from NuGet) is re-signed with the same identity by build-app.sh, so library
+    validation passes. NOT run-verified here (no Developer ID certificate): hardened runtime + AD-HOC signing does fail to load
+    libSkiaSharp (ad-hoc dylibs have no Team ID), which is why build-app.sh only enables the hardened runtime together with a
+    real identity. If the first notarized build reports a dylib load failure, add disable-library-validation and note it in
+    PLATFORM_SUPPORT.md. Not sandboxed (no com.apple.security.app-sandbox): DevAcademy runs learners' toolchains and a
+    sandbox-exec profile of its own, which an App Sandbox container would forbid.
+  -->
+</dict>
+</plist>

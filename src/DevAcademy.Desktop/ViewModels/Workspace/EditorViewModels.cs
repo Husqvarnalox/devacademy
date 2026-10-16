@@ -40,6 +40,9 @@ public sealed partial class EditorTabViewModel : ObservableObject
     /// <summary>How this tab's editor talks to a language server (null: none for this file).</summary>
     [ObservableProperty] private DevAcademy.Desktop.Controls.Lsp.LspTarget? _lsp;
 
+    /// <summary>Breakpoints and paused line of this file (shared with the debugger).</summary>
+    [ObservableProperty] private DevAcademy.Desktop.Controls.Debug.EditorDebugTarget? _debug;
+
     public string Title => Path.GetFileName(FullPath);
     public string RelativePath => Path.GetRelativePath(Root, FullPath).Replace('\\', '/');
     public string Fingerprint => _original.Fingerprint;
@@ -94,10 +97,27 @@ public sealed partial class EditorGroupViewModel : ObservableObject
 
     public bool HasTabs => Tabs.Count > 0;
 
+    /// <summary>Breakpoint target of the active tab (one hop for the view binding, so a group without tabs binds quietly).</summary>
+    public DevAcademy.Desktop.Controls.Debug.EditorDebugTarget? ActiveDebug => ActiveTab?.Debug;
+    public DevAcademy.Desktop.Controls.Lsp.LspTarget? ActiveLsp => ActiveTab?.Lsp;
+    public AvaloniaEdit.Document.TextDocument? ActiveDocument => ActiveTab?.Document;
+    public string? ActiveTitle => ActiveTab?.Title;
+
     partial void OnActiveTabChanged(EditorTabViewModel? oldValue, EditorTabViewModel? newValue)
     {
-        if (oldValue is not null) oldValue.IsSelected = false;
-        if (newValue is not null) newValue.IsSelected = true;
+        if (oldValue is not null) { oldValue.IsSelected = false; oldValue.PropertyChanged -= OnActiveTabProperty; }
+        if (newValue is not null) { newValue.IsSelected = true; newValue.PropertyChanged += OnActiveTabProperty; }
+        OnPropertyChanged(nameof(ActiveDebug));
+        OnPropertyChanged(nameof(ActiveLsp));
+        OnPropertyChanged(nameof(ActiveDocument));
+        OnPropertyChanged(nameof(ActiveTitle));
+    }
+
+    private void OnActiveTabProperty(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(EditorTabViewModel.Debug)) OnPropertyChanged(nameof(ActiveDebug));
+        else if (e.PropertyName == nameof(EditorTabViewModel.Lsp)) OnPropertyChanged(nameof(ActiveLsp));
+        else if (e.PropertyName == nameof(EditorTabViewModel.Title)) OnPropertyChanged(nameof(ActiveTitle));
     }
 
     public EditorGroupViewModel() => Tabs.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasTabs));

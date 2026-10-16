@@ -1,0 +1,126 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.DebugPanelView"
+             x:DataType="vm:DebugViewModel">
+  <UserControl.DataTemplates>
+    <TreeDataTemplate DataType="vm:VariableNode" ItemsSource="{Binding Children}">
+      <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}">
+        <TextBlock Text="…" Classes="muted" IsVisible="{Binding IsPlaceholder}" />
+        <TextBlock Text="{Binding Name}" Classes="mono" FontWeight="SemiBold" IsVisible="{Binding !IsPlaceholder}" />
+        <TextBlock Text="=" Classes="mono muted" IsVisible="{Binding Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock Text="{Binding Value}" Classes="mono" Classes.danger="{Binding IsError}" MaxWidth="360" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+    </TreeDataTemplate>
+  </UserControl.DataTemplates>
+  <Grid RowDefinitions="Auto,Auto,*" Name="Root">
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Classes="bar" Padding="6,4">
+      <StackPanel Spacing="4">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Content="▶" Command="{Binding StartOrContinueCommand}" Classes="accent" IsEnabled="{Binding IsAvailable}"
+                  ToolTip.Tip="{loc:T Dbg_ContinueTip}" AutomationProperties.Name="{loc:T Dbg_Continue}" />
+          <Button Content="↷" Command="{Binding StepOverCommand}" ToolTip.Tip="{loc:T Dbg_StepOverTip}" AutomationProperties.Name="{loc:T Dbg_StepOver}" />
+          <Button Content="↓" Command="{Binding StepIntoCommand}" ToolTip.Tip="{loc:T Dbg_StepIntoTip}" AutomationProperties.Name="{loc:T Dbg_StepInto}" />
+          <Button Content="↑" Command="{Binding StepOutCommand}" ToolTip.Tip="{loc:T Dbg_StepOutTip}" AutomationProperties.Name="{loc:T Dbg_StepOut}" />
+          <Button Content="⏸" Command="{Binding PauseCommand}" ToolTip.Tip="{loc:T Dbg_Pause}" AutomationProperties.Name="{loc:T Dbg_Pause}" />
+          <Button Content="■" Command="{Binding StopCommand}" ToolTip.Tip="{loc:T Dbg_StopTip}" AutomationProperties.Name="{loc:T Dbg_Stop}" />
+          <Button Content="{loc:T Dbg_ClearBreakpoints}" Command="{Binding ClearBreakpointsCommand}" Classes="flat" IsEnabled="{Binding HasBreakpoints}" />
+        </StackPanel>
+        <TextBlock Text="{Binding StatusText}" Classes="caption" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <!-- Warning + adapter -->
+    <Border Grid.Row="1" Padding="8,4" Background="{DynamicResource SubtleBrush}">
+      <StackPanel Spacing="4">
+        <TextBlock Name="NoSandboxText" Text="{loc:T Dbg_NoSandbox}" Classes="caption warn" TextWrapping="Wrap" />
+        <TextBlock Name="AdapterText" Text="{Binding AdapterText}" Classes="caption" TextWrapping="Wrap" />
+        <StackPanel Spacing="4" IsVisible="{Binding CanInstall}">
+          <TextBlock Text="{loc:T Dbg_InstallCommand}" Classes="caption" />
+          <SelectableTextBlock Text="{Binding InstallCommandText}" Classes="mono" TextWrapping="Wrap" />
+          <Button Content="{loc:T Dbg_Install}" Command="{Binding InstallCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Sections -->
+    <Grid Grid.Row="2" Name="Sections" RowDefinitions="*,2*,*,2*">
+      <Border Name="StackSection" Grid.Row="0" Classes="panel" Padding="0" Margin="0,2,0,0">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Text="{loc:T Dbg_CallStack}" Classes="caption" Margin="8,4" />
+          <ListBox Grid.Row="1" ItemsSource="{Binding Frames}" SelectedItem="{Binding SelectedFrame}" Background="Transparent" Name="FrameList">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:StackFrameItem">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Name}" Classes="mono" Classes.muted="{Binding !IsUserCode}" />
+                  <TextBlock Text="{Binding Location}" Classes="mono muted" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Grid.Row="1" Text="{loc:T Dbg_NoStack}" Classes="muted" Margin="8,2" IsVisible="{Binding !Frames.Count}" IsHitTestVisible="False" />
+        </Grid>
+      </Border>
+
+      <Border Name="VariablesSection" Grid.Row="1" Classes="panel" Padding="0" Margin="0,2,0,0">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Text="{loc:T Dbg_Variables}" Classes="caption" Margin="8,4" />
+          <TreeView Grid.Row="1" ItemsSource="{Binding Variables}" Name="VariableTree" Background="Transparent">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:VariableNode">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </Style>
+            </TreeView.Styles>
+          </TreeView>
+          <TextBlock Grid.Row="1" Text="{loc:T Dbg_NoVariables}" Classes="muted" Margin="8,2" IsVisible="{Binding !Variables.Count}" IsHitTestVisible="False" />
+        </Grid>
+      </Border>
+
+      <Border Name="WatchSection" Grid.Row="2" Classes="panel" Padding="0" Margin="0,2,0,0">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <TextBlock Text="{loc:T Dbg_Watch}" Classes="caption" Margin="8,4" />
+          <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="6,0,6,4">
+            <TextBox Name="WatchBox" Text="{Binding WatchInput}" PlaceholderText="{loc:T Dbg_WatchHint}" FontFamily="{StaticResource MonoFont}"
+                     AutomationProperties.Name="{loc:T Dbg_Watch}" />
+            <Button Grid.Column="1" Content="+" Command="{Binding AddWatchCommand}" Margin="4,0,0,0" AutomationProperties.Name="{loc:T Dbg_AddWatch}" />
+          </Grid>
+          <TreeView Grid.Row="2" ItemsSource="{Binding Watches}" Name="WatchTree" Background="Transparent">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:VariableNode">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="{loc:T Dbg_RemoveWatch}" Click="OnRemoveWatch" />
+              </ContextMenu>
+            </TreeView.ContextMenu>
+          </TreeView>
+        </Grid>
+      </Border>
+
+      <Border Name="ConsoleSection" Grid.Row="3" Classes="panel" Padding="0" Margin="0,2,0,0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <Grid ColumnDefinitions="*,Auto" Margin="8,2">
+            <TextBlock Text="{loc:T Dbg_Console}" Classes="caption" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Content="{loc:T Dbg_ClearConsole}" Command="{Binding ClearConsoleCommand}" Classes="flat" />
+          </Grid>
+          <ScrollViewer Grid.Row="1" Name="ConsoleScroll">
+            <ItemsControl ItemsSource="{Binding Console}" Margin="8,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ConsoleLine">
+                  <TextBlock Text="{Binding Text}" Classes="mono" Classes.danger="{Binding IsError}" Classes.muted="{Binding IsInfo}"
+                             TextWrapping="Wrap" FontStyle="Normal" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <TextBox Grid.Row="2" Name="ReplBox" Text="{Binding ReplInput}" PlaceholderText="{loc:T Dbg_ReplHint}" FontFamily="{StaticResource MonoFont}"
+                   Margin="6,4" AutomationProperties.Name="{loc:T Dbg_Console}" />
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

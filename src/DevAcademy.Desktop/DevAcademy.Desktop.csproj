@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\packaging\icon\DevAcademy.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <RootNamespace>DevAcademy.Desktop</RootNamespace>
@@ -11,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DevAcademy.Application\DevAcademy.Application.csproj" />
+    <ProjectReference Include="..\DevAcademy.Debugging\DevAcademy.Debugging.csproj" />
     <ProjectReference Include="..\DevAcademy.Domain\DevAcademy.Domain.csproj" />
     <ProjectReference Include="..\DevAcademy.Execution\DevAcademy.Execution.csproj" />
     <ProjectReference Include="..\DevAcademy.Infrastructure\DevAcademy.Infrastructure.csproj" />
@@ -31,11 +33,24 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
+  <!-- Embed the git short SHA as SourceRevisionId -> AssemblyInformationalVersion "0.1.0+abc1234" (skipped outside git or when
+       -p:SourceRevisionId=... is passed, e.g. by CI). Shown in Settings > About. -->
+  <Target Name="DevAcademyGitRevision" BeforeTargets="GetAssemblyVersion;InitializeSourceControlInformation" Condition="'$(SourceRevisionId)' == ''">
+    <Exec Command="git rev-parse --short=9 HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" StandardErrorImportance="low" IgnoreExitCode="true" ContinueOnError="true" WorkingDirectory="$(MSBuildProjectDirectory)">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_DevAcademyGitSha" />
+      <Output TaskParameter="ExitCode" PropertyName="_DevAcademyGitExit" />
+    </Exec>
+    <PropertyGroup Condition="'$(_DevAcademyGitExit)' == '0' And '$(_DevAcademyGitSha)' != ''">
+      <SourceRevisionId>$(_DevAcademyGitSha.Trim())</SourceRevisionId>
+    </PropertyGroup>
+  </Target>
+
   <ItemGroup>
     <EmbeddedResource Update="Resources\Strings.resx">
       <Generator></Generator>
     </EmbeddedResource>
     <Content Include="..\..\content\**\*" Exclude="..\..\content\schema\**" Link="content\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\THIRD-PARTY-NOTICES.md;..\..\LICENSE" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

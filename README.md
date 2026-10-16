@@ -17,9 +17,20 @@ Early-stage. It builds and runs; the content is small.
 | Grading (stdout comparison or test harness), hints, quizzes, reviews, progress in SQLite | implemented |
 | AI tutor: OpenAI, Anthropic, Gemini, OpenRouter, OpenAI-compatible | implemented, tested with fake HTTP only; no live API verified |
 | Curriculum | Python Fundamentals (10 lessons) and short intro courses for JavaScript, TypeScript, Node.js, C#, PHP (2 lessons each); `content/catalog.yaml` is the source of truth. Everything else is **Planned** and shown as such |
-| Terminal (PTY), LSP, debugger, project workspaces (npm/venv), notebooks, Python environment manager (in progress), ML runtime manager, installers | not implemented |
+| JS/TS debugging (vscode-js-debug), notebooks, Python environment manager (in progress), ML runtime manager, auto-update | not implemented |
 
 Roadmap with per-item status: [ROADMAP.md](ROADMAP.md). Platform matrix: [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md).
+
+## Install
+
+Download from the GitHub Releases page (builds are produced by CI on version tags; verify against `SHA256SUMS`):
+
+* **macOS**: `DevAcademy-<v>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg`; drag DevAcademy to Applications. Builds are ad-hoc
+  signed unless the release was notarized; if Gatekeeper blocks it: right-click → Open.
+* **Windows**: `DevAcademy-<v>-win-x64-setup.exe` (per-user, no admin rights) or the `.zip`; SmartScreen warns because the installer is unsigned.
+* **Linux**: `.AppImage` (`chmod +x`, run) or `devacademy_<v>_amd64.deb` (`sudo apt install ./devacademy_*.deb`).
+
+Packaging status per platform (only macOS arm64 is run-verified): [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md). Build installers yourself: `make package`.
 
 ## Quick start
 
@@ -33,7 +44,7 @@ make dev        # run the desktop app
 make test       # run all tests          (make test-fast skips the slow runner suite)
 ```
 
-Other targets: `build`, `test-runners`, `lint`, `format`, `validate-content`, `runtimes`, `publish`, `clean` (`make help`).
+Other targets: `build`, `test-runners`, `lint`, `format`, `validate-content`, `runtimes`, `publish`, `package`, `checksums`, `notices`, `clean` (`make help`).
 Content is read from the `content/` directory at runtime; edit a lesson and reload without rebuilding.
 
 ## Documentation

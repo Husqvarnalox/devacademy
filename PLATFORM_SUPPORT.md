@@ -12,7 +12,7 @@ reviewed for this document) · **C** compiled/argument-tested, never executed ·
 CI (`.github/workflows/ci.yml`): `test` job builds, checks formatting, runs all tests and `validate-content --run-solutions`
 on linux-x64, linux-arm64, win-x64, osx-arm64, osx-x64. `publish` job (push to main only) produces a self-contained
 single-file build with `content/` copied next to it for linux-x64, linux-arm64, win-x64, win-arm64, osx-arm64, osx-x64
-and uploads it as a workflow artifact. No installers, no code signing, no notarization, no auto-update.
+and uploads it as a workflow artifact. No auto-update. Installers are built by `.github/workflows/release.yml` on `v*` tags (see section 1a).
 
 | Feature | osx-arm64 | osx-x64 | win-x64 | win-arm64 | linux-x64 | linux-arm64 |
 |---|---|---|---|---|---|---|
@@ -30,6 +30,25 @@ and uploads it as a workflow artifact. No installers, no code signing, no notari
 Notes: Windows ARM64 is built but not tested in CI. macOS `sandbox-exec` is deprecated by Apple but works on the verified
 version (Darwin 25). Linux bubblewrap needs `bwrap` and unprivileged user namespaces (often disabled in containers and
 some distributions); when unavailable the runner falls back to `ProcessLimits` and says so.
+
+## 1a. Packaging and distribution
+
+Version: `<Version>` in `Directory.Build.props` (also `AssemblyInformationalVersion` `x.y.z+<git sha>`; shown in Settings → О программе).
+Third-party licenses: `THIRD-PARTY-NOTICES.md` (generated, CI checks it is fresh). Scripts live in `packaging/`; `make package`.
+
+| Artifact | Script | Status |
+|---|---|---|
+| macOS `.app` + `.dmg` (osx-arm64) | `packaging/macos/build-app.sh` | **V**: built here; `codesign --verify --deep --strict` passes; launched via `open`, process alive, DB created, no crash report; DMG (UDZO) mounts with `DevAcademy.app` + `Applications` link. Ad-hoc signed |
+| macOS `.app` + `.dmg` (osx-x64) | same | built here, `file` = x86_64, codesign verifies, launched under Rosetta (process alive, DB created). Real Intel hardware: not tested |
+| Developer ID signing + notarization + stapling | same, env-gated (`MACOS_SIGN_IDENTITY`, `MACOS_NOTARY_PROFILE` or `APPLE_ID`/`APPLE_TEAM_ID`/`APPLE_APP_PASSWORD`) | **not run-verified** (no certificate available). Hardened runtime + entitlements (`allow-jit`, `allow-unsigned-executable-memory`; no `disable-library-validation`) untested with a real identity: hardened runtime with an *ad-hoc* signature does fail to load libSkiaSharp, so it is only enabled together with a real identity. If the first notarized build fails to load a dylib, add `disable-library-validation` |
+| Linux AppImage, `.deb` (x64, arm64) | `packaging/linux/build-appimage.sh`, `build-deb.sh` | **CI-built, not run-verified** (appimagetool 1.9.1 downloaded with pinned SHA-256) |
+| Windows Inno Setup installer + zip (x64, arm64) | `packaging/windows/build-windows.sh`, `devacademy.iss` | **CI-built, not run-verified**. Per-user install; installer is unsigned (SmartScreen will warn) |
+| Release | `.github/workflows/release.yml` | **CI-only, never run**: draft release with `SHA256SUMS` |
+
+macOS minimum is 14.0 (`LSMinimumSystemVersion`, following .NET 10's supported list); the Mach-O says 12.0, which is looser than what is supported.
+A Homebrew-built `dotnet` SDK uses a locally built runtime pack whose host links `/opt/homebrew/.../libbrotli*`; such a build
+crashes on other Macs. `packaging/publish.sh` refuses it and prints the workaround (`-p:RuntimeFrameworkVersion=<official patch>`);
+CI uses the official SDK and is unaffected. Not done: Windows code signing, Linux package signing, auto-update, Flatpak/Snap/winget/Homebrew cask.
 
 ## 2. Toolchains the app does not ship
 

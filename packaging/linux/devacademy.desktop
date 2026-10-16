@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DevAcademy
+Comment=Learning IDE for programming courses
+Exec=devacademy
+Icon=devacademy
+Terminal=false
+Categories=Education;Development;
+StartupWMClass=DevAcademy.Desktop

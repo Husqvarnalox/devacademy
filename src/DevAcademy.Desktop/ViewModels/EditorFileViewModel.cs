@@ -11,4 +11,7 @@ public sealed partial class EditorFileViewModel(string path, string content) : O
 
     /// <summary>How the editor showing this file talks to a language server (null: no LSP for this file).</summary>
     [ObservableProperty] private DevAcademy.Desktop.Controls.Lsp.LspTarget? _lsp;
+
+    /// <summary>Breakpoints and paused line of this file (null: not debuggable).</summary>
+    [ObservableProperty] private DevAcademy.Desktop.Controls.Debug.EditorDebugTarget? _debug;
 }

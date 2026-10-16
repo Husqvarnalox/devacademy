@@ -34,6 +34,7 @@
           <SolidColorBrush x:Key="SuccessBrush" Color="#2E7D32" />
           <SolidColorBrush x:Key="DangerBrush" Color="#B3261E" />
           <SolidColorBrush x:Key="WarnBrush" Color="#8A5A00" />
+          <SolidColorBrush x:Key="DebugLineBrush" Color="#4DFFD54F" />
           <SolidColorBrush x:Key="MdCodeBackground" Color="#F1F1EE" />
           <SolidColorBrush x:Key="MdBorder" Color="#D9D9D4" />
           <SolidColorBrush x:Key="MdMuted" Color="#6A6A64" />
@@ -49,6 +50,7 @@
           <SolidColorBrush x:Key="SuccessBrush" Color="#6CC070" />
           <SolidColorBrush x:Key="DangerBrush" Color="#F2837A" />
           <SolidColorBrush x:Key="WarnBrush" Color="#E0B250" />
+          <SolidColorBrush x:Key="DebugLineBrush" Color="#40E0B250" />
           <SolidColorBrush x:Key="MdCodeBackground" Color="#262A2E" />
           <SolidColorBrush x:Key="MdBorder" Color="#3A3F44" />
           <SolidColorBrush x:Key="MdMuted" Color="#9BA1A7" />

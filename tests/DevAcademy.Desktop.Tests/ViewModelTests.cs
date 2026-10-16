@@ -288,3 +288,22 @@ public class ViewModelTests
         Assert.NotEmpty(dash.Recommendations);
     }
 }
+
+public class AppInfoTests
+{
+    [Theory]
+    [InlineData("0.1.0+abc123456", "0.1.0", "abc123456")]
+    [InlineData("1.2.3", "1.2.3", null)]
+    [InlineData("1.2.3+", "1.2.3", null)]
+    [InlineData(null, "0.0.0", null)]
+    public void Parses_informational_version(string? input, string version, string? commit) =>
+        Assert.Equal((version, commit), DevAcademy.Desktop.Services.AppInfo.ParseInformationalVersion(input));
+
+    [Fact]
+    public void Current_reports_the_product_version_and_platform()
+    {
+        var info = DevAcademy.Desktop.Services.AppInfo.Current;
+        Assert.Matches(@"^\d+\.\d+\.\d+", info.Version);
+        Assert.Contains("(", info.Platform);
+    }
+}

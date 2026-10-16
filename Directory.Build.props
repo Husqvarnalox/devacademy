@@ -7,5 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Single source of truth for the product version (read by packaging/ scripts via `make version`). -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 </Project>

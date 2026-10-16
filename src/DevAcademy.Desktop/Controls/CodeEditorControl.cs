@@ -7,6 +7,7 @@ using AvaloniaEdit.Search;
 using AvaloniaEdit.TextMate;
 using TextMateSharp.Grammars;
 using Avalonia.Threading;
+using DevAcademy.Desktop.Controls.Debug;
 using DevAcademy.Desktop.Controls.Lsp;
 
 namespace DevAcademy.Desktop.Controls;
@@ -24,7 +25,13 @@ public sealed class CodeEditorControl : ContentControl
     /// <summary>Optional: connects the editor to a language server (see <see cref="Lsp.LspTarget"/>).</summary>
     public static readonly StyledProperty<LspTarget?> LspTargetProperty = AvaloniaProperty.Register<CodeEditorControl, LspTarget?>(nameof(LspTarget));
 
+    /// <summary>Optional: breakpoints and the paused line of this file (see <see cref="EditorDebugTarget"/>). Adds the gutter column.</summary>
+    public static readonly StyledProperty<EditorDebugTarget?> DebugTargetProperty = AvaloniaProperty.Register<CodeEditorControl, EditorDebugTarget?>(nameof(DebugTarget));
+
     private readonly TextEditor _editor;
+    private BreakpointMargin? _bpMargin;
+    private readonly ExecutionLineRenderer _executionRenderer;
+    private AvaloniaEdit.Document.TextDocument? _watchedDocument;
     private readonly LspPopups _popups;
     private EditorLspBinding? _lsp;
     private int _lspGeneration;
@@ -44,6 +51,7 @@ public sealed class CodeEditorControl : ContentControl
         });
         IsReadOnlyProperty.Changed.AddClassHandler<CodeEditorControl>((c, e) => c._editor.IsReadOnly = e.NewValue is true);
         LspTargetProperty.Changed.AddClassHandler<CodeEditorControl>((c, _) => c.RebuildLsp());
+        DebugTargetProperty.Changed.AddClassHandler<CodeEditorControl>((c, e) => c.OnDebugTargetChanged(e.OldValue as EditorDebugTarget, e.NewValue as EditorDebugTarget));
     }
 
     public CodeEditorControl()
@@ -71,6 +79,9 @@ public sealed class CodeEditorControl : ContentControl
         try { _search = SearchPanel.Install(_editor); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Search panel unavailable: {ex.Message}"); }
         _popups = new LspPopups(_editor.TextArea.TextView);
+        _executionRenderer = new ExecutionLineRenderer(() => DebugTarget, () => BrushFor("DebugLineBrush") ?? new SolidColorBrush(Color.FromArgb(70, 255, 213, 0)));
+        _editor.TextArea.TextView.BackgroundRenderers.Add(_executionRenderer);
+        _editor.TextArea.TextView.DocumentChanged += (_, _) => WatchDocument();
         var host = new Grid();
         host.Children.Add(_editor);
         foreach (var p in _popups.All) host.Children.Add(p);
@@ -84,6 +95,7 @@ public sealed class CodeEditorControl : ContentControl
     public TextDocument? Document { get => GetValue(DocumentProperty); set => SetValue(DocumentProperty, value); }
     public bool IsReadOnly { get => GetValue(IsReadOnlyProperty); set => SetValue(IsReadOnlyProperty, value); }
     public LspPopups Popups => _popups;
+    public EditorDebugTarget? DebugTarget { get => GetValue(DebugTargetProperty); set => SetValue(DebugTargetProperty, value); }
     public LspTarget? LspTarget { get => GetValue(LspTargetProperty); set => SetValue(LspTargetProperty, value); }
     /// <summary>The live language-server binding, or null when there is no target or no usable server.</summary>
     public EditorLspBinding? Lsp => _lsp;
@@ -119,6 +131,68 @@ public sealed class CodeEditorControl : ContentControl
         if (target.Document is not null && !ReferenceEquals(target.Document, _editor.Document)) return;
         _lsp = EditorLspBinding.TryCreate(_editor, target, _popups, BrushFor);
         _lsp?.PublishDiagnostics();
+    }
+
+    private void OnDebugTargetChanged(EditorDebugTarget? oldTarget, EditorDebugTarget? newTarget)
+    {
+        if (oldTarget is not null) oldTarget.Invalidated -= OnDebugInvalidated;
+        if (newTarget is not null) newTarget.Invalidated += OnDebugInvalidated;
+        var margins = _editor.TextArea.LeftMargins;
+        if (newTarget is null)
+        {
+            if (_bpMargin is not null) { margins.Remove(_bpMargin); _bpMargin = null; }
+        }
+        else
+        {
+            if (_bpMargin is null)
+            {
+                _bpMargin = new BreakpointMargin(() => BrushFor("DangerBrush") ?? Brushes.Red, () => BrushFor("WarnBrush") ?? Brushes.Gold);
+                margins.Insert(0, _bpMargin);
+            }
+            _bpMargin.Target = newTarget;
+        }
+        WatchDocument();
+        _editor.TextArea.TextView.InvalidateLayer(AvaloniaEdit.Rendering.KnownLayer.Background);
+    }
+
+    private void OnDebugInvalidated()
+    {
+        Dispatcher.UIThread.Post(() => _editor.TextArea.TextView.InvalidateLayer(AvaloniaEdit.Rendering.KnownLayer.Background), DispatcherPriority.Background);
+    }
+
+    /// <summary>Shifts breakpoints with edits so they stay on their statement.</summary>
+    private void WatchDocument()
+    {
+        if (_watchedDocument is not null) _watchedDocument.Changing -= OnDocumentChanging;
+        _watchedDocument = DebugTarget is null ? null : _editor.Document;
+        if (_watchedDocument is not null) _watchedDocument.Changing += OnDocumentChanging;
+    }
+
+    private void OnDocumentChanging(object? sender, AvaloniaEdit.Document.DocumentChangeEventArgs e)
+    {
+        if (DebugTarget is not { } target || _watchedDocument is null || target.Breakpoints.Count == 0) return;
+        // Programmatic text pushes (switching files, reloading from disk) and whole-document replacement keep the breakpoint lines as they are.
+        if (_syncing || (e.Offset == 0 && e.RemovalLength > 0 && e.RemovalLength >= _watchedDocument.TextLength)) return;
+        // Changing fires before the edit: the offset still maps to the line it applies to.
+        var line = _watchedDocument.GetLineByOffset(Math.Min(e.Offset, _watchedDocument.TextLength));
+        string removed = e.RemovalLength > 0 ? _watchedDocument.GetText(e.Offset, e.RemovalLength) : "";
+        string inserted = e.InsertedText?.Text ?? "";
+        target.ApplyEdit(line.LineNumber, CountBreaks(removed), CountBreaks(inserted), e.Offset == line.Offset && inserted.EndsWith('\n'));
+    }
+
+    private static int CountBreaks(string s)
+    {
+        int n = 0;
+        foreach (char c in s) if (c == '\n') n++;
+        return n;
+    }
+
+    /// <summary>Scrolls a 1-based line into view without taking focus (the paused line).</summary>
+    public void RevealLine(int line)
+    {
+        var doc = _editor.Document;
+        if (doc is null) return;
+        _editor.ScrollToLine(Math.Clamp(line, 1, Math.Max(1, doc.LineCount)));
     }
 
     /// <summary>Opens the find panel (Ctrl/Cmd+F is handled by the panel itself); with <paramref name="replace"/> the replace box is shown.</summary>

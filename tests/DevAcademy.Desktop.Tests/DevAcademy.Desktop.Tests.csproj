@@ -18,6 +18,11 @@
   </ItemGroup>
   <ItemGroup><Using Include="Xunit" /></ItemGroup>
   <ItemGroup>
+    <!-- The in-process DAP adapter and helpers of the debugging tests, reused for the view-model flow tests. -->
+    <Compile Include="..\DevAcademy.Debugging.Tests\FakeAdapter.cs" Link="Support\Debugging\FakeAdapter.cs" />
+    <Compile Include="..\DevAcademy.Debugging.Tests\Support.cs" Link="Support\Debugging\Support.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\DevAcademy.Content.Tests\Fixtures\valid\**\*" Link="Fixtures\valid\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\DevAcademy.Content.Tests\Fixtures\algorithms\**\*" Link="Fixtures\algorithms\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

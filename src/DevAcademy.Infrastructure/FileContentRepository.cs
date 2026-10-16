@@ -23,12 +23,19 @@ public sealed class FileContentRepository : IContentRepository
 
     private ContentLoadResult Loaded => _loaded ??= ContentLoader.Load(ContentRoot);
 
-    /// <summary>`content` next to the executable, else the nearest `content/catalog.yaml` walking up from the working directory.</summary>
-    public static string? FindContentRoot()
+    /// <summary>
+    /// `content` next to the executable, else inside a macOS app bundle (`Contents/MacOS/../Resources/content`), else the
+    /// nearest `content/catalog.yaml` walking up from the working directory.
+    /// </summary>
+    public static string? FindContentRoot() => FindContentRoot(AppContext.BaseDirectory, Directory.GetCurrentDirectory());
+
+    public static string? FindContentRoot(string baseDirectory, string workingDirectory)
     {
-        var beside = Path.Combine(AppContext.BaseDirectory, "content");
+        var beside = Path.Combine(baseDirectory, "content");
         if (File.Exists(Path.Combine(beside, "catalog.yaml"))) return beside;
-        for (var dir = new DirectoryInfo(Directory.GetCurrentDirectory()); dir is not null; dir = dir.Parent)
+        var bundle = Path.GetFullPath(Path.Combine(baseDirectory, "..", "Resources", "content"));
+        if (File.Exists(Path.Combine(bundle, "catalog.yaml"))) return bundle;
+        for (var dir = new DirectoryInfo(workingDirectory); dir is not null; dir = dir.Parent)
         {
             var candidate = Path.Combine(dir.FullName, "content");
             if (File.Exists(Path.Combine(candidate, "catalog.yaml"))) return candidate;

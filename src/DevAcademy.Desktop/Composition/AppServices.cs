@@ -39,7 +39,8 @@ public sealed class AppServices(
     TutorService tutor,
     PythonEnvironmentService python,
     WorkspaceServices workspace,
-    LanguageIntelligenceService language)
+    LanguageIntelligenceService language,
+    DebugService debug)
 {
     public AppPaths Paths { get; } = paths;
     public IContentRepository Content { get; } = content;
@@ -69,6 +70,7 @@ public sealed class AppServices(
     public PythonEnvironmentService Python { get; } = python;
     public WorkspaceServices Workspace { get; } = workspace;
     public LanguageIntelligenceService Language { get; } = language;
+    public DebugService Debug { get; } = debug;
 
     /// <summary>Delay between the last keystroke and the draft being written.</summary>
     public TimeSpan DraftDelay { get; init; } = TimeSpan.FromMilliseconds(800);

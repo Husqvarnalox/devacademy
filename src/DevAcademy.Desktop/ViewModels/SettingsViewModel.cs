@@ -5,6 +5,7 @@ using DevAcademy.Desktop.Composition;
 using DevAcademy.Desktop.Localization;
 using DevAcademy.Desktop.Services;
 using DevAcademy.Execution;
+using DevAcademy.Infrastructure;
 
 namespace DevAcademy.Desktop.ViewModels;
 
@@ -45,6 +46,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public const string ThemeKey = "ui.theme";
     /// <summary>Index of the AI providers tab.</summary>
     public const int AiTab = 3;
+    public const int AboutTab = 4;
 
     private readonly AppServices _s;
     private readonly INavigator _nav;
@@ -74,6 +76,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<Choice<ThemeChoice>> Themes { get; }
     public ProfileEditorViewModel Profile { get; private set; }
     public string DataDir => _s.Paths.DataDir;
+
+    /// <summary>Settings → About.</summary>
+    public AppInfo About { get; } = AppInfo.Current;
+    public string AboutVersion => About.Version;
+    public string AboutCommit => About.Commit ?? Loc.T("About_NoCommit");
+    public string AboutNotices => AppInfo.FindNoticesFile(FileContentRepository.FindContentRoot()) ?? Loc.T("About_NoNotices");
 
     [ObservableProperty] private Choice<ThemeChoice> _selectedTheme;
     [ObservableProperty] private string? _profileMessage;

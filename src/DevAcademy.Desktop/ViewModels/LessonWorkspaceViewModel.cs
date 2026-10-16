@@ -232,6 +232,8 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     public async Task FlushAsync()
     {
         Tutor.Shutdown();
+        if (Practice is not null) await Practice.Debug.ShutdownAsync();
+        if (Challenge is not null) await Challenge.Debug.ShutdownAsync();
         if (Practice is not null) await Practice.FlushDraftsAsync();
         if (Challenge is not null) await Challenge.FlushDraftsAsync();
     }

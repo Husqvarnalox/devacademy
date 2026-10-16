@@ -4,6 +4,7 @@
              xmlns:lsp="using:DevAcademy.Desktop.ViewModels.Lsp"
              xmlns:ctl="using:DevAcademy.Desktop.Controls"
              xmlns:loc="using:DevAcademy.Desktop.Localization"
+             xmlns:views="using:DevAcademy.Desktop.Views"
              x:Class="DevAcademy.Desktop.Views.ProjectWorkspaceView"
              x:DataType="vm:ProjectWorkspaceViewModel">
   <UserControl.KeyBindings>
@@ -15,6 +16,11 @@
     <KeyBinding Gesture="Cmd+Alt+F" Command="{Binding ReplaceCommand}" />
     <KeyBinding Gesture="Ctrl+G" Command="{Binding GoToLineCommand}" />
     <KeyBinding Gesture="Cmd+G" Command="{Binding GoToLineCommand}" />
+    <KeyBinding Gesture="F5" Command="{Binding Debug.StartOrContinueCommand}" />
+    <KeyBinding Gesture="Shift+F5" Command="{Binding Debug.StopCommand}" />
+    <KeyBinding Gesture="F10" Command="{Binding Debug.StepOverCommand}" />
+    <KeyBinding Gesture="F11" Command="{Binding Debug.StepIntoCommand}" />
+    <KeyBinding Gesture="Shift+F11" Command="{Binding Debug.StepOutCommand}" />
   </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,Auto,*,Auto,260">
     <!-- Toolbar -->
@@ -32,12 +38,16 @@
                   ToolTip.Tip="{Binding RunCommandText}" />
           <Button Content="{loc:T Ws_Test}" Command="{Binding TestCommand}" IsEnabled="{Binding CanRun}"
                   ToolTip.Tip="{Binding TestCommandText}" />
+          <Button Name="DebugButton" Content="{loc:T Dbg_Button}" Command="{Binding Debug.StartOrContinueCommand}" IsEnabled="{Binding Debug.IsAvailable}"
+                  ToolTip.Tip="{Binding Debug.AdapterText}" />
+          <ToggleButton Content="{loc:T Dbg_Panel}" IsChecked="{Binding ShowDebugPanel, Mode=TwoWay}" />
         </StackPanel>
       </Grid>
     </Border>
     <Border Grid.Row="1" Padding="10,4" Background="{DynamicResource SubtleBrush}">
       <StackPanel Spacing="4">
         <TextBlock Text="{loc:T Ws_NoSandbox}" Classes="caption warn" TextWrapping="Wrap" />
+        <TextBlock Name="DebugUnavailableText" Text="{Binding Debug.AdapterText}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding !Debug.IsAvailable}" />
         <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsPython}">
           <TextBlock Text="{loc:T Ws_PythonEnv}" Classes="caption" VerticalAlignment="Center" />
           <ComboBox ItemsSource="{Binding PythonChoices}" SelectedItem="{Binding SelectedPython}" MinWidth="220"
@@ -96,7 +106,7 @@
     </Border>
 
     <!-- Explorer + editors -->
-    <Grid Grid.Row="2" ColumnDefinitions="260,4,*">
+    <Grid Grid.Row="2" ColumnDefinitions="260,4,*,Auto">
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="6">
         <WrapPanel Orientation="Horizontal">
           <Button Content="{loc:T Ws_NewFileShort}" Command="{Binding NewFileCommand}" Classes="flat" ToolTip.Tip="{loc:T Ws_NewFile}" />
@@ -175,7 +185,7 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                 </ScrollViewer>
-                <ctl:CodeEditorControl Grid.Row="1" IsVisible="{Binding HasTabs}" LspTarget="{Binding ActiveTab.Lsp}" Document="{Binding ActiveTab.Document}" FileName="{Binding ActiveTab.Title}" />
+                <ctl:CodeEditorControl Grid.Row="1" IsVisible="{Binding HasTabs}" LspTarget="{Binding ActiveLsp}" Document="{Binding ActiveDocument}" FileName="{Binding ActiveTitle}" DebugTarget="{Binding ActiveDebug}" />
                 <TextBlock Grid.Row="1" Text="{loc:T Ws_NoFileOpen}" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center"
                            IsVisible="{Binding !HasTabs}" />
               </Grid>
@@ -183,6 +193,9 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <Border Grid.Column="3" Width="380" Classes="panel" Padding="0" Margin="1" IsVisible="{Binding ShowDebugPanel}">
+        <views:DebugPanelView DataContext="{Binding Debug}" Name="DebugPanel" />
+      </Border>
     </Grid>
 
     <GridSplitter Grid.Row="3" ResizeDirection="Rows" Height="4" HorizontalAlignment="Stretch" />

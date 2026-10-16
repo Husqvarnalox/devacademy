@@ -26,6 +26,7 @@ src/
   DevAcademy.Application     use cases: catalog, learning path, evaluation, progress, reviews, hints, tutor
   DevAcademy.Infrastructure  SQLite repositories + migrations, OS secret store, app data paths, backup/export
   DevAcademy.LanguageServices LSP client + server host (JSON-RPC over stdio, registry, workspace mirror); no UI types
+  DevAcademy.Debugging         DAP client + adapter registry/resolver + debug session (state machine); no UI types
   DevAcademy.Desktop         Avalonia MVVM presentation layer + composition root
   DevAcademy.Cli             headless tool: validate-content [--run-solutions], list, runtimes (used by make/CI)
 tests/                       one xUnit v3 project per src project
@@ -332,9 +333,38 @@ The app contains no parser or completion engine; `DevAcademy.LanguageServices` (
 * Known limits: only files open in an editor are known to the server (others are read from disk); other-project-file definitions open a
   tab, files outside the project show a read-only peek; no rename/code actions/semantic tokens (TextMate keeps highlighting).
 
-## 19. Not implemented today
+## 19. Debugger (DAP) — Implemented
 
-Web version, accounts, sync, PostgreSQL, DAP, PTY terminal, project workspaces, Python
+* `DevAcademy.Debugging` (no UI types): `Dap/` is the transport (Content-Length framing shared with the LSP `MessageReader`/`MessageWriter`,
+  `seq`/`request_seq` correlation, events, reverse requests; `runInTerminal` is answered "not supported") and a minimal typed client
+  (initialize, launch, setBreakpoints incl. conditions, configurationDone, threads, stackTrace, scopes, variables (lazy), evaluate,
+  continue/next/stepIn/stepOut/pause, disconnect/terminate). `Adapters/` is the registry **as data** (language -> adapter command, how it
+  is provisioned, launch arguments) and `AdapterResolver`. `Session/DebugSession` runs the handshake
+  (`initialize` -> `launch` (not awaited) -> wait `initialized` -> `setBreakpoints` -> `configurationDone` -> await `launch`) and exposes an
+  ordered event stream (StateChanged, Stopped, Output, Terminated); `StopAsync` also ends with Terminated, so there is one end path.
+* Adapters: python = `python -m debugpy.adapter` with the **selected env's interpreter**; cpp/rust = `lldb-dap` (`xcrun -f lldb-dap` on macOS,
+  PATH elsewhere); go = `dlv dap` over TCP (`--listen=127.0.0.1:0`, port parsed from stdout). Provisioning is never implicit: debugpy is
+  `pip install debugpy` into that env only (venv probe + `PIP_REQUIRE_VIRTUALENV=1`, never the system interpreter); Delve is
+  `go install github.com/go-delve/delve/cmd/dlv@<pinned>` into the runner-cache GOBIN. The UI shows the exact command and asks first.
+* Debug builds: `IDebugBuildRuntime` gives cpp `-g -O0`, rust `-g -C opt-level=0`, go `-gcflags=all=-N -l`; the normal run plan is unchanged.
+  `DebugBuilder` builds into a throw-away directory.
+* **Sandbox policy**: debug runs are NOT sandboxed (the debugger needs ptrace/attach and the program runs with the user's rights). The panel
+  says "отладка запускает программу без песочницы". Debugging is available in project workspaces and lesson Practice "Run"; it is never used
+  for grading or command-graded exercises.
+* Desktop: `DebugService` (adapter resolution, launcher, UI marshalling), `DebugViewModel` + `IDebugHost` (`ProjectDebugHost`,
+  `LessonDebugHost`), `BreakpointStore`, `EditorDebugTarget` + `BreakpointMargin` + `ExecutionLineRenderer` on `CodeEditorControl`
+  (gutter click toggles, breakpoints follow edits, current-line highlight), `DebugPanelView` (toolbar F5/F10/F11/Shift+F11/Pause/Stop,
+  Call Stack, Variables (lazy tree), Watch, Debug Console with REPL, adapter status/install). Breakpoints persist per file in
+  `ProjectSession.Breakpoints` (projects) and in the settings key `debug.breakpoints.<exercise>.<lang>` (lessons).
+* Verified here (macOS arm64): lldb-dap on C++ (breakpoint in a loop, variables, step, exit code), debugpy in a temp venv, dlv in a temp
+  GOBIN. Explicit-only tests: `DEVACADEMY_ALLOW_NETWORK_INSTALL=1` for debugpy/dlv installs.
+* Known limits: JavaScript/TypeScript need vscode-js-debug (node's inspector is CDP, not DAP) — planned; Java (java-debug) and C#
+  (netcoredbg) planned. No debuggee stdin. Delve sends no `exited` event (no exit code). Go debugging builds flat source files only (no
+  sub-packages). macOS shows developer-tools permission prompts for lldb. Windows/Linux unverified.
+
+## 20. Not implemented today
+
+Web version, accounts, sync, PostgreSQL, PTY terminal, project workspaces, Python
 environment manager (in progress), ML runtime manager, notebooks, Windows OS
 sandbox, installers/auto-update, comparison mode. Framework and ML courses do not exist yet (catalog
 tracks are `planned`). See [ROADMAP.md](ROADMAP.md); the UI shows these as **Planned**.

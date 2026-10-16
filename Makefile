@@ -13,7 +13,7 @@ PYENV_BIN := $(if $(filter Windows_NT,$(OS)),Scripts,bin)
 PYENV_ARG = $(if $(wildcard $(PYENV)),--python-env $(PYENV),)
 
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
-        python-env runtimes publish clean
+        python-env runtimes publish package checksums version notices clean
 
 help:
 	@echo "setup             restore packages and report detected language runtimes"
@@ -28,6 +28,10 @@ help:
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
+	@echo "package           installer(s) for RID=$(RID) on this OS into artifacts/package (.app+.dmg on macOS, AppImage+.deb on Linux)"
+	@echo "checksums         SHA256SUMS for artifacts/package"
+	@echo "version           print the product version (Directory.Build.props)"
+	@echo "notices           regenerate THIRD-PARTY-NOTICES.md"
 	@echo "clean             remove build outputs"
 
 setup:
@@ -76,6 +80,23 @@ publish:
 	  -p:PublishSingleFile=true -o artifacts/$(RID)
 	cp -R $(CONTENT) artifacts/$(RID)/content
 	cd artifacts && shasum -a 256 -b $$(find $(RID) -maxdepth 1 -type f) > $(RID).sha256
+
+version:
+	@packaging/version.sh
+
+notices:
+	python3 tools/generate-third-party-notices.py
+
+# Runs the packaging scripts for the current OS (Windows: run packaging/windows/build-windows.sh in Git Bash).
+package:
+	@case "$$(uname -s)" in \
+	  Darwin) packaging/macos/build-app.sh $(RID) ;; \
+	  Linux)  packaging/linux/build-appimage.sh $(RID) && packaging/linux/build-deb.sh $(RID) ;; \
+	  *)      packaging/windows/build-windows.sh $(RID) ;; \
+	esac
+
+checksums:
+	packaging/checksums.sh artifacts/package
 
 clean:
 	dotnet clean $(SLN) -v q

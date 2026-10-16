@@ -19,7 +19,7 @@ namespace DevAcademy.Desktop.ViewModels;
 /// <summary>Editor + console + tests + hints for one exercise (or a throw-away scratch buffer).</summary>
 public sealed partial class ExerciseSessionViewModel : ObservableObject
 {
-    public const int ConsoleTab = 0, TestsTab = 1, HintsTab = 2, ProblemsTab = 3;
+    public const int ConsoleTab = 0, TestsTab = 1, HintsTab = 2, ProblemsTab = 3, DebugTab = 4;
 
     private readonly AppServices _s;
     private readonly string _lessonId;
@@ -30,6 +30,7 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
 
     private IReadOnlyDictionary<string, RuntimeStatus> _runtimes = new Dictionary<string, RuntimeStatus>();
     private bool _switching;
+    private readonly LessonDebugHost _debugHost;
 
     private ExerciseSessionViewModel(AppServices s, string lessonId, Exercise? exercise, string languageId, string entryFile, string? title)
     {
@@ -39,6 +40,10 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
         _languageId = languageId;
         _entryFile = entryFile;
         Title = title ?? exercise?.Title ?? "";
+        _debugHost = new LessonDebugHost(this, s);
+        Debug = new DebugViewModel(s.Debug, s.Dialogs, _debugHost);
+        _debugHost.Breakpoints.Changed += key => _ = _debugHost.SaveAsync();
+        Debug.Attention += () => OutputTab = DebugTab;
         Files.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasMultipleFiles));
         if (exercise is { Evaluation: EvaluationKind.Command }) _outputTab = TestsTab;
         Problems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ProblemsHeader));
@@ -150,6 +155,18 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
         if (LspStatus is not { NeedsHelp: true, Definition: { } def }) return;
         if (await LanguageServerInstaller.OfferAsync(_s, def)) await AttachLspAsync(Files.ToList());
         else RefreshLspStatus();
+    }
+
+    /// <summary>The debugger of this editor (Run-like, never part of grading).</summary>
+    public DebugViewModel Debug { get; }
+
+    /// <summary>Selects a file by path and moves the caret to a 1-based line (the paused position of the debugger).</summary>
+    public void ShowFileAt(string path, int line)
+    {
+        var file = Files.FirstOrDefault(f => f.Path == path);
+        if (file is null) return;
+        SelectedFile = file;
+        RevealRequested?.Invoke(line, 1);
     }
 
     public Exercise? Exercise { get; }
@@ -307,7 +324,7 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
             var added = new List<EditorFileViewModel>();
             foreach (var f in list)
             {
-                var vm = new EditorFileViewModel(f.Path, f.Content);
+                var vm = new EditorFileViewModel(f.Path, f.Content) { Debug = _debugHost.Breakpoints.Get(f.Path) };
                 vm.PropertyChanged += OnFileChanged;
                 Files.Add(vm);
                 added.Add(vm);
@@ -315,8 +332,16 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
             SelectedFile = added.FirstOrDefault(f => f.Path == EntryFile) ?? added.FirstOrDefault();
             foreach (var f in old) { f.PropertyChanged -= OnFileChanged; Files.Remove(f); }
             _ = AttachLspAsync(added);
+            foreach (var (_, t) in _debugHost.Breakpoints.All.ToList()) t.Load([]);
+            _ = LoadBreakpointsAsync();
         }
         finally { _loading = false; }
+    }
+
+    private async Task LoadBreakpointsAsync()
+    {
+        await _debugHost.LoadAsync();
+        await Debug.RefreshAsync();
     }
 
     private void OnFileChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

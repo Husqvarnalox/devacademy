@@ -743,4 +743,67 @@
   <data name="Lsp_State_Restarting" xml:space="preserve"><value>перезапуск</value></data>
   <data name="Lsp_State_Error" xml:space="preserve"><value>ошибка</value></data>
   <data name="Lsp_State_Stopped" xml:space="preserve"><value>найден, не запущен</value></data>
+  <data name="Settings_About" xml:space="preserve"><value>О программе</value></data>
+  <data name="About_Version" xml:space="preserve"><value>Версия</value></data>
+  <data name="About_Commit" xml:space="preserve"><value>Коммит</value></data>
+  <data name="About_Runtime" xml:space="preserve"><value>Среда выполнения</value></data>
+  <data name="About_Platform" xml:space="preserve"><value>Система</value></data>
+  <data name="About_Licenses" xml:space="preserve"><value>Лицензии зависимостей</value></data>
+  <data name="About_License" xml:space="preserve"><value>DevAcademy распространяется по лицензии MIT. Список сторонних компонентов и их лицензий указан в THIRD-PARTY-NOTICES.md.</value></data>
+  <data name="About_NoCommit" xml:space="preserve"><value>неизвестен (сборка вне git)</value></data>
+  <data name="About_NoNotices" xml:space="preserve"><value>файл THIRD-PARTY-NOTICES.md не найден рядом с приложением</value></data>
+  <data name="Dbg_NoSandbox" xml:space="preserve"><value>Отладка запускает программу без песочницы: она работает с вашими правами, как обычная программа. Отладка не используется для проверки решений.</value></data>
+  <data name="Dbg_Button" xml:space="preserve"><value>Отладка</value></data>
+  <data name="Dbg_Panel" xml:space="preserve"><value>Панель отладки</value></data>
+  <data name="Dbg_Tab" xml:space="preserve"><value>Отладка</value></data>
+  <data name="Dbg_Continue" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="Dbg_ContinueTip" xml:space="preserve"><value>Начать отладку / продолжить (F5)</value></data>
+  <data name="Dbg_StepOver" xml:space="preserve"><value>Шаг с обходом</value></data>
+  <data name="Dbg_StepOverTip" xml:space="preserve"><value>Шаг с обходом (F10)</value></data>
+  <data name="Dbg_StepInto" xml:space="preserve"><value>Шаг с заходом</value></data>
+  <data name="Dbg_StepIntoTip" xml:space="preserve"><value>Шаг с заходом (F11)</value></data>
+  <data name="Dbg_StepOut" xml:space="preserve"><value>Шаг с выходом</value></data>
+  <data name="Dbg_StepOutTip" xml:space="preserve"><value>Шаг с выходом (Shift+F11)</value></data>
+  <data name="Dbg_Pause" xml:space="preserve"><value>Пауза</value></data>
+  <data name="Dbg_Stop" xml:space="preserve"><value>Остановить</value></data>
+  <data name="Dbg_StopTip" xml:space="preserve"><value>Остановить отладку (Shift+F5)</value></data>
+  <data name="Dbg_ClearBreakpoints" xml:space="preserve"><value>Снять все точки</value></data>
+  <data name="Dbg_CallStack" xml:space="preserve"><value>Стек вызовов</value></data>
+  <data name="Dbg_NoStack" xml:space="preserve"><value>Программа не остановлена</value></data>
+  <data name="Dbg_Variables" xml:space="preserve"><value>Переменные</value></data>
+  <data name="Dbg_NoVariables" xml:space="preserve"><value>Нет данных: остановите программу на точке останова</value></data>
+  <data name="Dbg_Watch" xml:space="preserve"><value>Наблюдение</value></data>
+  <data name="Dbg_WatchHint" xml:space="preserve"><value>выражение, Enter</value></data>
+  <data name="Dbg_AddWatch" xml:space="preserve"><value>Добавить выражение</value></data>
+  <data name="Dbg_RemoveWatch" xml:space="preserve"><value>Убрать выражение</value></data>
+  <data name="Dbg_Console" xml:space="preserve"><value>Консоль отладки</value></data>
+  <data name="Dbg_ClearConsole" xml:space="preserve"><value>Очистить</value></data>
+  <data name="Dbg_ReplHint" xml:space="preserve"><value>выражение для вычисления, Enter</value></data>
+  <data name="Dbg_InstallCommand" xml:space="preserve"><value>Будет выполнена команда:</value></data>
+  <data name="Dbg_Install" xml:space="preserve"><value>Установить отладчик…</value></data>
+  <data name="Dbg_InstallTitle" xml:space="preserve"><value>Установка отладчика</value></data>
+  <data name="Dbg_InstallMessage" xml:space="preserve"><value>Будет выполнена ровно эта команда (нужна сеть):
+
+{0}
+
+Ничего не устанавливается в системные каталоги Python.</value></data>
+  <data name="Dbg_InstallConfirm" xml:space="preserve"><value>Установить</value></data>
+  <data name="Dbg_Installing" xml:space="preserve"><value>Устанавливается отладчик…</value></data>
+  <data name="Dbg_InstallFailed" xml:space="preserve"><value>Установка не удалась.</value></data>
+  <data name="Dbg_Installed" xml:space="preserve"><value>Отладчик установлен.</value></data>
+  <data name="Dbg_Preparing" xml:space="preserve"><value>Подготовка (сохранение и сборка с отладочной информацией)…</value></data>
+  <data name="Dbg_PrepareFailed" xml:space="preserve"><value>Не удалось подготовить запуск.</value></data>
+  <data name="Dbg_Starting" xml:space="preserve"><value>Запуск отладчика…</value></data>
+  <data name="Dbg_StartFailed" xml:space="preserve"><value>Отладчик не запустился.</value></data>
+  <data name="Dbg_Stopped" xml:space="preserve"><value>Отладка остановлена.</value></data>
+  <data name="Dbg_Running" xml:space="preserve"><value>Программа выполняется…</value></data>
+  <data name="Dbg_Paused" xml:space="preserve"><value>Остановлено: {0}</value></data>
+  <data name="Dbg_ExitedCode" xml:space="preserve"><value>Программа завершена, код {0}.</value></data>
+  <data name="Dbg_Exited" xml:space="preserve"><value>Программа завершена.</value></data>
+  <data name="Dbg_ReplNeedsPause" xml:space="preserve"><value>Выражения вычисляются, когда программа остановлена.</value></data>
+  <data name="Dbg_NoLanguage" xml:space="preserve"><value>Отладка недоступна: язык проекта не определён.</value></data>
+  <data name="Dbg_NoEntry" xml:space="preserve"><value>Не найден файл для запуска: {0}. Откройте файл с программой во вкладке.</value></data>
+  <data name="Dbg_BuildFailed" xml:space="preserve"><value>Сборка с отладочной информацией не удалась:</value></data>
+  <data name="Dbg_CommandGraded" xml:space="preserve"><value>Отладка недоступна: в этом задании проверяется набор файлов командой, а не одна программа.</value></data>
+  <data name="Dbg_RuntimeMissing" xml:space="preserve"><value>Отладка недоступна: для выбранного языка не установлена среда выполнения.</value></data>
 </root>

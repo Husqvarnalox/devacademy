@@ -90,6 +90,7 @@ public class ProjectWorkspaceViewTests
 
         w.Close();
         ws.Dispose();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();   // flush pending UI work so it cannot leak into the next test's capture
         Assert.True(errors.Messages.Count == 0, string.Join("\n", errors.Messages.Distinct()));
         try { Directory.Delete(project, true); } catch (IOException) { }
     }
