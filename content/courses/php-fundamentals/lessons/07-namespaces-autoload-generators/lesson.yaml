@@ -1,0 +1,174 @@
+id: "php.fundamentals.namespaces-autoload-generators"
+title: "Пространства имён, автозагрузка и генераторы"
+goal: "Организовать код по пространствам имён и PSR-4, понимать, как работает автозагрузка, и писать ленивые конвейеры на генераторах."
+difficulty: "medium"
+estimatedMinutes: 85
+prerequisites:
+  - "php.fundamentals.errors-and-match"
+related:
+  - "python.advanced.iterators-and-generators"
+  - "go.fundamentals.packages-modules-testing"
+  - "javascript.fundamentals.modules-and-testing"
+next:
+  - "php.fundamentals.strings-and-io"
+objectives:
+  - "Объявлять пространства имён и использовать use для классов, функций и констант; объяснять откат для функций и его отсутствие для классов."
+  - "Сопоставлять имя класса и путь к файлу по правилам PSR-4 и писать загрузчик на spl_autoload_register."
+  - "Объяснять роль Composer как генератора автозагрузчика, не завися от него в простых скриптах."
+  - "Писать генераторы с yield, ключами, yield from и getReturn, строить из них ленивые конвейеры."
+masteryCriteria:
+  - "Вы по карте префиксов предсказываете путь к файлу класса и порядок проверки кандидатов."
+  - "Вы объясняете, почему new DateTime() внутри namespace App не находит класс, и исправляете это."
+  - "Вы превращаете цикл со сбором массива в генератор и объясняете выигрыш по памяти."
+tags:
+  - "php"
+  - "namespaces"
+  - "autoload"
+  - "psr-4"
+  - "generators"
+facts:
+  - kind: "internals"
+    text: "Автозагрузчик вызывается интерпретатором при первом обращении к неизвестному классу; spl_autoload_register ставит функции в очередь, и вызов продолжается, пока класс не появится."
+    sources:
+      - "https://www.php.net/manual/en/function.spl-autoload-register.php"
+  - kind: "historical"
+    text: "Стандарт PSR-4 описывает отображение полностью определённого имени класса на путь к файлу через префикс пространства имён и базовый каталог; Composer читает такое отображение из секции autoload.psr-4 файла composer.json."
+    sources:
+      - "https://www.php-fig.org/psr/psr-4/"
+      - "https://getcomposer.org/doc/01-basic-usage.md"
+  - kind: "internals"
+    text: "Для функций и констант в пространстве имён действует откат в глобальное пространство; для классов нет, поэтому глобальный класс нужно писать с ведущим обратным слэшем или подключать через use."
+    sources:
+      - "https://www.php.net/manual/en/language.namespaces.php"
+      - "https://www.php.net/manual/en/language.namespaces.basics.php"
+  - kind: "internals"
+    text: "Функция с yield возвращает объект Generator, тело которой выполняется лениво до очередного yield; yield from делегирует управление другому генератору, Traversable или массиву."
+    sources:
+      - "https://www.php.net/manual/en/language.generators.overview.php"
+      - "https://www.php.net/manual/en/language.generators.syntax.php"
+      - "https://www.php.net/manual/en/class.generator.php"
+  - kind: "misconception"
+    text: "«iterator_to_array безопасно собирает любой генератор»: ключи повторяются, и по умолчанию поздние значения перезаписывают ранние, а yield from сохраняет ключи внутреннего источника; для списка передайте false вторым аргументом."
+    sources:
+      - "https://www.php.net/manual/en/function.iterator-to-array.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Файл начинается с `namespace App;` и содержит `new DateTime()`. Что произойдёт?"
+      options:
+        - "Будет создан глобальный DateTime"
+        - "PHP будет искать класс App\\DateTime и бросит Error, если его нет"
+        - "Предупреждение и создание объекта"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Для классов нет отката в глобальное пространство; нужен \\DateTime или use DateTime."
+    - id: "q2"
+      type: "single"
+      prompt: "Префикс App\\ отображён на src/. Какой путь по PSR-4 у класса App\\Models\\User?"
+      options:
+        - "src/App/Models/User.php"
+        - "src/Models/User.php"
+        - "src/models/user.php"
+        - "src/Models/User.class.php"
+      answer: 1
+      explanation: "Префикс заменяется базовым каталогом, остаток имени превращается в путь, добавляется .php."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о генераторах верны?"
+      options:
+        - "Тело функции с yield не выполняется до первого обращения к генератору."
+        - "Завершённый генератор можно обойти повторно через foreach."
+        - "return внутри генератора доступен через getReturn() после завершения."
+        - "yield from может делегировать массиву."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Повторный обход завершённого генератора бросает исключение; нужен новый генератор."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая встроенная функция регистрирует автозагрузчик классов?"
+      answer:
+        - "spl_autoload_register"
+        - "spl_autoload_register()"
+      explanation: "Composer генерирует файл, который вызывает spl_autoload_register."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт iterator_to_array(kv()) для генератора, который отдаёт 'a' => 1, 'a' => 2, 'b' => 3?"
+      options:
+        - "Три элемента"
+        - "Два элемента: a => 2 и b => 3"
+        - "Два элемента: a => 1 и b => 3"
+        - "Ошибку"
+      answer: 1
+      explanation: "По умолчанию ключи сохраняются, поэтому позднее значение перезаписывает раннее."
+exercise:
+  id: "php.fundamentals.namespaces-autoload-generators.exercise"
+  title: "Резолвер PSR-4"
+  prompt: |
+    Смоделируйте автозагрузчик PSR-4 без файловой системы. Программа читает команды, по одной на строку (пустые строки пропускайте, регистр команды не важен):
+
+    * `map <префикс> <каталог>` - добавляет отображение. Префикс нормализуется: внешние `\` убираются и добавляется один завершающий `\` (`App`, `App\` и `\App\` - одно и то же); префикс из одного `\` становится пустым и подходит любому классу.
+    * `file <путь>` - объявляет, что файл существует.
+    * `load <класс>` - загружает класс (ведущий `\` убирается).
+
+    Кандидаты для `load` создаёт **генератор** `candidates`. Из карты подходят записи, префикс которых является началом имени класса; их перебирают от **самого длинного префикса** к самому короткому, при равной длине - в порядке объявления. Путь кандидата: каталог без завершающего `/`, затем `/`, затем остаток имени после префикса с заменой `\` на `/` и суффиксом `.php`.
+
+    Первый кандидат, объявленный через `file`, - результат. Печать: `<Класс> -> <путь> (checked N)`, где N - сколько кандидатов проверено до находки (включая найденный), либо `<Класс> -> not found (checked N)`, если ни один не подошёл. Если класс уже загружен успешно, печатается `<Класс> -> cached (checked 0)`; неудачные загрузки не запоминаются. Любая другая строка (неизвестная команда, неверное число слов) печатается как `invalid: <строка без внешних пробелов>`.
+
+    **Что дано.** Чтение ввода, нормализация префикса и подсчёт `checked`. Допишите генератор `candidates`.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Начните с сортировки копии карты: usort($maps, fn ($a, $b) => strlen($b[0]) <=> strlen($a[0])). В PHP 8 сортировка стабильна, поэтому порядок объявления при равной длине сохранится."
+    - "Внутри foreach ($maps as [$prefix, $dir]) пропускайте записи, для которых !str_starts_with($class, $prefix). Пустой префикс подходит всем."
+    - "Остаток имени: $rest = substr($class, strlen($prefix)). Путь: rtrim($dir, '/') . '/' . str_replace('\\\\', '/', $rest) . '.php'."
+    - "Отдавайте путь через yield, а не собирайте массив: тогда после break в вызывающем коде остальные кандидаты не вычисляются, а checked равен числу реально проверенных."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "map App\\ src/\nfile src/Util/Str.php\nload App\\Util\\Str\nload App\\Missing\nload Other\\Thing\n"
+      expected: "App\\Util\\Str -> src/Util/Str.php (checked 1)\nApp\\Missing -> not found (checked 1)\nOther\\Thing -> not found (checked 0)\n"
+      hint: "Путь строится так: каталог из map + остаток имени после префикса, где \\ заменён на /, + .php. Для App\\Util\\Str и map App\\ src/ получится src/Util/Str.php."
+    - id: "longest"
+      title: "Самый длинный префикс первым"
+      stdin: "map App\\ src/\nmap App\\Models\\ models/\nfile src/Models/User.php\nfile models/User.php\nload App\\Models\\User\nload App\\Models\\Post\n"
+      expected: "App\\Models\\User -> models/User.php (checked 1)\nApp\\Models\\Post -> not found (checked 2)\n"
+      hint: "Отсортируйте карту по длине префикса по убыванию: usort($maps, fn($a, $b) => strlen($b[0]) <=> strlen($a[0])). Сначала пробуется models/User.php, и поиск на нём заканчивается."
+    - id: "lazy"
+      title: "Ленивость: считаются только проверенные пути"
+      stdin: "map A\\ a/\nmap A\\ b/\nmap A\\ c/\nfile b/X.php\nfile c/X.php\nload A\\X\nload A\\Y\n"
+      expected: "A\\X -> b/X.php (checked 2)\nA\\Y -> not found (checked 3)\n"
+      hint: "Генератор отдаёт путь за раз, а счётчик checked растёт только для реально проверенных путей: при находке в b/X.php их 2, а не 3. После break остальные пути не вычисляются."
+    - id: "cached"
+      title: "Повторная загрузка (скрытый)"
+      stdin: "map A\\ a/\nfile a/X.php\nload A\\X\nload \\A\\X\nload A\\Y\nfile a/Y.php\nload A\\Y\nload A\\Y\n"
+      expected: "A\\X -> a/X.php (checked 1)\nA\\X -> cached (checked 0)\nA\\Y -> not found (checked 1)\nA\\Y -> a/Y.php (checked 1)\nA\\Y -> cached (checked 0)\n"
+      hidden: true
+      hint: "Успешно загруженный класс запоминается: повтор даёт cached (checked 0). Неудача не запоминается, поэтому A\\Y после появления файла находится. Ведущий \\ в имени класса убирайте."
+    - id: "boundary"
+      title: "Граница пространства имён (скрытый)"
+      stdin: "map App src/\nmap App\\Core\\ core/\nfile src/Application/X.php\nfile src/Core.php\nload Application\\X\nload App\\Core\nload App\\Core\\Db\nfile core/Db.php\nload App\\Core\\Db\n"
+      expected: "Application\\X -> not found (checked 0)\nApp\\Core -> src/Core.php (checked 1)\nApp\\Core\\Db -> not found (checked 2)\nApp\\Core\\Db -> core/Db.php (checked 1)\n"
+      hidden: true
+      hint: "Префикс нормализуется до Vendor\\Pkg\\ (с завершающим \\): тогда App\\ не совпадает с Application\\X, а класс App\\Core без хвоста не подходит под App\\Core\\."
+    - id: "ties"
+      title: "Порядок при равной длине (скрытый)"
+      stdin: "map A\\ one/\nmap B\\ two/\nmap A\\ three/\nmap A\\B\\ deep/\nfile three/B/C.php\nload A\\B\\C\nload B\\C\n"
+      expected: "A\\B\\C -> three/B/C.php (checked 3)\nB\\C -> not found (checked 1)\n"
+      hidden: true
+      hint: "usort в PHP 8 стабилен: при равной длине префиксов порядок объявления сохраняется. Для A\\B\\C сначала пробуется deep/C.php (длиннее), потом one/B/C.php и three/B/C.php; значит, checked равно 3."
+    - id: "root"
+      title: "Корневой префикс и недопустимые строки (скрытый)"
+      stdin: "map \\ lib/\nmap x\nbogus line here\nfile lib/Foo.php\nLOAD Foo\nload Bar\nfile\n"
+      expected: "invalid: map x\ninvalid: bogus line here\nFoo -> lib/Foo.php (checked 1)\nBar -> not found (checked 1)\ninvalid: file\n"
+      hidden: true
+      hint: "Префикс из одного \\ нормализуется в пустую строку и подходит любому классу. Директивы регистронезависимы, а строки с неверным числом слов печатаются как invalid: ..."
+    - id: "nomap"
+      title: "Загрузка без карты (скрытый)"
+      stdin: "\n\nload A\n"
+      expected: "A -> not found (checked 0)\n"
+      hidden: true
+      hint: "Без единого map кандидатов нет: not found (checked 0)."

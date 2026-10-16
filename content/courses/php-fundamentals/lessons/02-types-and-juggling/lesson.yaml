@@ -1,0 +1,184 @@
+id: "php.fundamentals.types-and-juggling"
+title: "Типы, strict_types и приведение типов"
+goal: "Объявлять скалярные, объединённые, nullable и never-типы, понимать режимы strict_types и предсказывать результат ==, арифметики и приведения в PHP 8."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "php.fundamentals.lifecycle-and-values"
+related:
+  - "javascript.fundamentals.types-and-coercion"
+  - "kotlin.fundamentals.types-and-null-safety"
+  - "python.advanced.typing-fundamentals"
+next:
+  - "php.fundamentals.arrays-and-functions"
+objectives:
+  - "Объявлять типы параметров, результатов и свойств: ?T, A|B, A&B, mixed, void, never, а также автономные null, false и true."
+  - "Объяснить, что именно меняет declare(strict_types=1): чьи вызовы проверяются, какие расширения разрешены."
+  - "Предсказывать результат == и <=> для чисел, числовых и нечисловых строк, null и bool в PHP 8 и называть отличие от PHP 7."
+  - "Находить нестрогие сравнения в in_array, array_search и switch и заменять их строгими."
+  - "Назвать версии PHP, в которых появились объединённые типы, never, DNF-типы и типы констант."
+masteryCriteria:
+  - "Вы решаете, будет ли TypeError при вызове функции с int-параметром и аргументами '10', 10.0, true, null в строгом и слабом режимах."
+  - "Вы без запуска называете значение выражений 0 == 'a', '1' == '01', '10' == '1e1', null == false, 0 == ''."
+  - "Вы реализуете разбор токена в типизированное значение и получаете то же поведение ==, === и <=>, что и интерпретатор."
+  - "Вы указываете версию PHP, в которой появилась каждая типовая возможность, по руководству php.net."
+tags:
+  - "php"
+  - "types"
+  - "strict-types"
+  - "type-juggling"
+  - "comparison"
+facts:
+  - kind: "historical"
+    text: "Скалярные объявления типов и режим strict_types появились в PHP 7.0, типизированные свойства - в PHP 7.4. В PHP 8.0 добавлены объединённые типы, mixed и возвращаемый тип static, в 8.1 - пересечения типов и never, в 8.2 - DNF-типы, а также автономные null, false и true, в 8.3 - типизированные константы классов."
+    sources:
+      - "https://www.php.net/manual/en/language.types.declarations.php"
+      - "https://www.php.net/manual/en/migration70.new-features.php"
+      - "https://www.php.net/manual/en/migration74.new-features.php"
+  - kind: "historical"
+    text: "Начиная с PHP 8.0 при нестрогом сравнении числа с нечисловой строкой число приводится к строке, и сравниваются строки. Поэтому 0 == \"foo\" теперь ложно (в PHP 7 было истинно). Сравнение числа с числовой строкой работает как раньше."
+    sources:
+      - "https://www.php.net/manual/en/migration80.incompatible.php"
+      - "https://wiki.php.net/rfc/string_to_number_comparison"
+  - kind: "internals"
+    text: "Директива strict_types действует на вызовы функций, совершаемые из файла, где она указана, а не на объявленные в нём функции. Вызовы из внутренних функций (например, из array_map) директивой не затрагиваются."
+    sources:
+      - "https://www.php.net/manual/en/language.types.declarations.php"
+  - kind: "historical"
+    text: "Строки с пробелами в конце (например, \"1 \") считаются числовыми с PHP 8.0, а арифметика с полностью нечисловой строкой бросает TypeError. Эти изменения собраны в RFC о более разумных числовых строках."
+    sources:
+      - "https://wiki.php.net/rfc/saner-numeric-strings"
+      - "https://www.php.net/manual/en/language.types.numeric-strings.php"
+  - kind: "historical"
+    text: "PHP 8.1 объявил устаревшим неявное преобразование float в int с потерей точности: оно затрагивает ключи массивов, int-параметры в слабом режиме и операторы, работающие с int."
+    sources:
+      - "https://www.php.net/manual/en/migration81.deprecated.php"
+  - kind: "misconception"
+    text: "«strict_types делает PHP статически типизированным» - нет: проверки по-прежнему выполняются во время работы программы, а разбор ввода (строки из STDIN, $_GET) всё равно требует явного приведения."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что выведет var_dump(0 == \"a\") в PHP 8?"
+      options:
+        - "bool(true)"
+        - "bool(false)"
+        - "Warning и bool(false)"
+        - "TypeError"
+      answer: 1
+      explanation: "Число сравнивается с нечисловой строкой как строка: \"0\" и \"a\" различны. В PHP 7 результат был true."
+    - id: "q2"
+      type: "single"
+      prompt: "Файл начинается с declare(strict_types=1);. Что произойдёт при вызове function f(float $x) {} как f(5)?"
+      options:
+        - "TypeError: int не float"
+        - "Вызов успешен: int допустимо расширяется до float"
+        - "Вызов успешен, но с Deprecated"
+        - "Fatal error при компиляции"
+      answer: 1
+      explanation: "Единственное исключение из строгих правил: значение типа int принимается параметром float."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны для PHP 8?"
+      options:
+        - "'1' == '01' истинно."
+        - "in_array('abc', [0]) ложно."
+        - "match сравнивает значения строго (===)."
+        - "strict_types в файле библиотеки делает строгими вызовы её функций из любых файлов."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Режим определяется файлом, из которого вызывают функцию. Если вызывающий файл без директивы, вызов идёт в слабом режиме."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется возвращаемый тип (PHP 8.1) для функции, которая никогда не возвращает управление (всегда бросает исключение или вызывает exit)?"
+      answer:
+        - "never"
+      explanation: "never отличается от void: void-функция завершается нормально, но без значения."
+    - id: "q5"
+      type: "single"
+      prompt: "В какой версии PHP появились объединённые типы (int|string)?"
+      options:
+        - "PHP 7.4"
+        - "PHP 8.0"
+        - "PHP 8.1"
+        - "PHP 8.2"
+      answer: 1
+      explanation: "Union types добавлены в PHP 8.0; пересечения типов - в 8.1, DNF-типы - в 8.2."
+exercise:
+  id: "php.fundamentals.types-and-juggling.exercise"
+  title: "Типизированные токены: ==, === и <=>"
+  prompt: |
+    В первой строке ввода записано число `n`, затем идут `n` строк по два токена, разделённых пробелом. Каждый токен нужно превратить в значение PHP:
+
+    * `null` - значение `null`; `true` и `false` - значения типа `bool`;
+    * токен в двойных кавычках (например, `"abc"`, `"0"`, `""`) - **строка** без кавычек;
+    * токен вида `-?[0-9]+` - `int` (с ведущими нулями тоже: `007` это `7`);
+    * остальные токены, для которых `is_numeric` истинна (`1.5`, `.5`, `1e3`, `+5`), - `float`;
+    * всё прочее (`abc`, `0x1A`, `1_000`) - строка как есть.
+
+    Для каждой пары `a b` выведите строку
+
+    ```
+    <тип a> <тип b> loose=<true|false> strict=<true|false> cmp=<-1|0|1>
+    ```
+
+    где типы получены функцией `get_debug_type`, `loose` - результат `a == b`, `strict` - результат `a === b`, а `cmp` - результат `a <=> b` (в PHP 8 он равен -1, 0 или 1).
+
+    **Пример.** Для пар `1 1.0` и `0 a` получится
+
+    ```
+    int float loose=true strict=false cmp=0
+    int string loose=false strict=false cmp=-1
+    ```
+
+    **Что дано.** Чтение ввода и печать готовы, файл начинается с `declare(strict_types=1)`. Реализуйте `parseToken` и `show`. Сами операторы `==`, `===` и `<=>` переписывать не нужно: ответы покажут, как PHP 8 действительно сравнивает значения.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Разберите токен по порядку: сначала ключевые слова null/true/false, затем токен в кавычках, затем целое число, затем остальные числовые, и только в конце - строка."
+    - "Для цельного числа подойдёт preg_match('/^-?[0-9]+$/', $token) === 1 и (int) $token. Для остальных числовых - is_numeric($token) и (float) $token."
+    - "Токен в кавычках: strlen($token) >= 2 && $token[0] === '\"' && str_ends_with($token, '\"'), результат - substr($token, 1, -1). Кавычки задают строку даже у \"0\" и \"\"."
+    - "show: return $flag ? 'true' : 'false';."
+  tests:
+    - id: "basic"
+      title: "Простые пары"
+      stdin: "4\n1 1\n1 1.0\nabc abc\n5 7\n"
+      expected: "int int loose=true strict=true cmp=0\nint float loose=true strict=false cmp=0\nstring string loose=true strict=true cmp=0\nint int loose=false strict=false cmp=-1\n"
+      hint: "1 и 1.0 равны нестрого (loose=true), но строго различаются: int и float. Целое число - токен, подходящий под ^-?[0-9]+$."
+    - id: "php8-string-number"
+      title: "Число и нечисловая строка в PHP 8"
+      stdin: "3\n0 a\n0 abc\n42 42abc\n"
+      expected: "int string loose=false strict=false cmp=-1\nint string loose=false strict=false cmp=-1\nint string loose=false strict=false cmp=-1\n"
+      hint: "В PHP 8 ноль не равен нечисловой строке: 0 == \"a\" ложно. Токен «a» должен остаться строкой."
+    - id: "numeric-strings"
+      title: "Числовые строки сравниваются как числа"
+      stdin: "3\n1 1e0\n100 1e2\n10 10.0\n"
+      expected: "int float loose=true strict=false cmp=0\nint float loose=true strict=false cmp=0\nint float loose=true strict=false cmp=0\n"
+      hint: "Токен 1e0 числовой, но не целочисленный: по правилам условия это float, поэтому 1 == 1e0, но строгого равенства нет."
+    - id: "keywords"
+      title: "null, bool и пустая строка (скрытый)"
+      stdin: "6\nnull false\nnull \"\"\nnull 0\ntrue 1\nfalse 0\ntrue abc\n"
+      expected: "null bool loose=true strict=false cmp=0\nnull string loose=true strict=false cmp=0\nnull int loose=true strict=false cmp=0\nbool int loose=true strict=false cmp=0\nbool int loose=true strict=false cmp=0\nbool string loose=true strict=false cmp=0\n"
+      hidden: true
+      hint: "Токены null, true и false - это не строки. Токен в кавычках (в том числе \"\") - всегда строка. get_debug_type печатает null, bool, string."
+    - id: "plus-and-forms"
+      title: "Формы записи чисел (скрытый)"
+      stdin: "6\n5 +5\n007 7\n-0 0\n.5 0.5\n0x1A 26\n1_000 1000\n"
+      expected: "int float loose=true strict=false cmp=0\nint int loose=true strict=true cmp=0\nint int loose=true strict=true cmp=0\nfloat float loose=true strict=true cmp=0\nstring int loose=false strict=false cmp=-1\nstring int loose=false strict=false cmp=1\n"
+      hidden: true
+      hint: "Целое - только ^-?[0-9]+$ (с ведущими нулями тоже). +5, .5 числовые для is_numeric, значит float. 0x1A и 1_000 нечисловые - строки."
+    - id: "ordering"
+      title: "Результат <=> для разных типов (скрытый)"
+      stdin: "7\n1 2\n2 1\napple banana\n10 9\n10 9a\nnull a\ntrue false\n"
+      expected: "int int loose=false strict=false cmp=-1\nint int loose=false strict=false cmp=1\nstring string loose=false strict=false cmp=-1\nint int loose=false strict=false cmp=1\nint string loose=false strict=false cmp=-1\nnull string loose=false strict=false cmp=-1\nbool bool loose=false strict=false cmp=1\n"
+      hidden: true
+      hint: "cmp - результат оператора <=> в PHP 8. «10 9a»: число сравнивается с нечисловой строкой как строка, поэтому \"10\" < \"9a\"."
+    - id: "loose-traps"
+      title: "Ловушки нестрогого равенства (скрытый)"
+      stdin: "7\n\"\" 0\n0 false\n\"0\" false\n\"10\" \"1e1\"\n\"5\" 5\nabc ABC\n-1 -1.0\n"
+      expected: "string int loose=false strict=false cmp=-1\nint bool loose=true strict=false cmp=0\nstring bool loose=true strict=false cmp=0\nstring string loose=true strict=false cmp=0\nstring int loose=true strict=false cmp=0\nstring string loose=false strict=false cmp=1\nint float loose=true strict=false cmp=0\n"
+      hidden: true
+      hint: "В PHP 8 0 == \"\" ложно; оба токена в кавычках - строки. Не пытайтесь сами реализовывать ==, используйте оператор."

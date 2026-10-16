@@ -1,0 +1,251 @@
+id: "cpp.fundamentals.stl-containers-algorithms"
+title: "Контейнеры STL, итераторы и алгоритмы"
+goal: "Выбирать контейнер под задачу, понимать рост vector и инвалидацию итераторов, избегать ловушек string_view и применять алгоритмы и диапазоны C++20 вместо ручных циклов."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "cpp.fundamentals.templates-concepts-constexpr"
+related:
+  - "rust.fundamentals.collections-and-iterators"
+  - "csharp.fundamentals.generics-and-collections"
+  - "java.fundamentals.generics-collections"
+  - "go.fundamentals.maps-and-slices-deep-dive"
+next:
+  - "cpp.fundamentals.error-handling"
+objectives:
+  - "Описывать рост vector (size и capacity), роль reserve и случаи инвалидации итераторов, указателей и ссылок."
+  - "Выбирать между vector, list, map и unordered_map и называть сложность основных операций."
+  - "Безопасно удалять элементы: erase в цикле, стереть-удалить и std::erase_if."
+  - "Применять string_view и объяснять, когда он повисает."
+  - "Использовать алгоритмы с лямбдами и ленивые представления std::ranges и std::views."
+masteryCriteria:
+  - "Вы реализуете подсчёт частот слов на unordered_map с сортировкой по убыванию частоты и тестируете результат."
+  - "Вы строите LRU-кэш на list и unordered_map с хранением итераторов и splice, не инвалидируя их."
+  - "Вы называете, какие из erase_if, contains, try_emplace и ranges требуют C++17 или C++20, и подтверждаете это компиляцией."
+  - "Вы объясняете, почему компаратор <= в sort - неопределённое поведение."
+tags:
+  - "cpp"
+  - "stl"
+  - "containers"
+  - "algorithms"
+  - "ranges"
+  - "iterators"
+facts:
+  - kind: "internals"
+    text: "std::vector хранит элементы в одном непрерывном блоке; при превышении ёмкости выделяется новый блок, элементы переносятся, а все итераторы, указатели и ссылки на старые элементы становятся недействительными."
+    sources:
+      - "https://en.cppreference.com/w/cpp/container/vector"
+      - "https://en.cppreference.com/w/cpp/container#Iterator_invalidation"
+  - kind: "performance"
+    text: "Амортизированная стоимость push_back в vector равна O(1), reserve заранее выделяет память и убирает перевыделения. Коэффициент роста стандартом не задан."
+    sources:
+      - "https://en.cppreference.com/w/cpp/container/vector/reserve"
+  - kind: "internals"
+    text: "std::map - упорядоченное дерево с операциями за O(log n), std::unordered_map - хеш-таблица со средним O(1); порядок обхода unordered_map не определён."
+    sources:
+      - "https://en.cppreference.com/w/cpp/container/map"
+      - "https://en.cppreference.com/w/cpp/container/unordered_map"
+  - kind: "misconception"
+    text: "«Проверить ключ можно через m[key]» - нет: operator[] вставляет значение по умолчанию, если ключа нет. Для проверки используйте find или contains (C++20)."
+    sources:
+      - "https://en.cppreference.com/w/cpp/container/map/operator_at"
+      - "https://en.cppreference.com/w/cpp/container/map/contains"
+  - kind: "historical"
+    text: "std::string_view и try_emplace появились в C++17, std::erase_if, contains и заголовок <ranges> - в C++20; в режиме -std=c++17 последние не компилируются."
+    sources:
+      - "https://en.cppreference.com/w/cpp/string/basic_string_view"
+      - "https://en.cppreference.com/w/cpp/container/vector/erase2"
+      - "https://en.cppreference.com/w/cpp/ranges"
+  - kind: "internals"
+    text: "Компаратор sort должен задавать строгое слабое упорядочение; comp(a, a) обязано быть ложью. Нарушение условия ведёт к неопределённому поведению."
+    sources:
+      - "https://en.cppreference.com/w/cpp/algorithm/sort"
+      - "https://en.cppreference.com/w/cpp/named_req/Compare"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "int& r = v[0]; v.push_back(x); Что верно, если v заполнен до ёмкости?"
+      options:
+        - "r всегда остаётся действительной ссылкой на первый элемент."
+        - "Произошло перевыделение, r может висеть, использовать её нельзя."
+        - "Ссылка ломается только в режиме -O0."
+        - "Компилятор отклонит этот код."
+      answer: 1
+      explanation: "При превышении ёмкости vector переносит элементы в новый блок и инвалидирует ссылки, указатели и итераторы."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что верно о map и unordered_map?"
+      options:
+        - "map::operator[] вставляет элемент, если ключа нет."
+        - "Обход unordered_map всегда идёт в порядке вставки."
+        - "Поиск в map занимает O(log n)."
+        - "contains можно использовать в -std=c++17."
+      answer:
+        - 0
+        - 2
+      explanation: "Порядок unordered_map не определён, а contains появился в C++20."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая запись безопасно удаляет в цикле элементы vector, удовлетворяющие условию?"
+      options:
+        - "for (auto it = v.begin(); it != v.end(); ++it) if (p(*it)) v.erase(it);"
+        - "for (auto it = v.begin(); it != v.end();) { if (p(*it)) it = v.erase(it); else ++it; }"
+        - "for (auto x : v) if (p(x)) v.erase(&x);"
+        - "v.remove_if(p);"
+      answer: 1
+      explanation: "erase возвращает итератор на следующий элемент; прежний итератор после erase недействителен."
+    - id: "q4"
+      type: "single"
+      prompt: "Чем опасен std::string_view sv = std::string(\"abc\"); при последующем использовании sv?"
+      options:
+        - "Ничем, string_view копирует содержимое."
+        - "Временная строка уничтожена, sv указывает на освобождённый буфер."
+        - "Не скомпилируется."
+        - "Работает только с литералами."
+      answer: 1
+      explanation: "string_view не владеет данными и не продлевает жизнь временной строки."
+    - id: "q5"
+      type: "short"
+      prompt: "Какого типа упорядочение должен задавать компаратор std::sort: строгое ... (одно слово, прилагательное) упорядочение?"
+      answer:
+        - "слабое"
+      explanation: "Для всех a должно выполняться comp(a, a) == false; иначе поведение sort не определено."
+exercise:
+  id: "cpp.fundamentals.stl-containers-algorithms.exercise"
+  title: "Топ слов по частоте"
+  prompt: |
+    Первая строка ввода - число `k`. Остальной ввод (до конца) - произвольный текст. Слово - максимальная последовательность латинских букв; регистр не учитывается (приводите к нижнему).
+
+    Нужно напечатать `k` самых частых слов в формате `слово частота`: сначала по убыванию частоты, при равенстве - по возрастанию слова. Если различных слов меньше `k`, печатаются все. Последняя строка: `distinct=<различных слов> total=<всего слов>`.
+
+    **Пример.** Ввод `2`, `The cat the dog. A cat, a DOG; the end`:
+
+    ```
+    the 3
+    a 2
+    distinct=5 total=10
+    ```
+
+    Заготовка не приводит слова к нижнему регистру и сравнивает только частоты, поэтому порядок слов с равной частотой не определён.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку на примере: The и the считаются разными словами."
+    - "Перед добавлением в unordered_map приведите слово к нижнему регистру через std::tolower (приводите char к unsigned char)."
+    - "Порядок обхода unordered_map не определён: скопируйте пары в vector и отсортируйте."
+    - "Компаратор: a.second != b.second ? a.second > b.second : a.first < b.first."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2\nThe cat the dog. A cat, a DOG; the end\n"
+      expected: "the 3\na 2\ndistinct=5 total=10\n"
+      hint: "Слова приводятся к нижнему регистру: The и the - одно слово."
+    - id: "ties"
+      title: "Равные частоты"
+      stdin: "3\nbanana apple cherry apple banana date\n"
+      expected: "apple 2\nbanana 2\ncherry 1\ndistinct=4 total=6\n"
+      hint: "При равной частоте слова идут по алфавиту."
+    - id: "punct"
+      title: "Знаки препинания и цифры"
+      stdin: "4\nit's 42 a-b c3d, e.f! it's\n"
+      expected: "it 2\ns 2\na 1\nb 1\ndistinct=8 total=10\n"
+      hint: "Слово - последовательность латинских букв: it, s, a, b, c, d, e, f."
+    - id: "morek"
+      title: "k больше числа слов (скрытый) (скрытый)"
+      stdin: "10\nx y x\n"
+      expected: "x 2\ny 1\ndistinct=2 total=3\n"
+      hidden: true
+      hint: "Печатаются все различные слова, затем итоговая строка."
+    - id: "zero"
+      title: "k = 0 (скрытый) (скрытый)"
+      stdin: "0\nalpha beta alpha\n"
+      expected: "distinct=2 total=3\n"
+      hidden: true
+      hint: "Печатается только итоговая строка."
+    - id: "empty"
+      title: "Пустой текст (скрытый) (скрытый)"
+      stdin: "3\n\n"
+      expected: "distinct=0 total=0\n"
+      hidden: true
+      hint: "Нет слов: distinct=0 total=0."
+    - id: "many"
+      title: "Много слов (скрытый) (скрытый)"
+      stdin: "3\nZ z Z y y x\nw W w v\nV u t s r\n"
+      expected: "w 3\nz 3\nv 2\ndistinct=9 total=15\n"
+      hidden: true
+      hint: "Текст может занимать несколько строк; регистр не учитывается."
+challenge:
+  id: "cpp.fundamentals.stl-containers-algorithms.challenge"
+  title: "LRU-кэш на list и unordered_map"
+  prompt: |
+    Первая строка: `capacity n` - ёмкость кэша и число команд. Далее `n` команд:
+
+    * `put k v` - записать значение (целое); ключ становится самым свежим. Если после вставки нового ключа размер превысил ёмкость, удаляется самый давний ключ, и печатается `evicted <ключ>`. Обновление существующего ключа ничего не вытесняет.
+    * `get k` - печатает значение и делает ключ самым свежим, либо `miss`.
+    * `del k` - печатает `deleted` или `absent`.
+    * `size` - печатает `size=<N>`.
+    * `dump` - печатает ключи от самого свежего к самому давнему через пробел или `(empty)`.
+
+    При `capacity = 0` вставленный ключ вытесняется сразу: печатается `evicted <его ключ>`.
+
+    **Пример.** Ввод `2 6`, `put a 1`, `put b 2`, `get a`, `put c 3`, `dump`, `get b`:
+
+    ```
+    1
+    evicted b
+    c a
+    miss
+    ```
+
+    **Что дано.** Класс `LruCache` с методами `put`, `get`, `erase`, `size`, `dump` и разбор команд. Реализуйте `put`, `get` и `erase` за `O(1)`: храните `std::list` пар (от свежих к давним) и `std::unordered_map` из ключа в итератор списка. Для перемещения элемента на вершину используйте `list::splice`: он не инвалидирует итераторы.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Список order_ держит пары (ключ, значение) от самого свежего к самому давнему; index_ хранит для ключа итератор в этом списке."
+    - "get: найдите ключ в index_, вызовите order_.splice(order_.begin(), order_, it->second) и верните значение. Итератор остаётся действительным."
+    - "put: если ключ есть - обновите значение и splice на вершину; иначе emplace_front и запись итератора order_.begin() в index_."
+    - "Вытеснение: пока размер больше ёмкости, возьмите order_.back(), удалите его ключ из index_ и вызовите order_.pop_back(). Сначала копируйте ключ, затем удаляйте."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2 6\nput a 1\nput b 2\nget a\nput c 3\ndump\nget b\n"
+      expected: "1\nevicted b\nc a\nmiss\n"
+      hint: "get a сделал a свежим, поэтому вытесняется b."
+    - id: "update"
+      title: "Обновление и размер"
+      stdin: "3 7\nput x 1\nput y 2\nput x 10\nget x\nsize\ndump\nsize\n"
+      expected: "10\nsize=2\nx y\nsize=2\n"
+      hint: "put существующего ключа обновляет значение и не вытесняет."
+    - id: "del"
+      title: "Удаление"
+      stdin: "3 6\nput a 1\nput b 2\ndel a\ndel a\nsize\ndump\n"
+      expected: "deleted\nabsent\nsize=1\nb\n"
+      hint: "del освобождает место: size уменьшается."
+    - id: "evict"
+      title: "Цепочка вытеснений (скрытый) (скрытый)"
+      stdin: "2 9\nput a 1\nput b 2\nput c 3\nput d 4\nget c\nput e 5\ndump\nget a\nsize\n"
+      expected: "evicted a\nevicted b\n3\nevicted d\ne c\nmiss\nsize=2\n"
+      hidden: true
+      hint: "Вытесняется самый давний с учётом get."
+    - id: "cap0"
+      title: "capacity = 0 (скрытый) (скрытый)"
+      stdin: "0 4\nput a 1\nsize\nget a\ndump\n"
+      expected: "evicted a\nsize=0\nmiss\n(empty)\n"
+      hidden: true
+      hint: "При нулевой ёмкости ничего не хранится."
+    - id: "cap1"
+      title: "capacity = 1 (скрытый) (скрытый)"
+      stdin: "1 6\nput a 1\nput b 2\nget a\nget b\nput b 3\ndump\n"
+      expected: "evicted a\nmiss\n2\nb\n"
+      hidden: true
+      hint: "Обновление единственного элемента не вытесняет его."
+    - id: "reinsert"
+      title: "Возврат удалённого ключа (скрытый) (скрытый)"
+      stdin: "2 9\nput a 1\nput b 2\ndel a\nput a 3\nput c 4\ndump\nget b\nget a\ndump\n"
+      expected: "deleted\nevicted b\nc a\nmiss\n3\na c\n"
+      hidden: true
+      hint: "После del ключ можно вставить снова; индекс и список остаются согласованными."

@@ -1,0 +1,187 @@
+id: "php.fundamentals.errors-and-match"
+title: "Ошибки, исключения и выражение match"
+goal: "Строить обработку ошибок на иерархии Throwable, понимать порядок catch и finally и использовать match вместо switch."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "php.fundamentals.interfaces-traits-lsb"
+related:
+  - "java.fundamentals.exceptions-try-with-resources"
+  - "csharp.fundamentals.exceptions-and-resources"
+  - "javascript.fundamentals.errors-and-exceptions"
+  - "kotlin.fundamentals.error-handling"
+  - "python.fundamentals.errors-and-files"
+next:
+  - "php.fundamentals.namespaces-autoload-generators"
+objectives:
+  - "Различать Exception и Error и называть, какие исключения бросает сам язык (TypeError, ValueError, DivisionByZeroError, UnhandledMatchError, ArgumentCountError)."
+  - "Писать собственные исключения с цепочкой previous и ловить несколько типов через |."
+  - "Предсказывать порядок выполнения try, catch и finally, включая return внутри finally."
+  - "Применять match со строгим сравнением, ветками через запятую и match (true)."
+masteryCriteria:
+  - "Вы пишете обработчик команд, где каждая ошибка попадает в нужный catch, а счётчик в finally учитывает все исходы."
+  - "Вы объясняете, почему catch (Exception) не ловит TypeError, и где уместно ловить Throwable."
+  - "Вы заменяете switch на match и объясняете разницу в сравнении значений."
+tags:
+  - "php"
+  - "exceptions"
+  - "error"
+  - "match"
+  - "finally"
+facts:
+  - kind: "historical"
+    text: "PHP 8.0 добавил выражение match, исключение UnhandledMatchError, выражение throw и catch без переменной."
+    sources:
+      - "https://www.php.net/releases/8.0/en.php"
+      - "https://www.php.net/manual/en/control-structures.match.php"
+      - "https://www.php.net/manual/en/class.unhandledmatcherror.php"
+  - kind: "internals"
+    text: "Throwable - интерфейс, который реализуют только Exception и Error; собственный класс не может реализовать его напрямую. TypeError, ValueError, ArithmeticError и UnhandledMatchError наследуют Error, а не Exception."
+    sources:
+      - "https://www.php.net/manual/en/class.throwable.php"
+      - "https://www.php.net/manual/en/class.error.php"
+      - "https://www.php.net/manual/en/class.typeerror.php"
+      - "https://www.php.net/manual/en/class.valueerror.php"
+  - kind: "internals"
+    text: "DivisionByZeroError бросают целочисленное деление intdiv и операторы % и / при нулевом делителе."
+    sources:
+      - "https://www.php.net/manual/en/class.divisionbyzeroerror.php"
+  - kind: "misconception"
+    text: "«catch (Exception) ловит все ошибки»: нет, ошибки языка наследуют Error и пролетят мимо; для них нужен Throwable или конкретный класс. А return внутри finally заменяет и результат, и необработанное исключение из try."
+    sources:
+      - "https://www.php.net/manual/en/class.exception.php"
+      - "https://www.php.net/manual/en/class.throwable.php"
+  - kind: "real-world"
+    text: "Каждая ветка match сравнивает значения строго (===), ветки не проваливаются, а при отсутствии подходящей ветки без default бросается UnhandledMatchError."
+    sources:
+      - "https://www.php.net/manual/en/control-structures.match.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой блок catch поймает исключение DivisionByZeroError?"
+      options:
+        - "catch (Exception $e)"
+        - "catch (RuntimeException $e)"
+        - "catch (ArithmeticError $e)"
+        - "catch (LogicException $e)"
+      answer: 2
+      explanation: "DivisionByZeroError наследует ArithmeticError, который является Error; Exception и его потомки его не ловят."
+    - id: "q2"
+      type: "single"
+      prompt: "Что вернёт функция: try { return 'try'; } finally { return 'finally'; } ?"
+      options:
+        - "try"
+        - "finally"
+        - "Ошибку компиляции"
+        - "null"
+      answer: 1
+      explanation: "return внутри finally заменяет результат try."
+    - id: "q3"
+      type: "single"
+      prompt: "Что сделает `match ('1') { 1 => 'int', default => 'other' }`?"
+      options:
+        - "Вернёт 'int'"
+        - "Вернёт 'other'"
+        - "Бросит UnhandledMatchError"
+        - "Выдаст предупреждение"
+      answer: 1
+      explanation: "match сравнивает строго, '1' !== 1, поэтому срабатывает default."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "С PHP 8.0 можно писать catch (Exception) без переменной."
+        - "throw с PHP 8.0 - выражение: допустимо `$x = $v ?? throw new Exception();`."
+        - "Класс может реализовать Throwable напрямую, минуя Exception и Error."
+        - "Блоки catch проверяются по порядку и срабатывает первый подходящий."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Throwable реализуют только Exception и Error, свой класс должен наследовать один из них."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется исключение, которое бросает match без default, если ни одна ветка не подошла?"
+      answer:
+        - "UnhandledMatchError"
+      explanation: "UnhandledMatchError наследует Error; в сообщении указано необработанное значение."
+exercise:
+  id: "php.fundamentals.errors-and-match.exercise"
+  title: "Обработчик команд банковского реестра"
+  prompt: |
+    Программа читает команды реестра счетов, по одной на строку (пустые строки пропускайте). Команда - первое слово, регистр не важен; имена счетов регистр сохраняют (`Zed` и `zed` - разные).
+
+    * `OPEN имя` - создать счёт с нулевым балансом. Успех: `ok opened <имя>`.
+    * `DEPOSIT имя сумма` и `WITHDRAW имя сумма`. Успех: `ok <имя> balance=<баланс>`.
+    * `TRANSFER откуда куда сумма`. Успех: `ok <откуда>=<баланс> <куда>=<баланс>`.
+
+    Сумма - целое из одних цифр не меньше 1 (`0`, `-3`, `1x` недопустимы).
+
+    **Ошибки** печатаются как `error <Класс>: <сообщение>` (`get_class($e)`):
+
+    * `UnknownCommand: <КОМАНДА>` - неизвестная команда (команда выводится в верхнем регистре). Это перехват `UnhandledMatchError`;
+    * `ArgumentCountError: <КОМАНДА> takes <N> argument(s)` - неверное число аргументов (OPEN 1, DEPOSIT 2, WITHDRAW 2, TRANSFER 3);
+    * `InvalidArgumentException: invalid amount <как введено>`; для TRANSFER на тот же счёт - `InvalidArgumentException: cannot transfer to the same account`;
+    * `AccountExists: account <имя> already exists`, `UnknownAccount: no such account <имя>`;
+    * `InsufficientFunds: insufficient funds: balance=<b>, requested=<r>` (сумма, равная балансу, допустима).
+
+    Порядок проверок в команде: неизвестная команда, число аргументов, сумма, затем счета. В TRANSFER сначала проверяются источник и получатель, потом средства. Перевод **атомарен**: при любой ошибке балансы не меняются.
+
+    В конце выведите `handled=<число непустых строк> errors=<число ошибок>` (строки с неизвестной командой тоже считаются) и по строке `<имя>=<баланс>` для каждого счёта, упорядоченные по имени побайтово как строки.
+
+    **Что дано.** Классы `Ledger` и исключения, цикл чтения и сам `match`. Допишите четыре места с `TODO`: проверку суммы, `InsufficientFunds` при снятии, откат при ошибке перевода и подсчёт `handled` в `finally`.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "parseAmount: if (!preg_match('/^[0-9]+$/', $raw) || (int) $raw < 1) { throw new InvalidArgumentException(\"invalid amount $raw\"); }."
+    - "withdraw: if ($amount > $balance) { throw new InsufficientFunds(\"insufficient funds: balance=$balance, requested=$amount\"); }. Равенство допустимо."
+    - "transfer: в catch (LedgerException $e) верните $this->balances = $snapshot; и сделайте throw $e;. Снимок $snapshot уже сделан до изменений."
+    - "В блоке finally сделайте $handled++: он выполняется и после успеха, и после любого из catch. Счётчик errors увеличивается только внутри catch."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "open a\nopen b\ndeposit a 100\nwithdraw a 30\ntransfer a b 50\n"
+      expected: "ok opened a\nok opened b\nok a balance=100\nok a balance=70\nok a=20 b=50\nhandled=5 errors=0\na=20\nb=50\n"
+      hint: "Каждая успешная команда печатает ok и результат: для перевода это a=20 b=50. В конце идут handled=, errors= и балансы по имени."
+    - id: "funds"
+      title: "Недостаточно средств"
+      stdin: "open a\ndeposit a 10\nwithdraw a 11\nwithdraw a 10\nwithdraw a 1\n"
+      expected: "ok opened a\nok a balance=10\nerror InsufficientFunds: insufficient funds: balance=10, requested=11\nok a balance=0\nerror InsufficientFunds: insufficient funds: balance=0, requested=1\nhandled=5 errors=2\na=0\n"
+      hint: "Сумма, равная балансу, допустима. InsufficientFunds должен нести balance и requested в сообщении, а баланс после ошибки не меняется."
+    - id: "errors"
+      title: "Разные типы ошибок"
+      stdin: "open a\nopen a\ndeposit zz 5\ndeposit a 0\ndeposit a 1x\ndeposit a -3\nfoo x\nopen\nopen a b\n"
+      expected: "ok opened a\nerror AccountExists: account a already exists\nerror UnknownAccount: no such account zz\nerror InvalidArgumentException: invalid amount 0\nerror InvalidArgumentException: invalid amount 1x\nerror InvalidArgumentException: invalid amount -3\nerror UnknownCommand: FOO\nerror ArgumentCountError: OPEN takes 1 argument(s)\nerror ArgumentCountError: OPEN takes 1 argument(s)\nhandled=9 errors=8\na=0\n"
+      hint: "Порядок проверок: неизвестная команда (match без default), затем число аргументов, затем при выполнении - сумма, и только потом поиск счёта. Печатайте get_class($e) и сообщение."
+    - id: "atomic"
+      title: "Атомарный перевод (скрытый)"
+      stdin: "open a\nopen b\ndeposit a 100\ntransfer a b 200\ntransfer a zz 50\ntransfer zz a 50\ntransfer a a 5\ntransfer a b 100\n"
+      expected: "ok opened a\nok opened b\nok a balance=100\nerror InsufficientFunds: insufficient funds: balance=100, requested=200\nerror UnknownAccount: no such account zz\nerror UnknownAccount: no such account zz\nerror InvalidArgumentException: cannot transfer to the same account\nok a=0 b=100\nhandled=8 errors=4\na=0\nb=100\n"
+      hidden: true
+      hint: "Перевод не должен оставлять половинчатого состояния: при ошибке верните $this->balances = $snapshot и пробросьте исключение дальше. Счёт-получатель проверяется до снятия."
+    - id: "case"
+      title: "Регистр команд и пробелы (скрытый)"
+      stdin: "  OPEN   Zed \nopen alpha\n\nDePoSiT   alpha   7\nOPEN zed\n"
+      expected: "ok opened Zed\nok opened alpha\nok alpha balance=7\nok opened zed\nhandled=4 errors=0\nZed=0\nalpha=7\nzed=0\n"
+      hidden: true
+      hint: "Команду приводите к верхнему регистру, а имена счетов оставляйте как введены: Zed и zed - разные счета. Пробелы делите через preg_split('/\\s+/')."
+    - id: "order"
+      title: "Порядок вывода балансов (скрытый)"
+      stdin: "open b\nopen B\nopen a\nopen 10\nopen 9\ndeposit 9 1\n"
+      expected: "ok opened b\nok opened B\nok opened a\nok opened 10\nok opened 9\nok 9 balance=1\nhandled=6 errors=0\n10=0\n9=1\nB=0\na=0\nb=0\n"
+      hidden: true
+      hint: "Балансы выводятся по имени побайтово как строки: ksort($copy, SORT_STRING). Имена из цифр становятся целыми ключами массива, поэтому обычная сортировка даст другой порядок."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "handled=0 errors=0\n"
+      hidden: true
+      hint: "Без команд печатается только handled=0 errors=0."
+    - id: "finally"
+      title: "finally считает всё (скрытый)"
+      stdin: "open a\nbogus\ndeposit a x\ndeposit a 5\nopen a\n"
+      expected: "ok opened a\nerror UnknownCommand: BOGUS\nerror InvalidArgumentException: invalid amount x\nok a balance=5\nerror AccountExists: account a already exists\nhandled=5 errors=3\na=5\n"
+      hidden: true
+      hint: "handled увеличивается в finally и поэтому учитывает и успешные, и неудачные команды, включая неизвестные. errors увеличивается только в блоках catch."

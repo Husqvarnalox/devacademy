@@ -1,0 +1,184 @@
+id: "cpp.fundamentals.error-handling"
+title: "Обработка ошибок: исключения, noexcept, optional и expected"
+goal: "Выбирать механизм ошибок под ситуацию, писать код, безопасный при исключениях, и строго разбирать ввод без неявных преобразований."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "cpp.fundamentals.raii-smart-pointers"
+  - "cpp.fundamentals.stl-containers-algorithms"
+related:
+  - "rust.fundamentals.error-handling"
+  - "csharp.fundamentals.exceptions-and-resources"
+  - "java.fundamentals.exceptions-try-with-resources"
+  - "go.fundamentals.functions-and-errors"
+next:
+  - "cpp.fundamentals.undefined-behaviour"
+objectives:
+  - "Объяснять раскрутку стека, роль деструкторов и правила перехвата (const&, порядок обработчиков, throw;)."
+  - "Различать гарантии безопасности исключений и назначать noexcept перемещению и swap."
+  - "Применять optional, коды ошибок и from_chars для ожидаемых исходов."
+  - "Описывать std::expected (C++23) и объяснять, почему его нельзя собрать с -std=c++20."
+  - "Выбирать между исключением, optional/expected и assert для конкретной ошибки."
+masteryCriteria:
+  - "Вы пишете строгий разбор целого через std::from_chars, отвергающий 12abc, пустую строку и переполнение."
+  - "Вы ловите стандартные исключения по константной ссылке и печатаете понятное сообщение вместо аварийного завершения."
+  - "Вы предсказываете, копирует или перемещает vector элементы при росте, зная, объявлено ли перемещение noexcept."
+  - "Вы подтверждаете компиляцией с -std=c++17, -std=c++20 и -std=c++23, какие возможности доступны."
+tags:
+  - "cpp"
+  - "exceptions"
+  - "noexcept"
+  - "optional"
+  - "expected"
+  - "error-handling"
+facts:
+  - kind: "internals"
+    text: "При исключении стек раскручивается: вызываются деструкторы полностью построенных локальных объектов. Исключение из деструктора во время раскрутки вызывает std::terminate."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/throw"
+      - "https://en.cppreference.com/w/cpp/error/terminate"
+  - kind: "performance"
+    text: "std::vector при росте использует std::move_if_noexcept: если конструктор перемещения не объявлен noexcept и есть копирующий, элементы копируются, чтобы сохранить сильную гарантию."
+    sources:
+      - "https://en.cppreference.com/w/cpp/utility/move_if_noexcept"
+      - "https://en.cppreference.com/w/cpp/language/noexcept_spec"
+  - kind: "historical"
+    text: "std::optional и std::from_chars для целых вошли в C++17, std::expected и std::unexpected - в C++23; с -std=c++20 заголовок <expected> не подходит."
+    sources:
+      - "https://en.cppreference.com/w/cpp/utility/optional"
+      - "https://en.cppreference.com/w/cpp/utility/from_chars"
+      - "https://en.cppreference.com/w/cpp/utility/expected"
+  - kind: "misconception"
+    text: "«std::stoi проверяет, что строка - число»: нет, он разбирает префикс и пропускает пробелы, так что stoi(\"12abc\") равно 12. Строгий разбор делают через from_chars и проверку конца."
+    sources:
+      - "https://en.cppreference.com/w/cpp/string/basic_string/stol"
+  - kind: "misconception"
+    text: "«throw e; в обработчике перебрасывает то же исключение»: нет, он копирует объект и при ловле по значению срезает тип. Для переброса служит throw;."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/throw"
+  - kind: "internals"
+    text: "Разыменование пустого std::optional без проверки - неопределённое поведение, а value() бросает std::bad_optional_access."
+    sources:
+      - "https://en.cppreference.com/w/cpp/utility/optional/operator*"
+      - "https://en.cppreference.com/w/cpp/utility/optional/value"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой обработчик правильно ловит и при необходимости перебрасывает исключение?"
+      options:
+        - "catch (std::exception e) { throw e; }"
+        - "catch (const std::exception& e) { throw; }"
+        - "catch (std::exception* e) { throw e; }"
+        - "catch (...) { return; }"
+      answer: 1
+      explanation: "Ловить нужно по const&, а перебрасывать через throw;, чтобы сохранить тип и не копировать объект."
+    - id: "q2"
+      type: "single"
+      prompt: "Что произойдёт, если из функции, объявленной noexcept, вылетит исключение?"
+      options:
+        - "Оно будет поймано ближайшим catch как обычно."
+        - "Вызовется std::terminate."
+        - "Компилятор добавит catch (...)."
+        - "Поведение определяется флагом -O."
+      answer: 1
+      explanation: "noexcept - обещание; нарушение приводит к std::terminate."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно о strict-разборе чисел?"
+      options:
+        - "std::stoi(\"12abc\") возвращает 12."
+        - "std::from_chars принимает знак + перед числом."
+        - "После from_chars нужно проверить, что указатель дошёл до конца строки."
+        - "from_chars не бросает исключений."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "from_chars не принимает +, не бросает исключений и возвращает позицию остановки, которую нужно сверить с концом."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему стоит помечать конструктор перемещения noexcept?"
+      options:
+        - "Иначе класс нельзя перемещать."
+        - "vector при росте копирует элементы, если перемещение может бросить исключение."
+        - "noexcept ускоряет сам конструктор в два раза."
+        - "Без noexcept запрещён оператор присваивания."
+      answer: 1
+      explanation: "std::move_if_noexcept выбирает копирование для сохранения сильной гарантии."
+    - id: "q5"
+      type: "short"
+      prompt: "В каком режиме стандарта, -std=c++NN, впервые доступен std::expected? Укажите двузначное число NN."
+      answer:
+        - "23"
+      explanation: "std::expected вошёл в C++23; с -std=c++20 заголовок <expected> недоступен."
+exercise:
+  id: "cpp.fundamentals.error-handling.exercise"
+  title: "Калькулятор со строгим разбором"
+  prompt: |
+    Первая строка - число `n`. Далее `n` строк вида `a op b`, где `op` - один из `+ - * / %`, а `a`, `b` - целые типа `int` (32 бита). Для каждой строки нужно напечатать результат или одну строку с ошибкой:
+
+    * `error: bad number` - операнд не является целым числом **целиком** (`12abc`, `+5`, `1.5`) или не помещается в `int`;
+    * `error: unknown operator` - операция не из списка;
+    * `error: division by zero` - `/` или `%` при `b = 0`;
+    * `error: overflow` - результат не помещается в `int` (в том числе `INT_MIN / -1`).
+
+    Деление и остаток - как в C++ (с отбрасыванием к нулю).
+
+    **Пример.** Ввод `3`, `7 + 5`, `2147483647 + 1`, `8 / 0`:
+
+    ```
+    12
+    error: overflow
+    error: division by zero
+    ```
+
+    Заготовка использует `std::stoi` и ничего не проверяет: `12abc` читается как 12, большие числа вызывают необработанное исключение, деление на ноль - аварийное завершение. Реализуйте строгий разбор (`std::from_chars` + `std::optional`), проверки и перехват исключений в `main`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку на примере: деление на ноль завершает программу аварийно, а 2147483647 + 1 даёт мусор из-за переполнения."
+    - "Строгий разбор: auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), v); число принято, только если ec == std::errc{} и ptr == s.data() + s.size(). Пустая строка тоже ошибка."
+    - "Считайте в long long и сравнивайте результат с границами int через std::numeric_limits<int>::min() и max(). Так же ловится INT_MIN / -1."
+    - "Бросайте std::domain_error, std::overflow_error и std::invalid_argument из функции вычисления, а в main ловите const std::exception& и печатайте error: и e.what()."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "3\n7 + 5\n2147483647 + 1\n8 / 0\n"
+      expected: "12\nerror: overflow\nerror: division by zero\n"
+      hint: "Сумма не помещается в int - overflow; деление на ноль - отдельная ошибка."
+    - id: "basic"
+      title: "Все операции"
+      stdin: "5\n-9 % 4\n-9 / 4\n6 * 7\n3 - 10\n100 / 7\n"
+      expected: "-1\n-2\n42\n-7\n14\n"
+      hint: "Деление и остаток отбрасываются к нулю: -9 / 4 = -2, -9 % 4 = -1."
+    - id: "bad"
+      title: "Некорректные операнды"
+      stdin: "4\n12abc * 2\n3 + x\n+5 - 1\n1.5 + 1\n"
+      expected: "error: bad number\nerror: bad number\nerror: bad number\nerror: bad number\n"
+      hint: "Число должно быть разобрано целиком, знак + не принимается, 1.5 - не целое."
+    - id: "op"
+      title: "Неизвестная операция (скрытый) (скрытый)"
+      stdin: "3\n5 ^ 2\n5 ** 2\n5 & 3\n"
+      expected: "error: unknown operator\nerror: unknown operator\nerror: unknown operator\n"
+      hidden: true
+      hint: "Операция - ровно один символ из + - * / %."
+    - id: "range"
+      title: "Числа вне диапазона int (скрытый) (скрытый)"
+      stdin: "3\n2147483648 + 0\n-2147483649 - 1\n99999999999 * 2\n"
+      expected: "error: bad number\nerror: bad number\nerror: bad number\n"
+      hidden: true
+      hint: "Операнд, не помещающийся в int, - это bad number, а не overflow."
+    - id: "limits"
+      title: "Границы int (скрытый) (скрытый)"
+      stdin: "6\n-2147483648 / -1\n-2147483648 % -1\n-2147483648 - 1\n2147483647 * 2\n-2147483648 + 2147483647\n46341 * 46341\n"
+      expected: "error: overflow\n0\nerror: overflow\nerror: overflow\n-1\nerror: overflow\n"
+      hidden: true
+      hint: "INT_MIN / -1 - overflow; INT_MIN % -1 - ноль; 46341 * 46341 не помещается в int."
+    - id: "zero"
+      title: "Деление и остаток на ноль (скрытый) (скрытый)"
+      stdin: "4\n0 / 0\n5 % 0\n0 % 7\n0 * -5\n"
+      expected: "error: division by zero\nerror: division by zero\n0\n0\n"
+      hidden: true
+      hint: "Нулевой делитель даёт error: division by zero для / и %."

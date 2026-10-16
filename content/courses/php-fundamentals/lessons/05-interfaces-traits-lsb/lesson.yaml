@@ -1,0 +1,161 @@
+id: "php.fundamentals.interfaces-traits-lsb"
+title: "Интерфейсы, абстрактные классы, трейты и позднее статическое связывание"
+goal: "Выбирать между интерфейсом, абстрактным классом и трейтом и предсказывать, какой класс получат self, static и new static."
+difficulty: "medium"
+estimatedMinutes: 85
+prerequisites:
+  - "php.fundamentals.classes-readonly-enums"
+related:
+  - "java.fundamentals.interfaces-sealed-patterns"
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+  - "go.fundamentals.interfaces"
+  - "rust.fundamentals.traits-and-generics"
+next:
+  - "php.fundamentals.errors-and-match"
+objectives:
+  - "Объявлять интерфейсы и реализовывать несколько из них, проверяя тип через instanceof."
+  - "Использовать абстрактный класс как шаблонный метод и объяснять ограничения на переопределение сигнатур."
+  - "Подключать трейты, разрешать конфликты через insteadof и as и знать, что статические свойства трейта отдельные у каждого класса."
+  - "Предсказывать результат self::, static::, new self, new static и parent:: в иерархии."
+masteryCriteria:
+  - "Вы пишете фабрику в базовом классе, возвращающую объект вызвавшего потомка, с типом static."
+  - "Вы объясняете, почему instanceof Trait всегда ложно, и вводите интерфейс, когда нужен тип."
+  - "Вы разрешаете конфликт методов двух трейтов и называете, у кого приоритет: класс, трейт или родитель."
+tags:
+  - "php"
+  - "interfaces"
+  - "traits"
+  - "late-static-binding"
+facts:
+  - kind: "historical"
+    text: "Возвращаемый тип static появился в PHP 8.0. Константы трейтов добавлены в PHP 8.2, а возможность переопределять константы интерфейса в реализации - в PHP 8.1."
+    sources:
+      - "https://www.php.net/releases/8.0/en.php"
+      - "https://www.php.net/manual/en/language.oop5.traits.php"
+      - "https://www.php.net/manual/en/language.oop5.interfaces.php"
+  - kind: "historical"
+    text: "С PHP 8.4 интерфейс может объявлять свойства и требовать, чтобы они были читаемы, записываемы или то и другое."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.interfaces.php"
+      - "https://www.php.net/releases/8.4/en.php"
+  - kind: "internals"
+    text: "Трейт не создаёт тип: методы копируются в использующий класс при компиляции, а статическое свойство трейта у каждого такого класса своё."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.traits.php"
+  - kind: "internals"
+    text: "Позднее статическое связывание запоминает «вызванный класс» при вызове через имя потомка; вызовы parent:: и self:: передают это значение дальше, а явный вызов Parent::method() - нет."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.late-static-bindings.php"
+  - kind: "misconception"
+    text: "«Абстрактный класс - это то же самое, что интерфейс с кодом»: у класса может быть только один родитель, зато он хранит состояние и конструктор, а интерфейсов можно реализовать сколько угодно."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.abstract.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Класс A содержит `public static function make(): static { return new static(); }`, а класс B extends A. Какой класс имеет объект, возвращённый вызовом B::make()?"
+      options:
+        - "A"
+        - "B"
+        - "Зависит от конструктора"
+        - "Ошибка: new static не допускается"
+      answer: 1
+      explanation: "new static создаёт объект класса, у которого вызвали метод, то есть B."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой результат у `$x instanceof T`, если T - трейт, использованный в классе объекта $x?"
+      options:
+        - "true"
+        - "false"
+        - "Исключение TypeError"
+        - "Зависит от версии PHP"
+      answer: 1
+      explanation: "Трейт не является типом, instanceof для него всегда false."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Класс может реализовать несколько интерфейсов."
+        - "Класс может наследовать от нескольких абстрактных классов."
+        - "Если два трейта дают метод с одним именем, это конфликт, который решается через insteadof."
+        - "Абстрактный класс можно создать через new, если у него есть конструктор."
+      answer:
+        - 0
+        - 2
+      explanation: "Наследовать можно только от одного класса; абстрактный класс никогда не создаётся через new."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое ключевое слово разрешает конфликт двух трейтов, выбирая метод одного из них?"
+      answer:
+        - "insteadof"
+      explanation: "A::say insteadof B исключает метод B::say; чтобы сохранить его под другим именем, добавьте B::say as sayB."
+    - id: "q5"
+      type: "single"
+      prompt: "Статическое свойство объявлено в трейте, трейт подключён в классах A и B (каждый делает use). Сколько у него независимых значений?"
+      options:
+        - "Одно общее"
+        - "Два: у каждого класса своё"
+        - "Ни одного: статические свойства в трейтах запрещены"
+        - "Три: ещё одно у самого трейта"
+      answer: 1
+      explanation: "Каждый использующий класс получает собственную копию статического свойства."
+exercise:
+  id: "php.fundamentals.interfaces-traits-lsb.exercise"
+  title: "Каталог товаров с налогом"
+  prompt: |
+    Программа читает строки `вид копейки название...` и ведёт каталог. Вид (регистр не важен): `book` (налог 7%), `ebook` (19%), `audio` (12%), `game` (21%). Копейки - целое число из одних цифр, название - всё остальное в строке (может содержать пробелы; внутренние пробелы сохраняются, внешние убираются).
+
+    Налог считается от цены `net` с округлением половины вверх: `intdiv(net * ставка + 50, 100)`; `gross = net + налог`. Для допустимой строки выведите `<вид> <название>: net=<сумма> gross=<сумма>`, где суммы выглядят как `10.70` (рубли.копейки). Недопустимую строку (неизвестный вид, цена не из цифр, нет названия) выведите как `invalid: <строка без внешних пробелов>`. Пустые строки пропускайте.
+
+    В конце выведите `counts: book=N ebook=N audio=N game=N` (сколько допустимых товаров каждого вида) и `total gross=<сумма>`.
+
+    **Что дано.** Интерфейс `Priced`, абстрактный класс `Product`, четыре финальных потомка и разбор ввода. Допишите три места, помеченные `TODO`: счётчик в трейте `Counted`, фабрику `Product::fromParts` (должна создавать объект именно вызвавшего класса) и расчёт `gross()`.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Трейт Counted: markMade() должен делать self::$made++. Каждый конкретный класс сам делает use Counted, поэтому у каждого счётчик свой."
+    - "fromParts: проверьте preg_match('/^[0-9]+$/', $cents) и непустое название, иначе верните null. Иначе - new static($title, (int) $cents)."
+    - "new self создаст Product (абстрактный - ошибка), а new static - вызвавший класс: $class::fromParts(...) для Book даёт Book."
+    - "gross: $this->net + intdiv($this->net * static::RATE + 50, 100). static::RATE берёт константу потомка, self::RATE - только базовую."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "book 1000 Clean Code\nebook 999 PHP 8\ngame 4999 Zelda\n"
+      expected: "book Clean Code: net=10.00 gross=10.70\nebook PHP 8: net=9.99 gross=11.89\ngame Zelda: net=49.99 gross=60.49\ncounts: book=1 ebook=1 audio=0 game=1\ntotal gross=83.08\n"
+      hint: "Налог считается от net по ставке класса: static::RATE. Для 999 копеек и 19%: 999*19 = 18981, с округлением половины вверх это 190, итого 11.89."
+    - id: "invalid"
+      title: "Неверные строки"
+      stdin: "book x Bad\nsofa 100 Chair\naudio 1\nbook -5 Neg\n"
+      expected: "invalid: book x Bad\ninvalid: sofa 100 Chair\ninvalid: audio 1\ninvalid: book -5 Neg\ncounts: book=0 ebook=0 audio=0 game=0\ntotal gross=0.00\n"
+      hint: "Недопустимы: неизвестный вид, цена не из цифр (в том числе со знаком), отсутствие названия. Печатайте invalid: и строку без внешних пробелов."
+    - id: "counts"
+      title: "Счётчики по классам"
+      stdin: "book 100 A\nbook 200 B\naudio 300 C\nBOOK 1 D\ngame 0 Free\n"
+      expected: "book A: net=1.00 gross=1.07\nbook B: net=2.00 gross=2.14\naudio C: net=3.00 gross=3.36\nbook D: net=0.01 gross=0.01\ngame Free: net=0.00 gross=0.00\ncounts: book=3 ebook=0 audio=1 game=1\ntotal gross=6.58\n"
+      hint: "Счётчик в трейте у каждого класса свой, потому что каждый класс делает use Counted. Считайте только успешно созданные объекты."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "counts: book=0 ebook=0 audio=0 game=0\ntotal gross=0.00\n"
+      hidden: true
+      hint: "Без строк печатаются нулевые счётчики в порядке book, ebook, audio, game и total gross=0.00."
+    - id: "spaces"
+      title: "Пробелы в названии (скрытый)"
+      stdin: "  ebook    500   Learning   PHP   \n\naudio 250 The  Hobbit\n"
+      expected: "ebook Learning   PHP: net=5.00 gross=5.95\naudio The  Hobbit: net=2.50 gross=2.80\ncounts: book=0 ebook=1 audio=1 game=0\ntotal gross=8.75\n"
+      hidden: true
+      hint: "Делите строку на три части: preg_split('/\\s+/', $line, 3). Внутренние пробелы названия сохраняются, внешние убираются через trim."
+    - id: "rounding"
+      title: "Округление налога (скрытый)"
+      stdin: "book 50 a\nbook 7 b\nebook 3 c\naudio 4 d\ngame 1 e\ngame 2 f\n"
+      expected: "book a: net=0.50 gross=0.54\nbook b: net=0.07 gross=0.07\nebook c: net=0.03 gross=0.04\naudio d: net=0.04 gross=0.04\ngame e: net=0.01 gross=0.01\ngame f: net=0.02 gross=0.02\ncounts: book=2 ebook=1 audio=1 game=2\ntotal gross=0.72\n"
+      hidden: true
+      hint: "Округление половины вверх: intdiv(net * RATE + 50, 100). Например, 50*7=350, +50=400, налог 4 копейки; 7*7=49, +50=99, налог 0."
+    - id: "big"
+      title: "Большие суммы (скрытый)"
+      stdin: "game 123456789 Big\nbook 99999999 Huge\ntoy 5 x\nbook 12 \n"
+      expected: "game Big: net=1234567.89 gross=1493827.15\nbook Huge: net=999999.99 gross=1069999.99\ninvalid: toy 5 x\ninvalid: book 12\ncounts: book=1 ebook=0 audio=0 game=1\ntotal gross=2563827.14\n"
+      hidden: true
+      hint: "Суммы в копейках - обычные int; money() форматирует через intdiv и %. Строка без названия недопустима."

@@ -1,0 +1,17 @@
+id: "php-fundamentals"
+version: "1.0.0"
+title: "PHP: язык и экосистема"
+description: "Курс из восьми уроков: жизненный цикл скрипта и семантика значений и ссылок, типы, strict_types и приведение типов, массивы как упорядоченные хеш-таблицы и функции высшего порядка, классы, readonly и перечисления, интерфейсы, трейты и позднее статическое связывание, исключения и match, пространства имён, автозагрузка PSR-4 и генераторы, строки в Юникоде, форматирование и ввод-вывод. Примеры и утверждения проверены запуском на PHP 8.5, версии возможностей сверены с примечаниями к релизам php.net. Composer объясняется концептуально и не нужен для упражнений; фреймворки Laravel и Symfony и базы данных пока не входят."
+languageId: "php"
+level: 1
+track: "php"
+requires: [php-first-steps]
+lessons:
+  - "01-lifecycle-and-values"
+  - "02-types-and-juggling"
+  - "03-arrays-and-functions"
+  - "04-classes-readonly-enums"
+  - "05-interfaces-traits-lsb"
+  - "06-errors-and-match"
+  - "07-namespaces-autoload-generators"
+  - "08-strings-and-io"

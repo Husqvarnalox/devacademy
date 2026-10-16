@@ -1,0 +1,185 @@
+id: "php.fundamentals.lifecycle-and-values"
+title: "Жизненный цикл скрипта, zval и семантика значений"
+goal: "Объяснить, что живёт и умирает за один запрос, и предсказывать, когда PHP копирует массив, объект и ссылку."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "php.first-steps.arrays-and-strict-types"
+related:
+  - "python.fundamentals.how-python-runs"
+  - "java.fundamentals.jvm-types-and-memory"
+  - "csharp.fundamentals.type-system-and-memory"
+next:
+  - "php.fundamentals.types-and-juggling"
+objectives:
+  - "Описать жизненный цикл запроса PHP: запуск скрипта с чистого состояния, функции завершения, деструкторы, освобождение памяти (share-nothing)."
+  - "Объяснить, что такое zval и счётчик ссылок и почему присваивание массива дёшево благодаря copy-on-write."
+  - "Различать передачу по значению, идентификатор объекта и ссылку &, включая подмену объекта в параметре."
+  - "Назвать две ловушки ссылок: foreach по ссылке без unset и ссылочные ячейки внутри копируемого массива."
+  - "Применять копирование массива как снимок состояния (откат транзакции) без ручного клонирования."
+masteryCriteria:
+  - "Вы предсказываете вывод скрипта с деструкторами, функцией завершения и циклом из двух объектов."
+  - "Вы объясняете, почему $b = $a для массива не копирует данные сразу, а запись в $b не меняет $a."
+  - "Вы предсказываете результат foreach по ссылке с повторным циклом и исправляете его через unset."
+  - "Вы реализуете откат состояния через снимок массива и проверяете, что снимок не стал ссылкой."
+tags:
+  - "php"
+  - "lifecycle"
+  - "zval"
+  - "copy-on-write"
+  - "references"
+facts:
+  - kind: "internals"
+    text: "Функции, зарегистрированные через register_shutdown_function, вызываются после завершения выполнения скрипта или после вызова exit(), в порядке регистрации. Именно поэтому они подходят для финальной очистки и логирования фатальных ошибок."
+    sources:
+      - "https://www.php.net/manual/en/function.register-shutdown-function.php"
+  - kind: "internals"
+    text: "Деструктор вызывается, как только на объект не остаётся ссылок, либо в произвольном порядке при завершении скрипта. Порядок вызова деструкторов при завершении не гарантируется."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.decon.php"
+  - kind: "internals"
+    text: "Контейнер значения (zval) хранит счётчик ссылок refcount, то есть число имён переменных, которые на него указывают. Присваивание увеличивает счётчик, а копия создаётся при записи."
+    sources:
+      - "https://www.php.net/manual/en/features.gc.refcounting-basics.php"
+  - kind: "misconception"
+    text: "«Объекты в PHP передаются по ссылке» - неточно. Переменная хранит идентификатор объекта, и при передаче копируется идентификатор. Ссылкой в смысле & это не является: присвоив параметру другой объект, вы не измените переменную вызывающего кода."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.references.php"
+  - kind: "internals"
+    text: "Объекты, ссылающиеся друг на друга по циклу, не освобождаются простым счётчиком ссылок. Сборщик циклов запускается автоматически или вручную через gc_collect_cycles()."
+    sources:
+      - "https://www.php.net/manual/en/features.gc.collecting-cycles.php"
+  - kind: "misconception"
+    text: "После foreach по ссылке переменная цикла остаётся ссылкой на последний элемент массива; руководство рекомендует вызывать unset() сразу после цикла, иначе следующий цикл с тем же именем испортит последний элемент."
+    sources:
+      - "https://www.php.net/manual/en/control-structures.foreach.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Когда PHP физически копирует данные массива после $b = $a;?"
+      options:
+        - "Сразу при присваивании."
+        - "При первой записи в $a или в $b."
+        - "Никогда: оба имени всегда указывают на один массив."
+        - "Только при вызове clone."
+      answer: 1
+      explanation: "Это copy-on-write: до записи оба имени делят одну структуру с refcount 2; запись разделяет их."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет код: function f(stdClass $o) { $o = new stdClass(); $o->v = 2; } $x = new stdClass(); $x->v = 1; f($x); echo $x->v;"
+      options:
+        - "1"
+        - "2"
+        - "null"
+        - "Ошибка: объект нельзя перезаписать"
+      answer: 0
+      explanation: "Параметр получил копию идентификатора. Присваивание нового объекта меняет только локальную переменную; $x по-прежнему указывает на старый объект."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Обычная переменная не переживает запрос в PHP-FPM; общие данные хранят снаружи."
+        - "После foreach (... as &$v) нужно вызвать unset($v)."
+        - "clone создаёт глубокую копию, включая вложенные объекты."
+        - "Функции из register_shutdown_function вызываются и после exit()."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "clone поверхностный: вложенные объекты остаются общими, пока вы не реализуете __clone."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция вручную запускает сборщик циклов?"
+      answer:
+        - "gc_collect_cycles"
+        - "gc_collect_cycles()"
+      explanation: "gc_collect_cycles() запускает поиск циклов и освобождает недостижимые объекты; возвращает число собранных значений."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Что выведет код: $x = 1; $a = [&$x, 2]; $b = $a; $b[0] = 5; echo $x;"
+      answer: 5
+      tolerance: 0
+      explanation: "Ячейка 0 является ссылкой на $x, а копия массива делит такие ячейки с оригиналом, поэтому запись через $b[0] изменила $x."
+exercise:
+  id: "php.fundamentals.lifecycle-and-values.exercise"
+  title: "Хранилище с вложенными транзакциями"
+  prompt: |
+    Напишите интерпретатор мини-хранилища «ключ -> значение». Команды читаются из STDIN по одной на строку до конца ввода (ключи и значения - слова без пробелов):
+
+    * `SET k v` - записать значение;
+    * `GET k` - напечатать значение или `NULL`, если ключа нет;
+    * `DEL k` - удалить ключ;
+    * `COUNT v` - напечатать, сколько ключей имеют значение `v`;
+    * `DUMP` - напечатать все пары в порядке ключей: `{a=1, b=2}`, для пустого хранилища `{}`;
+    * `BEGIN` - начать транзакцию (транзакции вкладываются);
+    * `ROLLBACK` - откатить самую внутреннюю транзакцию: хранилище возвращается к состоянию на момент её `BEGIN`;
+    * `COMMIT` - закрыть самую внутреннюю транзакцию, оставив изменения (они остаются частью внешней транзакции, если она есть).
+
+    Если `ROLLBACK` или `COMMIT` вызваны без открытой транзакции, напечатайте `NO TRANSACTION`. Пустые строки пропускайте, лишние пробелы допустимы.
+
+    **Пример.**
+
+    ```
+    SET a 1
+    BEGIN
+    SET a 2
+    DUMP
+    ROLLBACK
+    DUMP
+    ```
+
+    ```
+    {a=2}
+    {a=1}
+    ```
+
+    **Что дано.** Разбор строк и команды `SET`, `GET`, `DEL`, `COUNT`, `DUMP` готовы. Допишите три ветки транзакций. Подсказка по теме урока: массив в PHP - значение, поэтому снимок состояния не требует ручного копирования.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Нужен стек снимков: переменная $stack, в которую BEGIN кладёт состояние, а ROLLBACK и COMMIT его достают."
+    - "BEGIN: $stack[] = $data;. Благодаря семантике значения это независимая копия: последующие SET и DEL снимок не затронут. Не используйте &$data."
+    - "ROLLBACK: если $stack === [] напечатайте NO TRANSACTION, иначе $data = array_pop($stack);. array_pop возвращает последний снимок."
+    - "COMMIT отличается только тем, что результат array_pop не присваивается обратно в $data: снимок просто выбрасывается, а текущие данные остаются."
+  tests:
+    - id: "basic"
+      title: "SET, GET и DUMP без транзакций"
+      stdin: "SET a 10\nSET b 20\nGET a\nGET z\nDUMP\n"
+      expected: "10\nNULL\n{a=10, b=20}\n"
+      hint: "GET для отсутствующего ключа печатает NULL; DUMP выводит пары в порядке ключей: {a=10, b=20}."
+    - id: "rollback"
+      title: "ROLLBACK возвращает снимок"
+      stdin: "SET a 1\nBEGIN\nSET a 2\nSET b 3\nDUMP\nROLLBACK\nDUMP\nGET b\n"
+      expected: "{a=2, b=3}\n{a=1}\nNULL\n"
+      hint: "BEGIN должен сохранить копию массива. Присваивание $stack[] = $data копирует массив по значению."
+    - id: "commit"
+      title: "COMMIT оставляет изменения"
+      stdin: "BEGIN\nSET x 5\nCOMMIT\nGET x\nROLLBACK\n"
+      expected: "5\nNO TRANSACTION\n"
+      hint: "После COMMIT снимок отбрасывается, а данные остаются. Второй ROLLBACK уже без транзакции."
+    - id: "nested"
+      title: "Вложенные транзакции (скрытый)"
+      stdin: "SET a 1\nBEGIN\nSET a 2\nBEGIN\nSET a 3\nDEL a\nGET a\nROLLBACK\nGET a\nROLLBACK\nGET a\nROLLBACK\n"
+      expected: "NULL\n2\n1\nNO TRANSACTION\n"
+      hidden: true
+      hint: "Каждый BEGIN кладёт в стек свой снимок, ROLLBACK достаёт последний (array_pop)."
+    - id: "commit-inner"
+      title: "COMMIT внутренней, ROLLBACK внешней (скрытый)"
+      stdin: "SET a 1\nBEGIN\nSET a 2\nBEGIN\nSET b 9\nCOMMIT\nDUMP\nROLLBACK\nDUMP\nCOMMIT\n"
+      expected: "{a=2, b=9}\n{a=1}\nNO TRANSACTION\n"
+      hidden: true
+      hint: "COMMIT закрывает только самую внутреннюю транзакцию: её изменения становятся частью внешней и откатываются вместе с ней."
+    - id: "count"
+      title: "COUNT и удаление внутри транзакции (скрытый)"
+      stdin: "SET a 7\nSET b 7\nSET c 8\nCOUNT 7\nBEGIN\nDEL a\nSET c 7\nCOUNT 7\nROLLBACK\nCOUNT 7\nDUMP\n"
+      expected: "2\n2\n2\n{a=7, b=7, c=8}\n"
+      hidden: true
+      hint: "DEL внутри транзакции откатывается: ключ должен вернуться. Снимок не должен быть ссылкой на $data."
+    - id: "empty"
+      title: "Пустое состояние и лишние пробелы (скрытый)"
+      stdin: "DUMP\n  SET   k   v  \n\nGET k\nCOMMIT\nROLLBACK\nCOUNT v\n"
+      expected: "{}\nv\nNO TRANSACTION\nNO TRANSACTION\n1\n"
+      hidden: true
+      hint: "Пустой DUMP печатает {}. Разбирайте строку по любым пробелам (preg_split) и пропускайте пустые строки."

@@ -1,0 +1,163 @@
+id: "cpp.fundamentals.compilation-lifetime-storage"
+title: "Модель компиляции, время жизни и продолжительность хранения"
+goal: "Понимать путь от исходника до процесса (препроцессор, единицы трансляции, компоновка, ODR) и предсказывать, когда объекты создаются и уничтожаются при разной продолжительности хранения."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "cpp.first-steps.value-semantics-references-and-raii"
+related:
+  - "csharp.fundamentals.type-system-and-memory"
+  - "java.fundamentals.jvm-types-and-memory"
+  - "rust.fundamentals.ownership-and-moves-in-depth"
+  - "go.fundamentals.types-values-zero-values"
+next:
+  - "cpp.fundamentals.references-pointers-move"
+objectives:
+  - "Назвать этапы от исходного файла до исполняемого (препроцессор, компиляция единицы трансляции, компоновка) и сказать, на каком этапе возникает конкретная ошибка."
+  - "Сформулировать правило одного определения (ODR) и исправить дублирование определений через inline, static или перенос в один .cpp."
+  - "Различать автоматическую, статическую, динамическую и потоковую продолжительность хранения."
+  - "Предсказывать порядок конструкторов и деструкторов для локальных, статических локальных, глобальных и временных объектов."
+  - "Объяснять, почему стек и куча - способ реализации, а границы жизни объекта определяются правилами языка."
+masteryCriteria:
+  - "Вы по тексту ошибки отличаете ошибку компилятора («undeclared identifier») от ошибки компоновщика («duplicate symbol», «Undefined symbols»)."
+  - "Вы исправляете функцию-счётчик, добавляя static, и объясняете, когда статическая локальная переменная инициализируется."
+  - "Вы предсказываете вывод программы с глобальным, статическим локальным, автоматическим и временным объектами."
+  - "Вы подтверждаете значение __cplusplus и версию стандарта запуском с флагом -std=c++20."
+tags:
+  - "cpp"
+  - "compilation"
+  - "linker"
+  - "odr"
+  - "storage-duration"
+  - "lifetime"
+facts:
+  - kind: "internals"
+    text: "Стандарт описывает трансляцию фазами: препроцессирование (включая #include и раскрытие макросов), затем компиляция единиц трансляции, затем компоновка. Макросы раскрываются текстуально и не знают о типах."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/translation_phases"
+  - kind: "internals"
+    text: "Правило одного определения: в программе у функции или переменной с внешней компоновкой может быть только одно определение; у inline-функций определения в разных единицах трансляции должны быть идентичны. Нарушение, которое не диагностирует компоновщик, - неопределённое поведение."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/definition"
+      - "https://en.cppreference.com/w/cpp/language/inline"
+  - kind: "internals"
+    text: "Различают автоматическую, статическую, потоковую и динамическую продолжительность хранения. Статическая локальная переменная инициализируется при первом прохождении её объявления, а начиная с C++11 такая инициализация потокобезопасна."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/storage_duration"
+  - kind: "internals"
+    text: "Время жизни объекта начинается по завершении его инициализации и заканчивается при начале уничтожения; обращение к объекту вне этого промежутка не определено. Временные объекты уничтожаются в конце полного выражения, а привязка к const-ссылке продлевает жизнь временного объекта."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/lifetime"
+  - kind: "misconception"
+    text: "«Локальные переменные лежат в стеке, всё остальное в куче» - упрощение. Правила языка заданы продолжительностью хранения; std::vector, например, - небольшой объект с автоматической продолжительностью хранения, а его элементы лежат в динамической памяти."
+  - kind: "real-world"
+    text: "Определение функции в заголовке без inline - классическая причина ошибки «duplicate symbol», которая появляется только когда заголовок подключили во второй .cpp файл."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Заголовок util.h содержит определение int twice(int x) { return 2 * x; } без inline и включён в a.cpp и main.cpp. На каком этапе произойдёт ошибка?"
+      options:
+        - "Препроцессор откажется включать файл дважды."
+        - "Компилятор при обработке main.cpp."
+        - "Компоновщик: duplicate symbol."
+        - "Ошибки не будет, программа запустится."
+      answer: 2
+      explanation: "Каждая единица трансляции компилируется успешно и содержит своё определение twice. Конфликт обнаруживает компоновщик. Исправление - inline или определение в одном .cpp."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Дано #define SQUARE(x) x * x. Чему равно значение выражения SQUARE(1 + 2)?"
+      answer: 5
+      tolerance: 0
+      explanation: "Макрос раскрывается текстом: 1 + 2 * 1 + 2 = 5, а не 9."
+    - id: "q3"
+      type: "multiple"
+      prompt: "У каких объектов статическая продолжительность хранения?"
+      options:
+        - "Глобальная переменная."
+        - "Локальная переменная, объявленная как static."
+        - "Обычная локальная переменная функции."
+        - "Объект, созданный через new."
+      answer:
+        - 0
+        - 1
+      explanation: "Глобальные и static-переменные живут всю работу программы. Обычная локальная - автоматическая, объект из new - динамическая."
+    - id: "q4"
+      type: "single"
+      prompt: "Функция содержит static int calls = 0; ++calls;. Сколько раз выполнится инициализация calls = 0 при пяти вызовах функции?"
+      options:
+        - "Пять раз, при каждом вызове."
+        - "Один раз, при первом прохождении объявления."
+        - "Ноль раз: инициализация происходит до main."
+        - "Зависит от флага оптимизации."
+      answer: 1
+      explanation: "Статическая локальная переменная инициализируется один раз, при первом проходе, и сохраняет значение между вызовами."
+    - id: "q5"
+      type: "single"
+      prompt: "const char* p = std::string(\"abc\").c_str(); std::cout << p; Что не так с этим кодом?"
+      options:
+        - "Ничего, p указывает на строковый литерал."
+        - "Временная строка уничтожена в конце выражения, p висит: неопределённое поведение."
+        - "Не скомпилируется: c_str() нельзя вызвать у временного объекта."
+        - "Утечка памяти: строка не освобождается."
+      answer: 1
+      explanation: "Временный std::string умирает в конце полного выражения, а указатель на его буфер остаётся. Чтение по нему - неопределённое поведение."
+exercise:
+  id: "cpp.fundamentals.compilation-lifetime-storage.exercise"
+  title: "Счётчик идентификаторов и вложенные области"
+  prompt: |
+    Программа читает число `n`, затем `n` слов. Слова обрабатываются рекурсивно: каждое следующее слово открывается **внутри** области предыдущего. Для каждого слова создаётся объект `Scope`: конструктор печатает `open <id> <слово>`, деструктор - `close <id> <слово>`. Идентификаторы выдаёт функция `nextId()`: 1, 2, 3, ... в порядке открытия. В конце печатается `closed=<сколько областей закрыто>`.
+
+    **Пример.** Для `2` и `a b`:
+
+    ```
+    open 1 a
+    open 2 b
+    close 2 b
+    close 1 a
+    closed=2
+    ```
+
+    В заготовке все области получают идентификатор `1`: счётчик в `nextId()` создаётся заново при каждом вызове. Исправьте функцию так, чтобы значение сохранялось между вызовами. Порядок `close` (обратный порядку `open`) обеспечивает язык, его менять не нужно.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: у всех слов id равен 1. Значит, переменная счётчика каждый раз создаётся и обнуляется заново."
+    - "Нужна переменная, которая живёт всё время работы программы, но видна только внутри nextId()."
+    - "Это статическая локальная переменная: static int counter = 0;"
+    - "Объявите counter с ключевым словом static. Инициализация = 0 выполнится один раз при первом вызове, а ++counter будет накапливаться. Больше ничего менять не нужно."
+  tests:
+    - id: "basic"
+      title: "Три слова"
+      stdin: "3\nalpha beta gamma\n"
+      expected: "open 1 alpha\nopen 2 beta\nopen 3 gamma\nclose 3 gamma\nclose 2 beta\nclose 1 alpha\nclosed=3\n"
+      hint: "Каждое следующее слово открывается внутри предыдущего: id 1, 2, 3, затем close в обратном порядке."
+    - id: "single"
+      title: "Одно слово"
+      stdin: "1\nx\n"
+      expected: "open 1 x\nclose 1 x\nclosed=1\n"
+      hint: "Для одного слова: open 1 x, close 1 x, closed=1."
+    - id: "empty"
+      title: "Пустой список"
+      stdin: "0\n"
+      expected: "closed=0\n"
+      hint: "При n = 0 печатается только closed=0."
+    - id: "duplicates"
+      title: "Повторяющиеся слова (скрытый) (скрытый)"
+      stdin: "4\nsame same same same\n"
+      expected: "open 1 same\nopen 2 same\nopen 3 same\nopen 4 same\nclose 4 same\nclose 3 same\nclose 2 same\nclose 1 same\nclosed=4\n"
+      hidden: true
+      hint: "Идентификаторы выдаются по порядку открытия и не зависят от содержимого слов."
+    - id: "five"
+      title: "Пять слов (скрытый) (скрытый)"
+      stdin: "5\none two three four five\n"
+      expected: "open 1 one\nopen 2 two\nopen 3 three\nopen 4 four\nopen 5 five\nclose 5 five\nclose 4 four\nclose 3 three\nclose 2 two\nclose 1 one\nclosed=5\n"
+      hidden: true
+      hint: "Проверьте, что counter объявлен static и не сбрасывается между вызовами nextId()."
+    - id: "many"
+      title: "Много слов (скрытый) (скрытый)"
+      stdin: "40\nw0 w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w15 w16 w17 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w28 w29 w30 w31 w32 w33 w34 w35 w36 w37 w38 w39\n"
+      expected: "open 1 w0\nopen 2 w1\nopen 3 w2\nopen 4 w3\nopen 5 w4\nopen 6 w5\nopen 7 w6\nopen 8 w7\nopen 9 w8\nopen 10 w9\nopen 11 w10\nopen 12 w11\nopen 13 w12\nopen 14 w13\nopen 15 w14\nopen 16 w15\nopen 17 w16\nopen 18 w17\nopen 19 w18\nopen 20 w19\nopen 21 w20\nopen 22 w21\nopen 23 w22\nopen 24 w23\nopen 25 w24\nopen 26 w25\nopen 27 w26\nopen 28 w27\nopen 29 w28\nopen 30 w29\nopen 31 w30\nopen 32 w31\nopen 33 w32\nopen 34 w33\nopen 35 w34\nopen 36 w35\nopen 37 w36\nopen 38 w37\nopen 39 w38\nopen 40 w39\nclose 40 w39\nclose 39 w38\nclose 38 w37\nclose 37 w36\nclose 36 w35\nclose 35 w34\nclose 34 w33\nclose 33 w32\nclose 32 w31\nclose 31 w30\nclose 30 w29\nclose 29 w28\nclose 28 w27\nclose 27 w26\nclose 26 w25\nclose 25 w24\nclose 24 w23\nclose 23 w22\nclose 22 w21\nclose 21 w20\nclose 20 w19\nclose 19 w18\nclose 18 w17\nclose 17 w16\nclose 16 w15\nclose 15 w14\nclose 14 w13\nclose 13 w12\nclose 12 w11\nclose 11 w10\nclose 10 w9\nclose 9 w8\nclose 8 w7\nclose 7 w6\nclose 6 w5\nclose 5 w4\nclose 4 w3\nclose 3 w2\nclose 2 w1\nclose 1 w0\nclosed=40\n"
+      hidden: true
+      hint: "Счётчик должен расти до 40, а closed - совпасть с числом слов."

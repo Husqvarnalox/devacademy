@@ -1,0 +1,188 @@
+id: "cpp.fundamentals.undefined-behaviour"
+title: "Неопределённое поведение и санитайзеры"
+goal: "Узнавать основные источники неопределённого поведения, писать проверки без UB и понимать, что ловят санитайзеры ASan, UBSan и TSan."
+difficulty: "hard"
+estimatedMinutes: 75
+prerequisites:
+  - "cpp.fundamentals.error-handling"
+related:
+  - "rust.fundamentals.borrowing-and-lifetimes"
+  - "csharp.fundamentals.type-system-and-memory"
+  - "java.fundamentals.jvm-types-and-memory"
+  - "go.fundamentals.types-values-zero-values"
+next: []
+objectives:
+  - "Объяснять, что такое неопределённое поведение и почему оптимизатор вправе его игнорировать."
+  - "Называть четыре основных источника UB: знаковое переполнение, выход за границы, висячие обращения и гонки данных."
+  - "Проверять арифметику и индексы так, чтобы UB не возникало, и отличать оборачивание беззнаковых от переполнения знаковых."
+  - "Выбирать санитайзер под класс ошибки и читать его отчёт."
+  - "Понимать пределы санитайзеров: они находят только исполненные пути."
+masteryCriteria:
+  - "Вы реализуете арифметику над int с явными ответами overflow, div0, bad shift и out of range без единого UB."
+  - "Вы объясняете, почему проверка a + b < a для знакового int ненадёжна."
+  - "Вы подбираете флаг -fsanitize для переполнения, use-after-free и гонки данных."
+  - "Вы исправляете гонку данных через std::atomic или mutex и проверяете результат."
+tags:
+  - "cpp"
+  - "undefined-behaviour"
+  - "sanitizers"
+  - "safety"
+  - "concurrency"
+  - "cpp20"
+facts:
+  - kind: "internals"
+    text: "Неопределённое поведение означает отсутствие требований к программе: компилятор вправе считать, что оно не возникает, и оптимизировать на этом основании, поэтому проверка после знакового переполнения может быть удалена."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/ub"
+  - kind: "internals"
+    text: "Переполнение знаковых целых - UB, а беззнаковые типы оборачиваются по модулю 2^N: UINT_MAX + 1 равно 0."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/operator_arithmetic"
+  - kind: "historical"
+    text: "std::bit_cast, std::cmp_less и std::in_range добавлены в C++20; левый сдвиг отрицательного значения определён только начиная с C++20."
+    sources:
+      - "https://en.cppreference.com/w/cpp/numeric/bit_cast"
+      - "https://en.cppreference.com/w/cpp/utility/intcmp"
+  - kind: "internals"
+    text: "Гонка данных - одновременное обращение двух потоков к одной ячейке памяти, когда хотя бы одно из них запись и нет синхронизации; это UB. Исправляется std::atomic или мьютексом."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/memory_model"
+      - "https://en.cppreference.com/w/cpp/atomic/atomic"
+  - kind: "performance"
+    text: "Санитайзеры Clang замедляют программу и увеличивают расход памяти, поэтому их включают в разработке и CI. AddressSanitizer и ThreadSanitizer нельзя совмещать в одной сборке."
+    sources:
+      - "https://clang.llvm.org/docs/AddressSanitizer.html"
+      - "https://clang.llvm.org/docs/ThreadSanitizer.html"
+      - "https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html"
+  - kind: "misconception"
+    text: "«Если программа с UB работает, то она корректна»: нет, UB может проявиться только при другой оптимизации, версии компилятора или платформе; санитайзер и тесты не доказывают отсутствие UB, а лишь находят его на исполненных путях."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/ub"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что верно для int x = INT_MAX; x + 1; ?"
+      options:
+        - "Результат определён и равен INT_MIN."
+        - "Это неопределённое поведение."
+        - "Бросается std::overflow_error."
+        - "Результат определён только для unsigned."
+      answer: 1
+      explanation: "Знаковое переполнение - UB. Беззнаковые типы оборачиваются по модулю 2^N."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие из этих ситуаций - неопределённое поведение?"
+      options:
+        - "v[v.size()] для непустого vector."
+        - "v.at(v.size()) для vector."
+        - "Использование ссылки на элемент vector после push_back с перевыделением."
+        - "Обёртка unsigned при UINT_MAX + 1."
+      answer:
+        - 0
+        - 2
+      explanation: "at() бросает std::out_of_range, а беззнаковое оборачивание определено."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой санитайзер находит heap-use-after-free?"
+      options:
+        - "-fsanitize=thread"
+        - "-fsanitize=address"
+        - "-fsanitize=undefined"
+        - "-fsanitize=leak исключительно в рантайме Windows"
+      answer: 1
+      explanation: "AddressSanitizer следит за обращениями к освобождённой памяти и за выходом за границы."
+    - id: "q4"
+      type: "single"
+      prompt: "Санитайзер не сообщил ни об одной ошибке. Что из этого следует?"
+      options:
+        - "В программе точно нет UB."
+        - "На исполненных путях при этом входе ошибка не найдена."
+        - "Можно отключить тесты."
+        - "Программа потокобезопасна."
+      answer: 1
+      explanation: "Санитайзер проверяет только то, что было выполнено в запуске."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой стандартный шаблон из заголовка <atomic> позволяет безопасно увеличивать общий счётчик из нескольких потоков без мьютекса?"
+      answer:
+        - "std::atomic"
+        - "atomic"
+      explanation: "std::atomic<int> обеспечивает атомарные операции и отсутствие гонки данных."
+exercise:
+  id: "cpp.fundamentals.undefined-behaviour.exercise"
+  title: "Арифметика без неопределённого поведения"
+  prompt: |
+    Первая строка - число команд `n`. Каждая команда - слово и целые аргументы, помещающиеся в `long long`:
+
+    * `add a b`, `sub a b`, `mul a b` - операция над 32-битными `int`;
+    * `div a b` - целочисленное деление;
+    * `neg a`, `abs a` - смена знака и модуль;
+    * `shl a k` - `a` умножить на `2^k` (левый сдвиг);
+    * `at i` - элемент `i` массива `{10, 20, 30, 40, 50}`.
+
+    Операнды `a`, `b` всегда помещаются в `int`. Для каждой команды печатается результат либо причина отказа:
+
+    * `overflow` - точный математический результат не помещается в `int` (включая `INT_MIN / -1`, `neg INT_MIN`, `abs INT_MIN`);
+    * `div0` - деление на ноль;
+    * `bad shift` - `k < 0` или `k >= 32`;
+    * `out of range` - индекс `i` вне `0..4`.
+
+    **Пример.** Ввод `4`, `add 2147483647 1`, `div 7 0`, `shl 1 31`, `at 5`:
+
+    ```
+    overflow
+    div0
+    overflow
+    out of range
+    ```
+
+    Заготовка вычисляет всё через `unsigned` и поэтому не имеет неопределённого поведения, но обёртывает результат вместо того, чтобы сообщать о нём. Реализуйте проверки: проще всего вычислять в `long long` и сравнивать с границами `int`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку на примере: add 2147483647 1 даёт -2147483648 вместо overflow."
+    - "Произведение двух int помещается в long long (не больше 2^62), поэтому add, sub и mul считайте в long long и проверяйте границы INT_MIN и INT_MAX."
+    - "Нулевой делитель и неверный сдвиг проверяйте до самой операции. Для div результат INT_MIN / -1 в long long равен 2147483648 и отсекается той же проверкой границ."
+    - "shl a k при допустимом k: a * (1LL << k) в long long, k до 31, поэтому не переполняется. at: проверьте i < 0 или i >= 5 до обращения к массиву."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "4\nadd 2147483647 1\ndiv 7 0\nshl 1 31\nat 5\n"
+      expected: "overflow\ndiv0\noverflow\nout of range\n"
+      hint: "2^31 не помещается в int: shl 1 31 - overflow; at 5 - за концом массива."
+    - id: "basic"
+      title: "Обычные значения"
+      stdin: "8\nadd 2 3\nsub 10 15\nmul -4 6\ndiv -7 2\nneg 5\nabs -9\nshl 3 4\nat 2\n"
+      expected: "5\n-5\n-24\n-3\n-5\n9\n48\n30\n"
+      hint: "Деление отбрасывает к нулю: -7 / 2 = -3."
+    - id: "bounds"
+      title: "Границы int"
+      stdin: "6\nadd 2147483647 0\nsub -2147483648 0\nmul 46340 46340\nmul 46341 46341\nsub 0 -2147483648\nadd -2147483648 -1\n"
+      expected: "2147483647\n-2147483648\n2147395600\noverflow\noverflow\noverflow\n"
+      hint: "46340 * 46340 помещается, 46341 * 46341 - нет."
+    - id: "minint"
+      title: "INT_MIN в особых операциях (скрытый) (скрытый)"
+      stdin: "5\nneg -2147483648\nabs -2147483648\ndiv -2147483648 -1\ndiv -2147483648 1\nneg 2147483647\n"
+      expected: "overflow\noverflow\noverflow\n-2147483648\n-2147483647\n"
+      hidden: true
+      hint: "-INT_MIN и INT_MIN / -1 не представимы в int."
+    - id: "div0"
+      title: "Деление на ноль (скрытый) (скрытый)"
+      stdin: "3\ndiv 0 0\ndiv -5 0\ndiv 0 5\n"
+      expected: "div0\ndiv0\n0\n"
+      hidden: true
+      hint: "Нулевой делитель даёт div0, даже если делимое равно нулю."
+    - id: "shift"
+      title: "Сдвиги (скрытый) (скрытый)"
+      stdin: "7\nshl 1 0\nshl 1 30\nshl -1 31\nshl 2 31\nshl 1 32\nshl 5 -1\nshl 0 31\n"
+      expected: "1\n1073741824\n-2147483648\noverflow\nbad shift\nbad shift\n0\n"
+      hidden: true
+      hint: "-1 << 31 равно INT_MIN и помещается; k вне 0..31 - bad shift."
+    - id: "at"
+      title: "Индексы (скрытый) (скрытый)"
+      stdin: "6\nat 0\nat 4\nat -1\nat 5\nat 9999999999\nat -9999999999\n"
+      expected: "10\n50\nout of range\nout of range\nout of range\nout of range\n"
+      hidden: true
+      hint: "Индекс вне 0..4, в том числе очень большой, - out of range."

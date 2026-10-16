@@ -1,0 +1,246 @@
+id: "php.fundamentals.strings-and-io"
+title: "Строки в Юникоде, форматирование и ввод-вывод"
+goal: "Работать с текстом в UTF-8 через mbstring, форматировать вывод и читать ввод и файлы в консольных скриптах."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "php.fundamentals.namespaces-autoload-generators"
+related:
+  - "java.fundamentals.text-and-io"
+  - "python.fundamentals.strings"
+  - "python.fundamentals.errors-and-files"
+next: []
+objectives:
+  - "Объяснять, что строка PHP - последовательность байтов, и выбирать между strlen и mb_strlen, substr и mb_substr."
+  - "Выравнивать таблицы с учётом ширины символов через mb_strwidth и mb_str_pad."
+  - "Форматировать числа и деньги через sprintf и number_format, не используя float для денег."
+  - "Читать стандартный ввод построчно с проверкой на false и работать с файлами в рабочем каталоге."
+masteryCriteria:
+  - "Вы предсказываете strlen, mb_strlen и mb_strwidth для строки с кириллицей и иероглифами."
+  - "Вы пишете скрипт, который читает STDIN до конца, печатает выровненную таблицу и не оставляет файлов."
+  - "Вы указываете версии PHP: mb_str_pad в 8.3 и mb_trim в 8.4."
+tags:
+  - "php"
+  - "strings"
+  - "mbstring"
+  - "sprintf"
+  - "io"
+facts:
+  - kind: "historical"
+    text: "Функция mb_str_pad добавлена в PHP 8.3, а mb_trim, mb_ltrim и mb_rtrim - в PHP 8.4; в более ранних версиях их приходится заменять регулярными выражениями с модификатором u."
+    sources:
+      - "https://www.php.net/releases/8.3/en.php"
+      - "https://www.php.net/releases/8.4/en.php"
+      - "https://www.php.net/manual/en/function.mb-str-pad.php"
+      - "https://www.php.net/manual/en/function.mb-trim.php"
+  - kind: "internals"
+    text: "Строки PHP хранят произвольные байты: strlen возвращает число байтов, а mb_strlen - число кодовых точек в заданной кодировке. Для UTF-8 кириллическая буква занимает 2 байта, иероглиф 3."
+    sources:
+      - "https://www.php.net/manual/en/book.mbstring.php"
+      - "https://www.php.net/manual/en/function.mb-strlen.php"
+      - "https://www.php.net/manual/en/mbstring.configuration.php"
+  - kind: "internals"
+    text: "mb_strwidth считает ширину в ячейках терминала: символы CJK занимают две ячейки, поэтому для выравнивания таблиц mb_strlen недостаточно."
+    sources:
+      - "https://www.php.net/manual/en/function.mb-strwidth.php"
+  - kind: "real-world"
+    text: "В CLI определены потоки STDIN, STDOUT и STDERR; fgets(STDIN) возвращает false в конце ввода и оставляет перевод строки в конце строки."
+    sources:
+      - "https://www.php.net/manual/en/features.commandline.io-streams.php"
+      - "https://www.php.net/manual/en/function.fgets.php"
+  - kind: "misconception"
+    text: "«sprintf('%-10s') выравнивает по символам»: ширина считается в байтах, поэтому строки с кириллицей выровняются неверно; для текста используйте mb_str_pad или считайте ширину через mb_strwidth."
+    sources:
+      - "https://www.php.net/manual/en/function.sprintf.php"
+      - "https://www.php.net/manual/en/function.mb-str-pad.php"
+  - kind: "real-world"
+    text: "file_put_contents с флагами FILE_APPEND | LOCK_EX дописывает данные под блокировкой, а относительные пути разрешаются от рабочего каталога процесса."
+    sources:
+      - "https://www.php.net/manual/en/function.file-put-contents.php"
+      - "https://www.php.net/manual/en/function.file-get-contents.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равны strlen('Привет') и mb_strlen('Привет') в UTF-8?"
+      options:
+        - "6 и 6"
+        - "12 и 6"
+        - "6 и 12"
+        - "12 и 12"
+      answer: 1
+      explanation: "strlen считает байты (по 2 на букву), mb_strlen - символы."
+    - id: "q2"
+      type: "single"
+      prompt: "В какой версии PHP появилась функция mb_str_pad?"
+      options:
+        - "PHP 7.4"
+        - "PHP 8.1"
+        - "PHP 8.3"
+        - "PHP 8.5"
+      answer: 2
+      explanation: "mb_str_pad добавлена в 8.3, mb_trim - в 8.4."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "fgets(STDIN) возвращает false в конце ввода."
+        - "Строка, прочитанная fgets, не содержит перевода строки."
+        - "mb_strwidth('日本') равна 4."
+        - "Относительный путь файла считается от рабочего каталога процесса."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "fgets сохраняет \\n в конце строки; его убирают через trim или rtrim."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой флаг file_put_contents дописывает данные в конец файла вместо перезаписи?"
+      answer:
+        - "FILE_APPEND"
+      explanation: "FILE_APPEND часто сочетают с LOCK_EX через |."
+    - id: "q5"
+      type: "single"
+      prompt: "Почему нельзя хранить цену товара в float?"
+      options:
+        - "float не умеет дробей"
+        - "Двоичное представление не точно для многих десятичных дробей (0.1 + 0.2 !== 0.3)"
+        - "float запрещён в strict_types"
+        - "float нельзя выводить через printf"
+      answer: 1
+      explanation: "Деньги хранят целыми копейками и форматируют через intdiv и %."
+exercise:
+  id: "php.fundamentals.strings-and-io.exercise"
+  title: "Выровненный отчёт по товарам"
+  prompt: |
+    Программа читает строки `название;количество;цена` до конца ввода (пустые строки пропускайте, поля обрезайте `trim`). Цена - рубли с необязательной дробной частью из 1-2 цифр (`12`, `12.5`, `12.50`), количество - целое не меньше 1, название непустое. Всё остальное (неверное число полей, формат цены или количества) - недопустимая строка.
+
+    Допустимые строки выведите таблицей в порядке ввода. Колонки разделяются ` | `: название выровнено влево, количество и сумма - вправо. Первая строка - заголовок `Товар | Кол | Сумма`, затем разделитель из `-` и `+` (`-+-` между колонками), строки товаров (сумма строки - количество, умноженное на цену), снова разделитель и итоговая строка `Итого`. Ширина каждой колонки - наибольшая ширина её значений **в ячейках терминала** (`mb_strwidth`: иероглифы занимают 2 ячейки), включая заголовок и итог.
+
+    Сумма выводится как `1 234.50`: пробел в качестве разделителя тысяч, ровно две цифры копеек. Деньги считайте целыми копейками.
+
+    ```
+    Товар  | Кол | Сумма
+    -------+-----+------
+    Чай    |   2 |  7.00
+    Coffee |   1 | 12.00
+    -------+-----+------
+    Итого  |   3 | 19.00
+    ```
+
+    После таблицы напечатайте по строке `invalid: <строка без внешних пробелов>` для каждой недопустимой строки в порядке ввода. Если допустимых строк нет, вместо таблицы напечатайте `no rows`.
+
+    **Что дано.** Чтение, разбор, расчёт ширин и вывод. Допишите функции `padRight` и `padLeft`: они дополняют строку пробелами до заданной ширины в ячейках.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Нужно число пробелов: $width - mb_strwidth($s). Оно не должно быть отрицательным: max(0, ...)."
+    - "padRight: $s . str_repeat(' ', max(0, $width - mb_strwidth($s))). padLeft - те же пробелы, но перед строкой."
+    - "Не используйте str_pad и sprintf('%-10s'): они считают байты, а mb_strlen не учитывает двойную ширину иероглифов."
+    - "Проверка: padRight('日本茶', 8) должна дать иероглифы и 2 пробела, потому что их ширина равна 6."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "\u0427\u0430\u0439;2;3.5\nCoffee;1;12\n\u042f\u0431\u043b\u043e\u043a\u043e;3;0.05\n"
+      expected: "Товар  | Кол | Сумма\n-------+-----+------\nЧай    |   2 |  7.00\nCoffee |   1 | 12.00\nЯблоко |   3 |  0.15\n-------+-----+------\nИтого  |   6 | 19.15\n"
+      hint: "Ширину колонки определяет самое широкое значение в ней, включая заголовок. Название дополняется справа, числа слева."
+    - id: "invalid"
+      title: "Неверные строки"
+      stdin: "\u0427\u0430\u0439;2;3.5\nbad;x;1\nx;1;1.234\n;1;1\nname;0;1\nonly;two\n"
+      expected: "Товар | Кол | Сумма\n------+-----+------\nЧай   |   2 |  7.00\n------+-----+------\nИтого |   2 |  7.00\ninvalid: bad;x;1\ninvalid: x;1;1.234\ninvalid: ;1;1\ninvalid: name;0;1\ninvalid: only;two\n"
+      hint: "Недопустимы: не три поля, пустое название, количество не из цифр или нуль, цена не вида 12, 12.5 или 12.50. Такие строки печатаются после таблицы в порядке ввода."
+    - id: "norows"
+      title: "Нет допустимых строк"
+      stdin: "\nbad\n"
+      expected: "no rows\ninvalid: bad\n"
+      hint: "Если допустимых строк нет, вместо таблицы печатается no rows, затем invalid-строки."
+    - id: "wide"
+      title: "Широкие символы (скрытый)"
+      stdin: "\u65e5\u672c\u8336;1;12\nTea;2;1\n\u0427\u0430\u0439;1;0.5\n"
+      expected: "Товар  | Кол | Сумма\n-------+-----+------\n日本茶 |   1 | 12.00\nTea    |   2 |  2.00\nЧай    |   1 |  0.50\n-------+-----+------\nИтого  |   4 | 14.50\n"
+      hidden: true
+      hint: "Иероглифы занимают две ячейки: mb_strwidth('日本茶') равна 6, а mb_strlen - 3. Дополняйте до ширины в ячейках, а не в символах и не в байтах."
+    - id: "thousands"
+      title: "Разделитель тысяч (скрытый)"
+      stdin: "Item;1000;1234.5\nOther;3;0.01\n"
+      expected: "Товар |  Кол |        Сумма\n------+------+-------------\nItem  | 1000 | 1 234 500.00\nOther |    3 |         0.03\n------+------+-------------\nИтого | 1003 | 1 234 500.03\n"
+      hidden: true
+      hint: "Рубли выводятся number_format(intdiv($cents, 100), 0, '', ' '), копейки - sprintf('%02d', $cents % 100). Дробные числа не используйте."
+    - id: "spaces"
+      title: "Пробелы вокруг полей (скрытый)"
+      stdin: "  \u041c\u043e\u043b\u043e\u043a\u043e  ;  2  ;  1.99  \n\n\u0425\u043b\u0435\u0431;1;0\n"
+      expected: "Товар  | Кол | Сумма\n-------+-----+------\nМолоко |   2 |  3.98\nХлеб   |   1 |  0.00\n-------+-----+------\nИтого  |   3 |  3.98\n"
+      hidden: true
+      hint: "Каждое поле обрезайте через trim, а название сохраняйте в исходном регистре. Цена 0 допустима, количество должно быть не меньше 1."
+    - id: "pricefmt"
+      title: "Форматы цены (скрытый)"
+      stdin: "a;1;7\nb;1;7.5\nc;1;7.05\nd;1;.5\ne;1;7.\nf;1;07.10\n"
+      expected: "Товар | Кол | Сумма\n------+-----+------\na     |   1 |  7.00\nb     |   1 |  7.50\nc     |   1 |  7.05\nf     |   1 |  7.10\n------+-----+------\nИтого |   4 | 28.65\ninvalid: d;1;.5\ninvalid: e;1;7.\n"
+      hidden: true
+      hint: "Допустимо /^[0-9]+(\\.[0-9]{1,2})?$/: '7.5' - это 750 копеек, а '7.05' - 705. Пустая целая или дробная часть недопустима."
+challenge:
+  id: "php.fundamentals.strings-and-io.challenge"
+  title: "Журнал в файле"
+  prompt: |
+    Напишите консольный журнал, хранящий записи **в файле** рабочего каталога. Состояние нельзя держать только в памяти: каждая команда заново читает файл. Команда - первое слово (регистр не важен), остальное - аргумент (внутренние пробелы сохраняются, внешние убираются). Пустые строки пропускайте.
+
+    * `ADD текст` - дописывает запись в файл (одна запись - одна строка) и печатает `added #N`, где N - номер новой записи. Пустой текст: `error: empty text`.
+    * `LIST` - печатает `N: текст (L chars)`, где L - число символов (`mb_strlen`). Пустой журнал: `(empty)`.
+    * `DEL N` - удаляет запись N (нумерация с 1, номера после неё сдвигаются) и печатает `deleted #N: текст`. Некорректный или несуществующий номер: `error: no entry <аргумент>`.
+    * `FIND текст` - печатает `N: текст` для записей, содержащих аргумент без учёта регистра (в том числе для кириллицы); если таких нет или аргумент пуст: `no matches`.
+    * `SIZE` - печатает `bytes=<размер файла в байтах, 0 если файла нет> entries=<число записей>`.
+    * Другая команда: `error: unknown command <КОМАНДА в верхнем регистре>`.
+
+    В начале программа удаляет возможный файл от прошлого запуска, в конце - собственный файл. Имя файла выберите сами (в заготовке оно содержит pid процесса, чтобы параллельные запуски не мешали друг другу).
+
+    **Что дано.** Цикл команд, вывод и функции `rewrite`. Допишите `entries()` (чтение записей из файла) и `append()` (запись в конец).
+  entryFile: "main.php"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "entries(): если !is_file($file) верните []. Иначе file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES). Функция file может вернуть false: добавьте ?: []."
+    - "append(): file_put_contents($file, $text . \"\\n\", FILE_APPEND | LOCK_EX). Без FILE_APPEND каждая запись перезаписывала бы предыдущую."
+    - "Размер в SIZE берите из filesize($file) (байты), а длину в LIST - из mb_strlen. Для кириллицы эти числа различаются вдвое."
+    - "FIND: mb_stripos($text, $arg) !== false (строгое сравнение: позиция 0 - тоже находка). Обычный stripos не знает кириллицы."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "add \u041f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440\nadd second\nlist\nsize\n"
+      expected: "added #1\nadded #2\n1: Привет мир (10 chars)\n2: second (6 chars)\nbytes=27 entries=2\n"
+      hint: "Состояние хранится в файле: каждая команда заново читает записи через file(...). Длина в символах - mb_strlen, а bytes= берётся из filesize()."
+    - id: "del"
+      title: "Удаление и поиск"
+      stdin: "add alpha\nadd Beta\nadd GAMMA\ndel 2\nlist\nfind ga\nfind zz\ndel 5\ndel x\n"
+      expected: "added #1\nadded #2\nadded #3\ndeleted #2: Beta\n1: alpha (5 chars)\n2: GAMMA (5 chars)\n2: GAMMA\nno matches\nerror: no entry 5\nerror: no entry x\n"
+      hint: "DEL переписывает файл без выбранной записи (array_splice и file_put_contents). Номера после удаления сдвигаются. FIND ищет без учёта регистра через mb_stripos."
+    - id: "errors"
+      title: "Ошибки команд"
+      stdin: "add\nfoo bar\nLIST\nsize\ndel 1\nfind\n"
+      expected: "error: empty text\nerror: unknown command FOO\n(empty)\nbytes=0 entries=0\nerror: no entry 1\nno matches\n"
+      hint: "Пустой журнал печатает (empty), размер - bytes=0 entries=0. ADD без текста и неизвестная команда дают error: ..., а FIND без аргумента ничего не находит."
+    - id: "utf8"
+      title: "Кириллица и иероглифы (скрытый)"
+      stdin: "add \u0401\u0416\u0418\u041a \u0432 \u0442\u0443\u043c\u0430\u043d\u0435\nadd \u65e5\u672c\u8a9e\u306e\u30c6\u30ad\u30b9\u30c8\nadd na\u00efve caf\u00e9\nlist\nfind \u0401\u0416\nfind \u0422\u0423\u041c\u0410\u041d\nfind \u672c\u8a9e\nsize\n"
+      expected: "added #1\nadded #2\nadded #3\n1: ЁЖИК в тумане (13 chars)\n2: 日本語のテキスト (8 chars)\n3: naïve café (10 chars)\n1: ЁЖИК в тумане\n1: ЁЖИК в тумане\n2: 日本語のテキスト\nbytes=63 entries=3\n"
+      hidden: true
+      hint: "mb_strlen считает кодовые точки, filesize - байты: кириллица занимает по 2 байта на букву, японские знаки по 3. Поиск без регистра для Юникода работает через mb_stripos, а не stripos."
+    - id: "spaces"
+      title: "Пробелы внутри текста (скрытый)"
+      stdin: "  add   two   spaces  \nadd a;b|c\nlist\n"
+      expected: "added #1\nadded #2\n1: two   spaces (12 chars)\n2: a;b|c (5 chars)\n"
+      hidden: true
+      hint: "Команду отделяйте от остатка через preg_split('/\\s+/', $line, 2): внутренние пробелы текста сохраняются, внешние убираются через trim."
+    - id: "empty-after"
+      title: "Журнал опустошён (скрытый)"
+      stdin: "add one\ndel 1\nlist\nsize\nadd two\nsize\n"
+      expected: "added #1\ndeleted #1: one\n(empty)\nbytes=0 entries=0\nadded #1\nbytes=4 entries=1\n"
+      hidden: true
+      hint: "После удаления последней записи файл остаётся пустым, поэтому bytes=0 entries=0. Следующий ADD снова даёт #1."
+    - id: "fresh"
+      title: "Нет остатков от прошлых запусков (скрытый)"
+      stdin: "size\nlist\nadd x\nsize\n"
+      expected: "bytes=0 entries=0\n(empty)\nadded #1\nbytes=2 entries=1\n"
+      hidden: true
+      hint: "Файл создаётся при первом ADD, а до этого is_file() ложно. В начале программы удалите возможный файл от прошлого запуска, в конце - свой."

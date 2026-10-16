@@ -1,0 +1,254 @@
+id: "php.fundamentals.classes-readonly-enums"
+title: "Классы, readonly, перечисления и первоклассные вызываемые"
+goal: "Проектировать неизменяемые объекты-значения и перечисления в современном PHP и использовать первоклассные вызываемые вместо строк-callable."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "php.fundamentals.arrays-and-functions"
+related:
+  - "java.fundamentals.classes-records-enums"
+  - "csharp.fundamentals.classes-records-structs"
+  - "kotlin.fundamentals.classes-sealed-and-when"
+  - "typescript.fundamentals.interfaces-and-aliases"
+next:
+  - "php.fundamentals.interfaces-traits-lsb"
+objectives:
+  - "Объявлять классы с продвижением свойств конструктора, именованными аргументами и readonly-свойствами."
+  - "Объяснять правила readonly (одна инициализация, только из области класса) и отличие readonly-класса (8.2)."
+  - "Писать чистые и поддерживаемые (backed) перечисления с методами и интерфейсами, выбирая from() или tryFrom()."
+  - "Использовать синтаксис первоклассных вызываемых f(...), $obj->m(...) и Cls::m(...)."
+  - "Называть версию PHP для каждой возможности: promotion 8.0, enum и readonly 8.1, readonly class 8.2, типы констант 8.3, хуки 8.4, clone with 8.5."
+masteryCriteria:
+  - "Вы пишете readonly class Money с операциями, возвращающими новые объекты, и предсказываете Error при попытке записи."
+  - "Вы моделируете конечный автомат на enum с методами и не используете строковые константы."
+  - "Вы выбираете tryFrom для внешнего ввода и объясняете, почему Status::Paid == 'paid' ложно."
+  - "Вы подтверждаете версию языка для каждой возможности по руководству php.net или запуском."
+tags:
+  - "php"
+  - "classes"
+  - "readonly"
+  - "enum"
+  - "first-class-callable"
+facts:
+  - kind: "historical"
+    text: "PHP 8.0 принёс продвижение свойств конструктора, именованные аргументы, объединённые типы, выражение match и nullsafe-оператор."
+    sources:
+      - "https://www.php.net/releases/8.0/en.php"
+  - kind: "historical"
+    text: "PHP 8.1 добавил перечисления (enum), readonly-свойства, синтаксис первоклассных вызываемых f(...), тип never и new в значениях параметров по умолчанию."
+    sources:
+      - "https://www.php.net/releases/8.1/en.php"
+  - kind: "historical"
+    text: "PHP 8.2 добавил readonly-классы и объявил устаревшим создание динамических свойств. PHP 8.3 добавил типизированные константы классов и разрешил менять readonly-свойства внутри __clone для глубокого клонирования."
+    sources:
+      - "https://www.php.net/releases/8.2/en.php"
+      - "https://www.php.net/releases/8.3/en.php"
+  - kind: "historical"
+    text: "Хуки свойств и асимметричная видимость (public private(set)) появились в PHP 8.4. Клонирование с изменением свойств clone($obj, ['x' => 1]) добавлено в PHP 8.5."
+    sources:
+      - "https://www.php.net/releases/8.4/en.php"
+      - "https://www.php.net/releases/8.5/en.php"
+  - kind: "internals"
+    text: "Варианты перечисления являются объектами-синглтонами: сравнение через === корректно, а clone и new для них запрещены. Метод from() бросает ValueError для неизвестного значения, tryFrom() возвращает null."
+    sources:
+      - "https://www.php.net/manual/en/language.enumerations.php"
+      - "https://www.php.net/manual/en/language.enumerations.backed.php"
+  - kind: "misconception"
+    text: "«readonly делает объект глубоко неизменяемым» - нет: запрещена повторная запись самого свойства. Если в нём лежит изменяемый объект, его содержимое по-прежнему можно менять."
+    sources:
+      - "https://www.php.net/manual/en/language.oop5.properties.php"
+  - kind: "internals"
+    text: "Синтаксис первоклассных вызываемых strlen(...) создаёт объект Closure для функции, метода или статического метода; в отличие от строк и массивов-callable, он проверяется при компиляции."
+    sources:
+      - "https://www.php.net/manual/en/functions.first_class_callable_syntax.php"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В какой версии PHP появились readonly-классы (readonly class X {})?"
+      options:
+        - "PHP 8.0"
+        - "PHP 8.1"
+        - "PHP 8.2"
+        - "PHP 8.3"
+      answer: 2
+      explanation: "readonly-свойства появились в 8.1, а readonly-классы - в 8.2."
+    - id: "q2"
+      type: "single"
+      prompt: "Что вернёт Status::tryFrom('unknown') для поддерживаемого перечисления Status, в котором нет такого значения?"
+      options:
+        - "Бросит ValueError"
+        - "null"
+        - "Первый вариант перечисления"
+        - "false"
+      answer: 1
+      explanation: "tryFrom возвращает null, а from бросает ValueError."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Варианты перечисления можно сравнивать через ===."
+        - "В перечислении можно объявлять свойства экземпляра."
+        - "readonly-свойство нельзя инициализировать вне области видимости класса."
+        - "strlen(...) создаёт объект Closure."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Перечисление не может иметь свойств состояния: данные хранят в константах и методах."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой статический метод поддерживаемого перечисления бросает ValueError, если значения нет?"
+      answer:
+        - "from"
+        - "from()"
+      explanation: "from() бросает ValueError, tryFrom() возвращает null; для пользовательского ввода берите tryFrom."
+    - id: "q5"
+      type: "single"
+      prompt: "В какой версии PHP появилось продвижение свойств конструктора (public function __construct(private int $x))?"
+      options:
+        - "PHP 7.4"
+        - "PHP 8.0"
+        - "PHP 8.1"
+        - "PHP 8.2"
+      answer: 1
+      explanation: "Constructor promotion добавлен в PHP 8.0 вместе с именованными аргументами и union-типами."
+exercise:
+  id: "php.fundamentals.classes-readonly-enums.exercise"
+  title: "Счёт кафе: Money и Size"
+  prompt: |
+    Программа читает строки `имя размер количество цена` до конца ввода: `размер` - `S`, `M` или `L` (регистр не важен), `количество` - целое не меньше 1, `цена` - целое неотрицательное число копеек за порцию размера `S`.
+
+    Цена порции зависит от размера: `S` - 100% базовой, `M` - 125%, `L` - 150%; дробная часть копейки **отбрасывается** (`intdiv(цена * процент, 100)`). Сумма строки - цена порции, умноженная на количество.
+
+    Для каждой допустимой строки выведите `<имя> <РАЗМЕР> <кол-во> x <цена порции> = <сумма строки>`, где суммы записаны как `рубли.копейки` с двумя знаками (`4.68`). Недопустимую строку (неизвестный размер, неверное число полей, количество не положительное, цена не целая) выведите как `invalid: <строка без внешних пробелов>`. Пустые строки пропускайте. В конце напечатайте `items=<число порций> total=<общая сумма>`.
+
+    **Пример.** Для строки `latte M 2 375` порция стоит `intdiv(375 * 125, 100) = 468`, то есть `4.68`:
+
+    ```
+    latte M 2 x 4.68 = 9.36
+    ```
+
+    **Что дано.** Чтение ввода готово. Допишите неизменяемый класс `Money` (методы `plus`, `times`, `percent` возвращают **новые** объекты, `__toString` форматирует сумму) и метод `percent()` перечисления `Size`.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Money объявлен как final readonly class: свойство cents менять нельзя. Каждый метод должен возвращать new self(...) с новым значением."
+    - "plus: new self($this->cents + $other->cents); times: new self($this->cents * $factor); percent: new self(intdiv($this->cents * $percent, 100))."
+    - "Формат суммы: sprintf('%d.%02d', intdiv($this->cents, 100), $this->cents % 100). Не используйте числа с плавающей точкой."
+    - "Size::percent(): return match ($this) { self::S => 100, self::M => 125, self::L => 150 };. Разбор размера уже написан через Size::tryFrom(strtolower(...))."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "latte M 2 375\ntea S 1 200\nmocha L 3 410\n"
+      expected: "latte M 2 x 4.68 = 9.36\ntea S 1 x 2.00 = 2.00\nmocha L 3 x 6.15 = 18.45\nitems=6 total=29.81\n"
+      hint: "M - это 125% базовой цены: 375 * 125 / 100 = 468 (дробная часть копейки отбрасывается). Сумма печатается как 4.68."
+    - id: "invalid"
+      title: "Неверный размер и количество"
+      stdin: "cake XL 1 500\nbun S 0 100\ntea s 2 150\nscone S\n"
+      expected: "invalid: cake XL 1 500\ninvalid: bun S 0 100\ntea S 2 x 1.50 = 3.00\ninvalid: scone S\nitems=2 total=3.00\n"
+      hint: "Неизвестный размер даёт Size::tryFrom(...) === null. Количество должно быть положительным целым; строка с неверным числом полей тоже недопустима."
+    - id: "empty"
+      title: "Нет строк"
+      stdin: ""
+      expected: "items=0 total=0.00\n"
+      hint: "Без входных строк печатается items=0 total=0.00."
+    - id: "floor"
+      title: "Отбрасывание копеек (скрытый)"
+      stdin: "a M 1 101\nb L 1 101\nc M 3 33\n"
+      expected: "a M 1 x 1.26 = 1.26\nb L 1 x 1.51 = 1.51\nc M 3 x 0.41 = 1.23\nitems=5 total=4.00\n"
+      hidden: true
+      hint: "Копейки отбрасываются после умножения на процент: intdiv(101 * 125, 100) = 126, а не 126.25. Умножайте на количество уже после этого."
+    - id: "padding"
+      title: "Копейки с ведущим нулём (скрытый)"
+      stdin: "x S 1 5\ny S 1 100\nz S 2 1005\n"
+      expected: "x S 1 x 0.05 = 0.05\ny S 1 x 1.00 = 1.00\nz S 2 x 10.05 = 20.10\nitems=4 total=21.15\n"
+      hidden: true
+      hint: "5 копеек - это 0.05: sprintf('%d.%02d', ...). Не используйте round и деление с плавающей точкой."
+    - id: "case"
+      title: "Регистр размера и лишние пробелы (скрытый)"
+      stdin: "  a   l  2   100  \nb m 1 0\n\nc S 1 1\n"
+      expected: "a L 2 x 1.50 = 3.00\nb M 1 x 0.00 = 0.00\nc S 1 x 0.01 = 0.01\nitems=4 total=3.01\n"
+      hidden: true
+      hint: "Размер читайте без учёта регистра: Size::tryFrom(strtolower(...)). Цена 0 допустима, количество должно быть не меньше 1."
+    - id: "big"
+      title: "Большие суммы (скрытый)"
+      stdin: "a L 1000 2000000000\nb S 1 1\n"
+      expected: "a L 1000 x 30000000.00 = 30000000000.00\nb S 1 x 0.01 = 0.01\nitems=1001 total=30000000000.01\n"
+      hidden: true
+      hint: "Суммы в копейках помещаются в 64-битный int; промежуточное произведение cents * percent тоже."
+challenge:
+  id: "php.fundamentals.classes-readonly-enums.challenge"
+  title: "Жизненный цикл заказа: автомат на enum"
+  prompt: |
+    Программа читает события `СОБЫТИЕ id` (два слова на строку, регистр события не важен; остальные строки пропускайте) и ведёт заказы.
+
+    * `CREATE id` создаёт заказ в состоянии `NEW`. Если заказ уже есть: `error <id>: already exists`.
+    * Остальные события: `PAY` (NEW -> PAID), `SHIP` (PAID -> SHIPPED), `DELIVER` (SHIPPED -> DELIVERED), `CANCEL` (NEW или PAID -> CANCELLED). Из `DELIVERED` и `CANCELLED` переходов нет.
+    * Порядок проверок: неизвестное слово события (`error <id>: unknown event <слово как введено>`), затем отсутствие заказа (`error <id>: no such order`), затем допустимость (`error <id>: cannot <СОБЫТИЕ> from <СОСТОЯНИЕ>`, оба слова в верхнем регистре).
+    * При успехе печатается `ok <id> <НОВОЕ_СОСТОЯНИЕ>`.
+
+    После обработки всех событий выведите по строке `history <id>: NEW > PAID > ...` для каждого заказа (id упорядочены **побайтно как строки**, история - последовательность состояний) и последней строкой `summary: NEW=<n> PAID=<n> SHIPPED=<n> DELIVERED=<n> CANCELLED=<n>` (счётчики текущих состояний в этом порядке, нули тоже печатаются).
+
+    **Пример.** Ввод `CREATE a1`, `PAY a1`, `SHIP a1`, `PAY a1` даёт
+
+    ```
+    ok a1 NEW
+    ok a1 PAID
+    ok a1 SHIPPED
+    error a1: cannot PAY from SHIPPED
+    history a1: NEW > PAID > SHIPPED
+    summary: NEW=0 PAID=0 SHIPPED=1 DELIVERED=0 CANCELLED=0
+    ```
+
+    **Что дано.** Перечисления `Event` и `State`, читающий цикл и заготовки `Order`, `handle` и `report`. Реализуйте переходы в `State::on`, неизменяемое обновление `Order::advance` и обе функции. Идентификаторы вроде `10` и `9` становятся целыми ключами массива: храните исходную строку в `Order::$id`.
+  entryFile: "main.php"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "State::on: match ($event) { Event::Pay => $this === self::New ? self::Paid : null, ... }. Возвращайте null, когда переход запрещён, а Event::Create в on() не нужен."
+    - "Order - readonly: advance должен вернуть new self($this->id, $to, [...$this->history, $to]). Храните заказы в массиве $orders[$id] = $order и заменяйте элемент новым объектом."
+    - "handle: Event::tryFrom(strtoupper($word)) даёт null для неизвестного слова. Затем проверьте CREATE, затем isset($orders[$id]), затем $order->state->on($event) === null."
+    - "report: usort по strcmp($a->id, $b->id) (не <=> и не ksort по умолчанию), история через implode(' > ', ...). Счётчики берите в порядке State::cases(), для отсутствующих состояний подставляйте 0."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "CREATE a1\nPAY a1\nSHIP a1\nPAY a1\nCANCEL a1\nDELIVER a1\nCREATE b2\nCANCEL b2\n"
+      expected: "ok a1 NEW\nok a1 PAID\nok a1 SHIPPED\nerror a1: cannot PAY from SHIPPED\nerror a1: cannot CANCEL from SHIPPED\nok a1 DELIVERED\nok b2 NEW\nok b2 CANCELLED\nhistory a1: NEW > PAID > SHIPPED > DELIVERED\nhistory b2: NEW > CANCELLED\nsummary: NEW=0 PAID=0 SHIPPED=0 DELIVERED=1 CANCELLED=1\n"
+      hint: "Допустимые переходы: PAY из NEW, SHIP из PAID, DELIVER из SHIPPED, CANCEL из NEW или PAID. Сообщение об ошибке: cannot <СОБЫТИЕ> from <СОСТОЯНИЕ>."
+    - id: "errors"
+      title: "Неизвестные события и заказы"
+      stdin: "PAY x\nREFUND x\nCREATE x\nCREATE x\nrefund x\npay x\n"
+      expected: "error x: no such order\nerror x: unknown event REFUND\nok x NEW\nerror x: already exists\nerror x: unknown event refund\nok x PAID\nhistory x: NEW > PAID\nsummary: NEW=0 PAID=1 SHIPPED=0 DELIVERED=0 CANCELLED=0\n"
+      hint: "Порядок проверок: сначала событие (unknown event, слово печатается как введено), затем существование заказа. CREATE существующего id - already exists."
+    - id: "summary"
+      title: "Итоговая сводка в порядке объявления"
+      stdin: "CREATE o1\nCREATE o2\nCREATE o3\nPAY o2\nPAY o3\nSHIP o3\nDELIVER o3\n"
+      expected: "ok o1 NEW\nok o2 NEW\nok o3 NEW\nok o2 PAID\nok o3 PAID\nok o3 SHIPPED\nok o3 DELIVERED\nhistory o1: NEW\nhistory o2: NEW > PAID\nhistory o3: NEW > PAID > SHIPPED > DELIVERED\nsummary: NEW=1 PAID=1 SHIPPED=0 DELIVERED=1 CANCELLED=0\n"
+      hint: "Сводка идёт в порядке State::cases(): NEW PAID SHIPPED DELIVERED CANCELLED, даже для нулевых счётчиков."
+    - id: "numeric-ids"
+      title: "Числовые идентификаторы (скрытый)"
+      stdin: "CREATE 9\nCREATE 10\nCREATE 100\nPAY 10\nCANCEL 9\n"
+      expected: "ok 9 NEW\nok 10 NEW\nok 100 NEW\nok 10 PAID\nok 9 CANCELLED\nhistory 10: NEW > PAID\nhistory 100: NEW\nhistory 9: NEW > CANCELLED\nsummary: NEW=1 PAID=1 SHIPPED=0 DELIVERED=0 CANCELLED=1\n"
+      hidden: true
+      hint: "Ключи \"10\" и \"9\" становятся int, но id нужно хранить в Order строкой. Историю печатайте по strcmp: 10, 100, 9."
+    - id: "terminal"
+      title: "Конечные состояния (скрытый)"
+      stdin: "CREATE t\nCANCEL t\nPAY t\nCANCEL t\nSHIP t\nCREATE d\nPAY d\nSHIP d\nDELIVER d\nCANCEL d\nDELIVER d\n"
+      expected: "ok t NEW\nok t CANCELLED\nerror t: cannot PAY from CANCELLED\nerror t: cannot CANCEL from CANCELLED\nerror t: cannot SHIP from CANCELLED\nok d NEW\nok d PAID\nok d SHIPPED\nok d DELIVERED\nerror d: cannot CANCEL from DELIVERED\nerror d: cannot DELIVER from DELIVERED\nhistory d: NEW > PAID > SHIPPED > DELIVERED\nhistory t: NEW > CANCELLED\nsummary: NEW=0 PAID=0 SHIPPED=0 DELIVERED=1 CANCELLED=1\n"
+      hidden: true
+      hint: "Из CANCELLED и DELIVERED никакие события не допустимы. Объекты Order неизменяемы: advance возвращает новый объект."
+    - id: "case"
+      title: "Регистр слов и пустые строки (скрытый)"
+      stdin: "\ncreate Z\nPay Z\n  ship   Z  \nbad\n\nDeLiVeR Z\n"
+      expected: "ok Z NEW\nok Z PAID\nok Z SHIPPED\nok Z DELIVERED\nhistory Z: NEW > PAID > SHIPPED > DELIVERED\nsummary: NEW=0 PAID=0 SHIPPED=0 DELIVERED=1 CANCELLED=0\n"
+      hidden: true
+      hint: "Слово события нечувствительно к регистру (strtoupper перед Event::tryFrom). Строки не из двух слов пропускайте."
+    - id: "empty"
+      title: "Нет событий (скрытый)"
+      stdin: ""
+      expected: "summary: NEW=0 PAID=0 SHIPPED=0 DELIVERED=0 CANCELLED=0\n"
+      hidden: true
+      hint: "Без заказов печатается только summary с нулями."

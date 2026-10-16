@@ -1,0 +1,175 @@
+id: "cpp.fundamentals.classes-inheritance-virtual"
+title: "Классы, перегрузка операторов, наследование и виртуальные функции"
+goal: "Проектировать классы с корректными конструкторами и операторами и строить полиморфные иерархии с virtual, override и final, понимая устройство виртуальной диспетчеризации."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "cpp.fundamentals.raii-smart-pointers"
+related:
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+  - "java.fundamentals.interfaces-sealed-patterns"
+  - "go.fundamentals.interfaces"
+  - "rust.fundamentals.traits-and-generics"
+next:
+  - "cpp.fundamentals.templates-concepts-constexpr"
+objectives:
+  - "Писать конструкторы со списком инициализации, делегированием и explicit и объяснять порядок инициализации членов."
+  - "Перегружать операторы (+=, +, <<, сравнение) и использовать operator<=> по умолчанию из C++20."
+  - "Объяснять виртуальную диспетчеризацию через vtable и различать срезку и полиморфное хранение по указателю."
+  - "Применять override, final, чисто виртуальные функции и виртуальный деструктор."
+  - "Предсказывать, какая версия виртуальной функции вызывается в конструкторе и деструкторе."
+masteryCriteria:
+  - "Вы превращаете набор «скрывающих» функций в виртуальную иерархию с override и получаете корректный полиморфный вывод."
+  - "Вы объясняете, почему delete через указатель на базу без виртуального деструктора - неопределённое поведение."
+  - "Вы предсказываете вывод программы с срезкой и с вызовом виртуальной функции из конструктора."
+  - "Вы подтверждаете версию C++20 для operator<=> и std::numbers компиляцией с -std=c++17 (ошибка) и -std=c++20."
+tags:
+  - "cpp"
+  - "classes"
+  - "constructors"
+  - "operator-overloading"
+  - "inheritance"
+  - "virtual"
+  - "vtable"
+  - "override"
+facts:
+  - kind: "internals"
+    text: "Виртуальный вызов через указатель или ссылку на базовый класс выбирает функцию по динамическому типу объекта. Обычно это реализовано скрытым указателем на таблицу виртуальных функций (vtable) в каждом объекте полиморфного класса; стандарт саму vtable не описывает."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/virtual"
+  - kind: "historical"
+    text: "Спецификаторы override и final добавлены в C++11. override превращает несовпадение сигнатуры с базовой виртуальной функцией в ошибку компиляции; final запрещает переопределение функции или наследование от класса."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/override"
+      - "https://en.cppreference.com/w/cpp/language/final"
+  - kind: "historical"
+    text: "Трёхстороннее сравнение operator<=> и сравнение по умолчанию появились в C++20; пример с auto operator<=>(const T&) const = default не компилируется с -std=c++17. Константа std::numbers::pi также добавлена в C++20."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/operators"
+  - kind: "security"
+    text: "Удаление объекта производного класса через указатель на базу без виртуального деструктора - неопределённое поведение: деструктор производного класса не вызывается, ресурсы теряются."
+    sources:
+      - "https://isocpp.org/wiki/faq/virtual-functions"
+  - kind: "misconception"
+    text: "«Виртуальный вызов в конструкторе вызовет переопределение из производного класса» - нет: во время работы конструктора базы объект имеет тип базы, и вызывается версия базового класса."
+    sources:
+      - "https://isocpp.org/wiki/faq/strange-inheritance"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "class A { public: void f() { std::cout << 'A'; } }; class B : public A { public: void f() { std::cout << 'B'; } }; A* p = new B; p->f(); Что напечатается?"
+      options:
+        - "B"
+        - "A"
+        - "AB"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "f не виртуальна, поэтому вызов определяется статическим типом указателя (A*). Нужно объявить A::f виртуальной."
+    - id: "q2"
+      type: "single"
+      prompt: "Что произойдёт при delete p, где p имеет тип Base*, указывает на Derived, а деструктор Base не виртуальный?"
+      options:
+        - "Вызовутся оба деструктора."
+        - "Вызовется только ~Derived."
+        - "Неопределённое поведение."
+        - "Ошибка компиляции."
+      answer: 2
+      explanation: "Стандарт объявляет такое удаление неопределённым поведением. Деструктор базового класса полиморфной иерархии должен быть virtual."
+    - id: "q3"
+      type: "single"
+      prompt: "В базе: virtual void f() const; В производном: void f() override; (без const). Результат?"
+      options:
+        - "Компилируется, f переопределена."
+        - "Ошибка компиляции: override не соответствует ни одной виртуальной функции базы."
+        - "Предупреждение, затем работает как переопределение."
+        - "Вызов выберется во время выполнения."
+      answer: 1
+      explanation: "const входит в сигнатуру. override превращает такую опечатку в ошибку компиляции."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Класс с чисто виртуальной функцией нельзя создать как объект."
+        - "std::vector<Animal> с объектами Dog сохраняет полиморфное поведение."
+        - "Виртуальная функция, вызванная в конструкторе Base, не вызывает переопределение из Derived."
+        - "final на классе запрещает наследоваться от него."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Хранение по значению приводит к срезке: остаётся только часть Animal, полиморфизма нет."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется явление, когда объект Dog копируется в переменную типа Animal и теряет производную часть (одним словом, по-русски или по-английски)?"
+      answer:
+        - "срезка"
+        - "slicing"
+        - "object slicing"
+      explanation: "Срезка (slicing): остаётся только базовая часть, виртуальные вызовы работают как для Animal."
+exercise:
+  id: "cpp.fundamentals.classes-inheritance-virtual.exercise"
+  title: "Фигуры: виртуальная иерархия"
+  prompt: |
+    Первая строка - число фигур `n`, затем `n` строк: `circle r` (радиус - целое) или `rect w h` (целые). Если у `rect` ширина равна высоте, это квадрат (`Square`).
+
+    Программа хранит фигуры как `std::unique_ptr<Shape>`, **устойчиво** сортирует их по площади по возрастанию и печатает каждую строкой `<вид> area=<площадь>` с двумя знаками после точки, где вид - `circle`, `rect` или `square`. В конце печатается `total=<сумма площадей>`.
+
+    **Пример.** Ввод `3`, `rect 2 5`, `circle 1`, `rect 3 3`:
+
+    ```
+    circle area=3.14
+    square area=9.00
+    rect area=10.00
+    total=22.14
+    ```
+
+    Иерархия `Shape`, `Circle`, `Rect`, `Square` и операторы `<` и `<<` уже написаны. В заготовке `area()` и `kind()` в базе не виртуальные, поэтому вызов через `Shape&` всегда даёт базовые значения (`shape area=0.00`). Сделайте функции базы чисто виртуальными и пометьте переопределения в производных классах как `override`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: все строки выглядят как shape area=0.00. Функции Shape::area и Shape::kind выбираются по статическому типу Shape."
+    - "В Shape обе функции должны быть virtual. Для абстрактной базы подойдёт чисто виртуальная форма с = 0."
+    - "В Shape: virtual double area() const = 0; virtual std::string kind() const = 0;"
+    - "В Circle, Rect и Square допишите override после const у area() и kind(). Деструктор Shape уже виртуальный, final у Square тоже оставьте."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "3\nrect 2 5\ncircle 1\nrect 3 3\n"
+      expected: "circle area=3.14\nsquare area=9.00\nrect area=10.00\ntotal=22.14\n"
+      hint: "Сортировка по площади: круг 3.14, квадрат 9.00, прямоугольник 10.00. Сумма 22.14."
+    - id: "squares"
+      title: "Квадраты и прямоугольники"
+      stdin: "4\nrect 4 4\nrect 1 16\nrect 5 2\nrect 3 3\n"
+      expected: "square area=9.00\nrect area=10.00\nsquare area=16.00\nrect area=16.00\ntotal=51.00\n"
+      hint: "rect с равными сторонами - квадрат (kind() == square)."
+    - id: "circles"
+      title: "Только круги"
+      stdin: "3\ncircle 3\ncircle 1\ncircle 2\n"
+      expected: "circle area=3.14\ncircle area=12.57\ncircle area=28.27\ntotal=43.98\n"
+      hint: "Площадь круга pi * r * r."
+    - id: "stable"
+      title: "Одинаковые площади (скрытый) (скрытый)"
+      stdin: "5\nrect 2 8\nrect 4 4\nrect 1 16\nrect 4 4\nrect 8 2\n"
+      expected: "rect area=16.00\nsquare area=16.00\nrect area=16.00\nsquare area=16.00\nrect area=16.00\ntotal=80.00\n"
+      hidden: true
+      hint: "При равной площади порядок ввода сохраняется (stable_sort)."
+    - id: "single"
+      title: "Одна фигура (скрытый) (скрытый)"
+      stdin: "1\ncircle 10\n"
+      expected: "circle area=314.16\ntotal=314.16\n"
+      hidden: true
+      hint: "Площадь круга радиуса 10 равна 314.16."
+    - id: "none"
+      title: "Нет фигур (скрытый) (скрытый)"
+      stdin: "0\n"
+      expected: "total=0.00\n"
+      hidden: true
+      hint: "Без фигур печатается только total=0.00."
+    - id: "large"
+      title: "Большие размеры (скрытый) (скрытый)"
+      stdin: "3\nrect 100000 100000\ncircle 1000000\nrect 99999 100001\n"
+      expected: "rect area=9999999999.00\nsquare area=10000000000.00\ncircle area=3141592653589.79\ntotal=3161592653588.79\n"
+      hidden: true
+      hint: "Площадь прямоугольника считайте как double: int переполнится."

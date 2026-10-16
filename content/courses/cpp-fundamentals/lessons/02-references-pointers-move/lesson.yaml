@@ -1,0 +1,190 @@
+id: "cpp.fundamentals.references-pointers-move"
+title: "Ссылки, указатели, const, категории значений и семантика перемещения"
+goal: "Выбирать между значением, ссылкой и указателем, различать lvalue и rvalue, понимать, что делает std::move, и применять правила нуля, трёх и пяти."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "cpp.fundamentals.compilation-lifetime-storage"
+related:
+  - "rust.fundamentals.ownership-and-moves-in-depth"
+  - "rust.fundamentals.borrowing-and-lifetimes"
+  - "csharp.fundamentals.classes-records-structs"
+  - "go.fundamentals.maps-and-slices-deep-dive"
+next:
+  - "cpp.fundamentals.raii-smart-pointers"
+objectives:
+  - "Объяснить разницу между ссылкой и указателем и читать объявления const int*, int* const и const int* const."
+  - "Применять const-корректность: const-методы, перегрузки по const, параметры const T&."
+  - "Определять категорию выражения (lvalue, prvalue, xvalue) и предсказывать выбор перегрузки по T&, const T& и T&&."
+  - "Объяснить, что std::move - приведение типа, и когда перемещение превращается в копирование."
+  - "Применять правила нуля, трёх и пяти и объяснять роль noexcept у перемещающих операций."
+masteryCriteria:
+  - "Вы дописываете move-конструктор и перемещающее присваивание так, что счётчики копий и перемещений совпадают с ожидаемыми."
+  - "Вы предсказываете вывод программы с перегрузками show(int&), show(const int&), show(int&&) для литералов, выражений и имён."
+  - "Вы объясняете, почему std::move константного объекта копирует, а объявление деструктора отключает неявное перемещение."
+  - "Вы подтверждаете версии C++11 (перемещение) и C++17 (гарантированное исключение копирования) компиляцией с флагами -std."
+tags:
+  - "cpp"
+  - "references"
+  - "pointers"
+  - "const"
+  - "move-semantics"
+  - "value-categories"
+  - "rule-of-five"
+facts:
+  - kind: "historical"
+    text: "Rvalue-ссылки и семантика перемещения добавлены в C++11; проверка: компиляция с -std=c++03 -pedantic-errors отклоняет синтаксис T&&."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/reference"
+      - "https://en.cppreference.com/w/cpp/utility/move"
+  - kind: "internals"
+    text: "Каждое выражение C++ относится к одной из категорий: lvalue, xvalue или prvalue. Результат std::move - xvalue; имя переменной, даже объявленной как T&&, - lvalue."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/value_category"
+  - kind: "internals"
+    text: "Если класс объявляет деструктор или операцию копирования, неявные перемещающие операции не создаются, и вместо перемещения выполняется копирование (правила трёх, пяти и нуля)."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/rule_of_three"
+  - kind: "performance"
+    text: "std::vector при перевыделении перемещает элементы только если move-конструктор noexcept (std::move_if_noexcept); иначе он копирует. Забытое noexcept делает рост вектора дорогим."
+    sources:
+      - "https://en.cppreference.com/w/cpp/container/vector"
+  - kind: "historical"
+    text: "Гарантированное исключение копирования для prvalue введено в C++17: тип с удалёнными конструкторами копирования и перемещения можно вернуть из функции в режиме -std=c++17, но не в -std=c++14."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/copy_elision"
+  - kind: "misconception"
+    text: "«std::move перемещает объект» - нет: это приведение к rvalue-ссылке. Перемещение выполняет move-конструктор или move-присваивание принимающего типа."
+    sources:
+      - "https://en.cppreference.com/w/cpp/utility/move"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что делает std::move(x)?"
+      options:
+        - "Передаёт ресурсы x другому объекту."
+        - "Приводит x к rvalue-ссылке (xvalue), позволяя вызвать перемещающую операцию."
+        - "Удаляет x."
+        - "Копирует x в новый объект."
+      answer: 1
+      explanation: "std::move - это static_cast к T&&. Само перемещение происходит в move-конструкторе или move-присваивании получателя."
+    - id: "q2"
+      type: "single"
+      prompt: "void f(int&); void f(int&&); int&& r = 5; Какая перегрузка вызывается для f(r)?"
+      options:
+        - "f(int&&), потому что r объявлена как rvalue-ссылка."
+        - "f(int&), потому что выражение r - lvalue."
+        - "Неоднозначность, ошибка компиляции."
+        - "Выбор зависит от оптимизации."
+      answer: 1
+      explanation: "Имя переменной - всегда lvalue, даже если её тип T&&. Чтобы вызвать f(int&&), нужен f(std::move(r))."
+    - id: "q3"
+      type: "single"
+      prompt: "Класс объявляет только пользовательский деструктор ~Foo() и копирующий конструктор. Что произойдёт при Foo b = std::move(a);?"
+      options:
+        - "Вызовется неявный move-конструктор."
+        - "Ошибка компиляции."
+        - "Вызовется копирующий конструктор: неявный move-конструктор не создаётся."
+        - "Объект a будет уничтожен немедленно."
+      answer: 2
+      explanation: "Объявленный пользователем деструктор или копирование подавляет неявные операции перемещения; rvalue привязывается к const Foo&."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения о const верны?"
+      options:
+        - "const int* p позволяет присвоить p другой адрес."
+        - "int* const p позволяет присвоить p другой адрес."
+        - "Для const-объекта можно вызвать только const-методы."
+        - "const-метод может изменять поле, объявленное mutable."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "int* const - неизменяемый указатель: присвоить ему другой адрес нельзя. Остальные утверждения верны."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется правило: если класс объявляет деструктор, копирование или перемещение, стоит продумать все пять специальных функций?"
+      answer:
+        - "правило пяти"
+        - "rule of five"
+        - "rule of 5"
+      explanation: "Правило пяти (расширение правила трёх): деструктор, копирующие и перемещающие конструктор и присваивание. Идеал - правило нуля."
+exercise:
+  id: "cpp.fundamentals.references-pointers-move.exercise"
+  title: "Packet: перемещение вместо копирования"
+  prompt: |
+    Программа читает `n`, затем `n` целых чисел, затем число `m`. Класс `Packet` хранит вектор чисел и считает копии и перемещения в глобальной структуре `stats`.
+
+    Программа:
+
+    1. строит `original` из чисел;
+    2. кладёт в `inbox` (вектор с `reserve(m)`) `m` временных `Packet` через `push_back(Packet(values))`;
+    3. выполняет `Packet taken = std::move(original);`, затем `Packet copy = taken;` и `target = std::move(copy);`;
+    4. печатает три строки:
+
+    ```
+    inbox=<m> total=<сумма всех чисел всех пакетов в inbox>
+    taken=<размер> original=<размер> copy=<размер> target=<размер>
+    copies=<число копирований> moves=<число перемещений>
+    ```
+
+    **Пример.** Для `3`, `5 3 9`, `2`:
+
+    ```
+    inbox=2 total=34
+    taken=3 original=0 copy=0 target=3
+    copies=1 moves=4
+    ```
+
+    Перемещённый `Packet` должен остаться пустым (размер 0), а каждое перемещение увеличивает `stats.moves`.
+
+    В заготовке у `Packet` есть только копирование. Поскольку копирующие операции объявлены, неявные перемещающие не создаются, и `std::move` молча копирует. Добавьте конструктор перемещения и перемещающее присваивание (помечайте их `noexcept`).
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: moves=0, а copies больше ожидаемого, размер original не обнулился. Значит, везде вызывается копирование."
+    - "Классу нужны две новые функции: конструктор от Packet&& и operator=(Packet&&). Пока их нет, rvalue привязывается к const Packet&."
+    - "Packet(Packet&& other) noexcept : data_(std::move(other.data_)) { ... } Не забудьте обнулить other и увеличить stats.moves."
+    - "В перемещающем присваивании сделайте data_ = std::move(other.data_); other.data_.clear(); ++stats.moves; и верните *this. Защита от самоприсваивания this != &other допустима."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "3\n5 3 9\n2\n"
+      expected: "inbox=2 total=34\ntaken=3 original=0 copy=0 target=3\ncopies=1 moves=4\n"
+      hint: "Ожидается copies=1 (только Packet copy = taken) и moves=4: два push_back, taken и target."
+    - id: "one"
+      title: "Один временный пакет"
+      stdin: "2\n10 20\n1\n"
+      expected: "inbox=1 total=30\ntaken=2 original=0 copy=0 target=2\ncopies=1 moves=3\n"
+      hint: "Каждый push_back(Packet(...)) должен перемещать, а не копировать."
+    - id: "none"
+      title: "Пустой inbox"
+      stdin: "4\n1 2 3 4\n0\n"
+      expected: "inbox=0 total=0\ntaken=4 original=0 copy=0 target=4\ncopies=1 moves=2\n"
+      hint: "При m = 0 в inbox ничего нет, остальные операции те же."
+    - id: "empty-values"
+      title: "Пустые данные (скрытый) (скрытый)"
+      stdin: "0\n3\n"
+      expected: "inbox=3 total=0\ntaken=0 original=0 copy=0 target=0\ncopies=1 moves=5\n"
+      hidden: true
+      hint: "Пустой вектор тоже перемещается; размеры равны 0."
+    - id: "negative"
+      title: "Отрицательные числа (скрытый) (скрытый)"
+      stdin: "4\n-5 3 -10 0\n3\n"
+      expected: "inbox=3 total=-36\ntaken=4 original=0 copy=0 target=4\ncopies=1 moves=5\n"
+      hidden: true
+      hint: "Сумма считается по всем пакетам: 3 * (-12)."
+    - id: "big"
+      title: "Большие числа (скрытый) (скрытый)"
+      stdin: "3\n3000000000 5000000000 4000000000\n4\n"
+      expected: "inbox=4 total=48000000000\ntaken=3 original=0 copy=0 target=3\ncopies=1 moves=6\n"
+      hidden: true
+      hint: "Используйте long long для суммы."
+    - id: "many"
+      title: "Много пакетов (скрытый) (скрытый)"
+      stdin: "5\n1 1 1 1 1\n50\n"
+      expected: "inbox=50 total=250\ntaken=5 original=0 copy=0 target=5\ncopies=1 moves=52\n"
+      hidden: true
+      hint: "moves должно быть m + 2: m push_back, taken и target."

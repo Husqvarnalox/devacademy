@@ -1,0 +1,278 @@
+id: "cpp.fundamentals.raii-smart-pointers"
+title: "RAII и умные указатели: unique_ptr, shared_ptr, weak_ptr"
+goal: "Выражать владение типом: освобождать ресурсы через RAII, выбирать между unique_ptr, shared_ptr и weak_ptr и разрывать циклы владения."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "cpp.fundamentals.references-pointers-move"
+related:
+  - "rust.fundamentals.smart-pointers-and-interior-mutability"
+  - "csharp.fundamentals.exceptions-and-resources"
+  - "java.fundamentals.exceptions-try-with-resources"
+next:
+  - "cpp.fundamentals.classes-inheritance-virtual"
+objectives:
+  - "Объяснить RAII и показать, почему деструктор срабатывает при return, break и исключении."
+  - "Выбрать между значением, unique_ptr, shared_ptr и сырым указателем по вопросу «кто владеет»."
+  - "Передавать и возвращать unique_ptr (sink и фабрика) и объяснять состояние после std::move."
+  - "Читать use_count, expired и lock, использовать weak_ptr для наблюдателей и разрыва циклов."
+  - "Назвать версии C++, в которых появились make_unique, shared_ptr<T[]> и make_shared<T[]>."
+masteryCriteria:
+  - "Вы заменяете shared_ptr в роли наблюдателя на weak_ptr и объясняете, как это меняет use_count и срок жизни."
+  - "Вы реализуете дерево с unique_ptr-детьми и сырым parent-указателем и корректно переносите поддерево между родителями."
+  - "Вы предсказываете вывод программы с unique_ptr после std::move и с циклом shared_ptr."
+  - "Вы подтверждаете версию языка для make_unique, shared_ptr<T[]> и make_shared<T[]> компиляцией с флагами -std."
+tags:
+  - "cpp"
+  - "raii"
+  - "smart-pointers"
+  - "unique_ptr"
+  - "shared_ptr"
+  - "weak_ptr"
+  - "ownership"
+facts:
+  - kind: "historical"
+    text: "std::unique_ptr, std::shared_ptr и std::weak_ptr появились в C++11 вместо устаревшего auto_ptr; std::make_unique добавлен в C++14 (в -std=c++11 не компилируется), shared_ptr<T[]> - в C++17, make_shared<T[]> - в C++20."
+    sources:
+      - "https://en.cppreference.com/w/cpp/memory/unique_ptr"
+      - "https://en.cppreference.com/w/cpp/memory/shared_ptr"
+      - "https://en.cppreference.com/w/cpp/memory/unique_ptr/make_unique"
+  - kind: "internals"
+    text: "shared_ptr хранит указатель на объект и на управляющий блок со счётчиками сильных и слабых ссылок; операции со счётчиком атомарные, но сам объект потокобезопасным не становится. make_shared выделяет объект и блок одной аллокацией."
+    sources:
+      - "https://en.cppreference.com/w/cpp/memory/shared_ptr"
+  - kind: "internals"
+    text: "weak_ptr не участвует во владении; lock() возвращает shared_ptr (пустой, если объект уже уничтожен), expired() сообщает о смерти объекта."
+    sources:
+      - "https://en.cppreference.com/w/cpp/memory/weak_ptr"
+  - kind: "historical"
+    text: "Идиома RAII - захват ресурса в конструкторе и освобождение в деструкторе - лежит в основе управления ресурсами в C++ и заменяет блоки finally других языков."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/raii"
+  - kind: "misconception"
+    text: "«shared_ptr безопаснее unique_ptr». Совместное владение скрывает время жизни, стоит атомарных операций и создаёт циклы; unique_ptr нужно брать по умолчанию."
+    sources:
+      - "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "std::unique_ptr<int> a = std::make_unique<int>(1); std::unique_ptr<int> b = std::move(a); Чему равен a?"
+      options:
+        - "Указывает на тот же int, что и b."
+        - "Пуст (nullptr): владение передано."
+        - "Значение не определено."
+        - "Ошибка компиляции."
+      answer: 1
+      explanation: "После перемещения unique_ptr гарантированно пуст, единоличное владение у b."
+    - id: "q2"
+      type: "single"
+      prompt: "Два объекта хранят друг на друга std::shared_ptr. Что произойдёт при выходе обоих внешних владельцев из области видимости?"
+      options:
+        - "Оба уничтожатся."
+        - "Ни один не уничтожится: счётчики не дойдут до нуля, утечка."
+        - "Ошибка компиляции."
+        - "Исключение std::bad_weak_ptr."
+      answer: 1
+      explanation: "Каждый объект держит другого, счётчики остаются положительными. Обратную ссылку нужно сделать weak_ptr."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая сигнатура означает «функция забирает владение объектом»?"
+      options:
+        - "void f(Widget* w)"
+        - "void f(const Widget& w)"
+        - "void f(std::unique_ptr<Widget> w)"
+        - "void f(Widget& w)"
+      answer: 2
+      explanation: "Параметр unique_ptr по значению можно получить только через std::move: владение переходит в функцию."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Что верно о weak_ptr?"
+      options:
+        - "Не увеличивает счётчик владельцев."
+        - "lock() возвращает shared_ptr, пустой для уничтоженного объекта."
+        - "Продлевает жизнь объекта, пока существует хотя бы один weak_ptr."
+        - "expired() показывает, уничтожен ли объект."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "weak_ptr только наблюдает. Жизнь объекта определяют сильные ссылки (хотя управляющий блок живёт до последнего weak_ptr, объект уже уничтожен)."
+    - id: "q5"
+      type: "short"
+      prompt: "Как по-английски называется объект (второй шаблонный параметр D в unique_ptr<T, D>), который вызывается вместо delete при освобождении ресурса?"
+      answer:
+        - "deleter"
+        - "удалитель"
+      explanation: "Удалитель (deleter) вызывается вместо delete; так unique_ptr оборачивает FILE*, дескрипторы и другие C-ресурсы."
+exercise:
+  id: "cpp.fundamentals.raii-smart-pointers.exercise"
+  title: "Ресурсы с несколькими владельцами и наблюдатели"
+  prompt: |
+    Первая строка - число команд `n`, затем `n` команд (по одной в строке). Программа управляет ресурсами `Resource`: конструктор печатает `created <имя>`, деструктор - `destroyed <имя>`.
+
+    * `make X` - создать ресурс `X` с основным владельцем (если уже есть, напечатать `error: X exists`);
+    * `watch X` - завести наблюдателя за `X` (нет такого владельца - `error: no X`);
+    * `share X Y` - добавить ресурсу `X` ещё одного владельца с именем `Y` (нет `X` - `error: no X`);
+    * `drop X` - убрать основного владельца `X`;
+    * `release Y` - убрать дополнительного владельца `Y`;
+    * `status X` - напечатать `X alive owners=<число владельцев>` или `X expired`; если наблюдателя нет - `error: no watcher X`.
+
+    После всех команд программа печатает `shutdown`, затем освобождает основных владельцев и после них дополнительных.
+
+    **Пример.**
+
+    ```
+    5
+    make a
+    watch a
+    share a b
+    status a
+    drop a
+    ```
+
+    ```
+    created a
+    a alive owners=2
+    shutdown
+    destroyed a
+    ```
+
+    Наблюдатель **не должен владеть** ресурсом: он не входит в число владельцев и не мешает ресурсу умереть. В заготовке наблюдатели хранятся как `shared_ptr`, поэтому ресурсы не уничтожаются вовремя, а `owners` завышен. Исправьте тип.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку на примере: owners=3 вместо 2, а destroyed появляется не там. Наблюдатель считается владельцем."
+    - "Посмотрите на тип контейнера watchers. Кто должен хранить указатель, не продлевая жизнь объекта?"
+    - "Нужен std::weak_ptr<Resource> вместо std::shared_ptr<Resource>. Присваивание watchers[a] = it->second; продолжит работать."
+    - "После замены типа проверяйте истечение через expired(), а число владельцев берите из use_count(): у weak_ptr он не учитывает самого наблюдателя."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "5\nmake a\nwatch a\nshare a b\nstatus a\ndrop a\n"
+      expected: "created a\na alive owners=2\nshutdown\ndestroyed a\n"
+      hint: "Наблюдатель не считается владельцем: у a два владельца (основной и b). Ресурс уничтожается после shutdown."
+    - id: "expire"
+      title: "Наблюдатель видит смерть ресурса"
+      stdin: "5\nmake x\nwatch x\nstatus x\ndrop x\nstatus x\n"
+      expected: "created x\nx alive owners=1\ndestroyed x\nx expired\nshutdown\n"
+      hint: "После drop владельцев нет, ресурс уничтожается сразу, status печатает expired."
+    - id: "errors"
+      title: "Ошибки"
+      stdin: "6\nmake a\nmake a\nwatch z\nshare z q\nstatus a\nstatus z\n"
+      expected: "created a\nerror: a exists\nerror: no z\nerror: no z\nerror: no watcher a\nerror: no watcher z\nshutdown\ndestroyed a\n"
+      hint: "Повторный make и неизвестные имена дают error; без watch status печатает error: no watcher."
+    - id: "shared"
+      title: "Несколько владельцев (скрытый) (скрытый)"
+      stdin: "9\nmake a\nshare a b\nshare a c\nwatch a\nstatus a\ndrop a\nstatus a\nrelease b\nrelease c\n"
+      expected: "created a\na alive owners=3\na alive owners=2\ndestroyed a\nshutdown\n"
+      hidden: true
+      hint: "Ресурс живёт, пока жив хотя бы один владелец; destroyed печатается при release последнего."
+    - id: "recreate"
+      title: "Пересоздание под тем же именем (скрытый) (скрытый)"
+      stdin: "7\nmake a\nwatch a\ndrop a\nmake a\nstatus a\nwatch a\nstatus a\n"
+      expected: "created a\ndestroyed a\ncreated a\na expired\na alive owners=1\nshutdown\ndestroyed a\n"
+      hidden: true
+      hint: "Старый наблюдатель смотрит на уничтоженный объект, новый watch - на новый."
+    - id: "order"
+      title: "Порядок завершения (скрытый) (скрытый)"
+      stdin: "5\nmake b\nmake a\nshare b z\nshare a y\ndrop a\n"
+      expected: "created b\ncreated a\nshutdown\ndestroyed a\ndestroyed b\n"
+      hidden: true
+      hint: "При shutdown сначала очищаются основные владельцы (по имени), потом дополнительные (по имени)."
+    - id: "noop"
+      title: "Без команд (скрытый) (скрытый)"
+      stdin: "0\n"
+      expected: "shutdown\n"
+      hidden: true
+      hint: "Без команд печатается только shutdown."
+challenge:
+  id: "cpp.fundamentals.raii-smart-pointers.challenge"
+  title: "Дерево с unique_ptr и родительскими указателями"
+  prompt: |
+    Программа поддерживает дерево имён. Изначально есть один узел `root`. Первая строка - число команд `n`, затем `n` команд (по одной в строке; имена - слова без пробелов).
+
+    * `add P C` - добавить узел `C` последним ребёнком узла `P`. Выведите `added C under P`. Ошибки: `error: no P` (нет `P`), `error: duplicate C` (имя `C` уже есть; сначала проверяется `P`).
+    * `remove X` - удалить узел `X` вместе с поддеревом. Выведите `removed X (k nodes)`, где `k` - сколько узлов было уничтожено. Ошибки: `error: no X`, `error: cannot remove root`.
+    * `move X Y` - перенести узел `X` с поддеревом в конец детей узла `Y`. Выведите `moved X under Y`. Ошибки в порядке проверки: `error: no X`, `error: no Y`, `error: cannot move root`, `error: cycle` (если `Y` - сам `X` или его потомок).
+    * `path X` - путь от корня: `root/a/b`; нет узла - `error: no X`.
+    * `print` - всё дерево в прямом порядке, по узлу в строке, с отступом в два пробела на уровень вложенности.
+    * `count` - `nodes=<сколько узлов существует сейчас>`.
+
+    **Пример.**
+
+    ```
+    7
+    add root a
+    add a b
+    add root c
+    move b c
+    path b
+    print
+    remove a
+    ```
+
+    ```
+    added a under root
+    added b under a
+    added c under root
+    moved b under c
+    root/c/b
+    root
+      a
+      c
+        b
+    removed a (1 nodes)
+    ```
+
+    **Что дано.** Структура `Node` (дети принадлежат родителю через `unique_ptr`, `parent` - сырой невладеющий указатель), счётчики узлов, разбор команд, `print`, поиск по имени. Реализуйте в классе `Tree` методы `add`, `remove`, `move` и `path`. Узел переносится перемещением `unique_ptr` без создания новых узлов; перед удалением поддерева уберите его имена из индекса.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Индекс index_ (имя -> Node*) хранит сырые указатели, он ничем не владеет. Владеют только root_ и векторы children."
+    - "add: найдите родителя, проверьте дубликат, children.push_back(std::make_unique<Node>(child, p)) и запишите указатель в index_. path: поднимайтесь по parent до nullptr, добавляя имена слева."
+    - "remove: сначала уберите имена поддерева из индекса (рекурсивно), затем удалите unique_ptr из вектора родителя (erase/remove_if). Число уничтоженных узлов - разность g_destroyed до и после."
+    - "move: проверьте цикл, поднимаясь от Y по parent; затем найдите unique_ptr в векторе родителя X, переместите его во временную переменную (std::move), erase, обновите owned->parent и push_back в children узла Y."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "7\nadd root a\nadd a b\nadd root c\nmove b c\npath b\nprint\nremove a\n"
+      expected: "added a under root\nadded b under a\nadded c under root\nmoved b under c\nroot/c/b\nroot\n  a\n  c\n    b\nremoved a (1 nodes)\n"
+      hint: "b переносится под c; удаление a затрагивает один узел."
+    - id: "subtree"
+      title: "Удаление поддерева"
+      stdin: "9\nadd root a\nadd a b\nadd a c\nadd c d\ncount\nremove a\ncount\nprint\npath d\n"
+      expected: "added a under root\nadded b under a\nadded c under a\nadded d under c\nnodes=5\nremoved a (4 nodes)\nnodes=1\nroot\nerror: no d\n"
+      hint: "remove уничтожает a, b, c, d (4 узла); имена должны исчезнуть из индекса."
+    - id: "errors"
+      title: "Ошибки"
+      stdin: "11\nadd x y\nadd root a\nadd root a\nremove root\nremove q\nmove a q\nmove q a\nmove root a\nmove a a\nadd a b\nmove a b\n"
+      expected: "error: no x\nadded a under root\nerror: duplicate a\nerror: cannot remove root\nerror: no q\nerror: no q\nerror: no q\nerror: cannot move root\nerror: cycle\nadded b under a\nerror: cycle\n"
+      hint: "Порядок проверок: нет X, нет Y, корень, цикл."
+    - id: "move-subtree"
+      title: "Перенос поддерева (скрытый) (скрытый)"
+      stdin: "10\nadd root a\nadd root b\nadd a c\nadd c d\nmove c b\nprint\npath d\ncount\nremove b\ncount\n"
+      expected: "added a under root\nadded b under root\nadded c under a\nadded d under c\nmoved c under b\nroot\n  a\n  b\n    c\n      d\nroot/b/c/d\nnodes=5\nremoved b (3 nodes)\nnodes=2\n"
+      hidden: true
+      hint: "Переносится всё поддерево c; parent у c должен стать b, узлов после переноса столько же."
+    - id: "reuse-name"
+      title: "Повторное использование имени (скрытый) (скрытый)"
+      stdin: "8\nadd root a\nadd a b\nremove a\nadd root b\nadd b a\nprint\npath a\ncount\n"
+      expected: "added a under root\nadded b under a\nremoved a (2 nodes)\nadded b under root\nadded a under b\nroot\n  b\n    a\nroot/b/a\nnodes=3\n"
+      hidden: true
+      hint: "После remove имена a и b свободны: индекс должен быть очищен."
+    - id: "order"
+      title: "Порядок детей (скрытый) (скрытый)"
+      stdin: "9\nadd root a\nadd root b\nadd root c\nmove a c\nprint\nmove c b\nprint\nmove b root\nprint\n"
+      expected: "added a under root\nadded b under root\nadded c under root\nmoved a under c\nroot\n  b\n  c\n    a\nmoved c under b\nroot\n  b\n    c\n      a\nmoved b under root\nroot\n  b\n    c\n      a\n"
+      hidden: true
+      hint: "Перенос ставит узел последним ребёнком нового родителя; move b root переносит b в конец детей root."
+    - id: "deep"
+      title: "Глубокая цепочка (скрытый) (скрытый)"
+      stdin: "13\nadd root n1\nadd n1 n2\nadd n2 n3\nadd n3 n4\nadd n4 n5\npath n5\nmove n3 root\npath n5\nmove n1 n5\nmove n3 n1\nprint\nremove n3\ncount\n"
+      expected: "added n1 under root\nadded n2 under n1\nadded n3 under n2\nadded n4 under n3\nadded n5 under n4\nroot/n1/n2/n3/n4/n5\nmoved n3 under root\nroot/n3/n4/n5\nmoved n1 under n5\nerror: cycle\nroot\n  n3\n    n4\n      n5\n        n1\n          n2\nremoved n3 (5 nodes)\nnodes=1\n"
+      hidden: true
+      hint: "После переноса n3 под root узел n5 не потомок n1, поэтому move n1 n5 допустим; а move n3 n1 - цикл: n1 теперь внутри поддерева n3."

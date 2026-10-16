@@ -1,0 +1,245 @@
+id: "cpp.fundamentals.templates-concepts-constexpr"
+title: "Шаблоны, концепты (C++20) и constexpr"
+goal: "Писать обобщённый код на шаблонах, ограничивать его концептами и переносить вычисления на этап компиляции через constexpr, понимая цену инстанцирования."
+difficulty: "hard"
+estimatedMinutes: 90
+prerequisites:
+  - "cpp.fundamentals.classes-inheritance-virtual"
+related:
+  - "rust.fundamentals.traits-and-generics"
+  - "csharp.fundamentals.generics-and-collections"
+  - "java.fundamentals.generics-collections"
+next:
+  - "cpp.fundamentals.stl-containers-algorithms"
+objectives:
+  - "Объяснить инстанцирование шаблонов и отличие от обобщений Java и C#."
+  - "Применять вывод аргументов (в том числе CTAD), if constexpr и свёртки."
+  - "Объявлять концепты, ограничивать ими шаблоны и перегружать функции по ограничениям."
+  - "Использовать constexpr, consteval и static_assert, отличать вычисление при компиляции от вычисления при запуске."
+  - "Называть версию стандарта, в которой появилась каждая возможность, и подтверждать её компиляцией с -std."
+masteryCriteria:
+  - "Вы исправляете шаблон с неверным типом начального значения std::accumulate и объясняете, почему дробные части терялись."
+  - "Вы пишете две перегрузки report для числовых и строковых типов, различающиеся только ограничениями."
+  - "Вы реализуете constexpr-матрицу и проверяете результат static_assert на этапе компиляции."
+  - "Вы подтверждаете компиляцией с -std=c++14, 17 и 20 версии для CTAD, if constexpr, концептов и consteval."
+tags:
+  - "cpp"
+  - "templates"
+  - "concepts"
+  - "constexpr"
+  - "generic-programming"
+  - "cpp20"
+facts:
+  - kind: "internals"
+    text: "Шаблон инстанцируется для каждого набора аргументов: std::vector<int> и std::vector<double> - разные типы с отдельным сгенерированным кодом, а статические члены шаблона класса у каждой инстанциации свои."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/templates"
+  - kind: "historical"
+    text: "Концепты и ограничения (requires) вошли в C++20: с -std=c++17 ключевое слово concept не компилируется. consteval и стандартные концепты из заголовка <concepts> также появились в C++20."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/constraints"
+      - "https://en.cppreference.com/w/cpp/concepts"
+  - kind: "historical"
+    text: "if constexpr, свёртки параметров и вывод аргументов шаблона класса (CTAD) добавлены в C++17; constexpr-функции с циклами разрешены с C++14."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/if"
+      - "https://en.cppreference.com/w/cpp/language/constexpr"
+  - kind: "internals"
+    text: "В константном выражении неопределённое поведение (деление на ноль, переполнение знакового целого) не допускается: компилятор диагностирует его как ошибку, поэтому constexpr помогает обнаруживать такие дефекты."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/constexpr"
+  - kind: "performance"
+    text: "std::sort и std::accumulate стали constexpr в C++20; шаблоны не добавляют накладных расходов времени выполнения, но увеличивают время компиляции и размер кода из-за множества инстанциаций."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/templates"
+  - kind: "misconception"
+    text: "«std::accumulate(v.begin(), v.end(), 0) суммирует в типе элементов» - нет: тип результата равен типу начального значения, поэтому для вектора double нужно передавать 0.0."
+    sources:
+      - "https://en.cppreference.com/w/cpp/algorithm/accumulate"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно std::accumulate(v.begin(), v.end(), 0), если v = {0.5, 0.25, 0.75} (vector<double>)?"
+      options:
+        - "1.5 (double)"
+        - "0 (int): каждое слагаемое преобразуется в int"
+        - "Ошибка компиляции"
+        - "Зависит от флага оптимизации"
+      answer: 1
+      explanation: "Тип накопителя - тип начального значения (int). Нужна 0.0 или T{}."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что верно о шаблонах C++?"
+      options:
+        - "Для каждого набора аргументов компилятор генерирует отдельный код."
+        - "Тип в шаблоне обязан наследоваться от общего интерфейса."
+        - "static-член шаблона класса у Stack<int> и Stack<double> общий."
+        - "Определение шаблона обычно размещают в заголовке."
+      answer:
+        - 0
+        - 3
+      explanation: "Инстанциации независимы (в том числе статические члены), общий интерфейс не требуется, а определение должно быть видно в месте инстанцирования."
+    - id: "q3"
+      type: "single"
+      prompt: "В каком режиме -std не скомпилируется template <std::integral T> T twice(T x)?"
+      options:
+        - "-std=c++20"
+        - "-std=c++23"
+        - "-std=c++17"
+        - "Во всех компилируется"
+      answer: 2
+      explanation: "Концепты появились в C++20."
+    - id: "q4"
+      type: "single"
+      prompt: "constexpr int f(int x) { return x * 2; } Что верно о вызове f(runtimeValue), где runtimeValue прочитан из ввода?"
+      options:
+        - "Ошибка компиляции: аргумент не константа."
+        - "Функция выполняется во время работы программы."
+        - "Результат гарантированно вычислен при компиляции."
+        - "Требуется consteval."
+      answer: 1
+      explanation: "constexpr функцию можно вызывать и в обычном контексте. Только в константном контексте (static_assert, constexpr-переменная) вычисление обязано произойти при компиляции."
+    - id: "q5"
+      type: "short"
+      prompt: "Каким ключевым словом C++20 помечают функцию, каждый вызов которой обязан быть константным выражением?"
+      answer:
+        - "consteval"
+      explanation: "consteval (непосредственная функция) вычисляется только при компиляции; constexpr допускает оба режима."
+exercise:
+  id: "cpp.fundamentals.templates-concepts-constexpr.exercise"
+  title: "Обобщённая сводка по числам и строкам"
+  prompt: |
+    Первая строка - число запросов `q`. Каждый запрос: тип (`int`, `double` или `str`), число элементов `k` и `k` значений. Для каждого запроса нужно напечатать сводку.
+
+    * Числовой тип: `count=<k> min=<мин> max=<макс> sum=<сумма> mean=<среднее с двумя знаками>`. Сумма целых считается в `long long`, вещественных - в `double` (значения печатаются в обычном формате `ostream`).
+    * `str`: `count=<k> min=<лексикографический минимум> max=<максимум> chars=<суммарная длина всех строк>`.
+    * Если `k = 0`, печатается `count=0 empty`.
+
+    **Пример.** Ввод `2`, `int 4 3 1 2 9`, `double 3 1.5 2.5 0.25`:
+
+    ```
+    count=4 min=1 max=9 sum=15 mean=3.75
+    count=3 min=0.25 max=2.5 sum=4.25 mean=1.42
+    ```
+
+    Обобщённый код уже написан: концепт `Numeric`, шаблон `minMax` с ограничением `std::totally_ordered`, две перегрузки `report`, различающиеся ограничениями. В заготовке сумма считается через `std::accumulate(..., 0)`, то есть в `int`: у `double` теряются дробные части, у больших целых происходит переполнение. Исправьте начальное значение накопления.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку на примере с double: сумма получается целой. Подумайте, какого типа результат у std::accumulate."
+    - "Тип результата accumulate равен типу начального значения. Здесь начальное значение - литерал 0, то есть int."
+    - "В шаблоне есть псевдоним Accumulator<T>: long long для целых и double для вещественных. Его значение по умолчанию Accumulator<T>{} - ноль нужного типа."
+    - "Замените 0 на Accumulator<T>{}: std::accumulate(v.begin(), v.end(), Accumulator<T>{})."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2\nint 4 3 1 2 9\ndouble 3 1.5 2.5 0.25\n"
+      expected: "count=4 min=1 max=9 sum=15 mean=3.75\ncount=3 min=0.25 max=2.5 sum=4.25 mean=1.42\n"
+      hint: "Сумма double должна накапливаться в double: 1.5 + 2.5 + 0.25 = 4.25."
+    - id: "strings"
+      title: "Строки"
+      stdin: "2\nstr 3 pear apple fig\nstr 1 zebra\n"
+      expected: "count=3 min=apple max=pear chars=12\ncount=1 min=zebra max=zebra chars=5\n"
+      hint: "Для строк считаются лексикографические минимум и максимум и суммарная длина."
+    - id: "mixed"
+      title: "Разные типы в одном вводе"
+      stdin: "3\nint 3 -5 0 5\ndouble 2 0.1 0.2\nstr 2 b a\n"
+      expected: "count=3 min=-5 max=5 sum=0 mean=0.00\ncount=2 min=0.1 max=0.2 sum=0.3 mean=0.15\ncount=2 min=a max=b chars=2\n"
+      hint: "Каждый запрос обрабатывается отдельным инстанцированием шаблона."
+    - id: "empty"
+      title: "Пустые списки (скрытый) (скрытый)"
+      stdin: "3\nint 0\ndouble 0\nstr 0\n"
+      expected: "count=0 empty\ncount=0 empty\ncount=0 empty\n"
+      hidden: true
+      hint: "При k = 0 печатается count=0 empty."
+    - id: "overflow"
+      title: "Переполнение int (скрытый) (скрытый)"
+      stdin: "1\nint 3 2000000000 2000000000 2000000000\n"
+      expected: "count=3 min=2000000000 max=2000000000 sum=6000000000 mean=2000000000.00\n"
+      hidden: true
+      hint: "Сумма целых хранится в long long: 6000000000."
+    - id: "fractions"
+      title: "Дробные части (скрытый) (скрытый)"
+      stdin: "2\ndouble 4 0.5 0.5 0.5 0.5\ndouble 3 -1.25 2.75 0.5\n"
+      expected: "count=4 min=0.5 max=0.5 sum=2 mean=0.50\ncount=3 min=-1.25 max=2.75 sum=2 mean=0.67\n"
+      hidden: true
+      hint: "При начальном значении 0 (int) дробные части отбрасываются при каждом сложении."
+    - id: "negative"
+      title: "Отрицательные и порядок (скрытый) (скрытый)"
+      stdin: "2\nint 5 -3 -7 -1 -9 -4\nstr 4 Zed alpha Beta alpha\n"
+      expected: "count=5 min=-9 max=-1 sum=-24 mean=-4.80\ncount=4 min=Beta max=alpha chars=17\n"
+      hidden: true
+      hint: "min и max ищутся по значению; для строк сравнение по кодам символов: заглавные раньше строчных."
+challenge:
+  id: "cpp.fundamentals.templates-concepts-constexpr.challenge"
+  title: "Матричное возведение в степень на constexpr"
+  prompt: |
+    Первая строка - число запросов `q`. Каждый запрос: `fib n m` или `trib n m`, где `n` до 10^18, а `m` до 10^9 (все числа неотрицательные, `m >= 1`). Нужно вывести `F(n) mod m` (числа Фибоначчи: `F(0)=0`, `F(1)=1`) или `T(n) mod m` (числа Трибоначчи: `T(0)=0`, `T(1)=0`, `T(2)=1`, `T(n)=T(n-1)+T(n-2)+T(n-3)`). Другой тип запроса - строка `error`.
+
+    **Пример.**
+
+    ```
+    2
+    fib 10 1000
+    trib 10 1000
+    ```
+
+    ```
+    55
+    81
+    ```
+
+    **Что дано.** Шаблон `Mat<N>` (квадратная матрица `N x N` с элементами `unsigned long long`), функции `fib` и `trib`, использующие `Mat<2>` и `Mat<3>`, чтение запросов. Реализуйте `constexpr`-методы `identity`, `mul` и `pow` (быстрое возведение в степень за `O(N^3 log n)`): промежуточные произведения должны не переполнять 64 бита, поэтому приводите по модулю после каждого умножения. Результат при `m = 1` равен 0.
+
+    После реализации раскомментируйте `static_assert` в коде: проверки выполняются во время компиляции тем же кодом, что обслуживает запросы. Один и тот же шаблон работает для `N = 2` и `N = 3`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Для fib берётся матрица [[1,1],[1,0]] в степени n; F(n) стоит в a[0][1]. Для trib матрица [[1,1,1],[1,0,0],[0,1,0]], T(n) стоит в a[2][0]."
+    - "identity: на диагонали 1 % mod (если mod = 1, единица должна обратиться в 0). mul: тройной цикл, каждое произведение берите по модулю: s = (s + a[i][k] % mod * (o.a[k][j] % mod)) % mod."
+    - "pow: result = identity(mod), base = *this. Пока e > 0: если e нечётно - result = result.mul(base, mod); затем base = base.mul(base, mod); e >>= 1."
+    - "Методы объявлены constexpr, поэтому в них нельзя использовать ввод-вывод; Mat r; создаёт нулевую матрицу благодаря инициализатору a{}."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2\nfib 10 1000\ntrib 10 1000\n"
+      expected: "55\n81\n"
+      hint: "F(10) = 55, T(10) = 81."
+    - id: "small"
+      title: "Малые значения"
+      stdin: "8\nfib 0 100\nfib 1 100\nfib 2 100\nfib 20 1000000\ntrib 0 100\ntrib 1 100\ntrib 2 100\ntrib 3 100\n"
+      expected: "0\n1\n1\n6765\n0\n0\n1\n1\n"
+      hint: "F(0)=0, F(1)=1; T(0)=T(1)=0, T(2)=T(3)=1."
+    - id: "unknown"
+      title: "Неизвестный запрос"
+      stdin: "2\ntetra 5 10\nfib 5 10\n"
+      expected: "error\n5\n"
+      hint: "Любой другой тип запроса даёт error."
+    - id: "huge"
+      title: "Огромное n (скрытый) (скрытый)"
+      stdin: "4\nfib 1000000000000000000 1000000007\ntrib 1000000000000000000 999999937\nfib 999999999999999999 1000000000\ntrib 123456789012345678 1000000000\n"
+      expected: "209783453\n137501042\n900390626\n307618975\n"
+      hidden: true
+      hint: "n до 10^18: нужна быстрая степень, цикл по n не успеет."
+    - id: "mod1"
+      title: "m = 1 (скрытый) (скрытый)"
+      stdin: "3\nfib 100 1\ntrib 100 1\nfib 0 1\n"
+      expected: "0\n0\n0\n"
+      hidden: true
+      hint: "При m = 1 любой результат равен 0, в том числе единичная матрица."
+    - id: "bigmod"
+      title: "Модуль около 10^9 (скрытый) (скрытый)"
+      stdin: "3\nfib 90 1000000000\nfib 91 999999999\ntrib 300 999999937\n"
+      expected: "370816120\n35576924\n48981126\n"
+      hidden: true
+      hint: "Произведения до 10^18 помещаются в unsigned long long, но суммировать их без приведения по модулю нельзя."
+    - id: "exact"
+      title: "Точные значения (скрытый) (скрытый)"
+      stdin: "3\nfib 90 1000000000000\ntrib 30 1000000000\ntrib 4 1000\n"
+      expected: "194370816120\n15902591\n2\n"
+      hidden: true
+      hint: "F(90) = 2880067194370816120 по модулю 10^12; T(30) = 15902591 по модулю 10^9."
