@@ -1,0 +1,248 @@
+id: "go.fundamentals.concurrency-patterns-and-context"
+title: "Паттерны конкурентности и context"
+goal: "Собирать из горутин пулы воркеров и «гонки» задач, останавливать работу через context и защищать общее состояние мьютексом, понимая границы детектора гонок."
+difficulty: "hard"
+estimatedMinutes: 90
+prerequisites:
+  - "go.fundamentals.goroutines-and-channels"
+objectives:
+  - "Построить пул воркеров с ограничением параллелизма и результатами, привязанными к индексам заданий."
+  - "Использовать context.WithCancel, WithTimeout и ctx.Done() для кооперативной отмены и сравнивать ошибки через errors.Is."
+  - "Остановить группу горутин при первой ошибке, не теряя эту ошибку, и объяснить, чем это отличается от errgroup из golang.org/x/sync."
+  - "Защитить общее состояние sync.Mutex и распознать гонку данных."
+  - "Точно описать, когда доступен go test -race, и не делать проверку корректности зависимой от него."
+masteryCriteria:
+  - "Вы вызываете cancel через defer после каждого WithCancel и WithTimeout."
+  - "Вы отправляете в канал заданий только внутри select с ctx.Done(), чтобы производитель не зависал."
+  - "Вы возвращаете из конкурентной функции только после завершения всех запущенных ей горутин."
+  - "Вы не используете time.Sleep для синхронизации в тестах конкурентного кода."
+related:
+  - "go.fundamentals.goroutines-and-channels"
+  - "go.fundamentals.interfaces"
+next:
+  - "go.fundamentals.packages-modules-testing"
+tags:
+  - "go"
+  - "context"
+  - "concurrency"
+  - "sync"
+  - "worker-pool"
+facts:
+  - kind: "historical"
+    text: "Пакет context добавлен в стандартную библиотеку в Go 1.7; WithCancelCause и Cause появились в Go 1.20, WithoutCancel и AfterFunc - в Go 1.21."
+    sources:
+      - "https://pkg.go.dev/context"
+      - "https://go.dev/doc/go1.21"
+  - kind: "misconception"
+    text: "«Отмена контекста останавливает горутину» - нет. Контекст только сообщает об отмене через закрытие канала Done; горутина должна сама проверять его или передавать в вызовы, которые это делают."
+    sources:
+      - "https://pkg.go.dev/context#Context"
+      - "https://go.dev/blog/context"
+  - kind: "real-world"
+    text: "Группа горутин с остановкой при первой ошибке в проектах обычно реализуется через errgroup из golang.org/x/sync - отдельного модуля, который не входит в стандартную библиотеку."
+    sources:
+      - "https://pkg.go.dev/golang.org/x/sync/errgroup"
+  - kind: "internals"
+    text: "Детектор гонок включается флагом -race и по документации Go поддерживается не на всех платформах; на ряде из них ему нужен cgo. Он сообщает лишь о гонках, которые действительно произошли во время запуска, поэтому его отсутствие в отчёте не доказывает корректность."
+    sources:
+      - "https://go.dev/doc/articles/race_detector"
+  - kind: "internals"
+    text: "Тип sync.Mutex нельзя копировать после первого использования; инструмент go vet проверяет это правило (copylocks). Нулевое значение Mutex - готовый к работе разблокированный мьютекс."
+    sources:
+      - "https://pkg.go.dev/sync#Mutex"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "ctx, cancel := context.WithTimeout(context.Background(), time.Second) - зачем вызывать cancel, если срок всё равно истечёт?"
+      options:
+        - "Без cancel контекст никогда не истечёт"
+        - "Чтобы сразу освободить ресурсы контекста, если работа закончилась раньше срока"
+        - "Это нужно только для WithCancel, а для WithTimeout не нужно"
+        - "cancel меняет значение, возвращаемое ctx.Value"
+      answer: 1
+      explanation: "Таймер и связанные ресурсы живут до срока, если не вызвать cancel. go vet предупреждает о забытом cancel."
+    - id: "q2"
+      type: "single"
+      prompt: "Чему равно ctx.Err() у контекста, отменённого по истечении срока?"
+      options:
+        - "context.Canceled"
+        - "context.DeadlineExceeded"
+        - "nil"
+        - "io.EOF"
+      answer: 1
+      explanation: "Отмену вручную сообщает context.Canceled, истёкший срок - context.DeadlineExceeded. Сравнивайте через errors.Is."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "ctx принято передавать первым параметром функции."
+        - "Контекст стоит хранить в поле структуры, чтобы не передавать его параметром."
+        - "Отмена родительского контекста отменяет все производные."
+        - "errgroup входит в стандартную библиотеку Go."
+      answer:
+        - 0
+        - 2
+      explanation: "Контекст передают параметром, а не хранят в структуре. errgroup находится в golang.org/x/sync, то есть вне стандартной библиотеки."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой тип нужно использовать для ключа в context.WithValue, чтобы не пересекаться с ключами других пакетов: встроенный string или собственный неэкспортируемый тип? Ответьте одним словом: «собственный» или «string»."
+      answer:
+        - "собственный"
+      explanation: "Собственный тип ключа исключает случайные совпадения ключей между пакетами."
+    - id: "q5"
+      type: "single"
+      prompt: "Что верно про go test -race?"
+      options:
+        - "Он доказывает отсутствие гонок данных"
+        - "Он находит только гонки, которые случились во время запуска, и доступен не на всех платформах"
+        - "Он работает одинаково на всех платформах без дополнительных требований"
+        - "Он заменяет мьютексы"
+      answer: 1
+      explanation: "Детектор динамический: он видит только реально произошедшие конфликтные обращения, а поддержка зависит от платформы и cgo."
+exercise:
+  id: "go.fundamentals.concurrency-patterns-and-context.exercise"
+  title: "Пул воркеров, SafeCounter и тайм-аут"
+  prompt: |
+    Пакет `work` (модуль `example.com/work`, файл `work.go`) содержит три независимые части. Заготовка компилируется, но работает последовательно и без защиты.
+
+    * **`Pool(parent, workers, jobs, fn) ([]int, error)`** - применяет `fn` к каждому заданию не более чем в `workers` горутинах; `results[i]` соответствует `jobs[i]`. `workers <= 0` считается единицей. При **первой** ошибке остальные задания отменяются через контекст и возвращается именно эта ошибка. Если ошибок нет, но `parent` отменён, возвращается `parent.Err()`. Функция возвращается только после завершения всех своих горутин.
+    * **`SafeCounter`** - счётчики по ключам с методами `Inc(key)`, `Get(key)` и `Snapshot()` (копия карты). Нулевое значение должно быть готово к работе, доступ защищает `sync.Mutex`.
+    * **`RunWithTimeout(parent, d, fn) error`** - запускает `fn` с контекстом, который истекает через `d` или раньше при отмене `parent`; возвращает ошибку `fn`.
+
+    Тесты детерминированы: синхронизация идёт через каналы и `WaitGroup`, а тайм-аут нужен лишь для превращения зависания в понятную ошибку. Проверка не использует `-race`, но у себя в терминале запустите `go test -race`, если ваша платформа это поддерживает. Запуск: `go test -json -count=1 ./...`.
+  evaluation: "command"
+  languageId: "go"
+  entryFile: "work.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 60
+  hints:
+    - "SafeCounter: добавьте поле mu sync.Mutex рядом с картой; в каждом методе mu.Lock() и defer mu.Unlock(). В Inc создавайте карту лениво, если она nil."
+    - "RunWithTimeout: ctx, cancel := context.WithTimeout(parent, d); defer cancel(); return fn(ctx)."
+    - "Pool: ctx, cancel := context.WithCancel(parent); defer cancel(). Запустите workers горутин, читающих индексы из канала jobsCh; каждая пишет results[i] только в свой элемент. Первую ошибку запоминайте под мьютексом (только если ещё не записана) и затем вызывайте cancel()."
+    - "Pool: отправку индексов в канал делайте в select с case <-ctx.Done(): break, затем close(jobsCh). Воркер перед заданием проверяет ctx.Err(). После wg.Wait() верните запомненную ошибку, а если её нет - parent.Err() (тоже nil, когда отмены не было)."
+  tests:
+    - id: "pool-order"
+      title: "Pool: результаты по порядку"
+      match: "TestPool/results-in-order"
+      hint: "Каждая горутина пишет в results[i] для своего i, поэтому порядок сохраняется при любом расписании."
+    - id: "pool-empty"
+      title: "Pool: пустой список заданий"
+      match: "TestPool/empty"
+      hint: "Для нуля заданий верните пустой результат и nil, не зависая."
+    - id: "counter-zero"
+      title: "SafeCounter: нулевое значение"
+      match: "TestSafeCounter/zero-value-usable"
+      hint: "Карта создаётся лениво в Inc; Get и Snapshot работают и с nil-картой."
+    - id: "timeout-deadline"
+      title: "RunWithTimeout: срок истёк"
+      match: "TestRunWithTimeout/deadline"
+      hint: "fn должна получить контекст с WithTimeout, а ошибка вернуться как есть."
+    - id: "pool-workers"
+      title: "Pool: workers <= 0 (скрытый)"
+      match: "TestPool/workers-nonpositive"
+      hidden: true
+      hint: "При workers < 1 используйте одного воркера."
+    - id: "pool-limit"
+      title: "Pool: предел параллелизма (скрытый)"
+      match: "TestPool/concurrency-limit"
+      hidden: true
+      hint: "Запускайте ровно workers горутин, читающих общий канал индексов, а не по горутине на задание."
+    - id: "pool-concurrent"
+      title: "Pool: задания идут одновременно (скрытый)"
+      match: "TestPool/really-concurrent"
+      hidden: true
+      hint: "Если workers больше одного, воркеры должны работать параллельно, а не по очереди."
+    - id: "pool-first-error"
+      title: "Pool: первая ошибка отменяет остальных (скрытый)"
+      match: "TestPool/first-error-cancels-others"
+      hidden: true
+      hint: "Запишите первую ошибку под мьютексом, затем cancel(); остальные задания должны увидеть ctx.Done()."
+    - id: "pool-parent"
+      title: "Pool: отмена родителя (скрытый)"
+      match: "TestPool/parent-cancelled"
+      hidden: true
+      hint: "Если ошибок нет, но parent отменён, верните parent.Err()."
+    - id: "counter-parallel"
+      title: "SafeCounter: параллельные Inc (скрытый)"
+      match: "TestSafeCounter/parallel-increments"
+      hidden: true
+      hint: "Весь доступ к карте, включая Get, происходит между Lock и Unlock."
+    - id: "counter-snapshot"
+      title: "SafeCounter: Snapshot (скрытый)"
+      match: "TestSafeCounter/snapshot-*"
+      hidden: true
+      hint: "Snapshot создаёт новую карту и копирует в неё пары под блокировкой; для пустого счётчика запись в него не вызывает паники."
+    - id: "timeout-others"
+      title: "RunWithTimeout: fn быстрее срока и отмена родителя (скрытый)"
+      match: "TestRunWithTimeout/*"
+      hidden: true
+      hint: "Контекст fn наследует отмену parent, поэтому отмена родителя доходит до fn."
+challenge:
+  id: "go.fundamentals.concurrency-patterns-and-context.challenge"
+  title: "First: первая успешная из нескольких"
+  prompt: |
+    В пакете `first` (модуль `example.com/first`, файл `first.go`) реализуйте функцию
+
+    `First(parent context.Context, fns ...func(context.Context) (string, error)) (string, error)`
+
+    * Все `fns` запускаются параллельно с общим производным контекстом.
+    * Возвращается результат **первой успешной** функции; остальным сразу отправляется отмена.
+    * `First` возвращается только **после завершения всех** запущенных горутин (утечек нет).
+    * Если успешных нет, возвращается `errors.Join` всех ошибок в порядке индексов `fns`.
+    * Для пустого списка возвращается `ErrNoTasks` (уже объявлена).
+    * Если `parent` отменён, а успешных нет, ошибки отмены попадают в `errors.Join`, поэтому `errors.Is(err, context.Canceled)` истинно.
+
+    Подсказка по устройству: буферизованный канал результатов размером `len(fns)` гарантирует, что ни одна горутина не заблокируется при отправке. Запуск: `go test -json -count=1 ./...`.
+  entryFile: "first.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 60
+  hints:
+    - "Создайте ctx, cancel := context.WithCancel(parent) и defer cancel(). Каждая функция запускается в своей горутине (wg.Go)."
+    - "Канал результатов с буфером len(fns) нужен, чтобы отправитель никогда не блокировался; структура результата хранит индекс, значение и ошибку."
+    - "Читайте ровно len(fns) результатов. При первом успехе запомните значение и вызовите cancel(), но продолжайте читать до конца: так вы соберёте ошибки и дождётесь всех."
+    - "Перед возвратом выполните wg.Wait(). Если победителя нет, соберите ошибки в срез по индексу и верните errors.Join(errs...)."
+  tests:
+    - id: "first-winner"
+      title: "Победитель отменяет проигравшего"
+      match: "TestFirst/winner-cancels-loser"
+      hint: "Проигравшая функция должна успеть увидеть отмену до возврата First."
+    - id: "first-skips"
+      title: "Ошибки пропускаются"
+      match: "TestFirst/skips-failures"
+      hint: "Ошибка одной функции не завершает First, если другая ещё может справиться."
+    - id: "first-all-fail"
+      title: "Все функции упали (скрытый)"
+      match: "TestFirst/all-fail-joined"
+      hidden: true
+      hint: "Верните errors.Join всех ошибок; errors.Is должен находить каждую."
+    - id: "first-empty"
+      title: "Нет функций (скрытый)"
+      match: "TestFirst/no-functions"
+      hidden: true
+      hint: "Для пустого списка верните ErrNoTasks сразу."
+    - id: "first-parent"
+      title: "Отмена родителя (скрытый)"
+      match: "TestFirst/parent-cancelled"
+      hidden: true
+      hint: "Ошибки отмены функций попадают в Join, и errors.Is находит context.Canceled."
+    - id: "first-many"
+      title: "Много функций (скрытый)"
+      match: "TestFirst/many-parallel"
+      hidden: true
+      hint: "Все 20 блокирующихся функций должны получить отмену и завершиться до возврата First."

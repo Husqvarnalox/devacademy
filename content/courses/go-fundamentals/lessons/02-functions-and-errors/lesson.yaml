@@ -1,0 +1,174 @@
+id: "go.fundamentals.functions-and-errors"
+title: "Функции, ошибки как значения и defer"
+goal: "Писать функции с несколькими результатами, оборачивать и распознавать ошибки через errors.Is и errors.As, предсказывать порядок defer и понимать, когда panic уместен."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "go.fundamentals.types-values-zero-values"
+objectives:
+  - "Объяснить, почему в Go ошибка - значение интерфейса error, а не исключение."
+  - "Оборачивать ошибки через fmt.Errorf с %w и находить причину через errors.Is и errors.As."
+  - "Выбирать между сентинелом и типизированной ошибкой."
+  - "Предсказывать порядок выполнения defer, момент вычисления его аргументов и влияние на именованные результаты."
+  - "Назвать случаи, где panic и recover уместны, и случаи, где нет."
+masteryCriteria:
+  - "Вы возвращаете из функции обёрнутую ошибку и проверяете её в вызывающем коде через errors.Is и errors.As, а не по тексту."
+  - "Вы предсказываете вывод программы с несколькими defer и замыканием над именованным результатом."
+  - "Вы объявляете сентинел и типизированную ошибку и объясняете, когда нужен каждый вид."
+  - "Вы не используете panic для обработки неверного ввода."
+related:
+  - "go.first-steps.packages-and-go-test"
+next:
+  - "go.fundamentals.structs-methods-embedding"
+tags:
+  - "go"
+  - "errors"
+  - "defer"
+  - "panic"
+facts:
+  - kind: "historical"
+    text: "Поддержка оборачивания ошибок (глагол %w, функции errors.Is, errors.As, errors.Unwrap) появилась в Go 1.13. Начиная с Go 1.20 в одном fmt.Errorf допустимо несколько %w, а errors.Join объединяет несколько ошибок в одну."
+    sources:
+      - "https://go.dev/blog/go1.13-errors"
+      - "https://pkg.go.dev/errors"
+      - "https://go.dev/doc/go1.20"
+  - kind: "internals"
+    text: "Аргументы отложенного вызова вычисляются в момент выполнения оператора defer, а сам вызов выполняется при выходе из функции в порядке LIFO. Отложенная функция может прочитать и изменить именованные результаты окружающей функции."
+    sources:
+      - "https://go.dev/ref/spec#Defer_statements"
+      - "https://go.dev/blog/defer-panic-and-recover"
+  - kind: "internals"
+    text: "recover возвращает значение паники и останавливает её только при вызове непосредственно из отложенной функции; вне паники возвращает nil. Среда выполнения порождает паники с ошибками типа runtime.Error."
+    sources:
+      - "https://go.dev/ref/spec#Handling_panics"
+      - "https://pkg.go.dev/builtin#recover"
+  - kind: "misconception"
+    text: "«panic и recover - это try/catch» - нет. В идиоматичном Go паника сигнализирует о баге или невосстановимом состоянии, а ожидаемые сбои передаются значением error."
+  - kind: "performance"
+    text: "Начиная с Go 1.14 накладные расходы большинства использований defer почти нулевые (по заявлению авторов релиза), поэтому отказываться от defer ради микрооптимизации обычно не нужно."
+    sources:
+      - "https://go.dev/doc/go1.14"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что напечатает for i := 0; i < 3; i++ { defer fmt.Print(i, \" \") } после выхода из функции?"
+      options:
+        - "0 1 2"
+        - "2 1 0"
+        - "3 3 3"
+        - "Ничего: defer в цикле запрещён"
+      answer: 1
+      explanation: "Отложенные вызовы выполняются по принципу LIFO, а аргумент i вычисляется в момент defer, поэтому выводится 2 1 0."
+    - id: "q2"
+      type: "single"
+      prompt: "func f() (n int) { defer func() { n *= 2 }(); return 21 }. Что вернёт f()?"
+      options:
+        - "21"
+        - "42"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "return 21 присваивает n значение 21, затем отложенное замыкание удваивает n до фактического возврата."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "errors.Is проходит по цепочке обёрнутых ошибок."
+        - "fmt.Errorf с %v сохраняет возможность найти исходную ошибку через errors.Is."
+        - "Второй аргумент errors.As - указатель на переменную нужного типа."
+        - "recover перехватывает панику, даже если вызван не из отложенной функции."
+      answer:
+        - 0
+        - 2
+      explanation: "%v не оборачивает ошибку, а recover работает только в отложенной функции."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой глагол форматирования в fmt.Errorf оборачивает ошибку? (введите его вместе с процентом)"
+      answer:
+        - "%w"
+      explanation: "Глагол %w создаёт ошибку с методом Unwrap, и errors.Is/As находят исходную причину."
+    - id: "q5"
+      type: "single"
+      prompt: "x := 1; defer fmt.Println(x); x = 2. Что напечатает отложенный вызов?"
+      options:
+        - "1"
+        - "2"
+        - "0"
+        - "Зависит от компилятора"
+      answer: 0
+      explanation: "Аргумент вычисляется в момент выполнения defer, и тогда x равно 1. Чтобы увидеть 2, нужно замыкание."
+exercise:
+  id: "go.fundamentals.functions-and-errors.exercise"
+  title: "Калькулятор с классификацией ошибок"
+  prompt: |
+    Программа читает строки вида `a op b` (целые `a`, `b` и оператор `+ - * / %`). Для каждой строки (номер с 1, пустые строки тоже считаются) печатается результат или классифицированная ошибка, а в конце - итог.
+
+    **Формат вывода:**
+
+    ```
+    <i>: <значение>                     при успехе
+    <i>: <вид>: <err>                    при ошибке
+    done: <N> ok, <M> failed
+    ```
+
+    **Виды ошибок** (определяет функция `classify(err error) string`):
+
+    * `div0` - деление или остаток на ноль: `errors.Is(err, ErrDivZero)`. Сообщение: `10 / 0: division by zero`;
+    * `op` - неизвестный оператор: `errors.Is(err, ErrUnknownOp)`. Сообщение: `operator "^": unknown operator`;
+    * `syntax` - строка не из трёх слов: `*SyntaxError` (найти через `errors.As`). Сообщение: `syntax error in "1 +": want: a op b`;
+    * `number` - операнд не число: ошибка `*strconv.NumError` внутри обёртки `operand "abc": ...` (найти через `errors.As`);
+    * `other` - всё остальное.
+
+    **Пример** для ввода `10 / 2`, `10 / 0`, `1 +`:
+
+    ```
+    1: 5
+    2: div0: 10 / 0: division by zero
+    3: syntax: syntax error in "1 +": want: a op b
+    done: 1 ok, 2 failed
+    ```
+
+    В заготовке ошибки создаются без `%w` и без сентинелов, поэтому цепочку не разобрать, а `classify` всегда возвращает `other`. Исправьте `Eval` (оборачивайте через `%w`, возвращайте `*SyntaxError` и сентинелы) и реализуйте `classify`. Итоговая строка `done:` печатается отложенным вызовом в `main`.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: у каждой ошибки вид other. errors.Is и errors.As ищут причину в цепочке, а цепочка создаётся глаголом %w в fmt.Errorf; сейчас стоит %v или вообще новая ошибка."
+    - "В Eval: для деления на ноль верните fmt.Errorf(\"%d %s %d: %w\", a, op, b, ErrDivZero), для неизвестного оператора - fmt.Errorf(\"operator %q: %w\", op, ErrUnknownOp), для плохого операнда замените %v на %w."
+    - "Для неверного числа слов верните указатель на структуру: &SyntaxError{Line: line, Reason: \"want: a op b\"}. Метод Error у типа уже есть."
+    - "В classify: сначала case errors.Is(err, ErrDivZero) и ErrUnknownOp, затем var se *SyntaxError / var ne *strconv.NumError и case errors.As(err, &se), errors.As(err, &ne); в конце return \"other\"."
+  tests:
+    - id: "arith"
+      title: "Арифметика"
+      stdin: "1 + 2\n6 * 7\n9 - 10\n"
+      expected: "1: 3\n2: 42\n3: -1\ndone: 3 ok, 0 failed\n"
+      hint: "Успешные строки печатаются как номер и значение; итог показывает число успешных и неудачных строк."
+    - id: "div0"
+      title: "Деление на ноль"
+      stdin: "10 / 0\n7 % 0\n"
+      expected: "1: div0: 10 / 0: division by zero\n2: div0: 7 % 0: division by zero\ndone: 0 ok, 2 failed\n"
+      hint: "Оберните сентинел ErrDivZero через %w и проверьте его в classify через errors.Is. Остаток от деления на ноль тоже ошибка."
+    - id: "syntax"
+      title: "Неверное число слов"
+      stdin: "1 +\n"
+      expected: "1: syntax: syntax error in \"1 +\": want: a op b\ndone: 0 ok, 1 failed\n"
+      hint: "Верните &SyntaxError{...} и распознайте его через errors.As(err, &se), где se имеет тип *SyntaxError."
+    - id: "number"
+      title: "Операнд не число (скрытый)"
+      stdin: "abc + 1\n2 * 3x\n"
+      expected: "1: number: operand \"abc\": strconv.Atoi: parsing \"abc\": invalid syntax\n2: number: operand \"3x\": strconv.Atoi: parsing \"3x\": invalid syntax\ndone: 0 ok, 2 failed\n"
+      hidden: true
+      hint: "Ошибку Atoi нужно обернуть через %w (не %v), чтобы errors.As нашла в цепочке *strconv.NumError."
+    - id: "unknown-op"
+      title: "Неизвестный оператор (скрытый)"
+      stdin: "2 ^ 3\n"
+      expected: "1: op: operator \"^\": unknown operator\ndone: 0 ok, 1 failed\n"
+      hidden: true
+      hint: "Для неизвестного оператора оберните сентинел ErrUnknownOp и проверьте его в classify."
+    - id: "mixed"
+      title: "Смесь и пустая строка (скрытый)"
+      stdin: "10 / 2\n10 / 0\n\n7 % 4\n"
+      expected: "1: 5\n2: div0: 10 / 0: division by zero\n3: syntax: syntax error in \"\": want: a op b\n4: 3\ndone: 2 ok, 2 failed\n"
+      hidden: true
+      hint: "Пустая строка тоже получает номер и считается синтаксической ошибкой: в ней ноль слов вместо трёх."

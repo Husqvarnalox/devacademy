@@ -1,0 +1,17 @@
+id: "go-fundamentals"
+version: "1.0.0"
+title: "Go: язык и идиомы"
+description: "Курс из восьми уроков: типы, значения и нулевые значения, функции и ошибки-значения, структуры, методы и встраивание, интерфейсы, срезы и карты в деталях, горутины и каналы, паттерны конкурентности с пакетом context, модули, пакеты и тестирование. Каждое утверждение проверено запуском кода на Go 1.26. Веб-серверы, работа с базами данных, обобщения и профилирование пока не входят."
+languageId: "go"
+level: 1
+track: "go"
+requires: [go-first-steps]
+lessons:
+  - "01-types-values-zero-values"
+  - "02-functions-and-errors"
+  - "03-structs-methods-embedding"
+  - "04-interfaces"
+  - "05-maps-and-slices-deep-dive"
+  - "06-goroutines-and-channels"
+  - "07-concurrency-patterns-and-context"
+  - "08-packages-modules-testing"

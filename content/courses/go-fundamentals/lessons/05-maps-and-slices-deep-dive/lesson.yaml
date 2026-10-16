@@ -1,0 +1,241 @@
+id: "go.fundamentals.maps-and-slices-deep-dive"
+title: "Карты и срезы: подробно"
+goal: "Уверенно работать с картами (nil, comma-ok, неупорядоченный обход, параллельная запись), управлять общим массивом срезов и использовать пакеты slices и maps с учётом семантики цикла Go 1.22."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "go.fundamentals.interfaces"
+objectives:
+  - "Назвать гарантии и негарантии карт: порядок обхода, nil-карта, неадресуемые элементы, параллельная запись."
+  - "Отличать отсутствие ключа от нулевого значения через comma-ok и строить множества на map[T]struct{}."
+  - "Предсказывать влияние append, copy, slices.Clone, slices.Clip и s[a:b:b] на общий массив."
+  - "Использовать slices.SortFunc, slices.Sorted, slices.Collect, maps.Keys (итератор в Go 1.23+)."
+  - "Объяснить семантику переменной цикла Go 1.22 и её зависимость от версии в go.mod."
+masteryCriteria:
+  - "Вы пишете функцию, возвращающую детерминированный результат на основе карты, не полагаясь на порядок обхода."
+  - "Вы разрезаете срез на части так, что append к одной части не портит соседние."
+  - "Вы объясняете, почему запись в nil-карту падает, а append к nil-срезу работает."
+  - "Вы заменяете ручной цикл подходящей функцией из slices или maps."
+related:
+  - "go.first-steps.slices-len-cap-and-append"
+  - "go.fundamentals.goroutines-and-channels"
+next:
+  - "go.fundamentals.goroutines-and-channels"
+tags:
+  - "go"
+  - "maps"
+  - "slices"
+  - "iterators"
+  - "go1.22"
+facts:
+  - kind: "internals"
+    text: "Спецификация не определяет порядок обхода карты, а среда выполнения намеренно рандомизирует его; fmt при печати карты, напротив, сортирует ключи для удобства чтения (с Go 1.12)."
+    sources:
+      - "https://go.dev/ref/spec#For_range"
+      - "https://go.dev/blog/maps"
+      - "https://go.dev/doc/go1.12"
+  - kind: "historical"
+    text: "В Go 1.22 изменена семантика переменных цикла for: каждая итерация получает свою копию, что устранило класс ошибок с замыканиями и указателями. Поведение включается версией языка в go.mod (1.22 и выше)."
+    sources:
+      - "https://go.dev/blog/loopvar-preview"
+      - "https://go.dev/doc/go1.22#language"
+  - kind: "historical"
+    text: "Пакеты slices и maps вошли в стандартную библиотеку в Go 1.21. В Go 1.23 maps.Keys и maps.Values стали возвращать итераторы iter.Seq, а slices.Collect и slices.Sorted собирают итераторы в срезы."
+    sources:
+      - "https://go.dev/doc/go1.21#slices"
+      - "https://go.dev/doc/go1.23#iterators"
+      - "https://pkg.go.dev/maps"
+  - kind: "security"
+    text: "Параллельная запись в карту без синхронизации - гонка данных. Среда выполнения обнаруживает часть таких случаев и завершает программу ошибкой fatal error: concurrent map writes, которую нельзя перехватить через recover."
+    sources:
+      - "https://go.dev/doc/faq#atomic_maps"
+      - "https://go.dev/blog/maps#concurrency"
+  - kind: "performance"
+    text: "Подсрез удерживает весь исходный массив: небольшой срез большого массива не позволяет сборщику мусора освободить остальную память. Для долгоживущих небольших данных копируйте нужные элементы в новый срез."
+    sources:
+      - "https://go.dev/blog/slices-intro"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что гарантирует спецификация Go про порядок обхода for k := range m?"
+      options:
+        - "Порядок вставки"
+        - "Сортировка по ключу"
+        - "Ничего: порядок не определён и может различаться между запусками"
+        - "Обратный порядок вставки"
+      answer: 2
+      explanation: "Порядок не определён и намеренно рандомизируется. Для стабильного порядка отсортируйте ключи."
+    - id: "q2"
+      type: "single"
+      prompt: "s := []int{1, 2, 3, 4}; t := s[:2]; t = append(t, 9). Чему равно s[2]?"
+      options:
+        - "3"
+        - "9"
+        - "0"
+        - "Паника"
+      answer: 1
+      explanation: "У t ёмкость 4, поэтому append пишет в общий массив и перезаписывает s[2]."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны для Go 1.23+ и go.mod с версией 1.22 или выше?"
+      options:
+        - "Чтение из nil-карты безопасно, запись - паника."
+        - "maps.Keys(m) возвращает срез ключей."
+        - "В цикле for i := 0; i < 3; i++ замыкания захватывают отдельную i для каждой итерации."
+        - "slices.Sorted(maps.Keys(m)) возвращает отсортированный срез ключей."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "maps.Keys возвращает итератор iter.Seq, а не срез; slices.Sorted собирает его в отсортированный срез."
+    - id: "q4"
+      type: "short"
+      prompt: "Модуль с go 1.22+. fs = append(fs, func() int { return i }) в цикле for i := 0; i < 3; i++. Что вернёт fs[0]()?"
+      answer:
+        - "0"
+      explanation: "С Go 1.22 у каждой итерации своя i, поэтому первое замыкание видит 0."
+    - id: "q5"
+      type: "single"
+      prompt: "Как безопасно изменять элемент структуры в map[string]Stat?"
+      options:
+        - "m[k].Hits++"
+        - "Прочитать значение, изменить копию и записать обратно, либо хранить *Stat"
+        - "&m[k]"
+        - "Это невозможно в принципе"
+      answer: 1
+      explanation: "Элементы карты не адресуемы, поэтому нужна запись обратно или указатели в значениях."
+exercise:
+  id: "go.fundamentals.maps-and-slices-deep-dive.exercise"
+  title: "Пакет textstat: частоты слов и срезы"
+  prompt: |
+    Пакет `textstat` (модуль `example.com/textstat`, один файл `textstat.go`) содержит пять функций. Заготовки либо паникуют, либо дают недетерминированный результат. Реализуйте их по комментариям:
+
+    * **`WordFreq(text) map[string]int`** - слова в нижнем регистре (`strings.Fields` после `ToLower`), знаки `. , ! ? ; :` по краям слова отбрасываются, пустые слова пропускаются. Результат всегда **не nil**, даже для пустого текста.
+    * **`TopWords(freq, n) []string`** - не более `n` слов по убыванию частоты, при равенстве - по алфавиту. Для `n <= 0` результат пуст, для `n` больше числа слов возвращаются все. Результат одинаков при каждом запуске.
+    * **`Chunk(s, size) [][]int`** - части по `size` элементов (последняя может быть короче); для `size <= 0` - `nil`. Ёмкость каждой части равна её длине, поэтому `append` к части не затирает соседнюю и исходный срез.
+    * **`Invert(m) map[int][]string`** - ключи, сгруппированные по значению; внутри группы слова отсортированы.
+    * **`Dedup(s) []string`** - уникальные значения в порядке первого появления; результат не делит массив с входным срезом.
+
+    Тесты запускаются командой `go test -json -count=1 ./...`.
+  evaluation: "command"
+  languageId: "go"
+  entryFile: "textstat.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Запустите тесты: WordFreq падает с паникой assignment to entry in nil map. Карту нужно создать: freq := make(map[string]int)."
+    - "TopWords: slices.SortFunc(words, func(a, b string) int {...}) - сначала сравните freq[b] с freq[a] (убывание), при равенстве strings.Compare(a, b). Потом обрежьте: if n < len(words) { words = words[:max(n, 0)] }."
+    - "Chunk: вместо s[:n] отрежьте часть с ограниченной ёмкостью, s[:n:n]. В Invert после заполнения карты пройдите по значениям и вызовите slices.Sort(ks) для каждой группы."
+    - "Dedup: seen := map[string]struct{}{}; out := make([]string, 0, len(s)); для каждого v, если его нет в seen - добавьте в seen и в out. Возвращайте out (новый срез), а не s."
+  tests:
+    - id: "wordfreq-basic"
+      title: "WordFreq: подсчёт слов"
+      match: "TestWordFreq/basic"
+      hint: "Слова приводятся к нижнему регистру, знаки препинания по краям отбрасываются, карта создаётся через make."
+    - id: "topwords-order"
+      title: "TopWords: порядок и лимит"
+      match: "TestTopWords/order"
+      hint: "Сортировка: частота по убыванию, при равенстве - слова по алфавиту; затем обрезка до n."
+    - id: "chunk-even"
+      title: "Chunk: ровное деление"
+      match: "TestChunk/even"
+      hint: "Результат - срез срезов, части идут по порядку."
+    - id: "dedup-order"
+      title: "Dedup: порядок первых вхождений"
+      match: "TestDedup/order"
+      hint: "Используйте множество уже встреченных значений и добавляйте в результат только новые."
+    - id: "wordfreq-edge"
+      title: "WordFreq: пустой текст и кириллица (скрытый)"
+      match: "TestWordFreq/*"
+      hidden: true
+      hint: "Для пустого текста возвращается пустая, но не nil карта; ToLower работает и с кириллицей."
+    - id: "topwords-edge"
+      title: "TopWords: границы n и стабильность (скрытый)"
+      match: "TestTopWords/*"
+      hidden: true
+      hint: "n <= 0 даёт пустой результат, n больше длины - все слова; порядок не должен зависеть от запуска."
+    - id: "chunk-isolation"
+      title: "Chunk: изоляция append (скрытый)"
+      match: "TestChunk/*"
+      hidden: true
+      hint: "Ограничьте ёмкость частей выражением s[:n:n], тогда append выделит новый массив."
+    - id: "invert"
+      title: "Invert: сортировка групп (скрытый)"
+      match: "TestInvert"
+      hidden: true
+      hint: "Порядок обхода карты случаен, поэтому каждую группу нужно отсортировать."
+    - id: "dedup-alias"
+      title: "Dedup: независимый результат (скрытый)"
+      match: "TestDedup/*"
+      hidden: true
+      hint: "Создайте новый срез через make и не возвращайте входной."
+challenge:
+  id: "go.fundamentals.maps-and-slices-deep-dive.challenge"
+  title: "LRU-кеш на карте и списке"
+  prompt: |
+    Реализуйте в `lru.go` кеш `LRU` с вытеснением давно не использованных записей (модуль `example.com/lru`).
+
+    * `NewLRU(capacity int) *LRU` - если `capacity < 1`, ёмкость считается равной `1`.
+    * `Get(key string) (int, bool)` - значение и признак наличия; успешный `Get` делает запись самой свежей.
+    * `Put(key string, val int)` - добавляет запись или обновляет существующую (она становится самой свежей, размер не растёт). При переполнении вытесняется **самая давняя** запись.
+    * `Len() int` - число записей.
+    * `Keys() []string` - ключи от самой свежей к самой давней; возвращается **копия**, изменение которой не влияет на кеш.
+
+    Операции `Get` и `Put` должны выполняться за O(1): для этого сочетают карту `ключ -> *list.Element` и двусвязный список из пакета `container/list`. Тесты запускаются командой `go test -json -count=1 ./...`.
+  entryFile: "lru.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Нужны два поля: items map[string]*list.Element для поиска за O(1) и order *list.List для порядка использования. Начало списка - самая свежая запись."
+    - "Храните в списке указатели на entry{key, val}: при вытеснении по элементу Back() нужно узнать ключ, чтобы удалить его и из карты (delete(items, key))."
+    - "Get: найдите элемент в карте, вызовите order.MoveToFront(el) и верните значение el.Value.(*entry).val. Put существующего ключа обновляет значение и тоже делает MoveToFront."
+    - "Put нового ключа: items[key] = order.PushFront(&entry{key, val}); затем если order.Len() > cap, удалите Back() из списка и его ключ из карты. Keys обходит список с Front() через Next() и собирает ключи в новый срез."
+  tests:
+    - id: "lru-get-put"
+      title: "Get и Put"
+      match: "TestLRU/get-put"
+      hint: "Get неизвестного ключа возвращает (0, false); Len считает записи."
+    - id: "lru-evict"
+      title: "Вытеснение самой давней записи"
+      match: "TestLRU/evict-oldest"
+      hint: "После Put при переполнении удалите Back() списка и ключ из карты."
+    - id: "lru-refresh"
+      title: "Get обновляет свежесть"
+      match: "TestLRU/get-refreshes"
+      hint: "Get должен переместить элемент в начало списка (MoveToFront)."
+    - id: "lru-update"
+      title: "Обновление существующего ключа (скрытый)"
+      match: "TestLRU/update-existing"
+      hidden: true
+      hint: "Повторный Put существующего ключа не добавляет запись, а меняет значение и свежесть."
+    - id: "lru-cap-one"
+      title: "Ёмкость 1 и capacity < 1 (скрытый)"
+      match: "TestLRU/capacity-one"
+      hidden: true
+      hint: "Для capacity < 1 используйте 1 (builtin max)."
+    - id: "lru-many"
+      title: "Много операций (скрытый)"
+      match: "TestLRU/many"
+      hidden: true
+      hint: "Размер никогда не превышает ёмкость; в конце остаются три последние записи в порядке от свежей."
+    - id: "lru-copy"
+      title: "Keys возвращает копию (скрытый)"
+      match: "TestLRU/keys-is-copy"
+      hidden: true
+      hint: "Создавайте новый срез на каждый вызов Keys."

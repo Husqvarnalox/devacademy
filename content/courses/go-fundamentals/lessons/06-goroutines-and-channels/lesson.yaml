@@ -1,0 +1,176 @@
+id: "go.fundamentals.goroutines-and-channels"
+title: "Горутины и каналы"
+goal: "Запускать горутины, организовывать обмен данными через каналы и select, закрывать каналы правильно и распознавать взаимные блокировки."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "go.fundamentals.maps-and-slices-deep-dive"
+objectives:
+  - "Запустить горутины и дождаться их через sync.WaitGroup (включая WaitGroup.Go из Go 1.25)."
+  - "Различать небуферизованные и буферизованные каналы и объяснять, когда блокируются отправка и получение."
+  - "Закрывать канал корректно (только отправителем) и читать его через range и форму с ok."
+  - "Использовать select для мультиплексирования, тайм-аутов и отмены."
+  - "Распознавать сообщение о взаимной блокировке и понимать границы её обнаружения."
+masteryCriteria:
+  - "Вы реализуете конвейер из горутин, где каждый этап закрывает свой выходной канал."
+  - "Вы реализуете fan-in через WaitGroup и отдельную горутину-закрыватель."
+  - "Вы объясняете, почему результат не должен зависеть от порядка выполнения горутин, и не используете time.Sleep для синхронизации."
+  - "Вы предсказываете панику при отправке в закрытый канал и повторном закрытии."
+related:
+  - "go.fundamentals.maps-and-slices-deep-dive"
+  - "go.fundamentals.concurrency-patterns-and-context"
+next:
+  - "go.fundamentals.concurrency-patterns-and-context"
+tags:
+  - "go"
+  - "goroutines"
+  - "channels"
+  - "select"
+  - "sync"
+facts:
+  - kind: "internals"
+    text: "Когда все горутины программы заблокированы и ни одна не может продолжить работу, среда выполнения завершает процесс с сообщением fatal error: all goroutines are asleep - deadlock! Обнаружение работает только при блокировке абсолютно всех горутин, поэтому в программах с таймерами и сетью взаимная блокировка выглядит как зависание."
+    sources:
+      - "https://go.dev/doc/faq#goroutines"
+      - "https://go.dev/ref/spec#Channel_types"
+  - kind: "historical"
+    text: "Метод sync.WaitGroup.Go добавлен в Go 1.25. Он вызывает Add(1), запускает функцию в новой горутине и вызывает Done по её завершении."
+    sources:
+      - "https://go.dev/doc/go1.25"
+      - "https://pkg.go.dev/sync#WaitGroup.Go"
+  - kind: "internals"
+    text: "Закрытие канала - операция отправителя. Получение из закрытого канала не блокируется и после опустошения буфера возвращает нулевое значение с ok == false; отправка в закрытый канал и повторное закрытие вызывают панику."
+    sources:
+      - "https://go.dev/ref/spec#Close"
+      - "https://go.dev/ref/spec#Receive_operator"
+  - kind: "misconception"
+    text: "«Горутина - это поток операционной системы» - нет. Горутины мультиплексируются средой выполнения Go на небольшое число потоков ОС, а их начальный стек крошечный и растёт по необходимости, поэтому запуск тысяч горутин обычен."
+    sources:
+      - "https://go.dev/doc/faq#goroutines"
+  - kind: "real-world"
+    text: "Принцип «не общайтесь через общую память, делитесь памятью через общение» из Effective Go описывает идиому передачи владения данными через каналы; для защиты общего состояния по-прежнему применяют sync.Mutex."
+    sources:
+      - "https://go.dev/doc/effective_go#sharing"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В программе одна горутина main: ch := make(chan int); ch <- 1. Что произойдёт?"
+      options:
+        - "Значение отправится и программа завершится"
+        - "fatal error: all goroutines are asleep - deadlock!"
+        - "Паника: send on closed channel"
+        - "Программа зависнет без сообщения"
+      answer: 1
+      explanation: "Получателя нет, и все горутины (единственная) заблокированы: среда выполнения обнаруживает взаимную блокировку."
+    - id: "q2"
+      type: "single"
+      prompt: "c := make(chan int, 2); c <- 1; c <- 2; close(c); v := <-c. Чему равно v?"
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "Паника"
+      answer: 1
+      explanation: "Закрытие не отбрасывает буфер: оставшиеся значения доставляются по порядку, и только потом приходят нули с ok == false."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Канал закрывает отправитель, а не получатель."
+        - "Отправка в закрытый канал вызывает панику."
+        - "time.Sleep - надёжный способ дождаться завершения горутин."
+        - "sync.WaitGroup.Go доступен начиная с Go 1.25."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Sleep не гарантирует порядок; для ожидания применяют WaitGroup или каналы."
+    - id: "q4"
+      type: "short"
+      prompt: "v, ok := <-ch для закрытого и пустого канала. Чему равно ok? (true или false)"
+      answer:
+        - "false"
+      explanation: "ok == false означает, что канал закрыт и значений больше нет."
+    - id: "q5"
+      type: "single"
+      prompt: "В select готовы к работе сразу две ветви. Какая выполнится?"
+      options:
+        - "Первая по порядку в тексте"
+        - "Последняя"
+        - "Выбирается псевдослучайно"
+        - "Обе по очереди"
+      answer: 2
+      explanation: "Если готово несколько ветвей, спецификация требует равномерный псевдослучайный выбор."
+exercise:
+  id: "go.fundamentals.goroutines-and-channels.exercise"
+  title: "Конвейер: Generate, Square, Merge"
+  prompt: |
+    Пакет `pipe` (модуль `example.com/pipe`, файл `pipe.go`) содержит пять функций. Реализуйте их так, чтобы проходили тесты `go test`.
+
+    * **`Generate(nums ...int) <-chan int`** - горутина отправляет значения по порядку и **закрывает** канал. В заготовке закрытие забыто, поэтому читатель через `range` ждёт вечно.
+    * **`Square(in <-chan int) <-chan int`** - читает `in`, отправляет квадраты и закрывает выход, когда `in` закрыт.
+    * **`Merge(cs ...<-chan int) <-chan int`** - fan-in: значения всех входных каналов поступают в один выходной; он закрывается после того, как закрыты и прочитаны **все** входные. Порядок между каналами не определён, внутри одного канала порядок сохраняется. Для `Merge()` без аргументов выходной канал сразу закрывается.
+    * **`Collect(ch <-chan int) []int`** - читает канал до закрытия и возвращает значения в порядке получения.
+    * **`SumConcurrent(nums []int, parts int) int`** - делит срез на `parts` частей, суммирует каждую в своей горутине и складывает результаты. `parts <= 0` означает одну часть, `parts` больше длины среза допустимо, для пустого среза результат `0`. Результаты горутин не должны записываться в общую переменную без синхронизации.
+
+    Тесты не используют `time.Sleep` для синхронизации; тайм-аут в них нужен лишь для того, чтобы зависание превратилось в понятную ошибку. Запуск: `go test -json -count=1 ./...`.
+  evaluation: "command"
+  languageId: "go"
+  entryFile: "pipe.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Начните с Generate: добавьте defer close(out) первой строкой внутри горутины. Закрывает канал тот, кто в него отправляет."
+    - "Square и Generate похожи: создайте out, запустите горутину с defer close(out) и for n := range in { out <- n * n }. Верните out как <-chan int."
+    - "Merge: для каждого входного канала запустите горутину, пересылающую значения в out (wg.Go или wg.Add(1) + go + defer wg.Done()). Отдельная горутина делает wg.Wait() и затем close(out)."
+    - "SumConcurrent: sums := make([]int, parts) - каждая горутина пишет только в свой sums[i], поэтому гонки нет. Границы части: lo = min(i*size, len), hi = min(lo+size, len), size = (len+parts-1)/parts. После wg.Wait() сложите sums."
+  tests:
+    - id: "generate-values"
+      title: "Generate: значения и закрытие"
+      match: "TestGenerate/values"
+      hint: "Канал должен закрываться после последнего значения, иначе чтение через range зависнет."
+    - id: "square-basic"
+      title: "Square: квадраты"
+      match: "TestSquare/basic"
+      hint: "Читайте in через range и отправляйте n*n; закройте out в конце."
+    - id: "merge-all"
+      title: "Merge: все значения"
+      match: "TestMerge/all-values"
+      hint: "Выходной канал закрывается только после завершения всех пересылающих горутин."
+    - id: "sum-basic"
+      title: "SumConcurrent: сумма"
+      match: "TestSumConcurrent/basic"
+      hint: "Каждая горутина считает свою часть среза; итог - сумма частичных сумм."
+    - id: "generate-edge"
+      title: "Generate: пустой вызов и закрытие (скрытый)"
+      match: "TestGenerate/*"
+      hidden: true
+      hint: "Generate() без аргументов даёт сразу закрытый канал."
+    - id: "square-edge"
+      title: "Square: пустой вход и цепочка (скрытый)"
+      match: "TestSquare/*"
+      hidden: true
+      hint: "Этапы конвейера соединяются цепочкой: Square(Square(in)); каждый обязан закрывать свой выход."
+    - id: "merge-edge"
+      title: "Merge: без аргументов, порядок, много каналов (скрытый)"
+      match: "TestMerge/*"
+      hidden: true
+      hint: "При нуле входных каналов wg.Wait() возвращается сразу и выход закрывается; значения одного канала не переставляются."
+    - id: "collect"
+      title: "Collect (скрытый)"
+      match: "TestCollect/*"
+      hidden: true
+      hint: "Просто for v := range ch { out = append(out, v) }."
+    - id: "sum-edge"
+      title: "SumConcurrent: границы parts и пустой срез (скрытый)"
+      match: "TestSumConcurrent/*"
+      hidden: true
+      hint: "parts <= 0 заменяйте на 1, а parts больше длины среза - на длину (минимум 1), чтобы не было пустых или отрицательных диапазонов."

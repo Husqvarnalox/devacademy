@@ -1,0 +1,207 @@
+id: databases.sql.transactions-and-isolation
+title: "Транзакции и уровни изоляции"
+goal: Группировать изменения в атомарные транзакции (BEGIN, COMMIT, ROLLBACK), правильно управлять транзакциями в Python sqlite3 и понимать аномалии конкурентного доступа, уровни изоляции PostgreSQL и блокировки SQLite.
+difficulty: hard
+estimatedMinutes: 110
+prerequisites: [databases.sql.schema-design-and-normalization, python.fundamentals.errors-and-files]
+related: [databases.sql.indexes-and-query-plans]
+next: [databases.sql.sql-injection-and-safe-access]
+objectives:
+  - "Объяснить свойства ACID и показать на примере перевода денег, что операции «списать» и «зачислить» должны быть одной транзакцией."
+  - "Управлять транзакциями в sqlite3 Python 3.12+: атрибут autocommit, режим LEGACY_TRANSACTION_CONTROL, явные BEGIN/COMMIT/ROLLBACK и менеджер контекста."
+  - "Описать блокировки SQLite: один писатель, DEFERRED/IMMEDIATE, режим WAL и ошибку «database is locked»."
+  - "Назвать аномалии грязного чтения, неповторяющегося чтения, фантомов и потерянного обновления и уровни изоляции PostgreSQL (по умолчанию READ COMMITTED)."
+  - "Предотвращать потерянное обновление атомарным UPDATE, оптимистичной блокировкой по версии или блокировкой строки SELECT ... FOR UPDATE (PostgreSQL, MySQL)."
+  - "Реализовать идемпотентную операцию, чтобы повтор запроса не выполнял её дважды."
+masteryCriteria:
+  - "Вы пишете перевод денег так, что при ошибке в любом месте не остаётся частичных изменений, а транзакция всегда закрыта."
+  - "Вы называете, какое значение autocommit и isolation_level вы используете и когда sqlite3 сам открывает транзакцию."
+  - "Вы объясняете, почему SELECT с последующим UPDATE даёт потерянное обновление, и исправляете это."
+  - "Вы отличаете уровни изоляции PostgreSQL по тому, какие аномалии они допускают."
+tags: [sql, sqlite, transactions, acid, isolation, concurrency, locking, python]
+facts:
+  - kind: internals
+    text: >-
+      В Python 3.12 у sqlite3.connect появился параметр autocommit. Значение по умолчанию LEGACY_TRANSACTION_CONTROL сохраняет старое поведение, управляемое isolation_level: модуль сам открывает транзакцию
+      перед INSERT, UPDATE, DELETE и REPLACE. При autocommit=False транзакция всегда открыта: она начинается при подключении и сразу после commit() или rollback(). При autocommit=True неявных транзакций нет,
+      а commit() и rollback() ничего не делают; транзакцией управляют операторами BEGIN, COMMIT, ROLLBACK. Менеджер контекста соединения не закрывает его, а фиксирует (или откатывает при исключении) транзакцию.
+    sources:
+      - https://docs.python.org/3/library/sqlite3.html#sqlite3-transaction-control
+  - kind: internals
+    text: >-
+      SQLite допускает одновременно одного писателя. Обычный BEGIN (DEFERRED) блокирует базу лишь при первом чтении или записи, BEGIN IMMEDIATE захватывает блокировку записи сразу, BEGIN EXCLUSIVE запрещает и чтение
+      в режиме журнала отката. Если писатель уже есть, другое соединение получает ошибку database is locked (в Python - sqlite3.OperationalError) после ожидания, заданного timeout в connect() (по умолчанию 5 секунд).
+    sources:
+      - https://www.sqlite.org/lang_transaction.html
+      - https://docs.python.org/3/library/sqlite3.html#sqlite3.connect
+  - kind: performance
+    text: >-
+      Режим WAL (PRAGMA journal_mode=WAL) позволяет читателям не блокировать писателя, а писателю не блокировать читателей; одновременно по-прежнему пишет одно соединение. Каждый читатель видит согласованный снимок
+      на момент начала своей транзакции. Режим сохраняется в файле базы; WAL не рассчитан на базы в сетевых файловых системах.
+    sources:
+      - https://www.sqlite.org/wal.html
+  - kind: internals
+    text: >-
+      PostgreSQL поддерживает четыре уровня изоляции, по умолчанию действует READ COMMITTED; READ UNCOMMITTED ведёт себя как READ COMMITTED, то есть грязные чтения невозможны. Уровень REPEATABLE READ в PostgreSQL
+      не допускает и фантомных чтений (строже требований стандарта SQL), но транзакция может завершиться ошибкой сериализации (код 40001), которую приложение должно повторить. Уровень по умолчанию в MySQL InnoDB - REPEATABLE READ.
+    sources:
+      - https://www.postgresql.org/docs/current/transaction-iso.html
+      - https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html
+  - kind: real-world
+    text: >-
+      SELECT ... FOR UPDATE блокирует выбранные строки до конца транзакции, чтобы другая транзакция не изменила их между чтением и записью; он поддерживается PostgreSQL и MySQL (InnoDB), а в SQLite отсутствует
+      (синтаксическая ошибка), потому что там блокируется вся база. В MySQL операторы DDL неявно завершают транзакцию, а в PostgreSQL и SQLite DDL выполняется внутри транзакции и откатывается.
+    sources:
+      - https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS
+      - https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html
+      - https://www.sqlite.org/lang_transaction.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Перевод денег выполняет два UPDATE: списание и зачисление. Что гарантирует транзакция?"
+      options:
+        - "Что оба оператора выполнятся быстрее"
+        - "Что либо применятся оба изменения, либо ни одного (атомарность)"
+        - "Что другие пользователи не смогут читать таблицу"
+        - "Что баланс не станет больше исходного"
+      answer: 1
+      explanation: >-
+        Атомарность (A в ACID): набор операций фиксируется целиком или откатывается целиком.
+    - id: q2
+      type: single
+      prompt: "Соединение открыто как sqlite3.connect(path, autocommit=True). Что делает conn.commit()?"
+      options:
+        - "Фиксирует открытую транзакцию"
+        - "Ничего: в этом режиме commit() и rollback() не действуют, транзакцией управляют операторами BEGIN/COMMIT/ROLLBACK"
+        - "Закрывает соединение"
+        - "Поднимает исключение"
+      answer: 1
+      explanation: >-
+        При autocommit=True sqlite3 не вмешивается в управление транзакциями; закончить транзакцию, начатую оператором BEGIN, нужно оператором COMMIT или ROLLBACK.
+    - id: q3
+      type: single
+      prompt: "Две транзакции читают баланс 100, одна прибавляет 10, другая 20, и каждая записывает вычисленное в приложении значение. Итог 120 вместо 130. Как называется аномалия?"
+      options:
+        - "Грязное чтение"
+        - "Фантомное чтение"
+        - "Потерянное обновление"
+        - "Мёртвая блокировка"
+      answer: 2
+      explanation: >-
+        Запись второй транзакции затёрла результат первой. Лекарства: UPDATE ... SET balance = balance + ?, блокировка строки или проверка версии.
+    - id: q4
+      type: multiple
+      prompt: "Что верно для SQLite? Выберите все."
+      options:
+        - "Одновременно записывать может одно соединение"
+        - "В режиме WAL читатели не блокируют писателя"
+        - "SELECT ... FOR UPDATE блокирует отдельные строки"
+        - "BEGIN IMMEDIATE сразу захватывает блокировку записи"
+      answer: [0, 1, 3]
+      explanation: >-
+        В SQLite блокировки на уровне базы; FOR UPDATE в SQLite не поддерживается.
+    - id: q5
+      type: single
+      prompt: "Какой уровень изоляции в PostgreSQL используется по умолчанию?"
+      options:
+        - "READ UNCOMMITTED"
+        - "READ COMMITTED"
+        - "REPEATABLE READ"
+        - "SERIALIZABLE"
+      answer: 1
+      explanation: >-
+        По умолчанию PostgreSQL использует READ COMMITTED: каждый оператор видит данные, зафиксированные к его началу.
+exercise:
+  id: databases.sql.transactions-and-isolation.exercise
+  title: "Атомарный перевод и идемпотентный повтор"
+  prompt: |
+    В файле `bank.py` реализуйте две функции для таблиц `accounts(id, owner, balance INTEGER NOT NULL CHECK (balance >= 0))` и `transfers(key PRIMARY KEY, src, dst, amount)`.
+    Соединение `conn` открыто как `sqlite3.connect(..., autocommit=True)`: неявных транзакций нет, а `conn.commit()` и `conn.rollback()` **ничего не делают**.
+    Управляйте транзакцией операторами `BEGIN IMMEDIATE`, `COMMIT`, `ROLLBACK` через `conn.execute`.
+
+    1. `transfer(conn, src, dst, amount)` - атомарный перевод.
+       `amount <= 0` или `src == dst` - `ValueError` (до обращения к базе); нет счёта `src` или `dst` - `LookupError`;
+       не хватает денег (нарушение `CHECK`) - `InsufficientFunds`. При любой ошибке изменений в базе не остаётся, транзакция закрыта (`conn.in_transaction` равно `False`).
+    2. `transfer_once(conn, key, src, dst, amount)` - идемпотентный перевод. Первый успешный вызов с данным `key` переводит деньги и возвращает `True`;
+       повтор с тем же `key` ничего не меняет и возвращает `False`. Если перевод не удался, ключ **не** сохраняется. Запись ключа и перевод - в одной транзакции.
+
+    Класс `InsufficientFunds` уже объявлен в файле.
+  entryFile: bank.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Подумайте, что должно произойти при ошибке на втором шаге: деньги списаны, зачислить некуда. Оба UPDATE должны быть между BEGIN и COMMIT, а любое исключение - вести к ROLLBACK. Не забудьте закрыть транзакцию и на пути «ошибка»."
+    - "В режиме autocommit=True используйте conn.execute('BEGIN IMMEDIATE'), conn.execute('COMMIT'), conn.execute('ROLLBACK'). Нарушение CHECK приходит как sqlite3.IntegrityError при списании; число изменённых строк берите из cursor.rowcount (0 - нет такого счёта)."
+    - "Идемпотентность: первым оператором транзакции вставьте ключ в transfers. Нарушение PRIMARY KEY (IntegrityError) на этом шаге означает повтор: откатите транзакцию и верните False. Если перевод затем упал, откат уберёт и строку с ключом."
+    - "Структура: validate; BEGIN IMMEDIATE; try: [INSERT ключа]; списать; проверить rowcount; зачислить; проверить rowcount; except BaseException: если conn.in_transaction - ROLLBACK, raise; затем COMMIT и return True. Отдельно перехватите IntegrityError на вставке ключа и верните False после ROLLBACK."
+  tests:
+    - id: transfer-ok
+      title: "Успешный перевод"
+      hint: "Баланс источника уменьшается, получателя увеличивается; после вызова транзакция должна быть закрыта (COMMIT выполнен оператором)."
+    - id: insufficient-rollback
+      title: "Нехватка средств - InsufficientFunds, без изменений"
+      hint: "Нарушение CHECK приходит как sqlite3.IntegrityError; преобразуйте его в InsufficientFunds, выполните ROLLBACK и пробросьте исключение."
+    - id: idempotent-retry
+      title: "Повтор с тем же ключом выполняется один раз"
+      hint: "Вставьте ключ в transfers первым оператором транзакции; при IntegrityError на этом шаге откатите транзакцию и верните False."
+    - id: unknown-account-rollback
+      title: "Несуществующий счёт откатывает списание (скрытый)"
+      hidden: true
+      hint: "UPDATE несуществующего счёта не вызывает ошибку, он просто меняет 0 строк. Проверьте cursor.rowcount и откатите списание, выполненное ранее."
+    - id: validation
+      title: "Проверка аргументов (скрытый)"
+      hidden: true
+      hint: "Сумма должна быть положительной, счета разными; ValueError поднимайте до BEGIN, чтобы не оставить открытую транзакцию и не записать ключ."
+    - id: failed-key-not-recorded
+      title: "Ключ неудавшегося перевода не сохраняется (скрытый)"
+      hidden: true
+      hint: "Вставка ключа и перевод должны быть в одной транзакции; при ошибке ROLLBACK удалит и ключ."
+    - id: series-conservation
+      title: "Серия операций сохраняет сумму денег (скрытый)"
+      hidden: true
+      hint: "После каждой операции, успешной или нет, сумма балансов постоянна, отрицательных нет, транзакций не осталось открытыми."
+challenge:
+  id: databases.sql.transactions-and-isolation.challenge
+  title: "Оптимистичная блокировка документа"
+  prompt: |
+    В файле `docs_task.py` реализуйте оптимистичную блокировку для таблицы `docs(id, body, version)` (соединение с `autocommit=True`).
+
+    1. `save(conn, doc_id, body, expected_version)` - сохранить `body`, **только если** версия документа равна `expected_version`.
+       Успех: `version` увеличивается на 1, возвращается новая версия. Версия не совпала - `Conflict`, документ не меняется. Документа нет - `LookupError`.
+       Проверка версии и запись - **один** оператор `UPDATE ... WHERE id = ? AND version = ?`.
+    2. `edit_with_retry(conn, doc_id, transform, max_attempts=3, _after_read=None)` - прочитать документ, применить `transform(body)` и сохранить через `save`.
+       При `Conflict` перечитать документ и повторить с **новым** текстом (`transform` вызывается заново). После `max_attempts` неудач поднимите `Conflict`.
+       Хук `_after_read()`, если задан, вызывается после чтения и до сохранения (проверяющий код имитирует им конкурентного писателя).
+  entryFile: docs_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Идея оптимистичной блокировки: не блокировать никого, а при записи убедиться, что версия не изменилась. Если изменилась - кто-то успел раньше, нужно перечитать и повторить."
+    - "save: UPDATE docs SET body = ?, version = version + 1 WHERE id = ? AND version = ?. Если rowcount равен 1 - успех. Иначе различите случаи: есть ли строка с таким id (тогда Conflict) или её нет (LookupError)."
+    - "edit_with_retry: цикл range(max_attempts): прочитать (body, version), вызвать _after_read, затем save(conn, doc_id, transform(body), version) в try/except Conflict: continue. После цикла поднимите Conflict."
+    - "Если документа нет при чтении, поднимите LookupError сразу (это не конфликт и повторять не нужно). transform должен получать свежий текст на каждой попытке."
+  tests:
+    - id: save-ok
+      title: "Успешное сохранение увеличивает версию"
+      hint: "UPDATE должен увеличить version на 1 и вернуть новую версию."
+    - id: save-conflict
+      title: "Устаревшая версия - Conflict"
+      hint: "Условие AND version = ? в UPDATE не совпадёт, rowcount равен 0; документ при этом не должен меняться."
+    - id: missing-document
+      title: "Нет документа - LookupError (скрытый)"
+      hidden: true
+      hint: "При rowcount 0 проверьте существование строки отдельным SELECT (допустимо после неудачного UPDATE)."
+    - id: retry-recovers
+      title: "Повтор после конфликта не теряет чужое изменение (скрытый)"
+      hidden: true
+      hint: "После Conflict перечитайте документ целиком и примените transform к свежему тексту."
+    - id: retry-exhausted
+      title: "Попытки исчерпаны - Conflict (скрытый)"
+      hidden: true
+      hint: "Выполните ровно max_attempts попыток и затем поднимите Conflict; неудавшиеся изменения не сохраняйте."

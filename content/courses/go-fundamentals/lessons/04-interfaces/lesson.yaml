@@ -1,0 +1,174 @@
+id: "go.fundamentals.interfaces"
+title: "Интерфейсы"
+goal: "Проектировать небольшие интерфейсы, понимать неявное удовлетворение, ловушку nil-указателя в интерфейсе и разбирать динамические типы через утверждения и type switch."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "go.fundamentals.structs-methods-embedding"
+objectives:
+  - "Объяснить неявное удовлетворение интерфейса и принцип «принимай интерфейсы, возвращай конкретные типы»."
+  - "Реализовать io.Reader и io.Writer как обёртки над другими Reader и Writer."
+  - "Объяснить, из чего состоит значение интерфейса, и почему интерфейс с nil-указателем не равен nil."
+  - "Использовать утверждение типа с ok и type switch, учитывая порядок ветвей."
+  - "Применять any осознанно и знать его цену."
+masteryCriteria:
+  - "Вы реализуете io.Reader-обёртку, которая корректно обрабатывает n > 0 вместе с io.EOF и не трогает байты за p[:n]."
+  - "Вы находите и исправляете функцию, возвращающую nil-указатель через интерфейс error."
+  - "Вы пишете type switch, где ветви error и fmt.Stringer расположены осознанно, и объясняете результат для именованного типа."
+  - "Вы описываете интерфейс минимального размера на стороне потребителя."
+related:
+  - "go.fundamentals.structs-methods-embedding"
+  - "go.first-steps.packages-and-go-test"
+next:
+  - "go.fundamentals.maps-and-slices-deep-dive"
+tags:
+  - "go"
+  - "interfaces"
+  - "io"
+  - "type-switch"
+facts:
+  - kind: "internals"
+    text: "Значение интерфейса хранит динамический тип и динамическое значение. Интерфейс равен nil только тогда, когда оба компонента пусты; интерфейс, содержащий nil-указатель конкретного типа, не равен nil. Это один из пунктов официального FAQ."
+    sources:
+      - "https://go.dev/doc/faq#nil_error"
+      - "https://go.dev/ref/spec#Interface_types"
+  - kind: "internals"
+    text: "Контракт io.Reader разрешает Read вернуть n > 0 вместе с ошибкой (в том числе io.EOF) и требует обрабатывать прочитанные n байтов до анализа ошибки. Реализация не должна сохранять p после возврата."
+    sources:
+      - "https://pkg.go.dev/io#Reader"
+  - kind: "historical"
+    text: "Псевдоним any для interface{} добавлен в Go 1.18 вместе с параметрами типа (дженериками). Это именно псевдоним: оба обозначения означают один и тот же тип."
+    sources:
+      - "https://go.dev/doc/go1.18#generics"
+      - "https://go.dev/ref/spec#Predeclared_identifiers"
+  - kind: "misconception"
+    text: "«Интерфейс нужно объявлять рядом с реализацией» - это привычка из Java и C#. В Go интерфейс принято объявлять в пакете-потребителе и делать минимальным; реализации о нём не знают."
+    sources:
+      - "https://go.dev/wiki/CodeReviewComments#interfaces"
+  - kind: "real-world"
+    text: "Пакет testing/iotest содержит Reader'ы для проверки собственных реализаций: OneByteReader отдаёт по одному байту, DataErrReader возвращает последние данные вместе с io.EOF, ErrReader возвращает заданную ошибку."
+    sources:
+      - "https://pkg.go.dev/testing/iotest"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "func f() error { var e *MyErr; return e }. Чему равно f() == nil?"
+      options:
+        - "true"
+        - "false"
+        - "Паника"
+        - "Не компилируется"
+      answer: 1
+      explanation: "Интерфейс содержит пару (*MyErr, nil): тип задан, поэтому он не равен nil."
+    - id: "q2"
+      type: "single"
+      prompt: "type celsius int; var v any = celsius(5). Какая ветвь type switch сработает, если выше есть case int и case fmt.Stringer (у celsius есть String)?"
+      options:
+        - "case int"
+        - "case fmt.Stringer"
+        - "Обе по очереди"
+        - "default"
+      answer: 1
+      explanation: "celsius - другой тип, поэтому в case int не попадает, зато реализует Stringer."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения об интерфейсах в Go верны?"
+      options:
+        - "Тип реализует интерфейс, если у него есть все методы, без явного объявления."
+        - "x.(T) без ok паникует при несовпадении типа."
+        - "Идиоматично объявлять интерфейс как можно крупнее, чтобы покрыть все случаи."
+        - "any - это псевдоним interface{}."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "В Go интерфейсы стараются делать маленькими и описывать на стороне потребителя."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется встроенный интерфейс с методом Error() string? (одно слово)"
+      answer:
+        - "error"
+      explanation: "error - предопределённый интерфейс; nil означает отсутствие ошибки."
+    - id: "q5"
+      type: "single"
+      prompt: "Reader вернул n = 3 и err = io.EOF одновременно. Что должен сделать вызывающий код?"
+      options:
+        - "Игнорировать данные, раз есть ошибка"
+        - "Обработать 3 прочитанных байта, затем учесть io.EOF"
+        - "Повторить Read, данные не считаются"
+        - "Вызвать panic"
+      answer: 1
+      explanation: "Контракт io.Reader требует обработать n > 0 байтов до анализа ошибки."
+exercise:
+  id: "go.fundamentals.interfaces.exercise"
+  title: "Reader, Writer, Describe и ловушка nil"
+  prompt: |
+    Пакет `iface` (модуль `example.com/iface`) состоит из четырёх файлов. Реализуйте недостающее так, чтобы проходили скрытые тесты `go test`.
+
+    1. **`upper.go`: `NewUpperReader(r io.Reader) io.Reader`** возвращает Reader, который читает из `r` и переводит ASCII-буквы `a-z` в верхний регистр. Все остальные байты (в том числе кириллица) остаются без изменений. Обрабатывайте только `p[:n]` и возвращайте `n, err` от нижележащего Reader как есть (он может вернуть данные вместе с `io.EOF`).
+    2. **`counter.go`: `CountingWriter`** пересылает данные в вложенный Writer и накапливает в поле `N` число **реально записанных** байтов (то, что вернул вложенный `Write`, а не `len(p)`).
+    3. **`describe.go`: `Describe(v any) string`** через type switch:
+       `nil` -> `nil`; `int` -> `int 5`; `string` -> `string "hi"` (через `%q`); `bool` -> `bool true`; `[]int` -> `[]int len=3`; ошибка -> `error: <текст>`; `fmt.Stringer` -> `stringer: <String()>`; остальное -> `other <%T>`. Ошибки проверяются раньше `Stringer`.
+    4. **`find.go`: `Validate(id int) error`** должна возвращать **настоящий** `nil`, когда `id` известен. Сейчас она возвращает nil-указатель типа `*NotFoundError` внутри интерфейса, и `Find` всегда видит ошибку.
+
+    Тесты запускаются командой `go test -json -count=1 ./...`; файл `go.mod` доступен во вкладках.
+  evaluation: "command"
+  languageId: "go"
+  entryFile: "upper.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Начните с Validate: если err объявлена как var err *NotFoundError, интерфейс error из неё не равен nil. Верните явный nil в ветке успеха, а в ветке ошибки - &NotFoundError{ID: id}."
+    - "В Read: n, err := u.r.Read(p); затем цикл for i := 0; i < n; i++ и замена байта p[i] из диапазона 'a'..'z' на p[i] - ('a' - 'A'). В конце return n, err (не возвращайте len(p) и не проверяйте err до цикла)."
+    - "CountingWriter.Write: n, err := c.w.Write(p); c.N += n; return n, err. Describe: switch x := v.(type) с case nil, int, string, bool, []int, error (до fmt.Stringer) и default."
+    - "Для Describe строки получаются так: fmt.Sprintf(\"int %d\", x), fmt.Sprintf(\"string %q\", x), fmt.Sprintf(\"[]int len=%d\", len(x)), \"error: \" + x.Error(), \"stringer: \" + x.String(), fmt.Sprintf(\"other %T\", x)."
+  tests:
+    - id: "upper-simple"
+      title: "UpperReader: простой текст"
+      match: "TestUpperReader/simple"
+      hint: "Переведите в верхний регистр байты 'a'..'z' в прочитанной части буфера."
+    - id: "describe-basic"
+      title: "Describe: базовые типы"
+      match: "TestDescribe/int"
+      hint: "Ветка case int возвращает fmt.Sprintf(\"int %d\", x)."
+    - id: "find-found"
+      title: "Find: известный id"
+      match: "TestFind/found"
+      hint: "Validate обязана вернуть nil-интерфейс при успехе, иначе Find вернёт ошибку."
+    - id: "count-basic"
+      title: "CountingWriter: подсчёт байтов"
+      match: "TestCountingWriter/basic"
+      hint: "Счётчик должен вырасти на число байтов, записанных вложенным Writer."
+    - id: "upper-edge"
+      title: "UpperReader: граничные случаи (скрытый)"
+      match: "TestUpperReader/*"
+      hidden: true
+      hint: "Проверьте чтение по одному байту, данные вместе с EOF, кириллицу и то, что буфер за p[:n] не меняется."
+    - id: "describe-all"
+      title: "Describe: все ветви (скрытый)"
+      match: "TestDescribe/*"
+      hidden: true
+      hint: "Именованные типы не попадают в case int; error стоит выше fmt.Stringer; значение nil-интерфейса даёт \"nil\"."
+    - id: "validate"
+      title: "Validate: nil и ошибка (скрытый)"
+      match: "TestValidate/*"
+      hidden: true
+      hint: "Для известного id возвращается литерал nil; для неизвестного - *NotFoundError с полем ID."
+    - id: "find-missing"
+      title: "Find: неизвестный id (скрытый)"
+      match: "TestFind/missing"
+      hidden: true
+      hint: "Ошибка Find обёрнута через %w: errors.As должна найти *NotFoundError с нужным ID."
+    - id: "count-short"
+      title: "CountingWriter: короткая запись (скрытый)"
+      match: "TestCountingWriter/*"
+      hidden: true
+      hint: "Учитывайте n из вложенного Write, а не len(p): при короткой записи они различаются."

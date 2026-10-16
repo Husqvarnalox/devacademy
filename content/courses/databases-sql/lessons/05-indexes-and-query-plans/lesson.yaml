@@ -1,0 +1,167 @@
+id: databases.sql.indexes-and-query-plans
+title: "Индексы и планы запросов"
+goal: Понимать, как B-tree индекс ускоряет поиск, читать EXPLAIN QUERY PLAN (SCAN или SEARCH), правильно выбирать порядок столбцов составного индекса, использовать покрывающие индексы и учитывать цену индексов при записи.
+difficulty: hard
+estimatedMinutes: 100
+prerequisites: [databases.sql.schema-design-and-normalization]
+related: [databases.sql.joins]
+next: [databases.sql.transactions-and-isolation]
+objectives:
+  - "Объяснить, чем полный просмотр таблицы (SCAN) отличается от поиска по индексу (SEARCH) и почему индекс на основе B-tree ускоряет поиск по равенству и диапазону."
+  - "Прочитать результат EXPLAIN QUERY PLAN и определить, какой индекс использован и по каким столбцам."
+  - "Выбрать порядок столбцов составного индекса по правилу левого префикса: равенства слева, диапазон последним."
+  - "Построить покрывающий индекс, чтобы запрос читал только индекс."
+  - "Оценить избирательность столбца и цену индекса при вставке и обновлении, не создавая лишних индексов."
+  - "Назвать условия, при которых индекс не используется (функция над столбцом, неподходящий префикс)."
+masteryCriteria:
+  - "Вы по тексту плана запроса говорите, использовался ли индекс, по каким столбцам и покрывающий ли он."
+  - "Вы объясняете, почему индекс (a, b) помогает запросу по a, но не запросу только по b."
+  - "Вы создаёте минимальный набор индексов для заданных запросов и проверяете его по EXPLAIN QUERY PLAN."
+  - "Вы не добавляете индекс, который не используется ни одним запросом."
+tags: [sql, sqlite, indexes, explain, query-plan, performance, b-tree]
+facts:
+  - kind: internals
+    text: >-
+      Индексы SQLite - это B-деревья: ключ индекса хранится в упорядоченном виде вместе с rowid строки, поэтому поиск по значению, диапазону и ORDER BY по индексированным столбцам не требует просмотра всей таблицы.
+      В PostgreSQL B-tree тоже индекс по умолчанию, но есть и другие типы (hash, GiST, GIN, BRIN).
+    sources:
+      - https://www.sqlite.org/queryplanner.html
+      - https://www.postgresql.org/docs/current/indexes-types.html
+  - kind: internals
+    text: >-
+      Формат вывода EXPLAIN QUERY PLAN предназначен для человека и может меняться между версиями SQLite; документация не гарантирует его стабильность. Поэтому тесты, проверяющие план,
+      сравнивают только устойчивые части («SEARCH», имена индексов и столбцов) и фиксируют версию SQLite, на которой проверены (3.53.4).
+    sources:
+      - https://www.sqlite.org/eqp.html
+  - kind: performance
+    text: >-
+      Каждый индекс обновляется при каждом INSERT, а также при UPDATE и DELETE затрагивающих индексированные столбцы, и занимает место на диске. Индекс, который не использует ни один запрос,
+      только замедляет запись. Нужность индекса проверяют по плану запросов и измерениями на реальных данных.
+    sources:
+      - https://www.sqlite.org/queryplanner.html
+      - https://www.postgresql.org/docs/current/indexes-intro.html
+  - kind: internals
+    text: >-
+      Покрывающий индекс содержит все столбцы, нужные запросу, поэтому таблица не читается вообще: в плане SQLite написано USING COVERING INDEX. В PostgreSQL похожий режим называется Index Only Scan
+      и дополнительно зависит от карты видимости (visibility map).
+    sources:
+      - https://www.sqlite.org/queryplanner.html
+      - https://www.postgresql.org/docs/current/indexes-index-only-scans.html
+  - kind: performance
+    text: >-
+      Команда ANALYZE собирает статистику в таблицу sqlite_stat1 (число строк и среднее число строк на значение префикса индекса), по которой планировщик оценивает избирательность. Частичные индексы (WHERE в CREATE INDEX)
+      и индексы по выражениям поддерживаются SQLite с версий 3.8.0 и 3.9.0 соответственно.
+    sources:
+      - https://www.sqlite.org/lang_analyze.html
+      - https://www.sqlite.org/partialindex.html
+      - https://www.sqlite.org/expridx.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "В плане запроса написано «SCAN orders». Что это значит?"
+      options:
+        - "Запрос использует индекс по первичному ключу"
+        - "SQLite просматривает всю таблицу строка за строкой"
+        - "Запрос выполняется за логарифмическое время"
+        - "Таблица orders не найдена"
+      answer: 1
+      explanation: >-
+        SCAN - проход по всей таблице (или по всему индексу), SEARCH - поиск по индексу по значению или диапазону.
+    - id: q2
+      type: single
+      prompt: "Создан индекс ON t(a, b). Для какого запроса он НЕ поможет искать по индексу?"
+      options:
+        - "WHERE a = 1"
+        - "WHERE a = 1 AND b = 2"
+        - "WHERE b = 2"
+        - "WHERE a = 1 AND b > 2"
+      answer: 2
+      explanation: >-
+        Составной индекс упорядочен сначала по a, затем по b. Без условия на левый префикс (a) поиск по одному b по индексу невозможен.
+    - id: q3
+      type: single
+      prompt: "Какой порядок столбцов лучше для WHERE status = ? AND created_at >= ? (оба условия)?"
+      options:
+        - "(created_at, status)"
+        - "(status, created_at)"
+        - "Порядок не важен"
+        - "Два отдельных индекса всегда лучше"
+      answer: 1
+      explanation: >-
+        Столбцы с равенством ставят слева, столбец с диапазоном - последним: тогда индекс сначала находит нужный status, а внутри него идёт диапазон по created_at.
+    - id: q4
+      type: multiple
+      prompt: "Что делает индекс покрывающим? Выберите все верные утверждения."
+      options:
+        - "В индексе есть все столбцы, которые читает запрос"
+        - "В плане SQLite написано COVERING INDEX"
+        - "Запрос не обращается к таблице"
+        - "Индекс уникальный"
+      answer: [0, 1, 2]
+      explanation: >-
+        Покрывающий индекс позволяет ответить на запрос, не читая строки таблицы. Уникальность не обязательна.
+    - id: q5
+      type: single
+      prompt: "Почему нельзя добавлять индекс на каждый столбец «на всякий случай»?"
+      options:
+        - "SQLite не позволяет больше трёх индексов"
+        - "Каждый индекс нужно обновлять при записи и хранить на диске, а неиспользуемый индекс не даёт пользы"
+        - "Индексы ломают внешние ключи"
+        - "Индексы отключают транзакции"
+      answer: 1
+      explanation: >-
+        Цена индекса - место и замедление INSERT/UPDATE/DELETE. Индекс создают под конкретные запросы и проверяют планом.
+exercise:
+  id: databases.sql.indexes-and-query-plans.exercise
+  title: "Индексы под запросы"
+  prompt: |
+    В файле `indexes_task.py` заполните список `INDEXES` операторами `CREATE INDEX` для таблицы
+    `orders(id INTEGER PRIMARY KEY, customer_id, status, created_at, total, note)` (3000 строк, индексов нет).
+    Приложение выполняет пять запросов (`?` - параметр):
+
+    1. `Q1`: `SELECT * FROM orders WHERE customer_id = ?`
+    2. `Q2`: `SELECT * FROM orders WHERE customer_id = ? AND status = ?`
+    3. `Q3`: `SELECT * FROM orders WHERE status = ? AND created_at >= ?`
+    4. `Q4`: `SELECT customer_id, total FROM orders WHERE customer_id = ?` - запрос должен читаться **только из индекса** (`COVERING INDEX`).
+    5. `Q5`: `SELECT * FROM orders WHERE status = ?`
+
+    Проверяющий код выполняет ваши операторы и разбирает `EXPLAIN QUERY PLAN` (на SQLite 3.53.4). Для каждого запроса нужен `SEARCH ... USING INDEX` по правильным столбцам.
+    Ограничения: не больше **3** индексов, и каждый индекс должен использоваться хотя бы одним из пяти запросов. Бесполезные индексы не принимаются, потому что замедляют запись.
+    В списке допускаются только отдельные операторы `CREATE INDEX`.
+  entryFile: indexes_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Для каждого запроса выпишите столбцы с равенством и со сравнением диапазона, затем подумайте, какой порядок столбцов индекса позволяет искать по левому префиксу. Один индекс может обслуживать несколько запросов."
+    - "Индекс (customer_id, status) обслуживает Q1 (префикс customer_id) и Q2 (оба столбца). Индекс (status, created_at) обслуживает Q3 (равенство, затем диапазон) и Q5 (префикс status). Для Q4 в индекс нужно добавить ещё и читаемый столбец total."
+    - "Покрывающий индекс должен содержать все столбцы запроса: условие customer_id и выбираемые customer_id, total. Если добавить total в конец индекса по (customer_id, status), он обслужит Q1, Q2 и Q4 одновременно."
+    - "INDEXES = ['CREATE INDEX idx_a ON orders(customer_id, status, total)', 'CREATE INDEX idx_b ON orders(status, created_at)']. Проверяйте себя вручную: conn.execute('EXPLAIN QUERY PLAN ' + sql, params) возвращает строки, где последний элемент - текст плана."
+  tests:
+    - id: q1-customer
+      title: "Q1 использует индекс по customer_id"
+      hint: "customer_id должен быть первым столбцом какого-либо индекса, иначе будет SCAN."
+    - id: q2-customer-status
+      title: "Q2 ищет по customer_id и status"
+      hint: "В плане должно быть (customer_id=? AND status=?); значит, оба столбца есть в индексе в этом порядке или обратном, но оба в начале."
+    - id: q3-status-range
+      title: "Q3 - равенство по status и диапазон по created_at"
+      hint: "Индекс (status, created_at): равенство слева, диапазон справа. Порядок (created_at, status) не даст использовать оба условия."
+    - id: q4-covering
+      title: "Q4 читается из покрывающего индекса (скрытый)"
+      hidden: true
+      hint: "Запрос читает customer_id и total, условие по customer_id; индекс должен содержать оба столбца (customer_id первым)."
+    - id: q5-leftmost-status
+      title: "Q5 использует левый префикс status (скрытый)"
+      hidden: true
+      hint: "Индекс (customer_id, status) для WHERE status = ? бесполезен: status не является левым префиксом. Нужен индекс, начинающийся с status."
+    - id: no-useless-index
+      title: "Каждый индекс используется (скрытый)"
+      hidden: true
+      hint: "Удалите индексы, которые не появляются в планах ни одного из пяти запросов (например, по столбцу note)."
+    - id: index-count-limit
+      title: "Не больше трёх индексов (скрытый)"
+      hidden: true
+      hint: "Достаточно двух индексов; каждый дополнительный увеличивает цену записи."

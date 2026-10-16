@@ -1,0 +1,160 @@
+id: databases.sql.relational-model-and-select
+title: "Реляционная модель и SELECT"
+goal: Понимать таблицы, строки и ключи как реляционную модель и писать запросы SELECT с WHERE, ORDER BY и LIMIT, правильно учитывая трёхзначную логику NULL и порядок логической обработки запроса.
+difficulty: easy
+estimatedMinutes: 70
+prerequisites: [python.fundamentals.functions, python.fundamentals.errors-and-files]
+related: [python.fundamentals.dicts-and-sets]
+next: [databases.sql.joins]
+seeAlso:
+  - "Нереляционные хранилища: документные, ключ-значение, колоночные (планируется в этом треке)"
+objectives:
+  - Описать таблицу как множество строк с типизированными столбцами, а первичный и внешний ключи как способ однозначно идентифицировать и связывать строки.
+  - Написать SELECT с проекцией, фильтром WHERE, сортировкой ORDER BY, DISTINCT, LIMIT и OFFSET.
+  - Вычислять условия с NULL по трёхзначной логике и использовать IS NULL, IS NOT NULL и COALESCE.
+  - Назвать порядок логической обработки запроса (FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT) и объяснить, что он означает для псевдонимов.
+  - Выполнять запросы из Python через sqlite3, передавая значения параметрами.
+masteryCriteria:
+  - Вы объясняете, почему WHERE dept <> 'Sales' не возвращает строки с dept IS NULL, и умеете написать нужное условие.
+  - Вы знаете, что NULL = NULL даёт NULL, и выбираете строки без значения через IS NULL.
+  - Вы указываете в ORDER BY все столбцы, от которых зависит порядок, и не полагаетесь на порядок строк без ORDER BY.
+  - Вы пишете запросы, которые проходят проверку на наборе данных с неизвестными значениями.
+tags: [sql, sqlite, select, null, relational-model]
+facts:
+  - kind: historical
+    text: >-
+      Реляционную модель предложил Эдгар Кодд в статье «A Relational Model of Data for Large Shared Data Banks» (Communications of the ACM, 1970):
+      данные описываются как отношения (таблицы), а работа с ними не зависит от физического способа хранения.
+    sources:
+      - https://dl.acm.org/doi/10.1145/362384.362685
+  - kind: internals
+    text: >-
+      Любое сравнение с NULL (=, <>, <, >) даёт NULL, а не true или false. WHERE оставляет строку только при результате true, поэтому
+      NULL = NULL строк не возвращает; для проверки существуют IS NULL и IS NOT NULL (в SQLite также IS и IS NOT, которые трактуют NULL как обычное значение).
+    sources:
+      - https://www.sqlite.org/nulls.html
+      - https://www.sqlite.org/lang_expr.html
+      - https://www.postgresql.org/docs/current/functions-comparison.html
+  - kind: internals
+    text: >-
+      В SQL строки таблицы не упорядочены. Без ORDER BY порядок результата не гарантирован стандартом и зависит от плана выполнения; в SQLite при ORDER BY
+      значения NULL считаются меньше любых других, то есть идут первыми при ASC и последними при DESC (у PostgreSQL наоборот: NULL считается большим, и можно задать NULLS FIRST или NULLS LAST).
+    sources:
+      - https://www.sqlite.org/lang_select.html#orderby
+      - https://www.postgresql.org/docs/current/queries-order.html
+  - kind: internals
+    text: >-
+      SQLite допускает использование псевдонима столбца SELECT в WHERE (SELECT salary*12 AS y ... WHERE y > 100) как расширение. По логическому порядку обработки WHERE выполняется до вычисления списка SELECT,
+      поэтому PostgreSQL такой запрос отвергает: там нужно повторить выражение или использовать подзапрос. Не полагайтесь на расширение, если код должен переноситься.
+    sources:
+      - https://www.postgresql.org/docs/current/sql-select.html
+      - https://www.sqlite.org/lang_select.html
+  - kind: real-world
+    text: >-
+      SQLite хранит всю базу в одном файле или в памяти (":memory:") и не требует сервера, поэтому подходит для обучения и тестов; в приложениях с множеством одновременных записей обычно используют серверные СУБД, например PostgreSQL или MySQL.
+    sources:
+      - https://www.sqlite.org/whentouse.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Таблица t содержит строки с x = 1, x = 2 и x = NULL. Сколько строк вернёт SELECT * FROM t WHERE x <> 1?"
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+      answer: 1
+      explanation: >-
+        x <> 1 истинно только для x = 2. Для NULL результат сравнения - NULL, а WHERE оставляет строки только с true.
+    - id: q2
+      type: single
+      prompt: "Чему равно выражение NULL = NULL?"
+      options:
+        - "true"
+        - "false"
+        - "NULL"
+        - "Ошибка"
+      answer: 2
+      explanation: >-
+        Любое сравнение, в котором участвует NULL, даёт NULL (неизвестно). Для проверки пользуйтесь IS NULL.
+    - id: q3
+      type: single
+      prompt: "В каком порядке логически обрабатываются части запроса?"
+      options:
+        - "SELECT, FROM, WHERE, ORDER BY"
+        - "FROM, WHERE, SELECT, ORDER BY, LIMIT"
+        - "WHERE, FROM, SELECT, LIMIT, ORDER BY"
+        - "FROM, SELECT, WHERE, ORDER BY, LIMIT"
+      answer: 1
+      explanation: >-
+        Сначала источник строк (FROM), затем фильтр (WHERE), потом вычисление списка SELECT, сортировка и в конце ограничение количества строк.
+    - id: q4
+      type: multiple
+      prompt: "Какие условия вернут строки, где столбец dept не задан (NULL)? Выберите все."
+      options:
+        - "dept IS NULL"
+        - "dept = NULL"
+        - "COALESCE(dept, '') = ''"
+        - "dept IS NOT NULL"
+      answer: [0, 2]
+      explanation: >-
+        dept = NULL всегда NULL. COALESCE подставляет '' вместо NULL, поэтому сравнение становится истинным (но оно также совпадёт с настоящей пустой строкой).
+    - id: q5
+      type: short
+      prompt: "Какую функцию (одно слово) используют, чтобы заменить NULL значением по умолчанию? Ответьте латиницей."
+      answer: ["coalesce", "COALESCE"]
+      explanation: >-
+        COALESCE(a, b, ...) возвращает первый аргумент, который не NULL.
+exercise:
+  id: databases.sql.relational-model-and-select.exercise
+  title: Запросы к таблице сотрудников
+  prompt: |
+    В файле `queries.py` лежат шесть констант. Замените заглушки запросами `SELECT` для таблицы
+    `employees(id, name, dept, salary, manager_id)`. Столбцы `dept`, `salary` и `manager_id` могут быть `NULL`.
+    Запросы проверяются на нескольких наборах данных, в том числе с неизвестными значениями.
+
+    1. `Q_LOWEST_PAID` - два сотрудника с наименьшей **известной** зарплатой: столбцы `name`, `salary`; порядок `salary` по возрастанию, затем `name`.
+    2. `Q_NO_MANAGER` - имена сотрудников без руководителя (`manager_id` не задан) по алфавиту.
+    3. `Q_PAGE2` - вторая страница при размере страницы 2: столбцы `id`, `name`; порядок по `id`.
+    4. `Q_NOT_SALES` - `id` сотрудников, у которых отдел не `'Sales'`; сотрудники с неизвестным отделом тоже подходят. Порядок по `id`.
+    5. `Q_ANNUAL` - столбцы `name` и `annual`, где `annual = salary * 12`, а неизвестная зарплата считается нулём. Порядок по `name`.
+    6. `Q_DEPTS` - различные известные отделы (без `NULL`) по алфавиту; один столбец `dept`.
+
+    Каждая константа - строка с **одним** запросом. Ничего не печатайте: запросы выполняет проверяющий код.
+  entryFile: queries.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с вопроса, что происходит с NULL: сравнения с ним дают NULL, а WHERE оставляет только true. Для каждого запроса подумайте, какие строки с NULL должны попасть в результат, а какие нет."
+    - "Q_LOWEST_PAID: в SQLite при ORDER BY ... ASC значения NULL идут первыми, поэтому отфильтруйте их условием salary IS NOT NULL. Q_NOT_SALES: условие dept <> 'Sales' неизвестно для NULL, добавьте отдельную ветку для dept IS NULL."
+    - "Q_PAGE2: LIMIT 2 OFFSET 2 вместе с ORDER BY id. Q_ANNUAL: COALESCE(salary, 0) * 12 AS annual. Q_DEPTS: SELECT DISTINCT dept ... WHERE dept IS NOT NULL ORDER BY dept."
+    - "Q_NOT_SALES: SELECT id FROM employees WHERE dept IS NULL OR dept <> 'Sales' ORDER BY id. Q_NO_MANAGER: WHERE manager_id IS NULL ORDER BY name. Не используйте = NULL: оно никогда не истинно."
+  tests:
+    - id: lowest-paid
+      title: Q_LOWEST_PAID - известные зарплаты по возрастанию
+      hint: Строки с salary NULL нужно исключить, иначе при ASC они окажутся первыми. Второй ключ сортировки - name.
+    - id: no-manager
+      title: Q_NO_MANAGER - проверка IS NULL
+      hint: Для отсутствующего значения используйте IS NULL, а не = NULL.
+    - id: page2
+      title: Q_PAGE2 - LIMIT и OFFSET
+      hint: Страница 2 при размере 2 пропускает две строки (OFFSET 2) и берёт две; без ORDER BY страницы не определены.
+    - id: not-sales-null
+      title: Q_NOT_SALES - NULL в условии (скрытый)
+      hidden: true
+      hint: Для NULL выражение dept <> 'Sales' неизвестно и строка отбрасывается. Добавьте OR dept IS NULL.
+    - id: annual-coalesce
+      title: Q_ANNUAL - COALESCE и псевдоним (скрытый)
+      hidden: true
+      hint: NULL * 12 равно NULL. Замените неизвестную зарплату нулём через COALESCE и назовите столбец annual.
+    - id: distinct-depts
+      title: Q_DEPTS - DISTINCT без NULL (скрытый)
+      hidden: true
+      hint: DISTINCT оставляет NULL как одно значение; исключите его условием IS NOT NULL.
+    - id: other-data
+      title: Те же запросы на другом наборе данных (скрытый)
+      hidden: true
+      hint: Запрос не должен опираться на конкретные значения из примера; проверьте работу при совпадающих зарплатах и неизвестных значениях.

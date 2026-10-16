@@ -1,0 +1,21 @@
+id: databases-sql
+version: 1.0.0
+title: SQL и реляционные базы данных
+description: >-
+  Общий для разных языков модуль о реляционных базах данных: реляционная модель и SELECT с трёхзначной логикой NULL,
+  соединения и антисоединения, агрегирование и оконные функции, проектирование схемы и нормализация, индексы и планы
+  запросов, транзакции и уровни изоляции, защита от SQL-инъекций и проблема N+1. Теория не привязана к языку и
+  сопровождается отличиями PostgreSQL и MySQL; упражнения выполняются на Python через встроенный модуль sqlite3,
+  поэтому сервер СУБД не нужен. Каждый урок проверяется запуском кода (проверено на SQLite 3.53.4 и Python 3.14).
+languageId: python
+level: 3
+track: databases
+requires: [python-fundamentals]
+lessons:
+  - 01-relational-model-and-select
+  - 02-joins
+  - 03-aggregation-and-grouping
+  - 04-schema-design-and-normalization
+  - 05-indexes-and-query-plans
+  - 06-transactions-and-isolation
+  - 07-sql-injection-and-safe-access

@@ -1,6 +1,6 @@
 id: python-backend-developer
 title: Python для бэкенд-разработчика
-description: "Путь к веб-API на Python. Сначала «Основы Python» и «Продвинутый Python», затем «Стандартная библиотека Python», «Конкурентность и асинхронность в Python», после этого «FastAPI: основы»: ASGI, параметры и тела запросов, модели Pydantic v2, зависимости, ошибки, аутентификация с токенами и тестирование. Базы данных и ORM, WebSocket, фоновые задачи, развёртывание и JWT-аутентификация целиком пока запланированы и в путь не входят."
+description: "Путь к веб-API на Python. Сначала «Основы Python» и «Продвинутый Python», затем «Стандартная библиотека Python», «Конкурентность и асинхронность в Python», затем «SQL и реляционные базы данных» (SQLite из Python, транзакции, индексы, безопасный доступ), после этого «FastAPI: основы»: ASGI, параметры и тела запросов, модели Pydantic v2, зависимости, ошибки, аутентификация с токенами и тестирование. ORM и работа с базой из FastAPI, WebSocket, фоновые задачи, развёртывание и JWT-аутентификация целиком пока запланированы и в путь не входят."
 goal: backend
 targets: [fastapi-fundamentals]
 stages:
@@ -12,5 +12,7 @@ stages:
     courses: [python-stdlib]
   - title: Конкурентность и asyncio
     courses: [python-concurrency]
+  - title: Базы данных и SQL
+    courses: [databases-sql]
   - title: FastAPI
     courses: [fastapi-fundamentals]

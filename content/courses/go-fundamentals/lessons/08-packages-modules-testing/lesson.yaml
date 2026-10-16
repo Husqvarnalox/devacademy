@@ -1,0 +1,184 @@
+id: "go.fundamentals.packages-modules-testing"
+title: "Пакеты, модули и тестирование"
+goal: "Организовывать код в модуль из нескольких пакетов с internal, управлять экспортом и писать табличные тесты, бенчмарки и примеры."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "go.fundamentals.concurrency-patterns-and-context"
+objectives:
+  - "Разложить код по пакетам внутри модуля и объяснить роль go.mod и пути импорта."
+  - "Управлять видимостью через заглавные буквы и каталог internal."
+  - "Писать табличные тесты с t.Run и запускать отдельные подтесты через -run."
+  - "Писать бенчмарки с testing.B.Loop (Go 1.24+) и запускать их с -benchmem."
+  - "Писать ExampleXxx с комментарием Output, которые проверяются и попадают в документацию."
+masteryCriteria:
+  - "Вы импортируете внутренний пакет только из того же модуля и объясняете, почему из другого модуля это запрещено."
+  - "Вы добавляете новый случай табличного теста одной строкой и получаете понятное имя подтеста при падении."
+  - "Вы отличаете тесты во внутреннем пакете (видят неэкспортированное) от тестов во внешнем пакете _test (только публичный API)."
+  - "Вы знаете, что errgroup находится в golang.org/x/sync, а не в стандартной библиотеке."
+related:
+  - "go.fundamentals.concurrency-patterns-and-context"
+  - "go.first-steps.packages-and-go-test"
+next: []
+tags:
+  - "go"
+  - "modules"
+  - "packages"
+  - "testing"
+  - "benchmarks"
+facts:
+  - kind: "internals"
+    text: "Каталог internal - не соглашение, а правило инструмента go: пакет внутри internal можно импортировать только из дерева, корнем которого служит родитель каталога internal."
+    sources:
+      - "https://go.dev/doc/go1.4#internalpackages"
+      - "https://go.dev/ref/mod#internal-packages"
+  - kind: "historical"
+    text: "Метод testing.B.Loop добавлен в Go 1.24. Цикл for b.Loop() сам определяет число итераций и не позволяет компилятору удалить измеряемый вызов."
+    sources:
+      - "https://go.dev/doc/go1.24"
+      - "https://pkg.go.dev/testing#B.Loop"
+  - kind: "real-world"
+    text: "Функции ExampleXxx с комментарием Output выполняются командой go test и отображаются как примеры в документации на pkg.go.dev, поэтому пример не может незаметно устареть."
+    sources:
+      - "https://go.dev/blog/examples"
+      - "https://pkg.go.dev/testing#hdr-Examples"
+  - kind: "misconception"
+    text: "«errgroup входит в стандартную библиотеку» - нет, пакет находится в модуле golang.org/x/sync и подключается как внешняя зависимость."
+    sources:
+      - "https://pkg.go.dev/golang.org/x/sync/errgroup"
+  - kind: "real-world"
+    text: "Для экспортируемости идентификатора важна только первая буква: она должна быть заглавной буквой Unicode, а экспортируемыми могут быть также поля структур и методы."
+    sources:
+      - "https://go.dev/ref/spec#Exported_identifiers"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой идентификатор экспортируется из пакета?"
+      options:
+        - "slugify"
+        - "_Slugify"
+        - "Slugify"
+        - "slugifyAll"
+      answer: 2
+      explanation: "Экспортируется имя, которое начинается с заглавной буквы Unicode. Подчёркивание в начале экспорт отключает."
+    - id: "q2"
+      type: "single"
+      prompt: "Модуль example.com/textkit содержит пакет example.com/textkit/internal/norm. Кто может его импортировать?"
+      options:
+        - "Любой модуль"
+        - "Только пакеты внутри example.com/textkit"
+        - "Только сам пакет norm"
+        - "Только тесты"
+      answer: 1
+      explanation: "Родитель каталога internal здесь - корень модуля, поэтому импорт разрешён только внутри него."
+    - id: "q3"
+      type: "single"
+      prompt: "Как запустить только подтест simple из TestSlugify?"
+      options:
+        - "go test -run TestSlugify.simple"
+        - "go test -run 'TestSlugify/simple'"
+        - "go test -only simple"
+        - "go test -sub simple"
+      answer: 1
+      explanation: "Имя подтеста строится как Родитель/подтест, и именно такой шаблон принимает -run."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Тесты в package slug_test видят только экспортируемые имена пакета slug."
+        - "ExampleXxx с комментарием // Output: проверяется командой go test."
+        - "testing.B.Loop появился в Go 1.24."
+        - "Файлы *_test.go входят в обычную сборку программы."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Файлы *_test.go собираются только при go test."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой флаг go test добавляет в вывод бенчмарка число аллокаций? (напишите флаг с дефисом)"
+      answer:
+        - "-benchmem"
+      explanation: "Флаг -benchmem добавляет колонки B/op и allocs/op."
+exercise:
+  id: "go.fundamentals.packages-modules-testing.exercise"
+  title: "Модуль textkit из трёх пакетов"
+  prompt: |
+    Модуль `example.com/textkit` состоит из трёх пакетов. Заготовка компилируется, но функции не доделаны. Реализуйте их так, чтобы проходили скрытые и публичные тесты (в том числе таблицы, бенчмарк и примеры).
+
+    * **`internal/norm.Words(s string) []string`** - слова в нижнем регистре: последовательности букв и цифр, остальное - разделители (`strings.ToLower`, `strings.FieldsFunc`, `unicode.IsLetter`, `unicode.IsDigit`).
+    * **`slug.Slugify(s string) string`** - слова через `-` (использует `norm.Words`; пакет `norm` внутренний, но `slug` в том же модуле, поэтому импорт разрешён).
+    * **`slug.Unique(base string, taken map[string]bool) string`** - `base`, если его нет в `taken`, иначе первый свободный `base-2`, `base-3`, ...; пустой `base` заменяется на `"item"`; карта не изменяется и может быть `nil`.
+    * **`stats.WordCount(text string) map[string]int`** - частоты слов (не `nil`, даже для пустого текста).
+    * **`stats.Top(counts map[string]int, n int) []Entry`** - не более `n` записей: по убыванию `Count`, при равенстве по алфавиту; `n <= 0` даёт пустой результат; входная карта не меняется.
+
+    Запуск: `go test -json -count=1 ./...`. Бенчмарк локально: `go test -bench . -benchmem ./slug`.
+  evaluation: "command"
+  languageId: "go"
+  entryFile: "slug/slug.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Начните с internal/norm: strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }). Остальные пакеты опираются на него."
+    - "Slugify: импортируйте example.com/textkit/internal/norm и верните strings.Join(norm.Words(s), \"-\")."
+    - "Unique: если base пустая, присвойте \"item\"; затем проверьте taken[base] (чтение из nil-карты безопасно) и в цикле n := 2; ; n++ перебирайте base+\"-\"+strconv.Itoa(n)."
+    - "stats: WordCount - карта через make и счётчики по norm.Words. Top - соберите []Entry, отсортируйте sort.Slice по (Count убыв., Word возр.) и обрежьте до min(n, len); n < 0 приводите к нулю."
+  tests:
+    - id: "words-basic"
+      title: "norm.Words: основы"
+      match: "TestWords/simple"
+      hint: "Разделитель - любой символ, не являющийся буквой или цифрой."
+    - id: "slugify-basic"
+      title: "Slugify: простой заголовок"
+      match: "TestSlugify/simple"
+      hint: "Слова в нижнем регистре, соединённые дефисом."
+    - id: "unique-free"
+      title: "Unique: свободное имя"
+      match: "TestUnique/free"
+      hint: "Если base свободна, верните её без суффикса."
+    - id: "wordcount-basic"
+      title: "WordCount: частоты"
+      match: "TestWordCount/basic"
+      hint: "Приводите регистр через norm.Words, затем m[w]++."
+    - id: "top-order"
+      title: "Top: порядок"
+      match: "TestTop/order"
+      hint: "Сначала по убыванию Count, при равенстве - по алфавиту."
+    - id: "words-all"
+      title: "norm.Words: пунктуация, цифры, кириллица (скрытый)"
+      match: "TestWords/*"
+      hidden: true
+      hint: "strings.ToLower работает и для кириллицы; пустой ввод даёт пустой срез."
+    - id: "slugify-all"
+      title: "Slugify: пробелы, цифры, пустой ввод (скрытый)"
+      match: "TestSlugify/*"
+      hidden: true
+      hint: "Лишние пробелы и символы не должны давать пустых слов и лишних дефисов."
+    - id: "unique-all"
+      title: "Unique: занятые суффиксы, пустая база, nil-карта (скрытый)"
+      match: "TestUnique/*"
+      hidden: true
+      hint: "Ищите первый свободный суффикс начиная с 2 и не изменяйте taken."
+    - id: "wordcount-all"
+      title: "WordCount: пустой текст и кириллица (скрытый)"
+      match: "TestWordCount/*"
+      hidden: true
+      hint: "Результат создаётся через make, поэтому для пустого текста он не nil."
+    - id: "top-all"
+      title: "Top: границы n и пустая карта (скрытый)"
+      match: "TestTop/*"
+      hidden: true
+      hint: "Обрезайте срез до min(n, len), n <= 0 даёт пустой результат, входную карту не меняйте."
+    - id: "examples"
+      title: "Примеры Slugify и Unique (скрытый)"
+      match: "ExampleSlugify"
+      hidden: true
+      hint: "Примеры сравнивают вывод с комментарием Output: проверьте Slugify(\"Hello, World!\") == \"hello-world\"."

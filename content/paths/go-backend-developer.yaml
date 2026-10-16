@@ -1,0 +1,10 @@
+id: go-backend-developer
+title: Go-разработчик
+description: "Путь к уверенному владению Go. Сначала «Go: первые шаги» (запуск, срезы, пакеты и go test), затем «Go: язык и идиомы»: типы, ошибки, структуры и интерфейсы, срезы и карты, горутины, каналы и context, модули и тестирование. Веб-серверы, работа с базами данных и обобщения пока не входят."
+goal: backend
+targets: [go-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [go-first-steps]
+  - title: Язык и идиомы
+    courses: [go-fundamentals]

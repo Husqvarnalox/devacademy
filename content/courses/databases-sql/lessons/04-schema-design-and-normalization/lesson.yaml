@@ -1,0 +1,168 @@
+id: databases.sql.schema-design-and-normalization
+title: "Проектирование схемы и нормализация"
+goal: Проектировать таблицы так, чтобы каждый факт хранился один раз, объяснять аномалии и нормальные формы 1NF-3NF, выражать правила данных ограничениями (PRIMARY KEY, FOREIGN KEY, UNIQUE, NOT NULL, CHECK) и осознанно денормализовать.
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [databases.sql.aggregation-and-grouping]
+related: [databases.sql.joins]
+next: [databases.sql.indexes-and-query-plans]
+objectives:
+  - Показать на примере плоской таблицы аномалии обновления, вставки и удаления и устранить их разбиением на таблицы.
+  - Определить 1NF, 2NF и 3NF через функциональные зависимости и привести таблицу к 3NF.
+  - Выбирать первичные и внешние ключи, реализовывать связь «многие ко многим» через таблицу-связку.
+  - Выражать правила данных ограничениями NOT NULL, UNIQUE, CHECK и FOREIGN KEY с действиями ON DELETE.
+  - Знать, что в SQLite проверка внешних ключей по умолчанию выключена (PRAGMA foreign_keys = ON), а типы работают через сродство (affinity), и использовать STRICT-таблицы.
+  - Объяснить, когда денормализация оправдана и что она стоит.
+masteryCriteria:
+  - Вы находите в схеме зависимость неключевого столбца от части составного ключа (нарушение 2NF) или от другого неключевого столбца (нарушение 3NF).
+  - Вы создаёте соединение с PRAGMA foreign_keys = ON и показываете, что ссылка на несуществующую строку отвергается.
+  - Вы выбираете действие ON DELETE (CASCADE или RESTRICT) исходя из смысла данных.
+  - Вы отличаете историческую копию значения (цена в момент заказа) от нежелательной избыточности.
+tags: [sql, sqlite, schema, normalization, constraints, foreign-keys]
+facts:
+  - kind: historical
+    text: >-
+      Нормальные формы появились вместе с реляционной моделью: Эдгар Кодд ввёл первую нормальную форму в работе 1970 года, а вторая и третья формы описаны в его последующих работах начала 1970-х.
+      Современные учебники формулируют их через функциональные зависимости.
+    sources:
+      - https://dl.acm.org/doi/10.1145/362384.362685
+  - kind: security
+    text: >-
+      В SQLite ограничения внешнего ключа не проверяются, пока в соединении не выполнено PRAGMA foreign_keys = ON. Параметр относится к соединению, а не к базе, поэтому его нужно включать после каждого sqlite3.connect;
+      внутри открытой транзакции команда не действует. PostgreSQL и MySQL (InnoDB) проверяют внешние ключи всегда.
+    sources:
+      - https://www.sqlite.org/foreignkeys.html
+      - https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-FK
+  - kind: internals
+    text: >-
+      Типизация SQLite основана на сродстве столбца (type affinity): значение другого типа обычно сохраняется как есть, поэтому в столбец INTEGER можно записать текст 'abc'. Таблицы с ключевым словом STRICT
+      (SQLite 3.37.0 и новее) проверяют тип значения; разрешены типы INT, INTEGER, REAL, TEXT, BLOB и ANY. PostgreSQL и MySQL строго проверяют типы всегда.
+    sources:
+      - https://www.sqlite.org/datatype3.html
+      - https://www.sqlite.org/stricttables.html
+  - kind: internals
+    text: >-
+      Первичный ключ, не являющийся INTEGER PRIMARY KEY, в обычной таблице SQLite может содержать NULL, если столбец не объявлен NOT NULL: это сохранённое из соображений совместимости отклонение от стандарта.
+      Объявляйте NOT NULL явно или используйте STRICT-таблицы.
+    sources:
+      - https://www.sqlite.org/lang_createtable.html#the_primary_key
+  - kind: real-world
+    text: >-
+      Денормализация - сознательное повторение данных ради скорости чтения (предвычисленные итоги, копии значений для отчётов). Она требует поддерживать согласованность копий: триггерами, транзакциями или пересчётом,
+      иначе возвращаются аномалии обновления. Историческая копия, например цена товара на момент заказа, избыточностью не является: это самостоятельный факт.
+    sources:
+      - https://www.postgresql.org/docs/current/ddl-constraints.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "В таблице orders(order_id, customer_id, customer_name, customer_city) имя и город клиента повторяются в каждом заказе. Как называется проблема, если у клиента сменился город, а обновили не все строки?"
+      options:
+        - "Аномалия вставки"
+        - "Аномалия обновления"
+        - "Нарушение 1NF"
+        - "Фантомное чтение"
+      answer: 1
+      explanation: >-
+        Один факт хранится во многих местах, и обновление части копий оставляет данные противоречивыми. Решение - вынести клиента в таблицу customers.
+    - id: q2
+      type: single
+      prompt: "Таблица enrollments(student_id, course_id, student_name, grade) имеет составной ключ (student_id, course_id). Какая нормальная форма нарушена из-за student_name?"
+      options:
+        - "1NF"
+        - "2NF: student_name зависит от части ключа"
+        - "3NF: имя зависит от оценки"
+        - "Нарушений нет"
+      answer: 1
+      explanation: >-
+        student_name определяется одним student_id, то есть частью составного ключа. Это частичная зависимость, запрещённая 2NF.
+    - id: q3
+      type: single
+      prompt: "Что произойдёт в SQLite, если вставить строку со ссылкой на несуществующий внешний ключ и не выполнить PRAGMA foreign_keys = ON?"
+      options:
+        - "Всегда ошибка IntegrityError"
+        - "Строка будет вставлена без ошибки"
+        - "Транзакция откатится"
+        - "SQLite сам включит проверку"
+      answer: 1
+      explanation: >-
+        По умолчанию проверка внешних ключей в SQLite выключена. Её нужно включать в каждом соединении.
+    - id: q4
+      type: multiple
+      prompt: "Какие из перечисленных средств гарантируют правила данных на уровне СУБД? Выберите все."
+      options:
+        - "CHECK (price > 0)"
+        - "UNIQUE (email)"
+        - "Проверка в коде приложения перед INSERT"
+        - "FOREIGN KEY (customer_id) REFERENCES customers(id)"
+      answer: [0, 1, 3]
+      explanation: >-
+        Ограничения выполняются самой базой для всех клиентов. Проверка в приложении не защищает от других приложений, гонок и ручных правок.
+    - id: q5
+      type: single
+      prompt: "Как реализуют связь «многие ко многим» между студентами и курсами?"
+      options:
+        - "Списком id курсов в одном столбце студента"
+        - "Таблицей-связкой с внешними ключами на обе таблицы и составным первичным ключом"
+        - "Дублированием студентов по строке на курс"
+        - "Двумя несвязанными таблицами"
+      answer: 1
+      explanation: >-
+        Список в одном столбце нарушает 1NF. Связка enrollments(student_id, course_id) хранит каждую пару один раз.
+exercise:
+  id: databases.sql.schema-design-and-normalization.exercise
+  title: Схема «студенты - курсы»
+  prompt: |
+    В файле `schema_task.py` задайте строку `SCHEMA` (скрипт `CREATE TABLE`) и функцию `connect(path=":memory:")`,
+    которая открывает соединение SQLite, **включает проверку внешних ключей** и создаёт таблицы.
+
+    Схема:
+
+    * `students(id, email, name)` - `id` целочисленный первичный ключ; `email` обязателен и уникален; `name` обязательно.
+    * `courses(id, title)` - `id` целочисленный первичный ключ; `title` обязателен и уникален.
+    * `enrollments(student_id, course_id, grade)` - первичный ключ - пара `(student_id, course_id)`.
+      `student_id` ссылается на `students(id)`: при удалении студента его записи удаляются автоматически.
+      `course_id` ссылается на `courses(id)`: курс, на который есть записи, удалить нельзя.
+      `grade` необязателен; если задан, это целое от 1 до 5.
+
+    Каждый вызов `connect()` должен возвращать независимое соединение с готовой схемой.
+  entryFile: schema_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Разделите ответственность: ключи и ссылки описывают связи, NOT NULL и UNIQUE - обязательность и уникальность, CHECK - допустимый диапазон. Соединение должно включать внешние ключи само."
+    - "В SQLite внешние ключи не проверяются, пока не выполнено PRAGMA foreign_keys = ON в этом соединении. Выполните его сразу после sqlite3.connect и до создания таблиц, затем conn.executescript(SCHEMA)."
+    - "enrollments: REFERENCES students(id) ON DELETE CASCADE, REFERENCES courses(id) ON DELETE RESTRICT, CHECK (grade BETWEEN 1 AND 5) (NULL проходит CHECK) и PRIMARY KEY (student_id, course_id) отдельной строкой в конце."
+    - "CREATE TABLE enrollments(student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE, course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE RESTRICT, grade INTEGER CHECK (grade BETWEEN 1 AND 5), PRIMARY KEY (student_id, course_id)); аналогично students (email TEXT NOT NULL UNIQUE) и courses."
+  tests:
+    - id: tables-and-join
+      title: Таблицы существуют и соединяются
+      hint: Нужны все три таблицы с указанными столбцами; grade может быть NULL.
+    - id: fk-unknown
+      title: Ссылка на несуществующую строку отвергается
+      hint: Включите PRAGMA foreign_keys = ON в connect(); по умолчанию SQLite внешние ключи не проверяет.
+    - id: duplicate-enrollment
+      title: Составной первичный ключ запрещает дубль
+      hint: PRIMARY KEY (student_id, course_id) делает пару уникальной.
+    - id: check-grade
+      title: CHECK для оценки (скрытый)
+      hidden: true
+      hint: CHECK (grade BETWEEN 1 AND 5) допускает NULL, но отвергает 0, 6 и отрицательные значения.
+    - id: email-not-null-unique
+      title: NOT NULL и UNIQUE (скрытый)
+      hidden: true
+      hint: email и name обязательны, email и title курса уникальны.
+    - id: cascade-delete
+      title: ON DELETE CASCADE для студента (скрытый)
+      hidden: true
+      hint: После удаления студента его записи в enrollments должны исчезнуть, чужие остаться.
+    - id: restrict-course-delete
+      title: ON DELETE RESTRICT для курса (скрытый)
+      hidden: true
+      hint: Удаление курса, на который есть записи, должно давать IntegrityError; курс без записей удаляется нормально.
+    - id: connect-is-independent
+      title: connect() создаёт независимое соединение (скрытый)
+      hidden: true
+      hint: Каждый вызов должен открывать новое соединение, включать foreign_keys и создавать схему заново.

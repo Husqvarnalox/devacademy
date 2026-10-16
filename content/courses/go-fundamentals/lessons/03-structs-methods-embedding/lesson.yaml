@@ -1,0 +1,159 @@
+id: "go.fundamentals.structs-methods-embedding"
+title: "Структуры, методы и встраивание"
+goal: "Выбирать между получателем по значению и по указателю, понимать наборы методов и адресуемость и строить композицию через встраивание вместо наследования."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "go.fundamentals.functions-and-errors"
+objectives:
+  - "Объявлять структуры и методы и объяснять, чем получатель по значению отличается от получателя по указателю."
+  - "Объяснить, почему нельзя вызвать метод с указателем на элемент карты, и как это обойти."
+  - "Описать наборы методов типов T и *T и их связь с реализацией интерфейсов."
+  - "Использовать встраивание: продвижение полей и методов, затенение, явный доступ к встроенному значению."
+  - "Объяснить, почему встраивание не является наследованием, и написать конструктор по соглашению."
+masteryCriteria:
+  - "Вы исправляете код, в котором метод меняет копию, заменяя получателя на указатель и тип значений карты на указатель."
+  - "Вы предсказываете, какой метод вызовется при затенении продвинутого метода и почему метод встроенного типа не видит внешний."
+  - "Вы объясняете, почему значение типа не реализует интерфейс, если метод объявлен на указателе."
+  - "Вы пишете конструктор NewT, возвращающий *T, и проверяете его в программе."
+related:
+  - "go.fundamentals.interfaces"
+next:
+  - "go.fundamentals.interfaces"
+tags:
+  - "go"
+  - "structs"
+  - "methods"
+  - "embedding"
+  - "composition"
+facts:
+  - kind: "internals"
+    text: "Набор методов типа T содержит методы с получателем T, а набор методов *T - методы с получателем T и *T. Для структуры со встроенным полем T продвигаются методы, попадающие в соответствующие наборы. Эти правила определяют, реализует ли тип интерфейс."
+    sources:
+      - "https://go.dev/ref/spec#Method_sets"
+      - "https://go.dev/ref/spec#Struct_types"
+  - kind: "internals"
+    text: "Вызов x.M() для метода с получателем *T записывается как (&x).M(), только если x адресуем. Элементы карты, результаты вызова функции и значения-литералы не адресуемы, поэтому вызов такого метода не компилируется."
+    sources:
+      - "https://go.dev/ref/spec#Calls"
+      - "https://go.dev/ref/spec#Address_operators"
+  - kind: "misconception"
+    text: "«Встраивание - это наследование» - неверно. Встроенный тип не знает о внешнем, виртуальной диспетчеризации нет, а значение внешнего типа нельзя передать туда, где ожидается встроенный тип. Подстановка достигается интерфейсами."
+    sources:
+      - "https://go.dev/doc/effective_go#embedding"
+  - kind: "real-world"
+    text: "В стандартной библиотеке встраивание используется для композиции: например, bufio.ReadWriter встраивает *bufio.Reader и *bufio.Writer, поэтому его методы чтения и записи доступны напрямую."
+    sources:
+      - "https://pkg.go.dev/bufio#ReadWriter"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "type C struct{ n int }; func (c C) Inc() { c.n++ }. После c := C{}; c.Inc() чему равно c.n?"
+      options:
+        - "1"
+        - "0"
+        - "Ошибка компиляции"
+        - "Паника"
+      answer: 1
+      explanation: "Получатель по значению - копия, поэтому изменение n теряется."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Метод Inc объявлен на *C. Какие вызовы компилируются?"
+      options:
+        - "m := map[string]*C{\"a\": {}}; m[\"a\"].Inc()"
+        - "m := map[string]C{\"a\": {}}; m[\"a\"].Inc()"
+        - "var c C; c.Inc()"
+        - "C{}.Inc()"
+      answer:
+        - 0
+        - 2
+      explanation: "Переменная c адресуема, а указатель из карты разыменовывается. Элемент карты со значением и литерал C{} не адресуемы."
+    - id: "q3"
+      type: "single"
+      prompt: "Dog встраивает Animal и определяет собственный метод Describe. Метод Animal.Intro вызывает Describe. Какой Describe вызовет d.Intro() для Dog?"
+      options:
+        - "Dog.Describe, как виртуальный метод"
+        - "Animal.Describe, так как внутри Intro получатель имеет тип Animal"
+        - "Ошибка компиляции из-за неоднозначности"
+        - "Оба по очереди"
+      answer: 1
+      explanation: "Встраивание - композиция, виртуальной диспетчеризации нет: Intro видит только Animal."
+    - id: "q4"
+      type: "single"
+      prompt: "func (t *Temp) String() string {...}; t := Temp{21.5}; fmt.Println(t). Что произойдёт?"
+      options:
+        - "Вызовется String и напечатается красивая строка"
+        - "Напечатается {21.5}, так как String не входит в набор методов значения Temp"
+        - "Ошибка компиляции"
+        - "Паника"
+      answer: 1
+      explanation: "Метод с получателем *Temp не входит в набор методов Temp, поэтому fmt печатает поля. С fmt.Println(&t) метод вызвался бы."
+exercise:
+  id: "go.fundamentals.structs-methods-embedding.exercise"
+  title: "Банковские счета: указатели и встроенный журнал"
+  prompt: |
+    Программа читает команды и ведёт счета. Тип `Account` встраивает `Logger`, поэтому методы `Logf`, `Count` и `History` продвигаются в него.
+
+    **Команды** (по одной на строку, слова через пробел):
+
+    | Команда | Вывод |
+    | --- | --- |
+    | `open <id>` | `opened <id>` или `<id> already exists` |
+    | `deposit <id> <n>` | `<id> +<n> -> <баланс>` |
+    | `withdraw <id> <n>` | `<id> -<n> -> <баланс>`, а при нехватке денег `<id>: insufficient funds: balance <b>, need <n>` (счёт не меняется) |
+    | `show <id>` | значение `String()`: `<id>: balance=<b> ops=<k> [<история через "; ">]` |
+
+    Если счёта нет, на `deposit`, `withdraw` и `show` печатается `unknown account <id>`. В истории и в `ops` учитываются только успешные `deposit` и `withdraw` (`deposit 100`, `withdraw 30`).
+
+    **Пример:** `open a`, `deposit a 10`, `show a` дают
+
+    ```
+    opened a
+    a +10 -> 10
+    a: balance=10 ops=1 [deposit 10]
+    ```
+
+    В заготовке `Deposit` и `Withdraw` определены с получателем по значению, `NewAccount` возвращает значение, а карта хранит значения: баланс не меняется. Исправьте три места (получатели, конструктор, тип значений карты) так, чтобы программа работала.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: после deposit баланс остаётся 0. Методы работают с копией Account, а карта выдаёт копию значения."
+    - "Замените получателя у Deposit и Withdraw на (a *Account): тогда они меняют оригинал. Заодно String() можно оставить с получателем по значению."
+    - "NewAccount должен вернуть &Account{ID: id}, а в main карта должна быть map[string]*Account{}: указатель из карты копируется, но указывает на тот же счёт."
+    - "После замены типа значений карты код acc, ok := accounts[id]; acc.Deposit(n) менять не придётся: acc теперь *Account, и баланс обновляется. Logger встроен по значению, его нулевое значение рабочее, дополнительная инициализация не нужна."
+  tests:
+    - id: "basic"
+      title: "Пополнение, снятие, показ"
+      stdin: "open alice\ndeposit alice 100\nwithdraw alice 30\nshow alice\n"
+      expected: "opened alice\nalice +100 -> 100\nalice -30 -> 70\nalice: balance=70 ops=2 [deposit 100; withdraw 30]\n"
+      hint: "Методы должны менять оригинал: получатель *Account, карта хранит указатели."
+    - id: "insufficient"
+      title: "Недостаточно средств"
+      stdin: "open a\ndeposit a 10\nwithdraw a 50\nshow a\n"
+      expected: "opened a\na +10 -> 10\na: insufficient funds: balance 10, need 50\na: balance=10 ops=1 [deposit 10]\n"
+      hint: "Неудачное снятие не меняет баланс и не попадает в журнал."
+    - id: "unknown"
+      title: "Неизвестный счёт"
+      stdin: "deposit bob 5\nshow bob\n"
+      expected: "unknown account bob\nunknown account bob\n"
+      hint: "Проверка наличия ключа: acc, ok := accounts[id]."
+    - id: "two-accounts"
+      title: "Независимые счета (скрытый)"
+      stdin: "open a\nopen b\ndeposit a 5\ndeposit b 7\ndeposit a 1\nshow a\nshow b\n"
+      expected: "opened a\nopened b\na +5 -> 5\nb +7 -> 7\na +1 -> 6\na: balance=6 ops=2 [deposit 5; deposit 1]\nb: balance=7 ops=1 [deposit 7]\n"
+      hidden: true
+      hint: "У каждого счёта свой встроенный Logger: журналы не должны смешиваться."
+    - id: "duplicate-open"
+      title: "Повторное открытие (скрытый)"
+      stdin: "open a\ndeposit a 3\nopen a\nshow a\n"
+      expected: "opened a\na +3 -> 3\na already exists\na: balance=3 ops=1 [deposit 3]\n"
+      hidden: true
+      hint: "Повторный open не должен пересоздавать счёт и обнулять баланс."
+    - id: "withdraw-all"
+      title: "Снятие всего остатка (скрытый)"
+      stdin: "open z\ndeposit z 5\nwithdraw z 5\nshow z\nwithdraw z 1\n"
+      expected: "opened z\nz +5 -> 5\nz -5 -> 0\nz: balance=0 ops=2 [deposit 5; withdraw 5]\nz: insufficient funds: balance 0, need 1\n"
+      hidden: true
+      hint: "Снять ровно весь остаток можно: ошибка только если n больше баланса."

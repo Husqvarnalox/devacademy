@@ -1,0 +1,194 @@
+id: databases.sql.aggregation-and-grouping
+title: "Агрегирование, GROUP BY и оконные функции"
+goal: Сворачивать строки в группы через GROUP BY и агрегатные функции, различать WHERE и HAVING, COUNT(*) и COUNT(столбец), и применять оконные функции для нумерации, нарастающих итогов и «топ N в группе».
+difficulty: medium
+estimatedMinutes: 90
+prerequisites: [databases.sql.joins]
+related: [python.fundamentals.dicts-and-sets]
+next: [databases.sql.schema-design-and-normalization]
+objectives:
+  - Использовать COUNT, SUM, AVG, MIN, MAX и объяснить, как каждая из них обращается с NULL и пустым набором строк.
+  - Группировать строки через GROUP BY и фильтровать группы через HAVING, а строки до группировки - через WHERE.
+  - Отличать COUNT(*), COUNT(столбец) и COUNT(DISTINCT столбец).
+  - Применять оконные функции ROW_NUMBER, SUM() OVER и PARTITION BY, не сворачивая строки результата.
+  - Назвать минимальную версию SQLite для оконных функций (3.25.0) и отличия поведения SQLite, PostgreSQL и MySQL при выборе негруппируемых столбцов.
+masteryCriteria:
+  - Вы выбираете между WHERE и HAVING и объясняете, на каком шаге логической обработки каждый из них работает.
+  - Вы заранее называете результат COUNT(*), COUNT(x) и SUM(x) для столбца с NULL.
+  - Вы решаете задачу «самый высокооплачиваемый в каждом отделе» через ROW_NUMBER, а не через неоднозначный запрос с негруппируемым столбцом.
+  - Вы знаете, что оконная функция с ORDER BY по умолчанию учитывает равные значения (peers) в рамке.
+tags: [sql, sqlite, group-by, aggregates, window-functions]
+facts:
+  - kind: historical
+    text: >-
+      Оконные функции (OVER, PARTITION BY, ROW_NUMBER и другие) появились в SQLite в версии 3.25.0 (2018-09-15). Проверка в этом курсе выполнена на SQLite 3.53.4;
+      в более старых сборках запросы этого урока не сработают.
+    sources:
+      - https://www.sqlite.org/windowfunctions.html
+      - https://www.sqlite.org/releaselog/3_25_0.html
+  - kind: internals
+    text: >-
+      Агрегатные функции игнорируют NULL: COUNT(x), SUM(x), AVG(x), MIN(x), MAX(x) считают только известные значения, COUNT(*) считает все строки. SUM и AVG по набору, где нет ни одного
+      известного значения, возвращают NULL, а COUNT - 0. В SQLite есть дополнительная функция TOTAL(x), которая в таком случае возвращает 0.0.
+    sources:
+      - https://www.sqlite.org/lang_aggfunc.html
+      - https://www.postgresql.org/docs/current/functions-aggregate.html
+  - kind: real-world
+    text: >-
+      SQLite допускает в запросе с GROUP BY столбцы, которых нет ни в GROUP BY, ни в агрегатах («bare columns»), и берёт значение из произвольной строки группы (из строки с MIN/MAX, если такой агрегат единственный).
+      PostgreSQL отвергает такой запрос, MySQL с режимом ONLY_FULL_GROUP_BY (включён по умолчанию) тоже. Пишите переносимо: либо включайте столбец в GROUP BY, либо агрегируйте его.
+    sources:
+      - https://www.sqlite.org/lang_select.html#bare_columns_in_an_aggregate_query
+      - https://www.postgresql.org/docs/current/sql-select.html#SQL-GROUPBY
+      - https://dev.mysql.com/doc/refman/8.4/en/sql-mode.html
+  - kind: internals
+    text: >-
+      Если у оконной функции есть ORDER BY и нет явной рамки, рамка по умолчанию - RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW: в неё входят все «равные» строки (peers) с тем же значением ключа сортировки.
+      Поэтому нарастающая сумма по неуникальному ключу даёт одинаковый результат для всех равных строк; чтобы получать построчный итог, указывайте ROWS или уникальный ключ.
+    sources:
+      - https://www.sqlite.org/windowfunctions.html
+      - https://www.postgresql.org/docs/current/sql-expression.html#SYNTAX-WINDOW-FUNCTIONS
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: numeric
+      prompt: "В таблице 5 строк, в столбце x значения 1, 2, NULL, NULL, 3. Чему равно COUNT(x)?"
+      answer: 3
+      tolerance: 0
+      explanation: >-
+        COUNT(x) считает только строки, где x не NULL: три. COUNT(*) вернул бы 5.
+    - id: q2
+      type: single
+      prompt: "Чем WHERE отличается от HAVING?"
+      options:
+        - "Ничем, это синонимы"
+        - "WHERE фильтрует строки до группировки и не видит агрегатов, HAVING фильтрует группы после агрегирования"
+        - "HAVING работает до GROUP BY"
+        - "WHERE можно использовать только вместе с JOIN"
+      answer: 1
+      explanation: >-
+        По логическому порядку сначала WHERE, затем GROUP BY и агрегаты, затем HAVING. Условие вида COUNT(*) > 1 допустимо только в HAVING.
+    - id: q3
+      type: single
+      prompt: "Что вернёт SELECT SUM(x) FROM t, если таблица t пуста?"
+      options:
+        - "0"
+        - "NULL"
+        - "Ошибку"
+        - "Пустой результат без строк"
+      answer: 1
+      explanation: >-
+        Запрос с агрегатом без GROUP BY всегда возвращает одну строку. SUM по пустому набору - NULL (COUNT(*) в этом случае 0).
+    - id: q4
+      type: single
+      prompt: "Чем оконная функция отличается от GROUP BY?"
+      options:
+        - "Оконная функция не умеет считать суммы"
+        - "Оконная функция добавляет вычисленное значение к каждой строке и не сворачивает строки, а GROUP BY сворачивает группу в одну строку"
+        - "Оконные функции работают только с текстом"
+        - "Это одно и то же"
+      answer: 1
+      explanation: >-
+        С OVER (PARTITION BY ...) каждая исходная строка остаётся в результате, рядом с ней появляется значение, вычисленное по её «окну».
+    - id: q5
+      type: multiple
+      prompt: "Какие утверждения о ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC) верны? Выберите все."
+      options:
+        - "Нумерация начинается с 1 в каждом отделе"
+        - "При равных зарплатах номера могут различаться, и порядок среди равных не гарантирован без дополнительного ключа"
+        - "Функция удаляет строки с повторяющимися зарплатами"
+        - "Для детерминированного результата добавьте в ORDER BY уникальный столбец"
+      answer: [0, 1, 3]
+      explanation: >-
+        ROW_NUMBER присваивает уникальные номера, при равных ключах порядок произвольный, поэтому нужен уникальный столбец. Строки функция не удаляет.
+exercise:
+  id: databases.sql.aggregation-and-grouping.exercise
+  title: Отчёты по отделам
+  prompt: |
+    В файле `agg_task.py` замените заглушки запросами для таблицы `employees(id, name, dept, salary)`
+    (`dept` и `salary` могут быть `NULL`). Нужна версия SQLite 3.25 или новее.
+
+    1. `Q_DEPT_STATS` - столбцы `dept`, `n`, `total`: для каждого **известного** отдела число сотрудников и сумма зарплат (неизвестные не учитываются). Порядок по `dept`.
+    2. `Q_BIG_DEPTS` - отделы, где не меньше двух сотрудников; один столбец `dept`, порядок по `dept`.
+    3. `Q_COUNTS` - одна строка: `total_rows`, `with_salary`, `distinct_depts` (число различных известных отделов).
+    4. `Q_RANK` - столбцы `id`, `dept`, `rn`: номер сотрудника внутри отдела по убыванию зарплаты (при равенстве - по возрастанию `id`; неизвестная зарплата последняя). Только известные отделы. Порядок: `dept`, `rn`.
+    5. `Q_RUNNING` - столбцы `id`, `running`: нарастающий итог зарплат по `id`, неизвестная зарплата считается нулём. Порядок по `id`.
+    6. `Q_TOP_PER_DEPT` - столбцы `dept`, `name`: самый высокооплачиваемый сотрудник каждого известного отдела (при равенстве - с меньшим `id`). Порядок по `dept`.
+  entryFile: agg_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Определите для каждой задачи, что должно свернуться в одну строку (GROUP BY), а что должно остаться на своём месте (оконная функция). Условия на отдельные строки идут в WHERE, условия на агрегаты - в HAVING."
+    - "Q_DEPT_STATS: WHERE dept IS NOT NULL GROUP BY dept. Q_COUNTS: COUNT(*), COUNT(salary), COUNT(DISTINCT dept) в одном SELECT без GROUP BY. Q_RANK: ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC, id); в SQLite NULL при DESC идёт последним."
+    - "Q_RUNNING: SUM(COALESCE(salary, 0)) OVER (ORDER BY id). Q_TOP_PER_DEPT: оконную функцию нельзя использовать в WHERE того же запроса - вычислите rn в подзапросе (или WITH) и отфильтруйте rn = 1 снаружи."
+    - "Q_TOP_PER_DEPT: SELECT dept, name FROM (SELECT dept, name, ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC, id) AS rn FROM employees WHERE dept IS NOT NULL) WHERE rn = 1 ORDER BY dept. Q_BIG_DEPTS: GROUP BY dept HAVING COUNT(*) >= 2."
+  tests:
+    - id: dept-stats
+      title: Q_DEPT_STATS - GROUP BY и агрегаты
+      hint: COUNT(*) считает все строки группы, SUM(salary) игнорирует NULL; строки без отдела исключите в WHERE.
+    - id: big-depts
+      title: Q_BIG_DEPTS - HAVING
+      hint: Условие на число строк группы записывается в HAVING, а не в WHERE.
+    - id: counts
+      title: Q_COUNTS - COUNT(*) и COUNT(столбец)
+      hint: COUNT(salary) пропускает NULL, COUNT(DISTINCT dept) считает различные известные значения.
+    - id: dept-stats-null-sum
+      title: Q_DEPT_STATS, отдел без известных зарплат (скрытый)
+      hidden: true
+      hint: SUM по группе, где все значения NULL, равна NULL; не заменяйте её нулём.
+    - id: rank-window
+      title: Q_RANK - ROW_NUMBER с PARTITION BY (скрытый)
+      hidden: true
+      hint: ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC, id); неизвестная зарплата в SQLite при DESC идёт последней.
+    - id: running-total
+      title: Q_RUNNING - нарастающий итог (скрытый)
+      hidden: true
+      hint: SUM(COALESCE(salary, 0)) OVER (ORDER BY id); итог не должен сворачивать строки.
+    - id: top-per-dept
+      title: Q_TOP_PER_DEPT - первый в каждой группе (скрытый)
+      hidden: true
+      hint: Вычислите ROW_NUMBER в подзапросе и оставьте rn = 1; в самом внешнем запросе используйте WHERE.
+challenge:
+  id: databases.sql.aggregation-and-grouping.challenge
+  title: Серии входов подряд
+  prompt: |
+    В файле `streaks_task.py` реализуйте запрос `Q_STREAKS` для таблицы `logins(user TEXT, day TEXT)`, где `day` - дата `YYYY-MM-DD`.
+    Один пользователь может иметь несколько записей за один день.
+
+    Верните **серии** - максимальные последовательности календарных дней подряд. Столбцы: `user`, `start_day`, `end_day`, `days` (число различных дней серии).
+    В результат входят только серии длиной **не менее 2 дней**. Порядок: `user`, `start_day`.
+
+    Это классическая задача «островов»: подумайте, что остаётся одинаковым у дней одной серии, если из номера дня вычесть номер строки в порядке дат.
+    Функции `julianday(day)` и `date(day, '+1 day')` переводят даты в числа и сдвигают их.
+  entryFile: streaks_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Сначала уберите повторы (SELECT DISTINCT user, day), затем пронумеруйте дни каждого пользователя оконной функцией."
+    - "Для дней подряд разность «номер дня минус номер строки» постоянна. Номер дня даёт julianday(day), номер строки - ROW_NUMBER() OVER (PARTITION BY user ORDER BY day)."
+    - "Назовите разность grp и сгруппируйте по user, grp; MIN(day) и MAX(day) дают границы серии, COUNT(*) - длину."
+    - "WITH d AS (SELECT DISTINCT user, day FROM logins), g AS (SELECT user, day, julianday(day) - ROW_NUMBER() OVER (PARTITION BY user ORDER BY day) AS grp FROM d) SELECT user, MIN(day) AS start_day, MAX(day) AS end_day, COUNT(*) AS days FROM g GROUP BY user, grp HAVING COUNT(*) >= 2 ORDER BY user, start_day."
+  tests:
+    - id: streaks-basic
+      title: Обычные серии
+      hint: Серия - дни без пропусков; одиночный день после пропуска серией не является.
+    - id: streaks-singles-excluded
+      title: Одиночные дни не попадают в результат
+      hint: Отфильтруйте группы с COUNT(*) меньше 2 через HAVING.
+    - id: streaks-calendar-boundaries
+      title: Границы месяцев и годов (скрытый)
+      hidden: true
+      hint: Не сравнивайте номера дней месяца. julianday учитывает длину месяцев, високосные годы и смену года.
+    - id: streaks-duplicates
+      title: Повторные записи за день (скрытый)
+      hidden: true
+      hint: Сначала примените DISTINCT к (user, day), иначе повторы собьют нумерацию строк.
+    - id: streaks-several-per-user
+      title: Несколько серий у одного пользователя (скрытый)
+      hidden: true
+      hint: Группируйте по паре (user, grp), а не только по user.

@@ -1,0 +1,151 @@
+id: databases.sql.joins
+title: "Соединения таблиц (JOIN)"
+goal: Соединять таблицы через INNER и LEFT JOIN (а также RIGHT и FULL там, где они поддерживаются), предсказывать число строк результата и безопасно искать «строки без пары» через NOT EXISTS.
+difficulty: medium
+estimatedMinutes: 80
+prerequisites: [databases.sql.relational-model-and-select]
+related: [python.fundamentals.dicts-and-sets]
+next: [databases.sql.aggregation-and-grouping]
+objectives:
+  - Объяснить, как первичный и внешний ключи позволяют собрать связанные данные из нескольких таблиц.
+  - Написать INNER JOIN и LEFT JOIN с условием ON, различая условие соединения и фильтр WHERE.
+  - Предсказать количество строк после соединения «один ко многим» и «многие ко многим» и убрать размножение строк через DISTINCT или агрегирование.
+  - Назвать, какие виды соединений поддерживает SQLite (RIGHT и FULL - начиная с 3.39.0) и чем это отличается от PostgreSQL и MySQL.
+  - Найти строки без пары через NOT EXISTS или LEFT JOIN ... IS NULL и объяснить ловушку NOT IN с NULL.
+masteryCriteria:
+  - Вы заранее называете число строк результата для соединения «клиент - заказы - позиции» по данным примера.
+  - Вы знаете, почему условие правой таблицы в WHERE превращает LEFT JOIN в INNER, и переносите его в ON.
+  - Вы пишете антисоединение так, что оно корректно работает и при NULL в проверяемом столбце.
+  - Вы определяете по версии SQLite, можно ли использовать RIGHT и FULL JOIN.
+tags: [sql, sqlite, join, null, anti-join]
+facts:
+  - kind: historical
+    text: >-
+      RIGHT JOIN и FULL OUTER JOIN появились в SQLite только в версии 3.39.0 (2022-06-25); до неё поддерживались INNER, LEFT, CROSS и NATURAL соединения.
+      В этом курсе проверка выполнена на SQLite 3.53.4; в старых сборках используйте LEFT JOIN с переставленными таблицами.
+    sources:
+      - https://www.sqlite.org/releaselog/3_39_0.html
+      - https://www.sqlite.org/lang_select.html
+  - kind: misconception
+    text: >-
+      «NOT IN и NOT EXISTS - это одно и то же». Если подзапрос NOT IN возвращает хотя бы один NULL, выражение x NOT IN (...) никогда не бывает истинным (результат false или NULL),
+      и запрос возвращает пустой результат. NOT EXISTS такой проблемы не имеет, потому что проверяет наличие строки, а не сравнивает значения.
+    sources:
+      - https://www.sqlite.org/lang_expr.html#in_op
+      - https://www.postgresql.org/docs/current/functions-subquery.html
+  - kind: real-world
+    text: >-
+      MySQL не поддерживает FULL OUTER JOIN: его имитируют объединением LEFT JOIN и RIGHT JOIN через UNION. PostgreSQL поддерживает все виды соединений, включая FULL, и в качестве условия
+      соединения допускает любое выражение, но для FULL JOIN условие должно быть пригодным для хеширования или слияния.
+    sources:
+      - https://dev.mysql.com/doc/refman/8.4/en/join.html
+      - https://www.postgresql.org/docs/current/queries-table-expressions.html#QUERIES-FROM
+  - kind: performance
+    text: >-
+      Порядок таблиц в тексте запроса не определяет порядок выполнения: оптимизатор выбирает порядок соединения сам. Для LEFT JOIN порядок существенен для результата, но не для способа выполнения;
+      главное для скорости - индексы по столбцам условия соединения (следующие уроки).
+    sources:
+      - https://www.sqlite.org/optoverview.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: numeric
+      prompt: "В customers 3 строки. У клиента A два заказа, у B один, у C заказов нет. Сколько строк вернёт customers LEFT JOIN orders ON orders.customer_id = customers.id?"
+      answer: 4
+      tolerance: 0
+      explanation: >-
+        A даёт две строки, B одну и C одну строку с NULL в столбцах заказа: 2 + 1 + 1 = 4. INNER JOIN вернул бы 3.
+    - id: q2
+      type: single
+      prompt: "Запрос SELECT ... FROM c LEFT JOIN o ON o.cid = c.id WHERE o.status = 'paid'. Что с ним не так, если нужны и клиенты без оплаченных заказов?"
+      options:
+        - "Ничего, запрос верный"
+        - "Условие по правой таблице в WHERE отбрасывает строки с NULL, и LEFT JOIN фактически становится INNER; условие нужно перенести в ON"
+        - "WHERE нельзя использовать вместе с JOIN"
+        - "Нужен RIGHT JOIN"
+      answer: 1
+      explanation: >-
+        У клиента без заказов o.status равен NULL, сравнение даёт NULL и строка отбрасывается. Условие на правую таблицу кладут в ON.
+    - id: q3
+      type: single
+      prompt: "Подзапрос в x NOT IN (SELECT y FROM t) возвращает значения 1, 2 и NULL. Для x = 5 результат условия:"
+      options:
+        - "true"
+        - "false"
+        - "NULL, поэтому строка не попадёт в результат"
+        - "Ошибка выполнения"
+      answer: 2
+      explanation: >-
+        5 <> 1 AND 5 <> 2 AND 5 <> NULL равно true AND true AND NULL, то есть NULL. Такая строка отбрасывается, поэтому NOT IN с NULL в подзапросе даёт пустой результат.
+    - id: q4
+      type: multiple
+      prompt: "Какие способы корректно находят клиентов без заказов даже при NULL в orders.customer_id? Выберите все."
+      options:
+        - "WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)"
+        - "WHERE c.id NOT IN (SELECT customer_id FROM orders)"
+        - "LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL"
+        - "INNER JOIN orders ON ... WHERE orders.id IS NULL"
+      answer: [0, 2]
+      explanation: >-
+        NOT EXISTS и LEFT JOIN ... IS NULL не зависят от NULL в customer_id. NOT IN ломается, а INNER JOIN никогда не даёт строки с NULL из правой таблицы.
+    - id: q5
+      type: single
+      prompt: "Начиная с какой версии SQLite поддерживает RIGHT и FULL OUTER JOIN?"
+      options:
+        - "3.7.0"
+        - "3.25.0"
+        - "3.39.0"
+        - "Не поддерживает вообще"
+      answer: 2
+      explanation: >-
+        Поддержка RIGHT и FULL JOIN добавлена в 3.39.0 (2022). Проверять версию можно через sqlite3.sqlite_version_info.
+exercise:
+  id: databases.sql.joins.exercise
+  title: Соединения и антисоединения
+  prompt: |
+    В файле `joins_task.py` замените заглушки запросами `SELECT` для таблиц
+    `customers(id, name)`, `orders(id, customer_id, total)` и `order_items(order_id, product, qty)`.
+    Внешние ключи в тестовой базе не включены: в `orders` бывают строки с `customer_id IS NULL` и со ссылкой на несуществующего клиента.
+
+    1. `Q_ORDERS_WITH_NAMES` - столбцы `order_id`, `name`, `total`: заказы с именем клиента, порядок по `order_id`. Заказы без известного клиента не входят.
+    2. `Q_ALL_CUSTOMERS` - столбцы `name`, `order_id`: **все** клиенты; у клиента без заказов `order_id` равен `NULL`. Порядок: `name`, `order_id`.
+    3. `Q_NO_ORDERS` - имена клиентов без заказов, по алфавиту. Запрос обязан работать и при `customer_id IS NULL` в `orders`.
+    4. `Q_ORPHAN_ORDERS` - `id` заказов, у которых `customer_id` задан, но такого клиента нет. Порядок по `id`.
+    5. `Q_ITEMS` - столбцы `name`, `product`, `qty`: позиции с именем клиента, порядок: `name`, `product`, `qty`.
+    6. `Q_BIG_BUYERS` - различные имена клиентов, у которых есть позиция с `qty >= 2`, по алфавиту (каждое имя один раз).
+  entryFile: joins_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Для каждой задачи решите, нужны ли строки без пары: если нужны, это LEFT JOIN или антисоединение, если нет - обычный JOIN. Затем подумайте, сколько строк даст соединение, и нужно ли убирать повторы."
+    - "Q_ALL_CUSTOMERS: customers LEFT JOIN orders ON orders.customer_id = customers.id. Q_NO_ORDERS и Q_ORPHAN_ORDERS - это строки левой таблицы, для которых правой пары нет: NOT EXISTS (подзапрос по ключу) либо LEFT JOIN ... WHERE правый_ключ IS NULL."
+    - "Q_NO_ORDERS: не используйте NOT IN - при NULL в orders.customer_id он вернёт пустой результат. Q_ORPHAN_ORDERS: исключите заказы с customer_id IS NULL условием. Q_ITEMS: order_items JOIN orders ON orders.id = order_items.order_id JOIN customers ON customers.id = orders.customer_id. Q_BIG_BUYERS: те же соединения с WHERE qty >= 2 и DISTINCT."
+    - "Q_NO_ORDERS: SELECT c.name FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id) ORDER BY c.name. Q_ORPHAN_ORDERS: SELECT o.id FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.customer_id IS NOT NULL AND c.id IS NULL ORDER BY o.id."
+  tests:
+    - id: orders-with-names
+      title: Q_ORDERS_WITH_NAMES - внутреннее соединение
+      hint: JOIN customers ON customers.id = orders.customer_id; псевдоним order_id для orders.id.
+    - id: all-customers
+      title: Q_ALL_CUSTOMERS - LEFT JOIN
+      hint: Клиенты без заказов должны остаться со значением NULL в order_id; сортируйте по name, затем по order_id.
+    - id: no-orders
+      title: Q_NO_ORDERS - клиенты без заказов
+      hint: Верните имена клиентов, для которых в orders нет строки с таким customer_id.
+    - id: no-orders-null
+      title: Q_NO_ORDERS при NULL в orders.customer_id (скрытый)
+      hidden: true
+      hint: Если вы использовали NOT IN, замените на NOT EXISTS или LEFT JOIN ... IS NULL; NULL в подзапросе ломает NOT IN.
+    - id: orphans
+      title: Q_ORPHAN_ORDERS - заказы без клиента (скрытый)
+      hidden: true
+      hint: Заказ с customer_id NULL не считается «сиротой». Ищите заказы, у которых ключ задан, а пары в customers нет.
+    - id: items-three-joins
+      title: Q_ITEMS - три таблицы (скрытый)
+      hidden: true
+      hint: Позиции заказов без известного клиента должны отсутствовать; добавьте qty третьим ключом сортировки.
+    - id: big-buyers-distinct
+      title: Q_BIG_BUYERS - DISTINCT после размножения строк (скрытый)
+      hidden: true
+      hint: Клиент с несколькими подходящими позициями дважды попадёт в соединение; примените DISTINCT.
