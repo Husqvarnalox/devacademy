@@ -12,4 +12,4 @@ destinations = [line.strip() for line in lines[1 + count:] if line.strip()]
 # TODO: для каждого адреса найдите маршрут с самым длинным префиксом (при равенстве - с меньшей metric)
 # и выведите строку по условию задачи.
 for destination in destinations:
-    print(destination + " -> unreachable")
+    print(destination + " -> not implemented")

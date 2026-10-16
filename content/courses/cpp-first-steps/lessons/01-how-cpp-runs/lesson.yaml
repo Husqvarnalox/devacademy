@@ -6,7 +6,7 @@ estimatedMinutes: 30
 prerequisites: []
 objectives:
   - "Назвать этапы: препроцессор, компилятор, компоновщик."
-  - "Объяснить, что означают -std=c++20, -O2, -Wall -Wextra."
+  - "Объяснить, что означают -std=c++20, -pthread, -O2, -Wall -Wextra."
   - "Читать ввод через std::cin и форматировать вывод через std::fixed и setprecision."
   - "Понимать, почему переполнение int и выход за границы - неопределённое поведение."
 masteryCriteria:

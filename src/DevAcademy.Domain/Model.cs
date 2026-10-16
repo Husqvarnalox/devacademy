@@ -194,8 +194,11 @@ public sealed record Exercise(
     /// <summary>True when the exercise declares a Python version or packages it needs.</summary>
     public bool HasRequirements => Requires is { HasPython: true };
 
-    /// <summary>True when grading needs the node content environment (a <c>command.tool</c> or <c>requires.node/npmPackages</c>).</summary>
-    public bool NeedsNodeEnvironment => (Command?.UsesNodeTool ?? false) || Requires is { HasNode: true };
+    /// <summary>True when grading needs the node content environment (node_modules): a <c>command.tool</c> or <c>requires.npmPackages</c>.</summary>
+    public bool NeedsNodeEnvironment => (Command?.UsesNodeTool ?? false) || Requires is { Npm.Count: > 0 };
+
+    /// <summary>True when anything about Node.js must be checked before a run: the node environment or a <c>requires.node</c> version.</summary>
+    public bool HasNodeRequirements => NeedsNodeEnvironment || !string.IsNullOrWhiteSpace(Requires?.Node);
 
     /// <summary>Explicit variants (non-empty) when the exercise was declared with a <c>variants</c> map.</summary>
     public bool HasExplicitVariants => Variants is { Count: > 0 };

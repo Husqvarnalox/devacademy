@@ -1,7 +1,7 @@
 import sys
 
 # Вход: по одному событию на строку. Автомат начинает в состоянии CLOSED.
-state = "CLOSED"
+state = "?"  # TODO: задайте начальное состояние по условию задачи
 for raw in sys.stdin.read().splitlines():
     event = raw.strip()
     if not event:

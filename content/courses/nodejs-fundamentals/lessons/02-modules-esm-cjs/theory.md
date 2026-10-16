@@ -27,7 +27,7 @@ export { join };
 
 1. `.mjs` - всегда ESM; `.cjs` - всегда CommonJS.
 2. `.js` - по полю `type` ближайшего `package.json` вверх по каталогам: `"module"` - ESM, `"commonjs"` - CommonJS.
-3. Нет `type` - Node.js 22 по умолчанию исследует синтаксис: `import`/`export` верхнего уровня или `import.meta` делают файл ESM, иначе CommonJS. Это запасной вариант: явный `type` быстрее и понятнее.
+3. Нет `type` - Node.js начиная с 22.7.0 (в ветке 20 - с 20.19.0) по умолчанию исследует синтаксис: `import`/`export` верхнего уровня или `import.meta` делают файл ESM, иначе CommonJS. В более ранних версиях этой ветки обнаружение синтаксиса включается флагом `--experimental-detect-module`. Это запасной вариант: явный `type` быстрее и понятнее.
 4. Ввод через `--eval` или stdin подчиняется ключу `--input-type`.
 
 **Что отличается.**
@@ -156,6 +156,8 @@ cjs, деструктуризация: 0 cjs, свойство: 1
 
 **Пример 4. `require()` ES-модуля в Node.js 22.**
 
+Пример требует Node.js 22.12 или новее (в ветке 20 - 20.19 или новее): `require(esm)` появился в 22.0.0 за флагом `--experimental-require-module`, а без флага работает с 22.12.0 и 23.0.0.
+
 ```javascript run
 const fs = require("node:fs");
 fs.writeFileSync("lib.mjs", "export const answer = 42;\nexport default 'by default';\n");
@@ -198,6 +200,6 @@ true
 * CommonJS: `require` выполняется на месте, значения копируются, есть `__dirname`. ESM: статические `import`, живые привязки, строгий режим, `import.meta`, top-level await, обязательные расширения.
 * Разрешение строки: встроенные модули, пути, пакеты из `node_modules`; ошибки `MODULE_NOT_FOUND` и `ERR_MODULE_NOT_FOUND`.
 * `exports` задаёт публичные точки входа пакета: подпути, условия (`import`, `require`, `node`, `default`), шаблоны со `*`, `null` для запрета.
-* В Node.js 22 `require()` умеет загружать синхронные ES-модули; для остальных случаев используйте `import()`.
+* В Node.js 22.12+ (и 20.19+) `require()` без флага умеет загружать синхронные ES-модули; для остальных случаев используйте `import()`.
 
 Предыдущий урок: [архитектура и цикл событий](lesson:nodejs.fundamentals.event-loop-architecture). Следующий: [асинхронные шаблоны](lesson:nodejs.fundamentals.async-patterns).

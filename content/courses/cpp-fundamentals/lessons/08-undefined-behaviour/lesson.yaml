@@ -39,10 +39,11 @@ facts:
     sources:
       - "https://en.cppreference.com/w/cpp/language/operator_arithmetic"
   - kind: "historical"
-    text: "std::bit_cast, std::cmp_less и std::in_range добавлены в C++20; левый сдвиг отрицательного значения определён только начиная с C++20."
+    text: "std::bit_cast, std::cmp_less и std::in_range добавлены в C++20; левый сдвиг отрицательного значения был UB до C++20 и определён (по модулю 2^N, предложение P1236R1) начиная с C++20; сдвиг на отрицательное количество разрядов или на количество не меньше ширины типа остаётся UB."
     sources:
       - "https://en.cppreference.com/w/cpp/numeric/bit_cast"
       - "https://en.cppreference.com/w/cpp/utility/intcmp"
+      - "https://en.cppreference.com/w/cpp/language/operator_arithmetic"
   - kind: "internals"
     text: "Гонка данных - одновременное обращение двух потоков к одной ячейке памяти, когда хотя бы одно из них запись и нет синхронизации; это UB. Исправляется std::atomic или мьютексом."
     sources:

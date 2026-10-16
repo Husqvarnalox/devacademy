@@ -7,4 +7,4 @@ for raw in sys.stdin.read().splitlines():
         continue
     # TODO: разверните адрес в 8 групп, затем сожмите по RFC 5952 и выведите
     # "<полная запись> <сжатая запись>" либо "<строка> -> invalid".
-    print(line + " -> invalid")
+    print(line + " -> not implemented")

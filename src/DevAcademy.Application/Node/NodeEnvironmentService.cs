@@ -141,14 +141,18 @@ public sealed class NodeEnvironmentService(IToolRunner tools, string environment
             if (ReadVersion(package) is null) missing.Add(package);
         if (missing.Count > 0)
             return $"В окружении курсов нет пакетов: {string.Join(", ", missing)}. " + Fix;
-        if (requires?.Node is { } spec)
-        {
-            if (!PythonSpecifierSet.TryParse(spec, out var set, out _)) return $"Некорректное требование к Node.js: {spec}";
-            var version = await NodeVersionAsync(ct).ConfigureAwait(false);
-            if (version is null) return "Node.js не найден или не запускается; установите Node.js 22 или новее с https://nodejs.org/.";
-            if (!PythonVersion.TryParse(version, out var installed) || !set.Satisfies(installed))
-                return $"Нужен Node.js {spec}, а установлен {version}.";
-        }
+        return await CheckNodeVersionAsync(requires?.Node, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Checks only the installed Node.js against a <c>requires.node</c> specifier; needs no node environment.</summary>
+    public async Task<string?> CheckNodeVersionAsync(string? spec, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(spec)) return null;
+        if (!PythonSpecifierSet.TryParse(spec, out var set, out _)) return $"Некорректное требование к Node.js: {spec}";
+        var version = await NodeVersionAsync(ct).ConfigureAwait(false);
+        if (version is null) return "Node.js не найден или не запускается; установите Node.js 22 или новее с https://nodejs.org/.";
+        if (!PythonVersion.TryParse(version, out var installed) || !set.Satisfies(installed))
+            return $"Нужен Node.js {spec}, а установлен {version}.";
         return null;
     }
 
@@ -156,7 +160,13 @@ public sealed class NodeEnvironmentService(IToolRunner tools, string environment
 
     public async Task<NodeRunPlan> ResolveAsync(Exercise exercise, CancellationToken ct)
     {
-        if (!exercise.NeedsNodeEnvironment) return NodeRunPlan.Default;
+        if (!exercise.HasNodeRequirements) return NodeRunPlan.Default;
+        if (!exercise.NeedsNodeEnvironment)
+        {
+            // Only a Node.js version is required: plain built-in modules, no node_modules to expose.
+            var versionProblem = await CheckNodeVersionAsync(exercise.Requires?.Node, ct).ConfigureAwait(false);
+            return versionProblem is null ? NodeRunPlan.Default : new NodeRunPlan(null, versionProblem);
+        }
         var tool = exercise.Command?.Tool is { } t ? CommandPolicy.FindNodeTool(exercise.LanguageId, t)?.Package : null;
         var problem = await CheckAsync(exercise.Requires, tool is null ? [] : [tool], ct).ConfigureAwait(false);
         return problem is null ? new NodeRunPlan(Selection) : new NodeRunPlan(null, problem);

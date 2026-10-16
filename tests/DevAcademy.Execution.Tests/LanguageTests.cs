@@ -47,6 +47,51 @@ public class LanguageTests
         Assert.NotEmpty(r.CompileOutput);
     }
 
+    [Fact]
+    public async Task Cpp_runs_a_program_that_joins_two_threads()
+    {
+        await TestSupport.RequireAsync("cpp");
+        const string code = "#include <iostream>\n#include <thread>\n#include <atomic>\n" +
+            "int main() { std::atomic<int> n{0};\n" +
+            "  std::thread a([&] { for (int i = 0; i < 1000; ++i) ++n; });\n" +
+            "  std::thread b([&] { for (int i = 0; i < 1000; ++i) ++n; });\n" +
+            "  a.join(); b.join(); std::cout << n << std::endl; }\n";
+        ExecutionResult r = await TestSupport.RunAsync(TestSupport.Request("cpp", "main.cpp", code));
+        Assert.True(r.IsSuccess, $"{r.Status}: {r.CompileOutput}{r.Stderr} {r.Message}");
+        Assert.Equal("2000", r.Stdout.Trim());
+    }
+
+    private const string CoroutineProgram = "import kotlinx.coroutines.*\n" +
+        "fun main() = runBlocking {\n" +
+        "    val a = launch { delay(30); println(\"slow\") }\n" +
+        "    val b = launch { delay(1); println(\"fast\") }\n" +
+        "    joinAll(a, b)\n" +
+        "    println(\"done\")\n" +
+        "}\n";
+
+    [Fact]
+    public async Task Kotlin_runs_coroutines_when_the_kotlinc_distribution_ships_the_jar()
+    {
+        await TestSupport.RequireAsync("kotlin");
+        RuntimeStatus s = await TestSupport.StatusAsync("kotlin");
+        if (KotlinRuntime.FindCoroutinesJar(s.ExecutablePath!) is null)
+            Assert.Skip("kotlinx-coroutines-core-jvm.jar is not shipped with this kotlinc distribution.");
+        Assert.Contains("kotlinx.coroutines: available", s.Notes);
+        ExecutionResult r = await TestSupport.RunAsync(TestSupport.Request("kotlin", "Main.kt", CoroutineProgram), limits: TestSupport.RunLimits(seconds: 60));
+        Assert.True(r.IsSuccess, $"{r.Status}: {r.CompileOutput}{r.Stderr} {r.Message}");
+        Assert.Equal("fast\nslow\ndone", r.Stdout.Replace("\r\n", "\n").Trim());
+    }
+
+    [Fact]
+    public async Task Kotlin_with_a_package_declaration_still_finds_its_main_class()
+    {
+        await TestSupport.RequireAsync("kotlin");
+        const string code = "package demo.app\nfun main() { println(\"pkg\") }\n";
+        ExecutionResult r = await TestSupport.RunAsync(TestSupport.Request("kotlin", "Main.kt", code), limits: TestSupport.RunLimits(seconds: 60));
+        Assert.True(r.IsSuccess, $"{r.Status}: {r.CompileOutput}{r.Stderr} {r.Message}");
+        Assert.Equal("pkg", r.Stdout.Trim());
+    }
+
     private static bool TypesProvisioned =>
         File.Exists(Path.Combine(TestSupport.Options.CacheDirectory, "typescript-types", "node_modules", "@types", "node", "index.d.ts"));
 

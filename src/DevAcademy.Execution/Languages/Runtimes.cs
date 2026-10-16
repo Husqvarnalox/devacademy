@@ -259,7 +259,7 @@ internal sealed class CppRuntime : ILanguageRuntime, IDebugBuildRuntime
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
-        var args = new List<string> { "-std=c++20", "-O2", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { "-std=c++20", "-pthread", "-O2", "-Wall", "-Wextra", "-o", "prog" };
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".cpp", ".cc", ".cxx"));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
@@ -270,7 +270,7 @@ internal sealed class CppRuntime : ILanguageRuntime, IDebugBuildRuntime
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
     {
         string src = sourceDirectory ?? workingDirectory;
-        var args = new List<string> { "-std=c++20", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { "-std=c++20", "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
         args.AddRange(ToolLocator.FilesWithExtensions(src, ".cpp", ".cc", ".cxx").Select(f => Path.GetFullPath(f, src)));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
@@ -375,17 +375,59 @@ internal sealed class KotlinRuntime : ILanguageRuntime
         string? v = await ToolLocator.ProbeAsync(kotlinc, ["-version"], ct).ConfigureAwait(false); // prints to stderr
         return v is null
             ? ToolLocator.Missing(LanguageId, "A working kotlinc", Hint)
-            : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v.Replace("info: ", ""), kotlinc, null, null);
+            : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v.Replace("info: ", ""), kotlinc,
+                FindCoroutinesJar(kotlinc) is null
+                    ? "kotlinx.coroutines: not found next to kotlinc (programs can use only the standard library)."
+                    : "kotlinx.coroutines: available (jar shipped with the kotlinc distribution).",
+                null);
+    }
+
+    /// <summary>
+    /// kotlinx-coroutines-core-jvm.jar from the kotlinc distribution (zip: kotlinc/lib; Homebrew: libexec/lib next to the
+    /// bin/kotlinc wrapper), looked up beside the symlink-resolved kotlinc. Null when the distribution does not ship it.
+    /// </summary>
+    internal static string? FindCoroutinesJar(string kotlinc)
+    {
+        try
+        {
+            string resolved = File.ResolveLinkTarget(kotlinc, true)?.FullName ?? kotlinc;
+            if (Path.GetDirectoryName(resolved) is not { } bin) return null;
+            foreach (string rel in new[] { "lib", Path.Combine("..", "lib"), Path.Combine("..", "libexec", "lib") })
+            {
+                string jar = Path.GetFullPath(Path.Combine(bin, rel, "kotlinx-coroutines-core-jvm.jar"));
+                if (File.Exists(jar)) return jar;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        return null;
     }
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
         var args = new List<string>();
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".kt"));
+        string? coroutines = FindCoroutinesJar(status.ExecutablePath!);
+        if (coroutines is not null) args.AddRange(["-cp", coroutines]);
         args.AddRange(["-include-runtime", "-d", "prog.jar"]);
-        return new BuildPlan(
-            [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, MinWallTimeout: TimeSpan.FromSeconds(120))],
-            new ProcessSpec(ToolLocator.Find("java")!, ["-XX:+UseSerialGC", "-Xss16m", "-jar", "prog.jar"], workingDirectory));
+        string java = ToolLocator.Find("java")!;
+        string[] jvm = ["-XX:+UseSerialGC", "-Xss16m"];
+        // `java -jar` ignores -cp, so with the coroutines jar the main class is named explicitly: <package.>FileKt of the entry file.
+        ProcessSpec run = coroutines is null
+            ? new ProcessSpec(java, [.. jvm, "-jar", "prog.jar"], workingDirectory)
+            : new ProcessSpec(java, [.. jvm, "-cp", "prog.jar" + Path.PathSeparator + coroutines, MainClassName(workingDirectory, entryFile)], workingDirectory,
+                ReadOnlyPaths: [Path.GetDirectoryName(coroutines)!]);
+        return new BuildPlan([new ProcessSpec(status.ExecutablePath!, args, workingDirectory, MinWallTimeout: TimeSpan.FromSeconds(120))], run);
+    }
+
+    private static string MainClassName(string workingDirectory, string entryFile)
+    {
+        string name = Path.GetFileNameWithoutExtension(entryFile);
+        string cls = char.ToUpperInvariant(name[0]) + name[1..] + "Kt";
+        string path = Path.Combine(workingDirectory, entryFile);
+        string? package = File.Exists(path)
+            ? File.ReadLines(path).Select(l => Regex.Match(l, @"^\s*package\s+([\w.]+)")).FirstOrDefault(m => m.Success)?.Groups[1].Value
+            : null;
+        return package is null ? cls : package + "." + cls;
     }
 }
 

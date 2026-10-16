@@ -38,9 +38,10 @@ facts:
       - "https://nodejs.org/api/stream.html#types-of-streams"
       - "https://nodejs.org/api/stream.html#object-mode"
   - kind: "internals"
-    text: "Метод writable.write(chunk) возвращает false, когда внутренний буфер достиг highWaterMark. Тогда запись нужно приостановить до события 'drain'. Значение по умолчанию в Node.js 22: 64 КиБ для байтовых потоков и 16 объектов для режима объектов (в других версиях может отличаться)."
+    text: "Метод writable.write(chunk) возвращает false, когда внутренний буфер достиг highWaterMark. Тогда запись нужно приостановить до события 'drain'. Значение по умолчанию: 64 КиБ для байтовых потоков начиная с Node.js 22.0.0 (до этого байтовый порог был 16 КиБ) и 16 объектов для режима объектов. Упражнения урока задают highWaterMark явно, поэтому от версии не зависят."
     sources:
       - "https://nodejs.org/api/stream.html#writablewritechunk-encoding-callback"
+      - "https://nodejs.org/api/stream.html#new-streamwritableoptions"
       - "https://nodejs.org/en/learn/modules/backpressuring-in-streams"
   - kind: "internals"
     text: "stream.pipeline (и версия из node:stream/promises) соединяет потоки в цепочку, передаёт ошибки и уничтожает все потоки при сбое любого, в отличие от pipe(), который этого не делает. Метод _flush у Transform вызывается, когда входные данные закончились, и позволяет отдать накопленный остаток."

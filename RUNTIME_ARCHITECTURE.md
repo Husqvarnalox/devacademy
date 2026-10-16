@@ -83,8 +83,8 @@ default when the exercise gives none.
 | `typescript` | `main.ts` | Node ≥ **22.6** required (else `Unsupported`); `tsc --version` | if `tsc` found **and** `@types/node` provisioned in the runner cache: `tsc --noEmit --strict --target es2022 --module nodenext --types node --typeRoots <cache>/typescript-types/node_modules/@types <all .ts files>` | `node [--experimental-strip-types if Node < 23.6] --disable-warning=ExperimentalWarning <entry>`. Without `tsc`/types: runs by type stripping and sets `RuntimeStatus.Warning` ("type-checking unavailable …") which is surfaced in the result. Types are erased, so a stripped run proves nothing about type correctness. |
 | `go` | `main.go` | `go version` | `go build -o prog <non-test .go files>`; env `GOFLAGS=-mod=mod`, `GOCACHE`/`GOPATH` under the runner cache | `./prog` |
 | `java` | `Main.java` | `javac -version` and `java -version` (a JDK) | `javac -encoding UTF-8 -d out <all .java>` | `java -XX:+UseSerialGC -Xss16m -cp out <MainClass>` |
-| `kotlin` | `Main.kt` | `kotlinc -version` + working `java` | `kotlinc <all .kt> -include-runtime -d prog.jar` (timeout ≥ 120 s) | `java -XX:+UseSerialGC -Xss16m -jar prog.jar` |
-| `cpp` | `main.cpp` | first working of `clang++`/`g++` (rejects the Xcode shim without Command Line Tools) | `-std=c++20 -O2 -Wall -Wextra -o prog <.cpp/.cc/.cxx>` | `./prog` |
+| `kotlin` | `Main.kt` | `kotlinc -version` + working `java` | `kotlinc <all .kt> [-cp <coroutines jar>] -include-runtime -d prog.jar` (timeout ≥ 120 s) | `java -XX:+UseSerialGC -Xss16m -jar prog.jar`; with the coroutines jar: `java -XX:+UseSerialGC -Xss16m -cp prog.jar<sep><coroutines jar> <package.>FileKt` (`-jar` ignores `-cp`; the main class is derived from the entry file and its `package` line), and the jar's directory is added to `ReadOnlyPaths` of the run step. |
+| `cpp` | `main.cpp` | first working of `clang++`/`g++` (rejects the Xcode shim without Command Line Tools) | `-std=c++20 -pthread -O2 -Wall -Wextra -o prog <.cpp/.cc/.cxx>` (debug plan: `-std=c++20 -pthread -g -O0 -Wall -Wextra`) | `./prog` |
 | `csharp` | `Program.cs` | `dotnet --version`, SDK major ≥ **10** (file-based apps) | `dotnet build <entry> -o out --nologo -v q --disable-build-servers -p:UseSharedCompilation=false`; env `DOTNET_CLI_HOME`, `NUGET_PACKAGES` under the runner cache, telemetry off | `dotnet out/<name>.dll`. **Only the entry file is compiled** (file-based app). |
 | `rust` | `main.rs` | `rustc --version` (also searches `~/.cargo/bin`) | `rustc --edition 2021 -O -o prog <entry>`; `RUSTUP_HOME`/`CARGO_HOME` pointed at the real dirs (read-only use) | `./prog`. Single `rustc` invocation; `mod x;` resolves next to the entry. No Cargo projects. |
 | `php` | `main.php` | `php --version` | — | `php <entry>` |
@@ -92,6 +92,15 @@ default when the exercise gives none.
 `RuntimeStatus` carries `Availability` (Available / Missing / Unsupported), `Version`, `ExecutablePath`,
 `Notes`, `InstallHint`, `Warning`. A missing runtime yields `ExecutionStatus.RuntimeMissing` with the hint.
 `devacademy runtimes` (CLI) prints the detected set.
+
+Kotlin: `DetectAsync` looks for `kotlinx-coroutines-core-jvm.jar` beside the symlink-resolved `kotlinc`
+(`lib/`, `../lib/`, `../libexec/lib/`: zip layout and Homebrew) and reports it in `Notes`; `CreatePlan` re-resolves it
+(no extra field on `RuntimeStatus`). Without the jar the plan is the plain `-jar` one and `import kotlinx.coroutines.*`
+fails to compile. C++ builds with `-pthread` so `std::thread` links on Linux. The standard stays `-std=c++20`: `-std=c++23`
+was tried and rejected because libc++ declares `std::print` in C++23, which ADL finds for calls such as
+`print("label", someStdVector)` and silently prefers over a user's own `print(const std::string&, const std::vector<T>&)`
+(the cpp-first-steps value-semantics exercise prints wrong output). `std::expected` therefore stays unavailable;
+the language-service `compile_flags.txt` matches (`-std=c++20 -pthread`).
 
 Not covered by an adapter: any package installation, virtualenvs, multi-file Cargo/Gradle/Maven/npm projects.
 A learner's `import numpy` works only if the system interpreter already has it (the sandbox does not provide

@@ -40,8 +40,9 @@ public sealed class ExerciseEvaluationService
             python = plan.Python;
         }
         NodeRunSelection? nodeEnv = null;
-        if (exercise.NeedsNodeEnvironment)
+        if (exercise.HasNodeRequirements && (_node is not null || exercise.NeedsNodeEnvironment))
         {
+            // Without a node service (CLI without --node-env) a version-only requirement is not checked; the run itself shows an old Node.
             if (_node is null)
                 return EvaluationReport.Failure(Verdict.RuntimeMissing, "Для упражнения нужны npm-пакеты курсов, но окружение не подключено (make node-env).", isolation) with { LanguageId = exercise.LanguageId };
             NodeRunPlan nodePlan = await _node.ResolveAsync(exercise, ct).ConfigureAwait(false);

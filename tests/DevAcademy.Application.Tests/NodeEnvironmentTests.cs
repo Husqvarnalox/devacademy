@@ -188,6 +188,24 @@ public class NodeEnvironmentServiceTests
     }
 
     [Fact]
+    public async Task VersionOnlyRequirementDoesNotNeedTheNodeEnvironment()
+    {
+        // Regression: requires.node alone (built-in modules only) used to demand node_modules and block the exercise.
+        using var fx = new NodeFixture();
+        Directory.Delete(fx.Env, true);
+        var exercise = new Exercise("e", "E", "", "javascript", "main.js", [new("main.js", "")], [new("main.js", "")],
+            EvaluationKind.Io, [], null, [], ["h"], Requires: new ExerciseRequirements(null, [], ">=22.7"));
+        Assert.False(exercise.NeedsNodeEnvironment);
+        Assert.True(exercise.HasNodeRequirements);
+
+        var ok = await new NodeEnvironmentService(new ScriptedToolRunner("22.15.0"), fx.Env, fx.Manifest).ResolveAsync(exercise, default);
+        Assert.False(ok.IsBlocked);
+        Assert.Null(ok.Node);
+        var old = await new NodeEnvironmentService(new ScriptedToolRunner("22.6.0"), fx.Env, fx.Manifest).ResolveAsync(exercise, default);
+        Assert.Contains("Нужен Node.js >=22.7", old.BlockedMessage);
+    }
+
+    [Fact]
     public void ManifestIsFoundNextToTheExecutableOrInTheRepository()
     {
         using var fx = new NodeFixture();

@@ -7,4 +7,4 @@ for raw in sys.stdin.read().splitlines():
         continue
     # TODO: разберите адрес и длину префикса, постройте маску и посчитайте
     # network, broadcast, wildcard, first, last, hosts и category целочисленными битовыми операциями.
-    print(line + " -> invalid")
+    print(line + " -> not implemented")

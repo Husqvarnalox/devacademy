@@ -112,6 +112,34 @@ SNI: example.com | длина имени: 11
 ALPN: ['h2', 'http/1.1']
 ```
 
+**Настоящий ClientHello без сети.** Python умеет проводить рукопожатие в памяти: `ssl.MemoryBIO` вместо сокета. Клиент OpenSSL формирует ClientHello и «ждёт ответ сервера» (`SSLWantReadError`), а отправленные байты остаются в исходящем буфере - это ровно то, что ушло бы в сеть:
+
+```python run
+import ssl
+
+ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+ctx.set_alpn_protocols(["h2", "http/1.1"])
+incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
+conn = ctx.wrap_bio(incoming, outgoing, server_hostname="example.com")
+try:
+    conn.do_handshake()
+except ssl.SSLWantReadError:
+    pass
+hello = outgoing.read()
+print("тип записи", hello[0], "тип рукопожатия", hello[5])
+print("session id 32 байта:", hello[43] == 32)
+print("SNI в открытом виде:", b"example.com" in hello)
+print("ALPN в открытом виде:", b"\x02h2\x08http/1.1" in hello)
+```
+```output
+тип записи 22 тип рукопожатия 1
+session id 32 байта: True
+SNI в открытом виде: True
+ALPN в открытом виде: True
+```
+
+Байты random, session id и key_share при каждом запуске новые, а набор шифронаборов и расширений зависит от версии OpenSSL (в свежих сборках в key_share есть и постквантовая группа, из-за чего запись весит около 1,5 КиБ). Поэтому в тестах упражнения лежат **зафиксированные снимки** реального вывода OpenSSL, а не результат нового запуска.
+
 **GREASE.** Правило проверяется двумя битовыми операциями:
 
 ```python run

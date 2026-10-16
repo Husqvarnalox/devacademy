@@ -118,36 +118,40 @@ exercise:
 
     **Сеть не используется.** Программа моделирует один конец TCP-соединения. Начальное состояние - `CLOSED`. Из stdin читаются события, по одному на строку (пустые строки пропускаются). Для каждого события выведите одну строку и обновите состояние.
 
-    События: `passive_open`, `active_open`, `close`, `rcv_syn`, `rcv_synack`, `rcv_ack`, `rcv_fin`, `rcv_finack` (FIN вместе с ACK нашего FIN), `rcv_rst`, `timeout` (истёк таймер 2MSL).
+    Модель - диаграмма состояний RFC 9293, раздел 3.3.2, рисунок 5, вместе с примечаниями 1-3 к ней ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.3.2)). Остальное в RFC (проверка номеров, окна, таймеры) не моделируется.
 
-    Таблица переходов `(состояние, событие) -> (новое состояние, отправляемый сегмент)`:
+    **Словарь событий.** Вызовы приложения: `passive_open` (пассивный OPEN), `active_open` (активный OPEN), `send` (SEND: отправка данных в состоянии `LISTEN` превращает пассивное открытие в активное), `close` (CLOSE). Сегменты от собеседника: `rcv_syn` (только SYN), `rcv_synack` (SYN вместе с ACK нашего SYN), `rcv_ack` (ACK нашего SYN в `SYN_RCVD` либо ACK нашего FIN в `FIN_WAIT_1`, `CLOSING`, `LAST_ACK`), `rcv_fin` (FIN без ACK нашего FIN), `rcv_finack` (FIN вместе с ACK нашего FIN), `rcv_rst` (RST). Таймер: `timeout` (истёк 2MSL). Вызовы RECEIVE, ABORT и STATUS, повторные передачи и данные внутри соединения состояния не меняют и в модели не участвуют.
+
+    Таблица переходов `(состояние, событие) -> (новое состояние, отправляемый сегмент)`; здесь все рёбра рисунка 5:
 
     | состояние | событие | новое состояние | send |
     |---|---|---|---|
     | CLOSED | passive_open | LISTEN | `-` |
     | CLOSED | active_open | SYN_SENT | `SYN` |
-    | LISTEN | rcv_syn | SYN_RCVD | `SYN+ACK` |
-    | LISTEN | active_open | SYN_SENT | `SYN` |
     | LISTEN | close | CLOSED | `-` |
-    | SYN_SENT | rcv_synack | ESTABLISHED | `ACK` |
-    | SYN_SENT | rcv_syn | SYN_RCVD | `SYN+ACK` |
+    | LISTEN | rcv_syn | SYN_RCVD | `SYN+ACK` |
+    | LISTEN | send | SYN_SENT | `SYN` |
     | SYN_SENT | close | CLOSED | `-` |
+    | SYN_SENT | rcv_syn | SYN_RCVD | `SYN+ACK` (одновременное открытие) |
+    | SYN_SENT | rcv_synack | ESTABLISHED | `ACK` |
     | SYN_RCVD | rcv_ack | ESTABLISHED | `-` |
     | SYN_RCVD | close | FIN_WAIT_1 | `FIN` |
     | ESTABLISHED | close | FIN_WAIT_1 | `FIN` |
     | ESTABLISHED | rcv_fin | CLOSE_WAIT | `ACK` |
     | FIN_WAIT_1 | rcv_ack | FIN_WAIT_2 | `-` |
-    | FIN_WAIT_1 | rcv_fin | CLOSING | `ACK` |
-    | FIN_WAIT_1 | rcv_finack | TIME_WAIT | `ACK` |
+    | FIN_WAIT_1 | rcv_fin | CLOSING | `ACK` (одновременное закрытие) |
+    | FIN_WAIT_1 | rcv_finack | TIME_WAIT | `ACK` (примечание 2) |
     | FIN_WAIT_2 | rcv_fin | TIME_WAIT | `ACK` |
     | CLOSING | rcv_ack | TIME_WAIT | `-` |
-    | TIME_WAIT | timeout | CLOSED | `-` |
     | CLOSE_WAIT | close | LAST_ACK | `FIN` |
     | LAST_ACK | rcv_ack | CLOSED | `-` |
+    | TIME_WAIT | timeout | CLOSED | `-` |
 
-    Дополнительно (упрощение): `rcv_rst` в любом состоянии, кроме `CLOSED` и `LISTEN`, ведёт в `CLOSED` с `send=-`.
+    **RST** (примечания 1 и 3 к рисунку 5), с `send=-`: в `CLOSED` и `LISTEN` `rcv_rst` игнорируется; в `SYN_RCVD`, достигнутом пассивным открытием (из `LISTEN` по `rcv_syn`), ведёт обратно в `LISTEN`; во всех остальных состояниях, включая `SYN_RCVD`, достигнутое одновременным открытием из `SYN_SENT`, ведёт в `CLOSED`. Отправка RST самой моделью не показывается.
 
-    Формат строки: `<событие>: <СТАРОЕ> -> <НОВОЕ> send=<сегмент>`. Если для пары (состояние, событие) перехода нет (в том числе `rcv_rst` в `CLOSED` и `LISTEN`), выведите `<событие>: <СОСТОЯНИЕ> ignored` и не меняйте состояние. Если имя события не входит в список выше, выведите `<событие>: unknown event`. В конце всегда печатается `final=<СОСТОЯНИЕ>`.
+    Всё, чего нет в таблице и в правиле RST (например, `rcv_ack` в `ESTABLISHED`, `send` вне `LISTEN`, повторный `rcv_syn` в `SYN_RCVD`), по условию не меняет состояние.
+
+    Формат строки: `<событие>: <СТАРОЕ> -> <НОВОЕ> send=<сегмент>`. Если для пары (состояние, событие) перехода нет (в том числе `rcv_rst` в `CLOSED` и `LISTEN`), выведите `<событие>: <СОСТОЯНИЕ> ignored` и не меняйте состояние. Если имя события не входит в словарь событий выше, выведите `<событие>: unknown event`. В конце всегда печатается `final=<СОСТОЯНИЕ>`.
 
     Пример: ввод `active_open`, `rcv_synack`, `close` даёт
 
@@ -158,13 +162,13 @@ exercise:
     final=FIN_WAIT_1
     ```
 
-    **Что дано.** Заготовка читает события и каждое объявляет игнорируемым.
+    **Что дано.** Заготовка читает события и каждое объявляет игнорируемым; начальное состояние в ней нужно задать самим.
   entryFile: "tcp_fsm_task.py"
   evaluation: "io"
   hints:
-    - "Храните переходы в словаре: ключ - кортеж (состояние, событие), значение - (новое состояние, сегмент). Вне словаря остаётся только особый случай rcv_rst."
+    - "Храните переходы в словаре: ключ - кортеж (состояние, событие), значение - (новое состояние, сегмент). Вне словаря остаётся только rcv_rst: его результат зависит ещё и от того, как был достигнут SYN_RCVD (флаг «открыт пассивно»)."
     - "Три разных исхода для строки: имя события вообще не встречается в таблице (и это не rcv_rst) - unknown event; пара есть в таблице - переход; пары нет - ignored."
-    - "Множество известных событий получите из ключей словаря и добавьте 'rcv_rst'. rcv_rst обрабатывайте до таблицы: если состояние не CLOSED и не LISTEN, переход в CLOSED с send=-."
+    - "Множество известных событий получите из ключей словаря и добавьте 'rcv_rst'. rcv_rst обрабатывайте до таблицы: в CLOSED и LISTEN - ignored; в SYN_RCVD после пассивного открытия - LISTEN; иначе - CLOSED, везде send=-."
     - "Не забывайте печатать final=<состояние> в самом конце, даже если событий не было. Состояние обновляется только при реальном переходе, а в ignored и unknown остаётся прежним."
   tests:
     - id: "client"
@@ -182,11 +186,15 @@ exercise:
       stdin: "rcv_ack\npassive_open\nfrobnicate\nrcv_synack\nclose\n"
       expected: "rcv_ack: CLOSED ignored\npassive_open: CLOSED -> LISTEN send=-\nfrobnicate: unknown event\nrcv_synack: LISTEN ignored\nclose: LISTEN -> CLOSED send=-\nfinal=CLOSED\n"
       hint: "Событие, которого нет в таблице для текущего состояния, печатается как 'ignored', неизвестное имя - как 'unknown event'."
+    - id: "simultaneous-open"
+      title: "Одновременное открытие: SYN_SENT -> SYN_RCVD"
+      stdin: "active_open\nrcv_syn\nrcv_ack\nclose\nrcv_ack\nrcv_fin\ntimeout\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_syn: SYN_SENT -> SYN_RCVD send=SYN+ACK\nrcv_ack: SYN_RCVD -> ESTABLISHED send=-\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_ack: FIN_WAIT_1 -> FIN_WAIT_2 send=-\nrcv_fin: FIN_WAIT_2 -> TIME_WAIT send=ACK\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
+      hint: "SYN_SENT + rcv_syn -> SYN_RCVD с отправкой SYN+ACK (а не ESTABLISHED); оттуда rcv_ack ведёт в ESTABLISHED."
     - id: "simultaneous-close"
-      title: "Одновременное закрытие (скрытый)"
+      title: "Одновременное закрытие: FIN_WAIT_1 -> CLOSING"
       stdin: "active_open\nrcv_synack\nclose\nrcv_fin\nrcv_ack\ntimeout\n"
       expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_synack: SYN_SENT -> ESTABLISHED send=ACK\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_fin: FIN_WAIT_1 -> CLOSING send=ACK\nrcv_ack: CLOSING -> TIME_WAIT send=-\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
-      hidden: true
       hint: "FIN_WAIT_1 + rcv_fin -> CLOSING (отправляется ACK), затем rcv_ack -> TIME_WAIT."
     - id: "fin-ack"
       title: "FIN и ACK одним сегментом (скрытый)"
@@ -194,18 +202,30 @@ exercise:
       expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_synack: SYN_SENT -> ESTABLISHED send=ACK\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_finack: FIN_WAIT_1 -> TIME_WAIT send=ACK\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
       hidden: true
       hint: "FIN_WAIT_1 + rcv_finack -> TIME_WAIT с отправкой ACK, минуя FIN_WAIT_2."
-    - id: "simultaneous-open"
-      title: "Одновременное открытие (скрытый)"
-      stdin: "active_open\nrcv_syn\nrcv_ack\n"
-      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_syn: SYN_SENT -> SYN_RCVD send=SYN+ACK\nrcv_ack: SYN_RCVD -> ESTABLISHED send=-\nfinal=ESTABLISHED\n"
-      hidden: true
-      hint: "SYN_SENT + rcv_syn -> SYN_RCVD с отправкой SYN+ACK."
     - id: "reset"
-      title: "RST и закрытие из LISTEN (скрытый)"
-      stdin: "passive_open\nrcv_rst\nclose\npassive_open\nrcv_syn\nrcv_rst\nactive_open\nclose\n"
-      expected: "passive_open: CLOSED -> LISTEN send=-\nrcv_rst: LISTEN ignored\nclose: LISTEN -> CLOSED send=-\npassive_open: CLOSED -> LISTEN send=-\nrcv_syn: LISTEN -> SYN_RCVD send=SYN+ACK\nrcv_rst: SYN_RCVD -> CLOSED send=-\nactive_open: CLOSED -> SYN_SENT send=SYN\nclose: SYN_SENT -> CLOSED send=-\nfinal=CLOSED\n"
+      title: "RST: LISTEN игнорирует, пассивный SYN_RCVD возвращается в LISTEN (скрытый)"
+      stdin: "passive_open\nrcv_rst\nrcv_syn\nrcv_rst\nrcv_syn\nrcv_ack\nrcv_rst\nrcv_rst\nclose\n"
+      expected: "passive_open: CLOSED -> LISTEN send=-\nrcv_rst: LISTEN ignored\nrcv_syn: LISTEN -> SYN_RCVD send=SYN+ACK\nrcv_rst: SYN_RCVD -> LISTEN send=-\nrcv_syn: LISTEN -> SYN_RCVD send=SYN+ACK\nrcv_ack: SYN_RCVD -> ESTABLISHED send=-\nrcv_rst: ESTABLISHED -> CLOSED send=-\nrcv_rst: CLOSED ignored\nclose: CLOSED ignored\nfinal=CLOSED\n"
       hidden: true
-      hint: "В LISTEN сегмент RST игнорируется; в остальных состояниях (кроме CLOSED) rcv_rst ведёт в CLOSED. Из LISTEN можно закрыться (close)."
+      hint: "В LISTEN RST игнорируется; в SYN_RCVD после пассивного открытия RST возвращает в LISTEN, в остальных состояниях (кроме CLOSED) - в CLOSED."
+    - id: "reset-simultaneous-open"
+      title: "RST после одновременного открытия ведёт в CLOSED (скрытый)"
+      stdin: "active_open\nrcv_syn\nrcv_rst\nrcv_rst\npassive_open\nsend\nrcv_syn\nrcv_rst\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_syn: SYN_SENT -> SYN_RCVD send=SYN+ACK\nrcv_rst: SYN_RCVD -> CLOSED send=-\nrcv_rst: CLOSED ignored\npassive_open: CLOSED -> LISTEN send=-\nsend: LISTEN -> SYN_SENT send=SYN\nrcv_syn: SYN_SENT -> SYN_RCVD send=SYN+ACK\nrcv_rst: SYN_RCVD -> CLOSED send=-\nfinal=CLOSED\n"
+      hidden: true
+      hint: "SYN_RCVD, достигнутый из SYN_SENT, - активное открытие: RST ведёт в CLOSED, а не в LISTEN."
+    - id: "listen-send"
+      title: "SEND в LISTEN: LISTEN -> SYN_SENT (скрытый)"
+      stdin: "passive_open\nsend\nrcv_synack\nsend\nclose\n"
+      expected: "passive_open: CLOSED -> LISTEN send=-\nsend: LISTEN -> SYN_SENT send=SYN\nrcv_synack: SYN_SENT -> ESTABLISHED send=ACK\nsend: ESTABLISHED ignored\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nfinal=FIN_WAIT_1\n"
+      hidden: true
+      hint: "LISTEN + send -> SYN_SENT с отправкой SYN; в остальных состояниях send состояние не меняет."
+    - id: "open-and-close-both-simultaneous"
+      title: "Одновременное открытие и закрытие подряд (скрытый)"
+      stdin: "active_open\nrcv_syn\nrcv_ack\nclose\nrcv_fin\nrcv_ack\nrcv_fin\ntimeout\n"
+      expected: "active_open: CLOSED -> SYN_SENT send=SYN\nrcv_syn: SYN_SENT -> SYN_RCVD send=SYN+ACK\nrcv_ack: SYN_RCVD -> ESTABLISHED send=-\nclose: ESTABLISHED -> FIN_WAIT_1 send=FIN\nrcv_fin: FIN_WAIT_1 -> CLOSING send=ACK\nrcv_ack: CLOSING -> TIME_WAIT send=-\nrcv_fin: TIME_WAIT ignored\ntimeout: TIME_WAIT -> CLOSED send=-\nfinal=CLOSED\n"
+      hidden: true
+      hint: "Цепочка SYN_SENT -> SYN_RCVD -> ESTABLISHED -> FIN_WAIT_1 -> CLOSING -> TIME_WAIT -> CLOSED; в TIME_WAIT лишний rcv_fin игнорируется."
     - id: "close-in-syn-rcvd"
       title: "Закрытие в SYN_RCVD и повторное открытие (скрытый)"
       stdin: "passive_open\nrcv_syn\nclose\nrcv_fin\nrcv_ack\ntimeout\nclose\ntimeout\n"
@@ -223,14 +243,16 @@ challenge:
   title: "Трасса окна перегрузки Reno"
   prompt: |
 
-    **Сеть не используется.** Смоделируйте поведение окна перегрузки TCP Reno по RTT. Размеры измеряются в сегментах (MSS), все значения целые.
+    **Сеть не используется.** Смоделируйте поведение окна перегрузки TCP Reno **по RTT**. Это не посегментная реализация [RFC 5681](https://www.rfc-editor.org/rfc/rfc5681.html), а её абстракция «одно событие на круговой обход»: за один RTT окно целиком либо подтверждено, либо в нём обнаружена потеря. Размеры измеряются в сегментах (MSS), все значения целые.
 
-    Первая строка ввода: `init=<cwnd> ssthresh=<порог> rwnd=<окно получателя>` (в любом порядке полей). Далее идёт по одному событию на каждый RTT (пустые строки пропускаются):
+    Первая строка ввода: `init=<cwnd> ssthresh=<порог> rwnd=<окно получателя>` (в любом порядке полей). Далее идёт по одному событию на каждый RTT (пустые строки пропускаются). Точные правила модели:
 
-    * `ack` - все сегменты окна подтверждены. Если `cwnd < ssthresh` (slow start), `cwnd = min(cwnd * 2, ssthresh)`; иначе (congestion avoidance) `cwnd = cwnd + 1`;
-    * `3dupack` - потеря обнаружена по трём дубликатам ACK (быстрая повторная передача и восстановление): `ssthresh = max(cwnd // 2, 2)`, `cwnd = ssthresh`;
-    * `timeout` - сработал таймер повторной передачи: `ssthresh = max(cwnd // 2, 2)`, `cwnd = 1`;
+    * `ack` - все сегменты окна подтверждены. **Slow start** (RFC 5681, раздел 3.1; `cwnd < ssthresh`): окно растёт на MSS за каждый ACK, то есть за RTT удваивается: `cwnd = min(cwnd * 2, ssthresh)` (упрощение модели: рост не переходит порог, в RFC допускается любая из двух фаз при `cwnd == ssthresh`). **Congestion avoidance** (`cwnd >= ssthresh`): примерно на 1 MSS за RTT, `cwnd = cwnd + 1`;
+    * `3dupack` - потеря обнаружена по трём дубликатам ACK: быстрая повторная передача и **fast recovery** (раздел 3.2). Уравнение (4) RFC даёт `ssthresh = max(FlightSize / 2, 2 * SMSS)`; в модели `FlightSize = cwnd`, то есть `ssthresh = max(cwnd // 2, 2)`. Затем `cwnd = ssthresh` (окно «вдвое меньше»; временное раздувание на `3 * SMSS` и сдвиг окна на дубликатах ACK внутри RTT не показываются);
+    * `timeout` - сработал таймер повторной передачи: `ssthresh = max(cwnd // 2, 2)` по тому же правилу и `cwnd = 1` (loss window, один сегмент), после чего начинается slow start;
     * любое другое слово - неизвестное событие, состояние не меняется.
+
+    Не моделируются: задержанные ACK, SACK, ограничение начального окна, раздувание окна при fast recovery, экспоненциальный рост RTO и отдельные дубликаты ACK. Окно получателя `rwnd` на `cwnd` и `ssthresh` не влияет, а только ограничивает отправку.
 
     Фаза после события: `slow-start`, если `cwnd < ssthresh`, иначе `congestion-avoidance`. Окно отправки `send_window = min(cwnd, rwnd)`.
 

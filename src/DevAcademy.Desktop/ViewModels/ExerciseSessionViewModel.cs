@@ -400,7 +400,7 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     {
         AcceleratorBlock = null;
         EnvironmentNotice = null;
-        if (Exercise is not null && LanguageId is "javascript" or "typescript" && Exercise.ForVariant(LanguageId).NeedsNodeEnvironment)
+        if (Exercise is not null && LanguageId is "javascript" or "typescript" && Exercise.ForVariant(LanguageId).HasNodeRequirements)
         {
             try { EnvironmentNotice = (await _s.Node.ResolveAsync(Exercise.ForVariant(LanguageId), CancellationToken.None)).BlockedMessage; }
             catch (Exception ex) when (ex is not OperationCanceledException) { EnvironmentNotice = null; }

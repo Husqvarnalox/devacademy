@@ -1,6 +1,6 @@
 id: kotlin-developer
 title: Kotlin-разработчик
-description: "Путь к уверенному владению Kotlin на JVM. Сначала «Kotlin: первые шаги» (запуск, ввод, null-безопасность), затем «Kotlin: язык и идиомы»: типы и null-безопасность, функции и scope-функции, классы, sealed и when, коллекции и последовательности, обобщения, обработка ошибок, потоки (корутины как теория) и взаимодействие с Java. Android, Multiplatform и kotlinx.coroutines пока не входят."
+description: "Путь к уверенному владению Kotlin на JVM. Сначала «Kotlin: первые шаги» (запуск, ввод, null-безопасность), затем «Kotlin: язык и идиомы»: типы и null-безопасность, функции и scope-функции, классы, sealed и when, коллекции и последовательности, обобщения, обработка ошибок, потоки и корутины kotlinx.coroutines (запускаются в приложении) и взаимодействие с Java. Android и Multiplatform пока не входят."
 goal: backend
 targets: [kotlin-fundamentals]
 stages:

@@ -170,10 +170,11 @@ public sealed class CodeRunner : ICodeRunner
             // enum order: ProcessLimits(0) < OsSandbox(1) < Container(2)
             IProcessSandbox? sb = _sandboxes.FirstOrDefault(s => s.Level == level);
             string? problem = null;
-            if (sb is null || !await sb.IsAvailableAsync(ct).ConfigureAwait(false))
-                problem = $"{level} isolation is not available on this machine.";
-            else if (level == IsolationLevel.Container && !(runtime is IContainerizableRuntime && _options.DockerImages.ContainsKey(runtime.LanguageId)))
+            // Support is checked first: it does not depend on the machine, so the reason stays the same whether or not Docker is running.
+            if (level == IsolationLevel.Container && !(runtime is IContainerizableRuntime && _options.DockerImages.ContainsKey(runtime.LanguageId)))
                 problem = $"Container isolation is not supported for {runtime.DisplayName}.";
+            else if (sb is null || !await sb.IsAvailableAsync(ct).ConfigureAwait(false))
+                problem = $"{level} isolation is not available on this machine.";
 
             if (problem is null) return (sb, level == IsolationLevel.Container);
             if (!_options.AllowIsolationFallback)

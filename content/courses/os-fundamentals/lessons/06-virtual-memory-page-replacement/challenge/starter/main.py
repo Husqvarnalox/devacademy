@@ -3,15 +3,14 @@ import sys
 
 def fifo_faults(refs, frames):
     """Number of FIFO page faults (you can reuse your solution from the exercise)."""
-    # TODO
-    return 0
+    raise NotImplementedError("TODO: count FIFO page faults")
 
 
 def search(p, length, f):
     """Return the lexicographically smallest reference string (list of ints from 1..p) of the given
     length with fifo_faults(s, f + 1) > fifo_faults(s, f), or None if there is no such string."""
     # TODO: trying all p**length strings is far too slow. Hint: renaming pages does not change fault counts.
-    return None
+    raise NotImplementedError("TODO: search for the smallest anomalous string")
 
 
 def main():

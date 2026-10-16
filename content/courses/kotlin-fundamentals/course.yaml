@@ -1,7 +1,7 @@
 id: "kotlin-fundamentals"
 version: "1.0.0"
 title: "Kotlin: язык и идиомы"
-description: "Курс из восьми уроков: типы, val/var и null-безопасность, функции и scope-функции, классы, sealed-иерархии и when, коллекции и последовательности, обобщения и вариантность, обработка ошибок, потоки (корутины разобраны как теория, без запуска) и взаимодействие с Java. Примеры запускаются на Kotlin 2.4 и JVM. Android, Kotlin Multiplatform и kotlinx.coroutines в приложении пока не входят."
+description: "Курс из восьми уроков: типы, val/var и null-безопасность, функции и scope-функции, классы, sealed-иерархии и when, коллекции и последовательности, обобщения и вариантность, обработка ошибок, потоки и корутины (kotlinx.coroutines берётся из дистрибутива kotlinc, примеры с корутинами запускаются) и взаимодействие с Java. Примеры запускаются на Kotlin 2.4 и JVM. Android и Kotlin Multiplatform пока не входят."
 languageId: "kotlin"
 level: 1
 track: "kotlin"

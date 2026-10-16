@@ -6,11 +6,12 @@ C++ - **компилируемый заранее** (AOT, ahead-of-time) язы�
 Приложение запускает примерно такую команду:
 
 ```
-clang++ -std=c++20 -O2 -Wall -Wextra main.cpp -o prog
+clang++ -std=c++20 -pthread -O2 -Wall -Wextra main.cpp -o prog
 ./prog
 ```
 
 * `-std=c++20` - версия стандарта языка;
+* `-pthread` - подключить поддержку потоков (нужна `std::thread` на Linux, на macOS безвредна);
 * `-O2` - включить оптимизации;
 * `-Wall -Wextra` - показать предупреждения о подозрительном коде.
 

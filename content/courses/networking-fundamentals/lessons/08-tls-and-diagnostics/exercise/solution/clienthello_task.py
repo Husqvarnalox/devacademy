@@ -12,6 +12,14 @@ SUITES = {
     0xCCA8: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
     0xCCA9: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
     0x00FF: "TLS_EMPTY_RENEGOTIATION_INFO_SCSV",
+    0xC023: "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256",
+    0xC024: "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384",
+    0xC027: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",
+    0xC028: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384",
+    0x009E: "TLS_DHE_RSA_WITH_AES_128_GCM_SHA256",
+    0x009F: "TLS_DHE_RSA_WITH_AES_256_GCM_SHA384",
+    0x0067: "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256",
+    0x006B: "TLS_DHE_RSA_WITH_AES_256_CBC_SHA256",
 }
 EXTENSIONS = {
     0: "server_name",
@@ -20,9 +28,13 @@ EXTENSIONS = {
     13: "signature_algorithms",
     16: "application_layer_protocol_negotiation",
     21: "padding",
+    22: "encrypt_then_mac",
+    23: "extended_master_secret",
+    35: "session_ticket",
     43: "supported_versions",
     45: "psk_key_exchange_modes",
     51: "key_share",
+    65281: "renegotiation_info",
 }
 
 

@@ -1,5 +1,5 @@
 id: "kotlin.fundamentals.concurrency-threads-and-coroutines"
-title: "Конкурентность: потоки, синхронизация и корутины (теория)"
+title: "Конкурентность: потоки, синхронизация и корутины"
 goal: "Безопасно запускать потоки и делить данные между ними, а также понимать идеи корутин и структурированной конкурентности."
 difficulty: "hard"
 estimatedMinutes: 55
@@ -15,7 +15,7 @@ objectives:
   - "Запускать потоки через kotlin.concurrent.thread и собирать результаты после join."
   - "Защищать общее состояние через AtomicInteger, synchronized и ReentrantLock.withLock."
   - "Объяснять, что такое suspend-функция и структурированная конкурентность, и чем delay отличается от Thread.sleep."
-  - "Называть, почему корутины в этом курсе только теория."
+  - "Запускать корутины (launch, async, runBlocking, coroutineScope) и объяснять, откуда приложение берёт kotlinx.coroutines."
 masteryCriteria:
   - "Вы находите гонку данных в счётчике и исправляете её атомиком или блокировкой."
   - "Вы объясняете, почему результаты потоков читают только после join."
@@ -27,7 +27,7 @@ tags:
   - "coroutines"
 facts:
   - kind: "internals"
-    text: "kotlinx.coroutines - отдельная библиотека, а не часть стандартной библиотеки Kotlin; её подключают как зависимость. В среде запуска DevAcademy она недоступна, поэтому примеры с корутинами в этом уроке не выполняются."
+    text: "kotlinx.coroutines - отдельная библиотека, а не часть стандартной библиотеки Kotlin; её подключают как зависимость. Приложение DevAcademy берёт kotlinx-coroutines-core-jvm.jar из дистрибутива kotlinc и добавляет его в classpath, поэтому примеры с корутинами в этом уроке выполняются."
     sources:
       - "https://kotlinlang.org/docs/coroutines-guide.html"
   - kind: "internals"
@@ -84,14 +84,14 @@ quiz:
       explanation: "Функции с модификатором suspend могут приостанавливаться, не блокируя поток."
     - id: "q5"
       type: "single"
-      prompt: "Почему примеры с корутинами в этом уроке не запускаются в приложении?"
+      prompt: "Откуда приложение берёт библиотеку kotlinx.coroutines для запуска примеров?"
       options:
-        - "Корутины запрещены на JVM."
-        - "kotlinx.coroutines не подключена к среде запуска, а приложение компилирует примеры без внешних зависимостей."
-        - "Корутины работают только на Android."
-        - "Приложение не поддерживает suspend."
+        - "Скачивает из Maven Central при каждом запуске."
+        - "Из jar-файла kotlinx-coroutines-core-jvm.jar, который входит в дистрибутив kotlinc."
+        - "Она входит в стандартную библиотеку kotlin-stdlib."
+        - "Корутины работают только на Android, поэтому не запускаются."
       answer: 1
-      explanation: "Библиотека не входит в стандартную и недоступна без сети, поэтому корутины разобраны как теория."
+      explanation: "Библиотека не входит в стандартную и без сети не скачивается; приложение использует jar из дистрибутива kotlinc."
 exercise:
   id: "kotlin.fundamentals.concurrency-threads-and-coroutines.exercise"
   title: "Суммы по частям в потоках"
