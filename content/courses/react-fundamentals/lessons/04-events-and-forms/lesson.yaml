@@ -1,0 +1,185 @@
+id: "react.fundamentals.events-and-forms"
+title: "События и формы"
+goal: "Обрабатывать события через props-обработчики, строить управляемые поля формы и поднимать состояние к общему родителю."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "react.fundamentals.state-with-usestate"
+objectives:
+  - "Передавать обработчик события функцией (onClick={handle}), а не результатом её вызова."
+  - "Использовать event.preventDefault() в onSubmit и event.target.value в onChange."
+  - "Построить управляемое поле: value берётся из состояния, onChange обновляет состояние."
+  - "Отличать управляемый компонент (value) от неуправляемого (defaultValue)."
+  - "Поднять состояние к ближайшему общему родителю и передавать его вниз через props."
+masteryCriteria:
+  - "Вы передаёте в onClick функцию, а не вызываете её во время рендера."
+  - "Вы держите значение каждого поля в одном месте и не дублируете его в нескольких состояниях."
+  - "Вы вычисляете производные данные (фильтр, счётчики) в рендере, а не храните их."
+related:
+  - "react.fundamentals.state-with-usestate"
+next:
+  - "react.fundamentals.effects"
+tags:
+  - "react"
+  - "events"
+  - "forms"
+  - "controlled-inputs"
+facts:
+  - kind: "internals"
+    text: "Обработчики React получают синтетическое событие - обёртку над нативным с единым интерфейсом. Начиная с React 17 слушатели регистрируются не на document, а на корневом контейнере приложения, а в React 17 пул событий убран: объект события можно использовать и после выхода из обработчика."
+    sources:
+      - "https://react.dev/reference/react-dom/components/common#react-event-object"
+      - "https://legacy.reactjs.org/blog/2020/08/10/react-v17-rc.html"
+  - kind: "misconception"
+    text: "«onChange в React срабатывает при потере фокуса, как событие change в HTML». Нет: onChange у полей ввода в React срабатывает на каждое изменение значения, как нативное событие input. Это отличие от HTML, на которое часто натыкаются."
+  - kind: "misconception"
+    text: "«Управляемое поле - это поле с обработчиком». Поле управляемое, когда его value задаёт состояние React. Без onChange такое поле станет доступным только для чтения (React предупредит в консоли), а переключение между value и defaultValue в течение жизни поля вызывает предупреждение."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что не так в <button onClick={save(id)}>?"
+      options:
+        - "Ничего: так принято записывать."
+        - "save(id) вызывается во время рендера, а в onClick попадает его результат; нужна функция: onClick={() => save(id)}."
+        - "onClick нельзя писать с большой буквы."
+        - "Обработчик нельзя передавать параметры."
+      answer: 1
+      explanation: "В JSX {save(id)} - выражение, вычисляемое при каждом рендере. Обработчик должен быть функцией, которую React вызовет позже."
+    - id: "q2"
+      type: "single"
+      prompt: "Зачем в обработчике onSubmit вызывают event.preventDefault()?"
+      options:
+        - "Чтобы остановить всплытие события."
+        - "Чтобы браузер не выполнил стандартное действие формы (отправку запроса и перезагрузку страницы)."
+        - "Чтобы очистить поля формы."
+        - "Чтобы React не вызвал onChange."
+      answer: 1
+      explanation: "По умолчанию отправка формы перезагружает страницу. preventDefault отменяет это, и данные обрабатывает ваш код."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения про управляемое поле <input value={text} onChange={...} /> верны?"
+      options:
+        - "Источник истины - состояние React, а не DOM."
+        - "Если не обновлять text в onChange, введённый символ не появится."
+        - "Значение поля можно прочитать только через ref."
+        - "Запись value без onChange делает поле доступным только для чтения."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "В управляемом поле значение задаёт состояние; React возвращает поле к value после каждого события. Ref для чтения значения не нужен."
+    - id: "q4"
+      type: "single"
+      prompt: "Два компонента-соседа должны показывать одно и то же значение, и меняться могут оба. Где хранить состояние?"
+      options:
+        - "В каждом компоненте своё и синхронизировать эффектом."
+        - "В ближайшем общем родителе, передавая значение и обработчик вниз через props."
+        - "В глобальной переменной модуля."
+        - "В DOM-атрибуте."
+      answer: 1
+      explanation: "Это и называется «поднять состояние». Единственный источник истины исключает рассинхронизацию."
+    - id: "q5"
+      type: "short"
+      prompt: "Какое свойство события читают в onChange, чтобы получить введённый текст? Запишите как event.target.xxx - только xxx."
+      answer:
+        - "value"
+      explanation: "event.target - это поле ввода, а его свойство value содержит текущий текст."
+exercise:
+  id: "react.fundamentals.events-and-forms.exercise"
+  title: "Форма регистрации и фильтруемый список"
+  prompt: |
+    Нужно написать форму и пару компонентов с поднятым состоянием. Тесты используют настоящий Testing Library в jsdom.
+
+    **`src/SignupForm.jsx`** - `SignupForm({ onSubmit })`. Элемент `<form>` с двумя управляемыми полями: `<label>Имя<input/></label>` и `<label>Email<input/></label>` (текст метки - ровно `Имя` и `Email`) и кнопкой `<button type="submit">Отправить</button>`. По отправке формы:
+
+    * обязательно вызовите `event.preventDefault()`;
+    * значения обрезаются по краям (`trim`);
+    * если имя пустое - покажите `<p role="alert">Введите имя</p>` и не вызывайте `onSubmit`;
+    * если в email нет символа `@` - покажите `<p role="alert">Некорректный email</p>` и не вызывайте `onSubmit`;
+    * иначе уберите сообщение об ошибке, вызовите `onSubmit({ name, email })` и очистите оба поля.
+
+    **`src/SearchBox.jsx`** - `SearchBox({ value, onChange })`: `<label>Поиск<input/></label>`. Поле управляемое родителем: показывает `value` и вызывает `onChange(новыйТекст)` (строку, а не событие). Своего состояния нет.
+
+    **`src/FilterableList.jsx`** - `FilterableList({ items })`, где `items` - массив строк. Компонент владеет состоянием текста поиска, показывает `SearchBox`, абзац `Найдено: K`, и либо `<ul>` с `<li>` для строк, содержащих текст поиска без учёта регистра, либо абзац `Ничего не найдено` (без `<ul>`).
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/SignupForm.jsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Для каждого поля заведите состояние: const [name, setName] = useState(\"\") и <input value={name} onChange={e => setName(e.target.value)} />."
+    - "Обработчик формы: function handleSubmit(event) { event.preventDefault(); ... }. Сначала проверки с ранним return, потом onSubmit и сброс полей."
+    - "SearchBox не хранит состояние: <input value={value} onChange={e => onChange(e.target.value)} />, текст метки - «Поиск»."
+    - "FilterableList: const [query, setQuery] = useState(\"\"); список shown = items.filter(...) считайте в рендере, не в состоянии; в SearchBox передайте value={query} и onChange={setQuery}."
+  tests:
+    - id: "signup-controlled"
+      title: "SignupForm: управляемые поля"
+      match: "SignupForm > поля управляемые*"
+      hint: "Значение каждого поля берётся из состояния, а onChange обновляет состояние."
+    - id: "signup-submit"
+      title: "SignupForm: отправка"
+      match: "SignupForm > отправка передаёт*"
+      hint: "В onSubmit передаётся объект { name, email }."
+    - id: "searchbox-value"
+      title: "SearchBox: value и onChange"
+      match: "SearchBox > показывает value*"
+      hint: "Поле показывает value и вызывает onChange со строкой."
+    - id: "list-all"
+      title: "FilterableList: все элементы"
+      match: "FilterableList > показывает все*"
+      hint: "Без текста поиска видны все строки, а число выводится в абзаце «Найдено: K»."
+    - id: "signup-name-error"
+      title: "SignupForm: пустое имя (скрытый)"
+      match: "SignupForm > пустое имя*"
+      hidden: true
+      hint: "Проверьте name.trim() === \"\" и покажите <p role=\"alert\">Введите имя</p>, onSubmit не вызывайте."
+    - id: "signup-email-error"
+      title: "SignupForm: email без @ (скрытый)"
+      match: "SignupForm > email без*"
+      hidden: true
+      hint: "Если в email нет символа @, покажите сообщение «Некорректный email»."
+    - id: "signup-trim"
+      title: "SignupForm: пробелы по краям (скрытый)"
+      match: "SignupForm > обрезает*"
+      hidden: true
+      hint: "Передавайте в onSubmit значения после trim()."
+    - id: "signup-prevent"
+      title: "SignupForm: preventDefault (скрытый)"
+      match: "SignupForm > отменяет*"
+      hidden: true
+      hint: "Первая строка обработчика onSubmit: event.preventDefault()."
+    - id: "signup-reset"
+      title: "SignupForm: очистка после отправки (скрытый)"
+      match: "SignupForm > после успешной*"
+      hidden: true
+      hint: "После успешной отправки сбросьте оба поля и сообщение об ошибке."
+    - id: "searchbox-stateless"
+      title: "SearchBox: без своего состояния (скрытый)"
+      match: "SearchBox > сам ничего*"
+      hidden: true
+      hint: "SearchBox - управляемый родителем: значение всегда равно prop value."
+    - id: "list-filter"
+      title: "FilterableList: фильтр (скрытый)"
+      match: "FilterableList > фильтрует*"
+      hidden: true
+      hint: "Сравнивайте в нижнем регистре: item.toLowerCase().includes(query.toLowerCase())."
+    - id: "list-empty"
+      title: "FilterableList: пустой результат (скрытый)"
+      match: "FilterableList > если ничего*"
+      hidden: true
+      hint: "Если совпадений нет, вместо <ul> выведите абзац «Ничего не найдено», а счётчик покажет 0."

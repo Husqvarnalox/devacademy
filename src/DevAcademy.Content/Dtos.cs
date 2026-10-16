@@ -92,6 +92,9 @@ internal sealed class RequiresDto
 {
     public string? Python { get; set; }
     public List<string>? Packages { get; set; }
+    /// <summary>javascript exercises: Node.js version specifier (">=22") and npm package names of the node content environment.</summary>
+    public string? Node { get; set; }
+    public List<string>? NpmPackages { get; set; }
 }
 
 internal sealed class ComplexityDto
@@ -160,6 +163,9 @@ internal sealed class ExerciseDto
 internal sealed class CommandDto
 {
     public List<string>? Run { get; set; }
+    /// <summary>Instead of <c>run</c>: a tool of the node content environment (vitest) with <c>args</c>.</summary>
+    public string? Tool { get; set; }
+    public List<string>? Args { get; set; }
     public string? Report { get; set; }
     public string? ReportFile { get; set; }
     public int? TimeoutSeconds { get; set; }

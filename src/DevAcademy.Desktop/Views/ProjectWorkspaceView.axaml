@@ -33,6 +33,7 @@
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
           <Button Content="{loc:T Ws_Save}" Command="{Binding SaveCommand}" />
+          <Button Content="{loc:T Nb_Close}" Command="{Binding CloseNotebookFromUiCommand}" IsVisible="{Binding HasNotebook}" />
           <Button Content="{loc:T Ws_Split}" Command="{Binding ToggleSplitCommand}" />
           <Button Content="{loc:T Ws_Run}" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Classes="accent"
                   ToolTip.Tip="{Binding RunCommandText}" />
@@ -110,6 +111,7 @@
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="6">
         <WrapPanel Orientation="Horizontal">
           <Button Content="{loc:T Ws_NewFileShort}" Command="{Binding NewFileCommand}" Classes="flat" ToolTip.Tip="{loc:T Ws_NewFile}" />
+          <Button Content="{loc:T Nb_NewShort}" Command="{Binding NewNotebookCommand}" Classes="flat" ToolTip.Tip="{loc:T Nb_NewTitle}" />
           <Button Content="{loc:T Ws_NewFolderShort}" Command="{Binding NewFolderCommand}" Classes="flat" ToolTip.Tip="{loc:T Ws_NewFolder}" />
           <Button Content="{loc:T Ws_Rename}" Command="{Binding RenameCommand}" Classes="flat" IsEnabled="{Binding Explorer.HasSelection}" />
           <Button Content="{loc:T Ws_Delete}" Command="{Binding DeleteCommand}" Classes="flat" IsEnabled="{Binding Explorer.HasSelection}" />
@@ -193,6 +195,9 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+      <Border Grid.Column="2" Classes="panel" Padding="0" Margin="1" IsVisible="{Binding HasNotebook}">
+        <views:NotebookView DataContext="{Binding Notebook}" Name="NotebookHost" />
+      </Border>
       <Border Grid.Column="3" Width="380" Classes="panel" Padding="0" Margin="1" IsVisible="{Binding ShowDebugPanel}">
         <views:DebugPanelView DataContext="{Binding Debug}" Name="DebugPanel" />
       </Border>

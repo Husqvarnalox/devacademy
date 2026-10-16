@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevAcademy.Desktop.ViewModels"
+             xmlns:nb="using:DevAcademy.Desktop.ViewModels.Notebooks"
+             xmlns:nbk="using:DevAcademy.Notebooks.Kernel"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
+             xmlns:md="using:DevAcademy.Desktop.Markdown"
+             xmlns:loc="using:DevAcademy.Desktop.Localization"
+             x:Class="DevAcademy.Desktop.Views.NotebookView"
+             x:DataType="nb:NotebookViewModel">
+  <UserControl.Styles>
+    <Style Selector="Border.nbcell">
+      <Setter Property="BorderThickness" Value="2,1,1,1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+      <Setter Property="Padding" Value="6" />
+    </Style>
+    <Style Selector="Border.nbcell.selected">
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid RowDefinitions="Auto,Auto,*" Background="{DynamicResource PanelBrush}">
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Classes="bar" Padding="8,4">
+      <WrapPanel Orientation="Horizontal">
+        <WrapPanel.Styles>
+          <Style Selector="WrapPanel > Button"><Setter Property="Margin" Value="0,2,4,2" /></Style>
+        </WrapPanel.Styles>
+        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+        <TextBlock Text="{loc:T Nb_Environment}" Classes="caption" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <ComboBox Name="EnvBox" ItemsSource="{Binding Environments}" SelectedItem="{Binding SelectedEnvironment}" MinWidth="180" Margin="0,2,12,2"
+                  AutomationProperties.Name="{loc:T Nb_Environment}" />
+        <Button Name="RunButton" Content="{loc:T Nb_RunCell}" Command="{Binding RunSelectedCommand}" Classes="accent" ToolTip.Tip="Ctrl/Cmd+Enter" />
+        <Button Name="RunAllButton" Content="{loc:T Nb_RunAll}" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsRunningAll}" />
+        <Button Name="InterruptButton" Content="{loc:T Nb_Interrupt}" Command="{Binding InterruptCommand}" IsEnabled="{Binding CanInterrupt}" />
+        <Button Name="RestartButton" Content="{loc:T Nb_Restart}" Command="{Binding RestartCommand}" />
+        <Button Content="{loc:T Nb_ClearOutputs}" Command="{Binding ClearAllOutputsCommand}" />
+        <Button Content="{loc:T Nb_AddCode}" Command="{Binding AddCodeCommand}" />
+        <Button Content="{loc:T Nb_AddMarkdown}" Command="{Binding AddMarkdownCommand}" />
+        <Button Content="{loc:T Nb_Up}" Command="{Binding MoveUpCommand}" />
+        <Button Content="{loc:T Nb_Down}" Command="{Binding MoveDownCommand}" />
+        <Button Content="{loc:T Nb_Delete}" Command="{Binding DeleteCellCommand}" />
+        <Button Content="{loc:T Ws_Save}" Command="{Binding SaveCommand}" />
+        <TextBlock Name="KernelStateText" Text="{Binding StateText}" Classes="caption" VerticalAlignment="Center" Margin="8,0,6,0" />
+        <ProgressBar IsIndeterminate="True" Width="60" IsVisible="{Binding IsKernelBusy}" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Notices -->
+    <Border Grid.Row="1" Padding="10,4" Background="{DynamicResource SubtleBrush}">
+      <StackPanel Spacing="4">
+        <TextBlock Name="SandboxText" Text="{Binding SandboxWarning}" Classes="caption warn" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap"
+                   IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Name="InstallPanel" Spacing="4" IsVisible="{Binding NeedsInstall}">
+          <TextBlock Text="{loc:T Nb_InstallHint}" Classes="caption" TextWrapping="Wrap" />
+          <SelectableTextBlock Text="{Binding InstallCommand}" Classes="mono" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Name="InstallButton" Content="{loc:T Nb_Install}" Command="{Binding InstallKernelCommand}" IsEnabled="{Binding !IsInstalling}"
+                    IsVisible="{Binding InstallCommand, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsInstalling}" />
+          </StackPanel>
+          <SelectableTextBlock Text="{Binding InstallLog}" Classes="mono caption" TextWrapping="Wrap" MaxHeight="120" IsVisible="{Binding HasInstallLog}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Cells + side panel -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,4,300">
+      <ScrollViewer Name="CellScroll" HorizontalScrollBarVisibility="Disabled" Padding="10,8">
+        <ItemsControl ItemsSource="{Binding Cells}" Name="CellList">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="nb:NotebookCellViewModel">
+              <Border Classes="nbcell" Classes.selected="{Binding IsSelected}" Tag="{Binding}" PointerPressed="OnCellPressed">
+                <Grid ColumnDefinitions="70,*">
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Label}" Classes="mono muted" IsVisible="{Binding IsCode}" />
+                    <TextBlock Text="{Binding TypeLabel}" Classes="caption" />
+                    <Button Content="{loc:T Nb_Edit}" Classes="flat" Padding="2,0" FontSize="11" IsVisible="{Binding ShowRendered}" Click="OnToggleEdit" />
+                    <Button Content="{loc:T Nb_Render}" Classes="flat" Padding="2,0" FontSize="11" IsVisible="{Binding IsEditingMarkdown}" Click="OnToggleEdit" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="6">
+                    <ctl:CodeEditorControl Text="{Binding Source, Mode=TwoWay}" FileName="{Binding EditorFileName}" Height="{Binding EditorHeight}"
+                                           IsVisible="{Binding ShowEditor}" />
+                    <Border Classes="codeout" IsVisible="{Binding ShowRendered}" Padding="8,4" DoubleTapped="OnRenderedDoubleTapped">
+                      <md:MarkdownViewer Markdown="{Binding RenderedMarkdown}" />
+                    </Border>
+                    <TextBlock Text="{loc:T Nb_MathPlanned}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasMath}" />
+                    <ItemsControl ItemsSource="{Binding Outputs}" IsVisible="{Binding HasOutputs}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="nb:NotebookOutputViewModel">
+                          <StackPanel Spacing="2">
+                            <ctl:AnsiTextBlock Runs="{Binding Runs}" Classes="mono" TextWrapping="Wrap" IsVisible="{Binding IsRuns}"
+                                               Classes.stderr="{Binding IsStderr}" />
+                            <Image Source="{Binding Image}" IsVisible="{Binding IsImage}" HorizontalAlignment="Left" Stretch="Uniform"
+                                   StretchDirection="DownOnly" MaxWidth="720" MaxHeight="520" />
+                            <md:MarkdownViewer Markdown="{Binding MarkdownText}" IsVisible="{Binding IsMarkdown}" />
+                            <Border Classes="codeout" Padding="8,4" IsVisible="{Binding IsMono}">
+                              <SelectableTextBlock Text="{Binding Text}" Classes="mono" TextWrapping="Wrap" />
+                            </Border>
+                            <TextBlock Text="{Binding Note}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding HasNote}" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+      <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+      <TabControl Grid.Column="2">
+        <TabItem Header="{loc:T Nb_Variables}">
+          <Grid RowDefinitions="Auto,*">
+            <Button Content="{loc:T Nb_RefreshVars}" Command="{Binding RefreshVariablesCommand}" Classes="flat" HorizontalAlignment="Left" />
+            <ScrollViewer Grid.Row="1">
+              <StackPanel>
+                <TextBlock Text="{loc:T Nb_NoVariables}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !Variables.Count}" />
+                <ItemsControl ItemsSource="{Binding Variables}" Name="VariableList">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="nbk:VariableInfo">
+                      <Border Padding="2,3" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource LineBrush}">
+                        <StackPanel>
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding Name}" Classes="mono" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Type}" Classes="caption" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Shape}" Classes="caption mono" VerticalAlignment="Center" />
+                          </StackPanel>
+                          <TextBlock Text="{Binding Summary}" Classes="caption mono" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </TabItem>
+        <TabItem Header="{loc:T Nb_History}">
+          <ScrollViewer>
+            <StackPanel>
+              <TextBlock Text="{loc:T Nb_NoHistory}" Classes="muted" TextWrapping="Wrap" IsVisible="{Binding !History.Count}" />
+              <ItemsControl ItemsSource="{Binding History}" Name="HistoryList">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="nb:HistoryEntry">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Label}" Classes="mono" TextTrimming="CharacterEllipsis" Classes.danger="{Binding !Ok}" />
+                        <TextBlock Text="{Binding Time}" Classes="caption" />
+                      </StackPanel>
+                      <Button Grid.Column="1" Content="+" Classes="flat" ToolTip.Tip="{loc:T Nb_InsertHistory}"
+                              Command="{Binding $parent[ItemsControl].((nb:NotebookViewModel)DataContext).InsertFromHistoryCommand}" CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+      </TabControl>
+    </Grid>
+  </Grid>
+</UserControl>

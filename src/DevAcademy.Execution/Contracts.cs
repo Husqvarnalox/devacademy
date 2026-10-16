@@ -155,6 +155,13 @@ public interface IPreparedProgram : IAsyncDisposable
 /// <summary>A user-chosen Python virtual environment for a run: its interpreter replaces the auto-detected one and its directory is mounted read-only.</summary>
 public sealed record PythonRunSelection(string InterpreterPath, string EnvironmentPath);
 
+/// <summary>
+/// The node content environment for a run: a directory that contains <c>node_modules</c> (installed by <c>npm ci</c> from
+/// <c>tools/node-content</c>). The runner exposes it as <c>node_modules</c> in the work directory through a symbolic link, and the OS
+/// sandbox may read but never write it. Nothing is ever installed at run time and there is no network.
+/// </summary>
+public sealed record NodeRunSelection(string EnvironmentPath);
+
 public sealed record ExecutionRequest(
     string LanguageId,
     IReadOnlyList<SourceFile> Files,
@@ -166,7 +173,9 @@ public sealed record ExecutionRequest(
     /// Run the language's test tool instead of the entry file: argv with the tool name first (see <see cref="ICommandRuntime"/>).
     /// Container isolation is not used for such runs.
     /// </summary>
-    IReadOnlyList<string>? Command = null);
+    IReadOnlyList<string>? Command = null,
+    /// <summary>Only honoured for javascript/typescript: exposes the node content environment as a read-only <c>node_modules</c>. Such a run never uses a container.</summary>
+    NodeRunSelection? Node = null);
 
 /// <summary>Entry point of the engine. Enforces a global concurrency limit and always cleans up working directories.</summary>
 public interface ICodeRunner

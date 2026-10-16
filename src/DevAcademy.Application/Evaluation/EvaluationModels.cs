@@ -36,5 +36,5 @@ public interface IExerciseEvaluator
 {
     EvaluationKind Kind { get; }
     Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null);
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null);
 }

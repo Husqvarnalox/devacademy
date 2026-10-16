@@ -10,6 +10,7 @@
     <Project Path="src/DevAcademy.Execution/DevAcademy.Execution.csproj" />
     <Project Path="src/DevAcademy.Infrastructure/DevAcademy.Infrastructure.csproj" />
     <Project Path="src/DevAcademy.LanguageServices/DevAcademy.LanguageServices.csproj" />
+    <Project Path="src/DevAcademy.Notebooks/DevAcademy.Notebooks.csproj" />
     <Project Path="src/DevAcademy.Terminal/DevAcademy.Terminal.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -23,6 +24,7 @@
     <Project Path="tests/DevAcademy.Execution.Tests/DevAcademy.Execution.Tests.csproj" />
     <Project Path="tests/DevAcademy.Infrastructure.Tests/DevAcademy.Infrastructure.Tests.csproj" />
     <Project Path="tests/DevAcademy.LanguageServices.Tests/DevAcademy.LanguageServices.Tests.csproj" />
+    <Project Path="tests/DevAcademy.Notebooks.Tests/DevAcademy.Notebooks.Tests.csproj" />
     <Project Path="tests/DevAcademy.Terminal.Tests/DevAcademy.Terminal.Tests.csproj" />
   </Folder>
 </Solution>

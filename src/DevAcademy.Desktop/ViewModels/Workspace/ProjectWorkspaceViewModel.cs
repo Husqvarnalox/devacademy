@@ -5,6 +5,8 @@ using DevAcademy.Application.Workspace;
 using DevAcademy.Desktop.Composition;
 using DevAcademy.Desktop.Controls.Lsp;
 using DevAcademy.Desktop.ViewModels.Lsp;
+using DevAcademy.Desktop.ViewModels.Notebooks;
+using DevAcademy.Notebooks.Nbformat;
 using DevAcademy.LanguageServices.Protocol;
 using DevAcademy.LanguageServices.Servers;
 using DevAcademy.Desktop.Localization;
@@ -84,6 +86,10 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _showSearch;
     [ObservableProperty] private bool _showTextHits;
+    /// <summary>The notebook shown over the editor groups (one at a time), or null.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasNotebook), nameof(HasUnsavedChanges))] private NotebookViewModel? _notebook;
+    public bool HasNotebook => Notebook is not null;
+
     /// <summary>The debug side panel is shown (opens by itself when a debug session starts).</summary>
     [ObservableProperty] private bool _showDebugPanel;
 
@@ -197,7 +203,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     private RunProfile? Profile => ProjectRunProfiles.For(Language, IsPython ? SelectedPython?.InterpreterForCommand : null);
 
     public IEnumerable<EditorTabViewModel> AllTabs => Groups.SelectMany(g => g.Tabs);
-    public bool HasUnsavedChanges => AllTabs.Any(t => t.IsDirty);
+    public bool HasUnsavedChanges => AllTabs.Any(t => t.IsDirty) || Notebook is { IsDirty: true };
 
     /// <summary>Raised when the view should show the find / find+replace panel in the active editor.</summary>
     public event Action<bool>? FindRequested;
@@ -332,6 +338,11 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
     public async Task<EditorTabViewModel?> OpenFileAsync(string fullPath, int? line = null, EditorGroupViewModel? group = null, bool activate = true)
     {
         fullPath = Path.GetFullPath(fullPath);
+        if (fullPath.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
+        {
+            await OpenNotebookAsync(fullPath);
+            return null;
+        }
         if (FindTab(fullPath) is { } existing)
         {
             var owner = Groups.First(g => g.Tabs.Contains(existing));
@@ -436,12 +447,26 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
             if (choice == 0) { if (!await tab.SaveAsync()) return false; }
             else if (choice != 1) return false;
         }
+        if (Notebook is { IsDirty: true } nb)
+        {
+            var choice = await _services.Dialogs.ChooseAsync(Loc.T("Ws_UnsavedTitle"), Loc.F("Nb_UnsavedMessage", nb.FileName),
+                [Loc.T("Ws_Save"), Loc.T("Ws_DontSave"), Loc.T("Common_Cancel")]);
+            if (choice == 0) { if (!await nb.SaveAsync()) return false; }
+            else if (choice != 1) return false;
+        }
         return true;
     }
 
     [RelayCommand]
     public async Task SaveAsync()
     {
+        if (Notebook is { } nb)
+        {
+            if (!await nb.SaveAsync()) Status = nb.Message;
+            else Status = Loc.F("Ws_Saved", nb.FileName);
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            return;
+        }
         if (ActiveGroup.ActiveTab is not { } tab) return;
         if (!await tab.SaveAsync()) Status = Loc.F("Ws_SaveFailed", tab.Title, tab.SaveError);
         else Status = Loc.F("Ws_Saved", tab.Title);
@@ -454,8 +479,81 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         var ok = true;
         foreach (var tab in AllTabs.Where(t => t.IsDirty).ToList())
             if (!await tab.SaveAsync()) { Status = Loc.F("Ws_SaveFailed", tab.Title, tab.SaveError); ok = false; }
+        if (Notebook is { IsDirty: true } nb && !await nb.SaveAsync()) { Status = nb.Message; ok = false; }
         OnPropertyChanged(nameof(HasUnsavedChanges));
         return ok;
+    }
+
+    // ---------------------------------------------------------------- notebooks
+
+    /// <summary>Opens a .ipynb file in the notebook editor (replacing the notebook shown now, after asking about unsaved changes).</summary>
+    public async Task<bool> OpenNotebookAsync(string fullPath)
+    {
+        fullPath = Path.GetFullPath(fullPath);
+        if (Notebook is { } current)
+        {
+            if (string.Equals(current.Path, fullPath, StringComparison.Ordinal)) return true;
+            if (!await CloseNotebookAsync()) return false;
+        }
+        NotebookDocument doc;
+        try { doc = await NotebookStore.LoadAsync(fullPath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotebookFormatException)
+        {
+            Status = Loc.F("Nb_OpenFailed", Path.GetFileName(fullPath), ex.Message);
+            return false;
+        }
+        var nb = new NotebookViewModel(fullPath, doc, _services.Workspace.Notebooks, _services.Dialogs, PythonChoices, ResolveInterpreter, Path.GetDirectoryName(fullPath) ?? Root,
+            PreferredNotebookEnvironment());
+        nb.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(NotebookViewModel.IsDirty)) OnPropertyChanged(nameof(HasUnsavedChanges)); };
+        Notebook = nb;
+        Status = null;
+        return true;
+    }
+
+    /// <summary>The interpreter of an environment choice (the project .venv is stored relative), or null for the system interpreter.</summary>
+    private string? ResolveInterpreter(PythonChoice choice) =>
+        choice.InterpreterForCommand is not { } p ? null : Path.IsPathRooted(p) ? p : Path.Combine(Root, p.Replace('\\', Path.DirectorySeparatorChar));
+
+    private PythonChoice? PreferredNotebookEnvironment() =>
+        SelectedPython is { } sel && ResolveInterpreter(sel) is not null ? sel : PythonChoices.FirstOrDefault(c => ResolveInterpreter(c) is not null);
+
+    /// <summary>Closes the notebook (asking about unsaved changes, stopping its kernel). False when the user cancelled.</summary>
+    public async Task<bool> CloseNotebookAsync()
+    {
+        if (Notebook is not { } nb) return true;
+        if (nb.IsDirty)
+        {
+            var choice = await _services.Dialogs.ChooseAsync(Loc.T("Ws_UnsavedTitle"), Loc.F("Nb_UnsavedMessage", nb.FileName),
+                [Loc.T("Ws_Save"), Loc.T("Ws_DontSave"), Loc.T("Common_Cancel")]);
+            if (choice == 0) { if (!await nb.SaveAsync()) return false; }
+            else if (choice != 1) return false;
+        }
+        Notebook = null;
+        await nb.DisposeAsync();
+        return true;
+    }
+
+    [RelayCommand]
+    private Task CloseNotebookFromUiAsync() => CloseNotebookAsync();
+
+    [RelayCommand]
+    private async Task NewNotebookAsync()
+    {
+        var name = await _services.Dialogs.PromptAsync(Loc.T("Nb_NewTitle"), Loc.T("Nb_NewHint"), "", Loc.T("Ws_Create"));
+        if (string.IsNullOrWhiteSpace(name)) return;
+        name = name.Trim();
+        if (!name.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase)) name += ".ipynb";
+        if (name.IndexOfAny(['/', '\\']) >= 0 || name.Contains("..", StringComparison.Ordinal)) { Status = Loc.T("Ws_InvalidName"); return; }
+        var path = Path.Combine(Explorer.TargetDirectory, name);
+        try { await NotebookStore.CreateAsync(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Status = ex.Message;
+            return;
+        }
+        Explorer.RefreshDirectories([Explorer.TargetDirectory]);
+        Explorer.Reveal(path);
+        await OpenNotebookAsync(path);
     }
 
     [RelayCommand]
@@ -758,6 +856,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         _disposed = true;
         if (_statusHandler is not null) _services.Language.Manager.StatusChanged -= _statusHandler;
         _watcher?.Dispose();
+        if (Notebook is { } nb) { Notebook = null; _ = nb.DisposeAsync().AsTask(); }
         Debug.Dispose();
         foreach (var t in Terminals.ToList()) t.Dispose();
         Terminals.Clear();

@@ -1,3 +1,4 @@
+using DevAcademy.Application.Node;
 using DevAcademy.Application.Python;
 using DevAcademy.Domain;
 using DevAcademy.Execution;
@@ -9,12 +10,14 @@ public sealed class ExerciseEvaluationService
 {
     private readonly Dictionary<EvaluationKind, IExerciseEvaluator> _evaluators;
     private readonly IExerciseEnvironmentResolver? _environment;
+    private readonly INodeEnvironmentResolver? _node;
 
-    public ExerciseEvaluationService(ICodeRunner runner, IExerciseEnvironmentResolver? environment = null)
-        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment) { }
+    public ExerciseEvaluationService(ICodeRunner runner, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null)
+        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node) { }
 
-    public ExerciseEvaluationService(IEnumerable<IExerciseEvaluator> evaluators, IExerciseEnvironmentResolver? environment = null)
+    public ExerciseEvaluationService(IEnumerable<IExerciseEvaluator> evaluators, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null)
     {
+        _node = node;
         _evaluators = evaluators.ToDictionary(e => e.Kind);
         _environment = environment;
     }
@@ -36,6 +39,16 @@ public sealed class ExerciseEvaluationService
                 return EvaluationReport.Failure(Verdict.RuntimeMissing, plan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
             python = plan.Python;
         }
-        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python).ConfigureAwait(false);
+        NodeRunSelection? nodeEnv = null;
+        if (exercise.NeedsNodeEnvironment)
+        {
+            if (_node is null)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, "Для упражнения нужны npm-пакеты курсов, но окружение не подключено (make node-env).", isolation) with { LanguageId = exercise.LanguageId };
+            NodeRunPlan nodePlan = await _node.ResolveAsync(exercise, ct).ConfigureAwait(false);
+            if (nodePlan.IsBlocked)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, nodePlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
+            nodeEnv = nodePlan.Node;
+        }
+        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv).ConfigureAwait(false);
     }
 }

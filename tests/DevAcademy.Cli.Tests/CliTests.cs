@@ -21,7 +21,19 @@ public class ArgumentParsingTests
         Assert.True(o.RunSolutions);
     }
 
+    [Fact]
+    public void Parses_node_env()
+    {
+        var o = CliMain.Parse(["--run-solutions", "--node-env", ".node-content"], out var error);
+        Assert.Null(error);
+        Assert.Equal(".node-content", o!.NodeEnv);
+        Assert.Null(o.PythonEnv);
+        Assert.Null(CliMain.Parse(["--run-solutions"], out _)!.NodeEnv);
+    }
+
     [Theory]
+    [InlineData("--node-env")]
+    [InlineData("--node-env", "--run-solutions")]
     [InlineData("--python-env")]
     [InlineData("--python-env", "--run-solutions")]
     [InlineData("--bogus")]
@@ -140,6 +152,22 @@ public class ValidateWithRequirementsTests : IDisposable
         var (code, _, err) = await Run("validate-content", "--content", Content, "--python-env", _root);
         Assert.Equal(2, code);
         Assert.Contains("--run-solutions", err);
+    }
+
+    [Fact]
+    public async Task Node_env_without_run_solutions_is_a_usage_error()
+    {
+        var (code, _, err) = await Run("validate-content", "--content", Content, "--node-env", _root);
+        Assert.Equal(2, code);
+        Assert.Contains("--run-solutions", err);
+    }
+
+    [Fact]
+    public async Task Node_env_without_node_modules_points_to_make_node_env()
+    {
+        var (code, _, err) = await Run("validate-content", "--content", Content, "--run-solutions", "--node-env", Path.Combine(_root, "nope"));
+        Assert.Equal(2, code);
+        Assert.Contains("make node-env", err);
     }
 
     [Fact]

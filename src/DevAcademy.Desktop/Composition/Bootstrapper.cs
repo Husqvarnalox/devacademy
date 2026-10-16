@@ -1,6 +1,7 @@
 using DevAcademy.AI;
 using DevAcademy.AI.Http;
 using DevAcademy.Application.Evaluation;
+using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
 using DevAcademy.Application.Python;
 using DevAcademy.Application.Workspace;
@@ -57,9 +58,13 @@ public static class Bootstrapper
         services.AddSingleton<PythonEnvironmentService>();
         services.AddSingleton<IExerciseEnvironmentResolver>(sp => sp.GetRequiredService<PythonEnvironmentService>());
 
+        // Node content environment (npm packages for React/Vitest exercises): read-only at grading time, installed only on an explicit action.
+        services.AddSingleton(sp => CreateNodeEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>()));
+        services.AddSingleton<INodeEnvironmentResolver>(sp => sp.GetRequiredService<NodeEnvironmentService>());
+
         services.AddSingleton<CatalogService>();
         services.AddSingleton<LearningPathService>();
-        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>()));
+        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>()));
         services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>()));
         services.AddSingleton<ProgressService>();
         services.AddSingleton<HintService>();
@@ -99,6 +104,19 @@ public static class Bootstrapper
 
         configure?.Invoke(services);
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// Environment directory: <c>DEVACADEMY_NODE_ENV</c>, else the app data directory once it holds node_modules, else a developer checkout's
+    /// <c>.node-content</c> (made by <c>make node-env</c>), else the app data directory (where an install will put it).
+    /// </summary>
+    private static NodeEnvironmentService CreateNodeEnvironment(IToolRunner tools, AppPaths paths)
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("DEVACADEMY_NODE_ENV");
+        var env = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv
+            : Directory.Exists(Path.Combine(paths.NodeContentDir, "node_modules")) ? paths.NodeContentDir
+            : NodeEnvironmentService.FindRepositoryEnvironment() ?? paths.NodeContentDir;
+        return new NodeEnvironmentService(tools, env, NodeEnvironmentService.FindManifestDirectory());
     }
 
     private static ProviderRegistry CreateRegistry(AiHttp http, ISettingsRepository settings)

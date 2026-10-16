@@ -1,0 +1,186 @@
+id: "react.fundamentals.testing-library"
+title: "Тестирование через Testing Library"
+goal: "Писать тесты компонентов с Testing Library так, как их использует человек: находить элементы по роли, метке и тексту, управлять вводом через user-event и ждать асинхронных результатов."
+difficulty: "easy"
+estimatedMinutes: 65
+prerequisites:
+  - "react.fundamentals.effects"
+objectives:
+  - "Объяснить принцип Testing Library: тестировать поведение, видимое пользователю, а не реализацию."
+  - "Выбирать запросы в правильном порядке приоритета: getByRole, getByLabelText, getByText и только затем getByTestId."
+  - "Различать getBy, queryBy и findBy и выбирать подходящий вариант (присутствие, отсутствие, ожидание)."
+  - "Имитировать действия пользователя через userEvent.setup() и await user.click / user.type."
+  - "Использовать findBy и waitFor для асинхронных изменений и объяснить, какую роль играет act."
+masteryCriteria:
+  - "Вы ищете элементы так, как их находит пользователь или вспомогательная технология (роль, имя, метка)."
+  - "Вы проверяете результат (что видно на экране и какие функции вызваны), а не внутреннее состояние компонента."
+  - "Вы не оставляете асинхронных действий без await и не используете произвольные паузы."
+related:
+  - "react.fundamentals.events-and-forms"
+  - "react.fundamentals.effects"
+next: []
+tags:
+  - "react"
+  - "testing"
+  - "testing-library"
+  - "user-event"
+  - "vitest"
+facts:
+  - kind: "internals"
+    text: "Запрос getByRole работает по дереву доступности: он вычисляет роль элемента (явную из атрибута role или неявную из тега) и его доступное имя по правилам ARIA. Поэтому один и тот же запрос проверяет и интерфейс, и его доступность. Для скрытых элементов (display: none, hidden, aria-hidden) getByRole по умолчанию их не находит."
+    sources:
+      - "https://testing-library.com/docs/queries/byrole"
+      - "https://testing-library.com/docs/queries/about#priority"
+  - kind: "misconception"
+    text: "«Хороший тест проверяет внутреннее состояние компонента». Наоборот: тесты, привязанные к состоянию, именам методов и структуре компонентов, ломаются при рефакторинге без изменения поведения. Testing Library намеренно не даёт доступа к состоянию: проверяется то, что видит пользователь."
+  - kind: "historical"
+    text: "С React Testing Library 13 функция render использует createRoot, а действия пользователя в @testing-library/user-event 14 асинхронны: после userEvent.setup() каждое действие нужно ожидать через await. Старый стиль без setup() и без await (user-event 13) в актуальной версии не рекомендуется."
+    sources:
+      - "https://testing-library.com/docs/user-event/intro"
+      - "https://testing-library.com/docs/react-testing-library/intro/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой запрос предпочтительнее для кнопки с текстом «Сохранить»?"
+      options:
+        - "container.querySelector(\".btn-save\")"
+        - "screen.getByTestId(\"save\")"
+        - "screen.getByRole(\"button\", { name: \"Сохранить\" })"
+        - "screen.getByText(\"Сохранить\")"
+      answer: 2
+      explanation: "Роль и доступное имя - то, как кнопку находит и пользователь, и вспомогательные технологии. getByText работает, но не проверяет, что это кнопка."
+    - id: "q2"
+      type: "single"
+      prompt: "Чем queryByText отличается от getByText?"
+      options:
+        - "queryByText асинхронный."
+        - "Если элемента нет, getByText выбрасывает ошибку, а queryByText возвращает null."
+        - "queryByText ищет по роли."
+        - "Ничем."
+      answer: 1
+      explanation: "Для проверки отсутствия используют queryBy: expect(screen.queryByText(\"x\")).toBeNull()."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что нужно, чтобы дождаться элемента, который появится после ответа сервера?"
+      options:
+        - "await screen.findByText(\"Готово\")"
+        - "await waitFor(() => expect(screen.getByText(\"Готово\")).toBeTruthy())"
+        - "screen.getByText(\"Готово\") сразу после клика"
+        - "setTimeout на фиксированное время и getBy"
+      answer:
+        - 0
+        - 1
+      explanation: "findBy - это getBy внутри waitFor. Фиксированная пауза делает тест медленным и нестабильным, а немедленный getBy выполнится слишком рано."
+    - id: "q4"
+      type: "single"
+      prompt: "Что обязательно при использовании @testing-library/user-event 14?"
+      options:
+        - "Вызвать userEvent.setup() и ожидать каждое действие через await."
+        - "Обернуть каждый клик в act вручную."
+        - "Использовать только fireEvent."
+        - "Включить фальшивые таймеры."
+      answer: 0
+      explanation: "Действия user-event асинхронны. Библиотека сама оборачивает обновления в act, поэтому вручную его вызывать не нужно."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция Testing Library, повторяющая проверку до успеха или до таймаута? Одно слово (с учётом регистра не важно)."
+      answer:
+        - "waitFor"
+        - "waitfor"
+      explanation: "waitFor повторяет колбэк, пока тот не перестанет бросать ошибку, или пока не истечёт таймаут."
+exercise:
+  id: "react.fundamentals.testing-library.exercise"
+  title: "Поиск пользователей и раскрывающаяся секция"
+  prompt: |
+    Нужно написать два компонента, которые проверяются тестами в стиле Testing Library и `user-event` (найти по роли и метке, кликнуть, напечатать, дождаться результата).
+
+    **`src/SearchUsers.jsx`** - `SearchUsers({ search })`. `search(query)` возвращает промис с массивом имён (строк). Это `<form>` с:
+
+    * `<label>Имя<input/></label>` - управляемое поле;
+    * кнопкой `<button type="submit">Найти</button>`, отключённой, пока идёт поиск.
+
+    По отправке формы (клик или Enter): значение обрезается по краям; если после обрезки пусто - ничего не происходит и `search` не вызывается. Иначе во время ожидания показывается `<p role="status">Поиск...</p>`; после ответа - `<ul>` с `<li>` на имя или, если массив пуст, абзац `Ничего не найдено` (без списка); если промис отклонён - `<p role="alert">Не удалось выполнить поиск</p>`.
+
+    **`src/Accordion.jsx`** - `Accordion({ title, children, defaultOpen = false })`. Секция `<section>` с заголовком `<h3>`, в котором лежит `<button type="button" aria-expanded={open}>` с текстом `title`. Панель с содержимым (`<div>{children}</div>`) есть в DOM только когда секция раскрыта. Клик переключает состояние; `defaultOpen` задаёт начальное.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/SearchUsers.jsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "react", "react-dom", "@testing-library/react", "@testing-library/user-event"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "SearchUsers хранит query (текст поля) и состояние поиска: { status: \"idle\" | \"loading\" | \"done\" | \"error\", names }. Обработчик onSubmit: preventDefault, trim, ранний return для пустой строки."
+    - "Асинхронную часть удобно писать через async-обработчик: setState(loading); try { const names = await search(clean); setState(done) } catch { setState(error) }."
+    - "Accordion: const [open, setOpen] = useState(defaultOpen); кнопка внутри <h3> с aria-expanded={open}; содержимое выводится как {open && <div>{children}</div>}."
+    - "Роль и имя определяют, найдёт ли тест элемент: кнопка в <h3> остаётся кнопкой, а <h3> остаётся заголовком. Не заменяйте button на div."
+  tests:
+    - id: "search-find"
+      title: "SearchUsers: поиск и результаты"
+      match: "SearchUsers > находит пользователей*"
+      hint: "Результат поиска выводится списком <ul> с <li> на каждое имя; search вызывается с введённым текстом."
+    - id: "search-enter"
+      title: "SearchUsers: Enter"
+      match: "SearchUsers > клавиша Enter*"
+      hint: "Обработчик должен висеть на onSubmit формы, а не на onClick кнопки: тогда Enter тоже работает."
+    - id: "accordion-closed"
+      title: "Accordion: закрыт по умолчанию"
+      match: "Accordion > по умолчанию закрыт*"
+      hint: "Пока секция закрыта, aria-expanded равен false, а содержимого нет в DOM."
+    - id: "accordion-toggle"
+      title: "Accordion: переключение"
+      match: "Accordion > клик раскрывает*"
+      hint: "Клик по кнопке переключает состояние open, а aria-expanded повторяет его."
+    - id: "search-loading"
+      title: "SearchUsers: статус загрузки (скрытый)"
+      match: "SearchUsers > пока идёт поиск*"
+      hidden: true
+      hint: "Во время ожидания покажите <p role=\"status\">Поиск...</p> и поставьте disabled на кнопку."
+    - id: "search-empty-result"
+      title: "SearchUsers: ничего не найдено (скрытый)"
+      match: "SearchUsers > если никого*"
+      hidden: true
+      hint: "Для пустого массива выведите абзац «Ничего не найдено» вместо <ul>."
+    - id: "search-error"
+      title: "SearchUsers: ошибка (скрытый)"
+      match: "SearchUsers > при ошибке*"
+      hidden: true
+      hint: "Поймайте отклонение промиса и покажите <p role=\"alert\">Не удалось выполнить поиск</p>."
+    - id: "search-trim"
+      title: "SearchUsers: trim (скрытый)"
+      match: "SearchUsers > обрезает*"
+      hidden: true
+      hint: "В search передавайте query.trim()."
+    - id: "search-blank"
+      title: "SearchUsers: пустой запрос (скрытый)"
+      match: "SearchUsers > пустой запрос*"
+      hidden: true
+      hint: "Если после trim строка пуста, выйдите из обработчика, не вызывая search и не показывая статус."
+    - id: "accordion-default-open"
+      title: "Accordion: defaultOpen (скрытый)"
+      match: "Accordion > defaultOpen*"
+      hidden: true
+      hint: "Начальное состояние: useState(defaultOpen)."
+    - id: "accordion-keyboard"
+      title: "Accordion: клавиатура (скрытый)"
+      match: "Accordion > работает с клавиатуры*"
+      hidden: true
+      hint: "Используйте настоящий <button>: он получает фокус по Tab и срабатывает по Enter без дополнительного кода."
+    - id: "accordion-heading"
+      title: "Accordion: заголовок (скрытый)"
+      match: "Accordion > заголовок секции*"
+      hidden: true
+      hint: "Кнопка лежит внутри <h3>, поэтому у секции есть заголовок с ролью heading."

@@ -49,12 +49,12 @@ indicative, the status column as factual.
 
 Curriculum details: [docs/curriculum/javascript-ecosystem.md](docs/curriculum/javascript-ecosystem.md).
 Runtime today: `javascript` and `typescript` single-file execution (Node ≥ 22.6 for TS). Everything needing
-npm packages, a dev server or a browser is blocked on Project Workspaces.
+a dev server or a browser is blocked on Project Workspaces; exercises graded by Vitest use the pinned node content environment (`make node-env`).
 
 | Phase | Scope | Status |
 |---|---|---|
 | A. Foundations | JavaScript, TypeScript, Node.js, HTML/CSS/Browser | Partial: intro courses `javascript-first-steps`, `typescript-first-steps`, `nodejs-first-steps` (2 lessons each, see catalog). HTML/CSS/Browser: Planned (needs web preview module) |
-| B. Core frameworks | React, Vue, Angular, Express, Fastify, NestJS | Planned |
+| B. Core frameworks | React, Vue, Angular, Express, Fastify, NestJS | Partial: `react-fundamentals` (6 lessons, graded by real Vitest + Testing Library in the sandbox, packages from the pinned node content environment). Others: Planned |
 | C. Fullstack | Next.js, Nuxt, SvelteKit, Astro | Planned |
 | D. Advanced ecosystem | State management, ORMs, testing (Vitest/Jest/Playwright), performance, security, deploy | Planned |
 | E. Additional | SolidJS, Qwik, Hono, AdonisJS, TanStack Start | Planned |

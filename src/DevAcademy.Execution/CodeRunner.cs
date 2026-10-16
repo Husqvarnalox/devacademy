@@ -74,6 +74,22 @@ public sealed class CodeRunner : ICodeRunner
                 notes.Add("A Python environment is selected, so the run uses OsSandbox instead of a container.");
             }
         }
+        string? nodeModules = null;
+        if (request.Node is { } nodeEnv)
+        {
+            if (runtime.LanguageId is not ("javascript" or "typescript"))
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A node environment only applies to JavaScript and TypeScript.", IsolationLevel.ProcessLimits);
+            foreach (SourceFile f in request.Files)
+                if (f.Path.Split('/', '\\')[0] == "node_modules")
+                    throw new ArgumentException($"File path '{f.Path}' is inside node_modules, which is provided by the node environment.", nameof(request));
+            string? nodeProblem = CheckNodeSelection(nodeEnv, out nodeModules);
+            if (nodeProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, nodeProblem, IsolationLevel.ProcessLimits);
+            if (requestedLevel == IsolationLevel.Container)
+            {
+                requestedLevel = IsolationLevel.OsSandbox;
+                notes.Add("A node environment is selected, so the run uses OsSandbox instead of a container.");
+            }
+        }
         ICommandRuntime? commandRuntime = null;
         if (request.Command is { } argv)
         {
@@ -105,6 +121,15 @@ public sealed class CodeRunner : ICodeRunner
         var program = new PreparedProgram(this, runtime.LanguageId, workDir, sandbox, applied, string.Join(" ", notes));
         try
         {
+            if (nodeModules is not null)
+            {
+                try { Directory.CreateSymbolicLink(Path.Combine(workDir, "node_modules"), nodeModules); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+                {
+                    await program.DisposeAsync().ConfigureAwait(false);
+                    return Failed(request.LanguageId, ExecutionStatus.InternalError, $"Could not link the node environment into the work directory: {ex.Message}", applied);
+                }
+            }
             WriteFiles(workDir, request.Files);
             BuildPlan plan;
             if (commandRuntime is not null)
@@ -119,6 +144,12 @@ public sealed class CodeRunner : ICodeRunner
             {
                 plan = runtime.CreatePlan(workDir, entry, status);
                 if (readOnly is not null) plan = plan with { Run = plan.Run with { ReadOnlyPaths = readOnly } };
+            }
+            if (nodeModules is not null)
+            {
+                // The link target must stay unwritable even if a sandbox allows writes somewhere above it.
+                string[] ro = [.. plan.Run.ReadOnlyPaths ?? [], nodeModules];
+                plan = new BuildPlan(plan.CompileSteps.Select(c => c with { ReadOnlyPaths = ro }).ToList(), plan.Run with { ReadOnlyPaths = ro });
             }
             await program.CompileAsync(plan, ct).ConfigureAwait(false);
         }
@@ -169,6 +200,20 @@ public sealed class CodeRunner : ICodeRunner
             if (env.StartsWith(w, StringComparison.Ordinal))
                 return "The selected Python environment lies inside a writable sandbox area and cannot be mounted read-only.";
         }
+        return null;
+    }
+
+    /// <summary>The environment must contain node_modules and must not be inside a writable sandbox area. On success <paramref name="nodeModules"/> is its real path.</summary>
+    private string? CheckNodeSelection(NodeRunSelection node, out string? nodeModules)
+    {
+        nodeModules = null;
+        string modules = Path.Combine(Path.GetFullPath(node.EnvironmentPath), "node_modules");
+        if (!Directory.Exists(modules)) return $"The node environment '{node.EnvironmentPath}' has no node_modules (run `make node-env` or install the course packages in Settings).";
+        string real = MacSandboxExecSandbox.RealPath(modules).TrimEnd(Path.DirectorySeparatorChar);
+        string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
+            return "The node environment lies inside a writable sandbox area and cannot be mounted read-only.";
+        nodeModules = real;
         return null;
     }
 

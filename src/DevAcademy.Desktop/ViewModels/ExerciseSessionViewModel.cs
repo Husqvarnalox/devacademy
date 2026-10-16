@@ -400,6 +400,12 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     {
         AcceleratorBlock = null;
         EnvironmentNotice = null;
+        if (Exercise is not null && LanguageId == "javascript" && Exercise.ForVariant(LanguageId).NeedsNodeEnvironment)
+        {
+            try { EnvironmentNotice = (await _s.Node.ResolveAsync(Exercise.ForVariant(LanguageId), CancellationToken.None)).BlockedMessage; }
+            catch (Exception ex) when (ex is not OperationCanceledException) { EnvironmentNotice = null; }
+            return;
+        }
         if (Exercise is null || LanguageId != "python") return;
         var variant = Exercise.ForVariant(LanguageId);
         if (variant.Accelerator == AcceleratorNeed.None) return;

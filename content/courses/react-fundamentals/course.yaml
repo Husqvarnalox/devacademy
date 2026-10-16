@@ -1,0 +1,56 @@
+id: react-fundamentals
+version: 1.0.0
+title: "React: основы"
+description: >-
+  Курс по React для тех, кто прошёл «JavaScript: основы языка». React здесь - библиотека для описания интерфейса, а не фреймворк:
+  маршрутизации, загрузки данных и сборки в ней нет. Шесть уроков: компоненты и JSX, props, композиция и ключи, состояние useState,
+  события и формы, эффекты и их очистка, тестирование через Testing Library. Все упражнения проверяются настоящими инструментами
+  (Vitest, jsdom, Testing Library) в песочнице без сети; для этого один раз нужно установить пакеты курсов (Настройки - Среды выполнения).
+  Браузерный DOM в проверках имитирует jsdom, поэтому курс не учит стилям, размерам и раскладке. Классовые компоненты, Redux, роутинг,
+  Next.js и серверные компоненты в курс не входят.
+languageId: javascript
+level: 2
+track: react
+requires: [javascript-fundamentals]
+lessons:
+  - 01-what-is-react
+  - 02-props-composition-keys
+  - 03-state-with-usestate
+  - 04-events-and-forms
+  - 05-effects
+  - 06-testing-library
+framework:
+  id: react
+  version: "19.3.x"
+  docs:
+    - https://react.dev/
+    - https://react.dev/reference/react
+    - https://testing-library.com/docs/react-testing-library/intro/
+    - https://vitest.dev/
+  compatibility: "React и react-dom 19.3.1; Node.js >= 22.13; Vitest 5.0.5 на Vite 8.3.4 (JSX через встроенный oxc, автоматический runtime); jsdom 29.1.1; @testing-library/react 16.3.3, @testing-library/dom 10.4.2, @testing-library/user-event 14.6.8. Версии зафиксированы в tools/node-content/package-lock.json. Только функциональные компоненты и хуки."
+  deprecated:
+    - feature: "ReactDOM.render, ReactDOM.hydrate, ReactDOM.unmountComponentAtNode"
+      status: removed
+      note: "В react-dom 19 этих экспортов нет (проверено по экспортам установленной версии: остались createPortal, flushSync, preload и др.). Используйте createRoot и hydrateRoot из react-dom/client."
+    - feature: "ReactDOM.findDOMNode"
+      status: removed
+      note: "В react-dom 19 экспорта нет. Берите узел через ref."
+    - feature: "React.createFactory и PropTypes из пакета react"
+      status: removed
+      note: "В установленной версии react.createFactory и react.PropTypes отсутствуют. Для проверки типов используйте TypeScript."
+    - feature: "Классовые компоненты (React.Component)"
+      status: legacy
+      note: "Класс Component по-прежнему экспортируется и работает, но новые компоненты пишут функциями с хуками. Курс классы не изучает. Границы ошибок (error boundaries) пока можно сделать только классом."
+    - feature: "forwardRef"
+      status: legacy
+      note: "В React 19 функциональный компонент получает ref как обычный prop, поэтому forwardRef нужен в основном для кода под старые версии. Функция по-прежнему экспортируется."
+    - feature: "useFormState из react-dom"
+      status: renamed
+      note: "Переименован в useActionState из пакета react. Старое имя в react-dom 19.3 ещё экспортируется."
+  migrationNotes: |
+    **React 18 -> 19 (что важно для кода курса).**
+
+    * Корень создаётся только через `createRoot(container).render(...)`; `ReactDOM.render` удалён.
+    * `ref` передаётся функциональному компоненту как обычный prop; `forwardRef` больше не обязателен.
+    * Тесты, которые обновляют состояние вне событий Testing Library, оборачивают в `act` из пакета `react` (а не из `react-dom/test-utils`).
+    * Новая мажорная версия React требует нового издания курса: примеры не обновляются «молча».

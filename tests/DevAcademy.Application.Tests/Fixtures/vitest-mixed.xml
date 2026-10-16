@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="11" failures="4" errors="0" time="0.07194825">
+    <testsuite name="tests/product.test.jsx" timestamp="2026-10-16T07:49:15.598Z" hostname="host" tests="11" failures="4" errors="0" skipped="0" time="0.07194825">
+        <testcase classname="tests/product.test.jsx" name="formatPrice &gt; рубли и копейки" time="0.002529458">
+            <failure message="expected &apos;7.0 ₽&apos; to be &apos;7.00 ₽&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;7.0 ₽&apos; to be &apos;7.00 ₽&apos; // Object.is equality
+
+Expected: &quot;7.00 ₽&quot;
+Received: &quot;7.0 ₽&quot;
+
+ ❯ tests/product.test.jsx:10:30
+            </failure>
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="formatPrice &gt; копейки всегда двузначные" time="0.000375625">
+            <failure message="expected &apos;0.5 ₽&apos; to be &apos;0.05 ₽&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;0.5 ₽&apos; to be &apos;0.05 ₽&apos; // Object.is equality
+
+Expected: &quot;0.05 ₽&quot;
+Received: &quot;0.5 ₽&quot;
+
+ ❯ tests/product.test.jsx:13:28
+            </failure>
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductCard &gt; показывает название заголовком" time="0.044685833">
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductCard &gt; показывает цену" time="0.0029485">
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductCard &gt; в наличии: есть кнопка «Купить»" time="0.005487209">
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductCard &gt; нет в наличии: вместо кнопки надпись" time="0.000885417">
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductCard &gt; результат зависит только от props: новые props дают новый вывод" time="0.00438475">
+            <failure message="Unable to find an element with the text: 0.05 ₽. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+&lt;body&gt;
+  &lt;div&gt;
+    &lt;article&gt;
+      &lt;h3&gt;
+        Кофе
+      &lt;/h3&gt;
+      &lt;p&gt;
+        0.5 ₽
+      &lt;/p&gt;
+      &lt;p&gt;
+        Нет в наличии
+      &lt;/p&gt;
+    &lt;/article&gt;
+  &lt;/div&gt;
+&lt;/body&gt;" type="TestingLibraryElementError">
+TestingLibraryElementError: Unable to find an element with the text: 0.05 ₽. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+&lt;body&gt;
+  &lt;div&gt;
+    &lt;article&gt;
+      &lt;h3&gt;
+        Кофе
+      &lt;/h3&gt;
+      &lt;p&gt;
+        0.5 ₽
+      &lt;/p&gt;
+      &lt;p&gt;
+        Нет в наличии
+      &lt;/p&gt;
+    &lt;/article&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+ ❯ Object.getElementError ../../../../../../..
+ ❯ ../../../../../../..
+ ❯ ../../../../../../..
+ ❯ ../../../../../../..
+ ❯ tests/product.test.jsx:47:19
+            </failure>
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductCard &gt; не изменяет переданные props" time="0.000565584">
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductList &gt; рисует по элементу списка на товар" time="0.003630541">
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductList &gt; внутри элементов лежат карточки с названиями" time="0.004489292">
+            <failure message="Unable to find an element with the text: 0.05 ₽. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+&lt;li&gt;
+  &lt;article&gt;
+    &lt;h3&gt;
+      Какао
+    &lt;/h3&gt;
+    &lt;p&gt;
+      0.5 ₽
+    &lt;/p&gt;
+    &lt;button
+      type=&quot;button&quot;
+    &gt;
+      Купить
+    &lt;/button&gt;
+  &lt;/article&gt;
+&lt;/li&gt;" type="TestingLibraryElementError">
+TestingLibraryElementError: Unable to find an element with the text: 0.05 ₽. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+&lt;li&gt;
+  &lt;article&gt;
+    &lt;h3&gt;
+      Какао
+    &lt;/h3&gt;
+    &lt;p&gt;
+      0.5 ₽
+    &lt;/p&gt;
+    &lt;button
+      type=&quot;button&quot;
+    &gt;
+      Купить
+    &lt;/button&gt;
+  &lt;/article&gt;
+&lt;/li&gt;
+ ❯ Object.getElementError ../../../../../../..
+ ❯ ../../../../../../..
+ ❯ ../../../../../../..
+ ❯ ../../../../../../..
+ ❯ tests/product.test.jsx:74:29
+            </failure>
+        </testcase>
+        <testcase classname="tests/product.test.jsx" name="ProductList &gt; пустой список: абзац вместо списка" time="0.000826916">
+        </testcase>
+    </testsuite>
+</testsuites>

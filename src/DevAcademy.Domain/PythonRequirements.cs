@@ -7,12 +7,26 @@ namespace DevAcademy.Domain;
 public enum AcceleratorNeed { None, Optional, Required }
 
 /// <summary>
-/// Python requirements of an exercise: an interpreter version specifier (<c>&gt;=3.11</c>) and package requirements
-/// (<c>numpy&gt;=2</c>). Plain syntax checks live in <see cref="PythonPackageSpec"/> / <see cref="PythonSpecifierSet"/>.
+/// Environment requirements of an exercise. Python: an interpreter version specifier (<c>&gt;=3.11</c>) and package requirements
+/// (<c>numpy&gt;=2</c>); plain syntax checks live in <see cref="PythonPackageSpec"/> / <see cref="PythonSpecifierSet"/>.
+/// Node.js (javascript exercises): a Node version specifier (same clause syntax, <c>&gt;=22</c>) and npm package names that must be
+/// installed in the node content environment (<c>vitest</c>, <c>@testing-library/react</c>).
 /// </summary>
-public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages)
+public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages, string? Node = null, IReadOnlyList<string>? NpmPackages = null)
 {
-    public bool IsEmpty => string.IsNullOrWhiteSpace(Python) && Packages.Count == 0;
+    public IReadOnlyList<string> Npm => NpmPackages ?? [];
+    public bool HasPython => !string.IsNullOrWhiteSpace(Python) || Packages.Count > 0;
+    public bool HasNode => !string.IsNullOrWhiteSpace(Node) || Npm.Count > 0;
+    public bool IsEmpty => !HasPython && !HasNode;
+}
+
+/// <summary>An npm package name as it appears in <c>requires.npmPackages</c>: a lower-case (optionally scoped) registry name, no versions, URLs or paths.</summary>
+public static partial class NpmPackageName
+{
+    [GeneratedRegex(@"^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex Pattern();
+
+    public static bool IsValid(string? name) => name is { Length: > 0 and <= 214 } && Pattern().IsMatch(name);
 }
 
 /// <summary>

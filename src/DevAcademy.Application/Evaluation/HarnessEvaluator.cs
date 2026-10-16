@@ -52,7 +52,7 @@ public sealed class HarnessEvaluator(ICodeRunner runner) : IExerciseEvaluator
     public EvaluationKind Kind => EvaluationKind.Harness;
 
     public async Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null)
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null)
     {
         if (string.IsNullOrWhiteSpace(exercise.HarnessEntry))
             return EvaluationReport.Failure(Verdict.Error, $"Content error: exercise '{exercise.Id}' has no harnessEntry", isolation);

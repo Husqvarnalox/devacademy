@@ -11,16 +11,17 @@ namespace DevAcademy.Application.Evaluation;
 /// </summary>
 public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
 {
+    private const long NodeToolMemoryBytes = 2048L * 1024 * 1024;
     private const int MaxReportBytes = 4 * 1024 * 1024;
 
     public EvaluationKind Kind => EvaluationKind.Command;
 
     public async Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null)
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null)
     {
         if (exercise.Command is not { } spec)
             return EvaluationReport.Failure(Verdict.Error, $"Content error: exercise '{exercise.Id}' has no command", isolation);
-        if (CommandPolicy.Check(exercise.LanguageId, spec.Run) is { } problem)
+        if (CommandPolicy.Resolve(exercise.LanguageId, spec, out var argv) is { } problem)
             return EvaluationReport.Failure(Verdict.Error, $"Content error: {problem}", isolation);
 
         // Test files win over learner files at the same path, and the learner cannot pre-create the report file.
@@ -29,12 +30,12 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
         var reserved = tests.Select(t => t.Path).Concat(spec.ReportFile is null ? [] : [spec.ReportFile]).ToHashSet(StringComparer.Ordinal);
         var files = EvaluatorSupport.ToSource(learnerFiles.Where(f => !reserved.Contains(f.Path)).Concat(tests));
 
-        var request = new ExecutionRequest(exercise.LanguageId, files, exercise.EntryFile, isolation, null, spec.Run);
+        var request = new ExecutionRequest(exercise.LanguageId, files, exercise.EntryFile, isolation, null, argv, node);
         await using var program = await runner.PrepareAsync(request, ct);
         if (program.PreparationFailure is { } failure) return EvaluatorSupport.FromPreparationFailure(failure);
 
         var seconds = Math.Clamp(spec.TimeoutSeconds ?? CommandPolicy.DefaultTimeoutSeconds, 1, CommandPolicy.MaxTimeoutSeconds);
-        var limits = ResourceLimits.DefaultCommand with { WallTimeout = TimeSpan.FromSeconds(seconds) };
+        var limits = ResourceLimits.DefaultCommand with { MaxMemoryBytes = spec.UsesNodeTool ? NodeToolMemoryBytes : ResourceLimits.DefaultCommand.MaxMemoryBytes, WallTimeout = TimeSpan.FromSeconds(seconds) };
         var result = await program.RunAsync(null, limits, ct);
         if (result.Status is ExecutionStatus.RuntimeMissing or ExecutionStatus.InternalError or ExecutionStatus.Cancelled)
             return new EvaluationReport(result.Status == ExecutionStatus.RuntimeMissing ? Verdict.RuntimeMissing : Verdict.Error,

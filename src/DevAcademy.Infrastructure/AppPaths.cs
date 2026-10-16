@@ -16,6 +16,8 @@ public sealed class AppPaths
     public string BackupsDir => Path.Combine(DataDir, "backups");
     /// <summary>Managed Python virtual environments: <c>python-envs/&lt;name&gt;</c>.</summary>
     public string PythonEnvsDir => Path.Combine(DataDir, "python-envs");
+    /// <summary>The node content environment (<c>package.json</c>, lock and <c>node_modules</c> for React/Vitest exercises), created only by an explicit install.</summary>
+    public string NodeContentDir => Path.Combine(DataDir, "node-content");
 
     private static string DefaultDataDir()
     {

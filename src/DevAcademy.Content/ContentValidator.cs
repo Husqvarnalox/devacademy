@@ -230,14 +230,23 @@ public static class ContentValidator
         if (ex.HasExplicitVariants) error(path, $"{label}: command evaluation does not support 'variants'");
         if (ex.Command is not { } cmd) { error(path, $"{label}: command evaluation needs 'command'"); return; }
 
-        if (CommandPolicy.Check(ex.LanguageId, cmd.Run) is { } problem) error(path, $"{label}: {problem}");
+        if (CommandPolicy.Resolve(ex.LanguageId, cmd, out var argv) is { } problem) error(path, $"{label}: {problem}");
+        else if (cmd.UsesNodeTool)
+        {
+            if (ex.Requires?.Npm.Contains(cmd.Tool!, StringComparer.Ordinal) != true)
+                error(path, $"{label}: command.tool '{cmd.Tool}' needs requires.npmPackages to list '{cmd.Tool}'");
+            if (cmd.Report != CommandReportFormat.Junit || cmd.ReportFile is null)
+                error(path, $"{label}: a {cmd.Tool} command reports through junit: set report: junit and reportFile (matching --outputFile=)");
+            else if (!argv.Contains("--outputFile=" + cmd.ReportFile, StringComparer.Ordinal) || !argv.Contains("--reporter=junit", StringComparer.Ordinal))
+                error(path, $"{label}: command.args must contain --reporter=junit and --outputFile={cmd.ReportFile}");
+        }
         if (cmd.TimeoutSeconds is { } to && (to < 1 || to > CommandPolicy.MaxTimeoutSeconds))
             error(path, $"{label}: command.timeoutSeconds must be 1-{CommandPolicy.MaxTimeoutSeconds}, got {to}");
         if (cmd.ReportFile is { } rf && (string.IsNullOrWhiteSpace(rf) || Path.IsPathRooted(rf) || rf.Split('/', '\\').Contains("..")))
             error(path, $"{label}: command.reportFile must be a relative path without '..'");
         if (cmd.Report == CommandReportFormat.GoTestJson && cmd.ReportFile is not null)
             error(path, $"{label}: go-test-json reports are read from stdout; remove command.reportFile");
-        if (cmd.Report == CommandReportFormat.Junit && cmd.ReportFile is null && !cmd.Run.Any(a => a.Contains("junit", StringComparison.Ordinal)))
+        if (!cmd.UsesNodeTool && cmd.Report == CommandReportFormat.Junit && cmd.ReportFile is null && !cmd.Run.Any(a => a.Contains("junit", StringComparison.Ordinal)))
             error(path, $"{label}: a junit report needs command.reportFile (or a junit reporter writing to stdout)");
         if (cmd.TestsTarget != "." && (Path.IsPathRooted(cmd.TestsTarget) || cmd.TestsTarget.Split('/', '\\').Contains("..")))
             error(path, $"{label}: command.testsTarget must be '.' or a relative path without '..'");
@@ -265,8 +274,13 @@ public static class ContentValidator
     private static void CheckRequirements(Exercise ex, string path, string label, Action<string, string> error, Action<string, string> warn)
     {
         var usesPython = ex.AllVariants.Any(v => v.LanguageId == "python");
-        if ((ex.HasRequirements || ex.Accelerator != AcceleratorNeed.None) && !usesPython)
-            error(path, $"{label}: 'requires' / 'accelerator' only apply to Python exercises, but no variant is python");
+        var usesJavaScript = ex.AllVariants.Any(v => v.LanguageId == "javascript");
+        if ((ex.Requires is { HasPython: true } || ex.Accelerator != AcceleratorNeed.None) && !usesPython)
+            error(path, $"{label}: 'requires.python/packages' and 'accelerator' only apply to Python exercises, but no variant is python");
+        if (ex.Requires is { HasNode: true } && !usesJavaScript)
+            error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript exercises, but no variant is javascript");
+        if (ex.Command is { UsesNodeTool: true } && ex.Requires is not { HasNode: true })
+            error(path, $"{label}: command.tool needs requires.npmPackages");
         if (ex.Requires is { } req)
         {
             if (req.Python is { } py)
@@ -279,6 +293,17 @@ public static class ContentValidator
             {
                 if (!PythonPackageSpec.TryParse(pkg, out var spec, out var err)) error(path, $"{label}: requires.packages: {err}");
                 else if (!seen.Add(spec.NormalizedName)) error(path, $"{label}: requires.packages lists '{spec.Name}' twice");
+            }
+            if (req.Node is { } node)
+            {
+                if (!PythonSpecifierSet.TryParse(node, out var nset, out var nerr)) error(path, $"{label}: requires.node: {nerr}");
+                else if (nset.Clauses.Count == 0) error(path, $"{label}: requires.node is empty");
+            }
+            var npmSeen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var pkg in req.Npm)
+            {
+                if (!NpmPackageName.IsValid(pkg)) error(path, $"{label}: requires.npmPackages: '{pkg}' is not a plain npm package name (no versions, URLs or paths)");
+                else if (!npmSeen.Add(pkg)) error(path, $"{label}: requires.npmPackages lists '{pkg}' twice");
             }
         }
         if (ex.Accelerator == AcceleratorNeed.Required && !(ex.Requires?.Packages.Count > 0))

@@ -11,9 +11,12 @@ PYTHON   ?= python3
 PYENV_BIN := $(if $(filter Windows_NT,$(OS)),Scripts,bin)
 # Use the content venv automatically when it exists (otherwise exercises that need packages only warn).
 PYENV_ARG = $(if $(wildcard $(PYENV)),--python-env $(PYENV),)
+# Node content environment: node_modules for React/Vitest exercises, pinned by tools/node-content/package-lock.json.
+NODEENV  ?= .node-content
+NODEENV_ARG = $(if $(wildcard $(NODEENV)/node_modules),--node-env $(NODEENV),)
 
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
-        python-env runtimes publish package checksums version notices clean
+        python-env node-env runtimes publish package checksums version notices clean
 
 help:
 	@echo "setup             restore packages and report detected language runtimes"
@@ -26,6 +29,7 @@ help:
 	@echo "format            apply formatting"
 	@echo "validate-content  validate content + run reference solutions and samples"
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
+	@echo "node-env          npm ci tools/node-content into $(NODEENV) (Vitest, React, Testing Library; DOWNLOADS from npm)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
 	@echo "package           installer(s) for RID=$(RID) on this OS into artifacts/package (.app+.dmg on macOS, AppImage+.deb on Linux)"
@@ -63,14 +67,21 @@ format:
 	dotnet format whitespace $(SLN)
 
 validate-content:
-	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG)
+	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG)
 	@if [ -z "$(PYENV_ARG)" ]; then echo "note: no $(PYENV); exercises that need Python packages were skipped (run: make python-env)"; fi
+	@if [ -z "$(NODEENV_ARG)" ]; then echo "note: no $(NODEENV); exercises that need npm packages were skipped (run: make node-env)"; fi
 
 python-env:
 	@echo "NOTE: this downloads packages from PyPI into $(PYENV) (nothing is installed globally)."
 	$(PYTHON) -m venv $(PYENV)
 	$(PYENV)/$(PYENV_BIN)/python -m pip install --disable-pip-version-check -r tools/python-dev-requirements.txt
 	-dotnet run --project $(CLI) -- python-env-check --python-env $(PYENV) --content $(CONTENT)
+
+node-env:
+	@echo "NOTE: this downloads packages from npm into $(NODEENV) (nothing is installed globally; install scripts are disabled)."
+	mkdir -p $(NODEENV)
+	cp tools/node-content/package.json tools/node-content/package-lock.json $(NODEENV)/
+	cd $(NODEENV) && npm ci --ignore-scripts --no-audit --no-fund
 
 runtimes:
 	dotnet run --project $(CLI) -- runtimes
@@ -79,6 +90,7 @@ publish:
 	dotnet publish $(DESKTOP) -c Release -r $(RID) --self-contained true \
 	  -p:PublishSingleFile=true -o artifacts/$(RID)
 	cp -R $(CONTENT) artifacts/$(RID)/content
+	mkdir -p artifacts/$(RID)/node-content && cp tools/node-content/package.json tools/node-content/package-lock.json artifacts/$(RID)/node-content/
 	cd artifacts && shasum -a 256 -b $$(find $(RID) -maxdepth 1 -type f) > $(RID).sha256
 
 version:

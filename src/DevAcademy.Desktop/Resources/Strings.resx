@@ -373,6 +373,17 @@
   <data name="Py_InstallDone" xml:space="preserve"><value>Установка завершена.</value></data>
   <data name="Py_InstallCancelled" xml:space="preserve"><value>Установка прервана.</value></data>
   <data name="Py_Error" xml:space="preserve"><value>Ошибка: {0}</value></data>
+  <data name="Node_Title" xml:space="preserve"><value>npm-пакеты для курсов</value></data>
+  <data name="Node_Description" xml:space="preserve"><value>Упражнения по React проверяются настоящими Vitest, jsdom и Testing Library. Пакеты ставятся один раз в отдельный каталог (не глобально, скрипты установки отключены) и при проверке доступны только для чтения, без сети.</value></data>
+  <data name="Node_Install" xml:space="preserve"><value>Установить пакеты для курсов (npm ci, нужна сеть)</value></data>
+  <data name="Node_Installed" xml:space="preserve"><value>Пакеты установлены.</value></data>
+  <data name="Node_NotInstalled" xml:space="preserve"><value>Пакеты не установлены: упражнения по React не смогут проверяться.</value></data>
+  <data name="Node_NoNode" xml:space="preserve"><value>Node.js не найден: установите Node.js 22 или новее.</value></data>
+  <data name="Node_Version" xml:space="preserve"><value>Node.js {0}.</value></data>
+  <data name="Node_Missing" xml:space="preserve"><value>(нет)</value></data>
+  <data name="Node_ConfirmTitle" xml:space="preserve"><value>Установить пакеты для курсов</value></data>
+  <data name="Node_ConfirmIntro" xml:space="preserve"><value>Будет выполнена команда:</value></data>
+  <data name="Node_ConfirmNetwork" xml:space="preserve"><value>Пакеты будут скачаны из интернета (реестр npm) — это сетевая операция. Версии зафиксированы в package-lock.json, скрипты установки не запускаются, глобально ничего не ставится.</value></data>
   <data name="Ml_Title" xml:space="preserve"><value>ML-ускорение</value></data>
   <data name="Ml_Description" xml:space="preserve"><value>Что есть на этой машине и что видят ML-фреймворки. По умолчанию всё считается на CPU; ускоритель нужен только упражнениям, которые его явно требуют.</value></data>
   <data name="Ml_System" xml:space="preserve"><value>{0} · {1} · {2} · ядер: {3} · ОЗУ: {4} ГБ</value></data>
@@ -806,4 +817,59 @@
   <data name="Dbg_BuildFailed" xml:space="preserve"><value>Сборка с отладочной информацией не удалась:</value></data>
   <data name="Dbg_CommandGraded" xml:space="preserve"><value>Отладка недоступна: в этом задании проверяется набор файлов командой, а не одна программа.</value></data>
   <data name="Dbg_RuntimeMissing" xml:space="preserve"><value>Отладка недоступна: для выбранного языка не установлена среда выполнения.</value></data>
+  <data name="Nb_NoSandbox" xml:space="preserve"><value>Ядро блокнота — обычный процесс Python: оно работает с вашими правами и вашим доступом к сети, без песочницы. Выполняйте только тот код, которому доверяете.</value></data>
+  <data name="Nb_Environment" xml:space="preserve"><value>Окружение Python</value></data>
+  <data name="Nb_RunCell" xml:space="preserve"><value>Выполнить</value></data>
+  <data name="Nb_RunAll" xml:space="preserve"><value>Выполнить всё</value></data>
+  <data name="Nb_Interrupt" xml:space="preserve"><value>Прервать</value></data>
+  <data name="Nb_Restart" xml:space="preserve"><value>Перезапустить ядро</value></data>
+  <data name="Nb_RestartTitle" xml:space="preserve"><value>Перезапустить ядро?</value></data>
+  <data name="Nb_RestartMessage" xml:space="preserve"><value>Все переменные ядра будут потеряны. Выводы ячеек останутся.</value></data>
+  <data name="Nb_ClearOutputs" xml:space="preserve"><value>Очистить выводы</value></data>
+  <data name="Nb_AddCode" xml:space="preserve"><value>+ Код</value></data>
+  <data name="Nb_AddMarkdown" xml:space="preserve"><value>+ Текст</value></data>
+  <data name="Nb_Delete" xml:space="preserve"><value>Удалить ячейку</value></data>
+  <data name="Nb_Up" xml:space="preserve"><value>Вверх</value></data>
+  <data name="Nb_Down" xml:space="preserve"><value>Вниз</value></data>
+  <data name="Nb_Edit" xml:space="preserve"><value>Править</value></data>
+  <data name="Nb_Render" xml:space="preserve"><value>Показать</value></data>
+  <data name="Nb_Close" xml:space="preserve"><value>Закрыть блокнот</value></data>
+  <data name="Nb_Variables" xml:space="preserve"><value>Переменные</value></data>
+  <data name="Nb_History" xml:space="preserve"><value>История</value></data>
+  <data name="Nb_NoVariables" xml:space="preserve"><value>Переменных нет. Они появляются после выполнения ячейки.</value></data>
+  <data name="Nb_NoHistory" xml:space="preserve"><value>Выполненных ячеек пока нет.</value></data>
+  <data name="Nb_RefreshVars" xml:space="preserve"><value>Обновить</value></data>
+  <data name="Nb_InsertHistory" xml:space="preserve"><value>В новую ячейку</value></data>
+  <data name="Nb_MathPlanned" xml:space="preserve"><value>Формулы LaTeX показаны исходным текстом: их отрисовка запланирована.</value></data>
+  <data name="Nb_OutputTruncated" xml:space="preserve"><value>[вывод обрезан: превышен лимит в 1 000 000 символов]</value></data>
+  <data name="Nb_State_NotStarted" xml:space="preserve"><value>Ядро не запущено</value></data>
+  <data name="Nb_State_Starting" xml:space="preserve"><value>Ядро запускается…</value></data>
+  <data name="Nb_State_Idle" xml:space="preserve"><value>Ядро готово</value></data>
+  <data name="Nb_State_Busy" xml:space="preserve"><value>Ядро занято</value></data>
+  <data name="Nb_State_Restarting" xml:space="preserve"><value>Ядро перезапускается…</value></data>
+  <data name="Nb_State_Dead" xml:space="preserve"><value>Ядро остановилось</value></data>
+  <data name="Nb_State_Stopped" xml:space="preserve"><value>Ядро остановлено</value></data>
+  <data name="Nb_NeedEnvironment" xml:space="preserve"><value>Выберите виртуальное окружение Python: системный интерпретатор для блокнотов не используется.</value></data>
+  <data name="Nb_NotInVenv" xml:space="preserve"><value>В {0} нельзя установить ipykernel: это не виртуальное окружение. Создайте окружение проекта (.venv) и выберите его.</value></data>
+  <data name="Nb_MissingIpykernel" xml:space="preserve"><value>В окружении {0} не установлен ipykernel, без него блокнот не может выполнять код.</value></data>
+  <data name="Nb_InstallTitle" xml:space="preserve"><value>Установить ipykernel?</value></data>
+  <data name="Nb_InstallMessage" xml:space="preserve"><value>Будет выполнена команда:
+
+{0}
+
+Пакет будет установлен в виртуальное окружение {1}. Команда скачивает пакеты из интернета (PyPI). Системный Python не затрагивается.</value></data>
+  <data name="Nb_Install" xml:space="preserve"><value>Установить</value></data>
+  <data name="Nb_InstallHint" xml:space="preserve"><value>Команда установки (выполняется только после вашего подтверждения):</value></data>
+  <data name="Nb_Installing" xml:space="preserve"><value>Устанавливается ipykernel…</value></data>
+  <data name="Nb_Installed" xml:space="preserve"><value>ipykernel установлен. Можно выполнять ячейки.</value></data>
+  <data name="Nb_InstallFailed" xml:space="preserve"><value>Установка не удалась: {0}</value></data>
+  <data name="Nb_StartFailed" xml:space="preserve"><value>Не удалось запустить ядро: {0}</value></data>
+  <data name="Nb_KernelDied" xml:space="preserve"><value>Ядро остановилось: {0}. Перезапустите его.</value></data>
+  <data name="Nb_Restarted" xml:space="preserve"><value>Ядро перезапущено.</value></data>
+  <data name="Nb_NewTitle" xml:space="preserve"><value>Новый блокнот</value></data>
+  <data name="Nb_NewHint" xml:space="preserve"><value>Имя файла (расширение .ipynb добавится само)</value></data>
+  <data name="Nb_NewShort" xml:space="preserve"><value>Блокнот</value></data>
+  <data name="Nb_OpenFailed" xml:space="preserve"><value>Не удалось открыть блокнот {0}: {1}</value></data>
+  <data name="Nb_UnsavedMessage" xml:space="preserve"><value>Блокнот {0} содержит несохранённые изменения. Сохранить?</value></data>
+  <data name="Ws_InvalidName" xml:space="preserve"><value>Недопустимое имя файла.</value></data>
 </root>

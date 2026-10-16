@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Jupyter messaging protocol client + .ipynb (nbformat v4). No UI types, no third-party packages (ZMTP 3.0 is implemented here). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="DevAcademy.Notebooks.Tests" />
+  </ItemGroup>
+
+</Project>

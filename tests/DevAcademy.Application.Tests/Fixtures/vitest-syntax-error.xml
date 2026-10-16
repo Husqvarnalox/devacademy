@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="1" failures="1" errors="0" time="0">
+    <testsuite name="tests/product.test.jsx" timestamp="2026-10-16T07:49:26.574Z" hostname="host" tests="1" failures="1" errors="0" skipped="0" time="0">
+        <testcase classname="tests/product.test.jsx" name="tests/product.test.jsx" time="0">
+            <failure message="Transform failed with 1 error:
+
+[PARSE_ERROR] Unexpected token
+    ╭─[ src/ProductCard.jsx:12:31 ]
+    │
+ 12 │ export function ProductCard( {{{ (((
+    │                               ┬  
+    │                               ╰── 
+────╯
+" type="Error">
+Error: Transform failed with 1 error:
+
+[PARSE_ERROR] Unexpected token
+    ╭─[ src/ProductCard.jsx:12:31 ]
+    │
+ 12 │ export function ProductCard( {{{ (((
+    │                               ┬  
+    │                               ╰── 
+────╯
+
+  Plugin: vite:oxc
+  File: /work/src/ProductCard.jsx
+ ❯ transformWithOxc ../../../../../../..
+ ❯ TransformPluginContext.transform ../../../../../../..
+ ❯ EnvironmentPluginContainer.transform ../../../../../../..
+ ❯ loadAndTransform ../../../../../../..
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>

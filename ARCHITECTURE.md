@@ -275,14 +275,39 @@ CPU-first: nothing requires a GPU unless an exercise says `required`. See [PLATF
 conditioning, Rosenbrock, 1D double-well; GD, momentum, Adam; trace) and a Desktop view reachable from theory
 via ```` ```visualize gradient-descent function= optimizer= lr= ````.
 
-## 16. Notebook workspace — Planned
+## 16. Notebook workspace — Implemented
 
-Cell-based interactive work (persistent kernel state, outputs, DataFrames, charts, variable inspection) via
-the existing **Jupyter messaging protocol**: kernel = `ipykernel` installed in a managed environment,
-transport ZeroMQ (a .NET ZeroMQ binding is a dependency decision to make), `.ipynb` as the on-disk format.
-No custom kernel and no WebView main UI; outputs are rendered by native Avalonia controls (text, images,
-tables) with rich HTML outputs shown as text/preview. Depends on §15 (an environment with ipykernel) and
-may ship after it.
+Cell-based work over the real **Jupyter messaging protocol 5.3**; no custom kernel, no WebView.
+`src/DevAcademy.Notebooks` has no UI types:
+
+- **Transport — own ZMTP 3.0 (NULL), no ZeroMQ package.** NetMQ is LGPL-3.0. The desktop app ships as a
+  self-contained `PublishSingleFile` (MIT) bundle, which statically merges the assembly and makes LGPL's
+  relink/replace obligation impractical, so a minimal ZMTP 3.0 NULL subset was implemented instead
+  (`Transport/ZmtpSocket.cs`: greeting, READY with Socket-Type/Identity, short/long/multipart frames, SUB
+  subscription frames; DEALER/SUB/REQ-emulated heartbeat). No dependency, no license or native-binary issue.
+  Tested against raw bytes, an in-process fake kernel, and real ipykernel.
+- **Protocol** (`Protocol/`): connection file (tcp 127.0.0.1, 5 random free ports, random HMAC-SHA256 key,
+  mode 0600 in a private temp dir), `<IDS|MSG>` wire format with HMAC signing and constant-time verification.
+- **Kernel** (`Kernel/`): `KernelSession` (shell/iopub/stdin/control/heartbeat loops; execute completes on
+  execute_reply + iopub idle; interrupt = SIGINT on POSIX, `interrupt_request` otherwise; restart; shutdown with
+  kill fallback; heartbeat-based dead-kernel detection), `PythonKernelHost` (`python -m ipykernel_launcher -f ...`
+  with the selected environment's interpreter, `JPY_PARENT_PID` so it exits with the app).
+- **Provisioning:** `pip install ipykernel==<pin>` only into a virtual environment, only on explicit user
+  action, with the exact command shown in the confirmation. Never the system interpreter.
+- **nbformat v4** (`Nbformat/`): read/write of code/markdown/raw cells and stream/execute_result/display_data/
+  error outputs; unknown fields preserved; byte-for-byte round trip of files written by Python's `json`;
+  atomic save.
+- **UI:** `ProjectWorkspaceViewModel.Notebook` overlay (opens for `.ipynb`; New notebook button), code cells use
+  `CodeEditorControl`, markdown cells `MarkdownRenderer` with an edit toggle, ANSI-coloured text/tracebacks, PNG,
+  Markdown and JSON outputs (HTML falls back to text/plain), variable inspector (silent `execute_request` with
+  `user_expressions`; only primitives, containers and ndarray/DataFrame summaries), execution history.
+  Shift+Enter run and advance, Ctrl/Cmd+Enter run.
+- **Security:** the kernel is an ordinary process with the user's privileges and network (no sandbox); the
+  notebook screen says so permanently.
+
+Limitations: no language server inside cells; LaTeX is shown as source (math rendering planned); `input()` gets an
+empty reply (allow_stdin=false); HTML/JS outputs are not rendered; interrupt via `interrupt_request` (Windows)
+is covered by the fake kernel only; one notebook per project window; no external-change watching for `.ipynb`.
 
 ## 17. Command evaluator — Implemented
 

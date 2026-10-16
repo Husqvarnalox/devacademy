@@ -1,0 +1,166 @@
+id: "react.fundamentals.props-composition-keys"
+title: "Props, композиция и ключи"
+goal: "Передавать данные через props, строить интерфейс композицией с children, задавать значения по умолчанию и точно объяснять, зачем спискам нужны стабильные ключи."
+difficulty: "intro"
+estimatedMinutes: 55
+prerequisites:
+  - "react.fundamentals.what-is-react"
+objectives:
+  - "Передавать props как единый объект, деструктурировать их и задавать значения по умолчанию."
+  - "Объяснить, что props только для чтения, а данные текут от родителя к потомку."
+  - "Строить композицию через children и props-слоты вместо наследования."
+  - "Объяснить, чем key отличается от обычного prop и по чему React узнаёт элемент списка."
+  - "Объяснить, почему индекс массива как key ломает состояние при перестановке и удалении."
+masteryCriteria:
+  - "Вы выбираете в key стабильный идентификатор данных, а не индекс и не Math.random()."
+  - "Вы не меняете props и не копируете их в состояние без причины."
+  - "Вы выражаете вложенность через children, а не создаёте варианты компонента копированием."
+related:
+  - "react.fundamentals.what-is-react"
+next:
+  - "react.fundamentals.state-with-usestate"
+tags:
+  - "react"
+  - "props"
+  - "children"
+  - "keys"
+facts:
+  - kind: "internals"
+    text: "key не попадает в props компонента: при чтении props.key React (в режиме разработки) пишет предупреждение, а значение равно undefined. Ключ хранится в самом объекте-элементе (element.key) и используется на этапе сравнения списков. Если ключ нужен потомку, передайте его отдельным prop."
+    sources:
+      - "https://react.dev/learn/rendering-lists"
+      - "https://react.dev/link/special-props"
+  - kind: "misconception"
+    text: "«Ключ нужен, чтобы убрать предупреждение в консоли». Предупреждение лишь симптом: ключ определяет идентичность элемента между рендерами, и от него зависит, у какого элемента останется состояние. Индекс подходит только для статичных списков, которые не переставляют, не фильтруют и не изменяют в середине."
+  - kind: "historical"
+    text: "В React 19 у функциональных компонентов удалены propTypes (проверка пропсов во время выполнения) и defaultProps: значения по умолчанию задают параметрами деструктуризации, а типы описывают TypeScript или другими инструментами."
+    sources:
+      - "https://react.dev/blog/2024/04/25/react-19-upgrade-guide"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт, если компонент присвоит props.title = \"другое\"?"
+      options:
+        - "Родитель увидит новое значение и перерисуется."
+        - "Props только для чтения: изменение props - ошибка и нарушает чистоту рендера."
+        - "Изменится только локальная копия."
+        - "React запомнит новое значение до следующего рендера."
+      answer: 1
+      explanation: "Объект props замораживается, а данные принадлежат родителю. Чтобы что-то менять, нужно состояние (следующий урок) или новые props от родителя."
+    - id: "q2"
+      type: "single"
+      prompt: "Что лежит в props.children у <Card><p>a</p><p>b</p></Card>?"
+      options:
+        - "Строка с разметкой."
+        - "Массив из двух React-элементов."
+        - "Только первый дочерний элемент."
+        - "undefined: children нужно объявлять вручную."
+      answer: 1
+      explanation: "Несколько дочерних элементов превращаются в массив, один - в сам элемент, ни одного - children не задан."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие значения подходят для key элементов списка записей из базы?"
+      options:
+        - "Первичный ключ записи (id)."
+        - "Индекс элемента в массиве, если список можно сортировать."
+        - "Math.random() на каждом рендере."
+        - "Стабильный уникальный идентификатор, сгенерированный один раз при создании записи."
+      answer:
+        - 0
+        - 3
+      explanation: "Ключ должен быть уникален среди соседей и совпадать для одной и той же записи между рендерами. Индекс и случайное число этого не обеспечивают."
+    - id: "q4"
+      type: "single"
+      prompt: "В списке из полей ввода используют key={index}. Пользователь вписал текст в первое поле, потом первый элемент данных удалили. Что увидит пользователь?"
+      options:
+        - "Текст исчезнет вместе с удалённым элементом данных."
+        - "Текст останется в первом поле, которое теперь относится к другому элементу данных."
+        - "React выбросит исключение."
+        - "Поле очистится и получит значение по умолчанию."
+      answer: 1
+      explanation: "Для React первый элемент по-прежнему имеет ключ 0, поэтому он переиспользует то же поле (и его состояние), а данные в него приходят уже от соседа."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется специальный атрибут, по которому React отличает элементы списка друг от друга? Одно слово."
+      answer:
+        - "key"
+        - "ключ"
+      explanation: "key задаётся элементу в массиве и не передаётся компоненту как prop."
+exercise:
+  id: "react.fundamentals.props-composition-keys.exercise"
+  title: "Бейдж, карточка и список заметок"
+  prompt: |
+    Нужно написать три компонента. Они проверяются настоящим Testing Library в окружении jsdom.
+
+    **`src/Badge.jsx`** - `Badge({ text, tone })` возвращает `<span data-tone="...">текст</span>`. Если `tone` не передан, значение `data-tone` равно `"neutral"` (задайте значение по умолчанию в параметрах).
+
+    **`src/Card.jsx`** - `Card({ title, children, footer })` возвращает `<section>` с заголовком `<h2>` (текст `title`), блоком `<div>` с `children` и - только если передан `footer` - элементом `<footer>` с его содержимым. Карточка должна работать и без `children`.
+
+    **`src/NoteList.jsx`** - `NoteList({ notes })`. Заметка - `{ id, title }`. Список `<ul>`, в нём `<li>` на заметку, а в нём `<label>` с текстом заголовка и неуправляемым полем `<input defaultValue="" />` (поле находится в `label`). Заметки переставляют и удаляют, поэтому текст, введённый в поле, должен оставаться у «своей» заметки: выберите правильный `key`.
+
+    Не меняйте props. Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/Badge.jsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Значение по умолчанию задаётся в деструктуризации параметров: function Badge({ text, tone = \"neutral\" })."
+    - "Card: <section><h2>{title}</h2><div>{children}</div>{footer ? <footer>{footer}</footer> : null}</section>. children приходят как обычный prop."
+    - "NoteList: notes.map(note => <li key={note.id}>...</li>). Внутри li: <label>{note.title}<input defaultValue=\"\" /></label>."
+    - "Индекс массива как key меняет идентичность элементов при перестановке и удалении, и поле ввода окажется у чужой заметки. Берите note.id."
+  tests:
+    - id: "badge-text"
+      title: "Badge: текст"
+      match: "Badge > показывает переданный текст"
+      hint: "Текст из prop text должен быть содержимым элемента <span>."
+    - id: "card-heading"
+      title: "Card: заголовок"
+      match: "Card > заголовок выводится как heading"
+      hint: "title выводится в <h2> (роль heading)."
+    - id: "card-children"
+      title: "Card: children"
+      match: "Card > children выводятся внутри карточки"
+      hint: "Выведите {children} внутри карточки - это обычный prop."
+    - id: "notes-count"
+      title: "NoteList: элементы списка"
+      match: "NoteList > по элементу списка на заметку"
+      hint: "Для каждой заметки нужен <li> с <label>, содержащим заголовок заметки."
+    - id: "badge-default"
+      title: "Badge: тон по умолчанию (скрытый)"
+      match: "Badge > тон по умолчанию*"
+      hidden: true
+      hint: "Если tone не передан, data-tone должен быть \"neutral\"."
+    - id: "badge-tone"
+      title: "Badge: заданный тон (скрытый)"
+      match: "Badge > заданный тон*"
+      hidden: true
+      hint: "Переданный tone должен попадать в data-tone без изменений."
+    - id: "card-footer"
+      title: "Card: необязательный подвал (скрытый)"
+      match: "Card > подвал*"
+      hidden: true
+      hint: "Элемент <footer> выводится только когда передан prop footer."
+    - id: "card-empty"
+      title: "Card: без children (скрытый)"
+      match: "Card > не требует*"
+      hidden: true
+      hint: "Отсутствие children не должно ломать карточку: заголовок остаётся."
+    - id: "notes-keys"
+      title: "NoteList: ключи по id (скрытый)"
+      match: "NoteList > ключи по id*"
+      hidden: true
+      hint: "Используйте key={note.id}: тогда поле ввода переезжает вместе со своей заметкой."

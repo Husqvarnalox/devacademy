@@ -1,0 +1,12 @@
+id: react-developer
+title: React-разработчик (начальный уровень)
+description: "Путь к основам React для тех, кто начинает с нуля. «JavaScript: первые шаги», затем «JavaScript: основы языка» и «React: основы» (компоненты, props, состояние, события и формы, эффекты, тесты на Testing Library). Маршрутизация, управление состоянием, Next.js и браузерная вёрстка пока не входят. Для проверок упражнений нужны npm-пакеты курсов (Настройки - Среды выполнения)."
+goal: general
+targets: [react-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [javascript-first-steps]
+  - title: Основы языка
+    courses: [javascript-fundamentals]
+  - title: React
+    courses: [react-fundamentals]

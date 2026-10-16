@@ -343,5 +343,32 @@ nothing is installed globally), after which `make validate-content` passes `--py
 `requires` with that environment's interpreter (bin/python or Scripts/python.exe) and checks the Python version and packages against it;
 without the flag they only produce a warning ("requires packages ...; pass --python-env"). `devacademy python-env-check --python-env <dir>`
 lists every requirement found in the content and whether the environment satisfies it.
+## npm packages for JavaScript exercises (React, Vitest, Testing Library)
+
+```yaml
+requires: { node: ">=22", npmPackages: [vitest, jsdom, react, react-dom, "@testing-library/react"] }   # javascript exercises only
+command:
+  tool: vitest                 # the runner builds `node node_modules/vitest/vitest.mjs run ...`; no npx, no path from content
+  args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+  testsTarget: "."             # tests_dir holds tests/*.test.jsx and vitest.config.mjs
+  report: junit
+  reportFile: report.xml       # must equal --outputFile
+```
+
+The packages live in the **node content environment**: `make node-env` runs `npm ci --ignore-scripts` from the pinned
+`tools/node-content/package-lock.json` into the gitignored `.node-content/` (DOWNLOADS from npm; nothing is global). At grading time the
+runner links `node_modules` read-only into the sandboxed work directory (writes are denied by the OS sandbox; there is no network), keeps Vite's
+cache inside the work directory (`cacheDir: ".cache/vite"` in `vitest.config.mjs`) and never installs anything. Learner files may not live
+under `node_modules`. `vitest.config.mjs` for React: `oxc: { jsx: { runtime: "automatic" } }`, `test: { environment: "jsdom", globals: true,
+include: ["tests/**/*.test.jsx"] }` (globals only so Testing Library cleans up between tests; jest-dom is not installed).
+Allowed Vitest flags are an allowlist (`--reporter` junit/default/verbose/dot, `--outputFile`, `--config`, `--pool`, `--environment`,
+`--testTimeout`, `--maxWorkers`, `--no-file-parallelism`, `--silent`, `--passWithNoTests`, `--globals`); watch, ui, browser, coverage and update
+flags are rejected. The validator requires every package the tool needs to be in `npmPackages`. Theory samples of a lesson with such an
+exercise run with the same environment (`javascript run` blocks are plain Node scripts, so `require("react")` works and JSX does not).
+
+Validating: `make node-env && make validate-content` (passes `--node-env .node-content`). Without it the exercises are skipped with a
+warning. In the desktop app, Settings -> Runtimes -> "npm-пакеты для курсов" installs the same lock file (confirmation shows the command;
+network operation); exercises show what is missing until then.
+
 Theory can embed the optimiser lab: a fenced block `visualize gradient-descent function=rosenbrock optimizer=adam lr=0.02`
 (all arguments optional; functions `quadratic|rosenbrock|double-well`, optimizers `gd|momentum|adam`).

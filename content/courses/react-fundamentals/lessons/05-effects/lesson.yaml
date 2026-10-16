@@ -1,0 +1,197 @@
+id: "react.fundamentals.effects"
+title: "Эффекты: useEffect"
+goal: "Использовать useEffect для синхронизации с внешней системой: правильно задавать зависимости, писать очистку, отменять запросы и понимать двойной запуск в StrictMode."
+difficulty: "easy"
+estimatedMinutes: 65
+prerequisites:
+  - "react.fundamentals.events-and-forms"
+objectives:
+  - "Объяснить, что эффект синхронизирует компонент с внешней системой и выполняется после коммита, а не во время рендера."
+  - "Задать массив зависимостей и объяснить разницу между отсутствием массива, [] и [a, b]."
+  - "Написать функцию очистки для подписок, таймеров и запросов."
+  - "Объяснить, зачем в разработке StrictMode запускает эффект дважды и чем это помогает."
+  - "Запрашивать данные с AbortController и защищаться от гонки устаревших ответов."
+  - "Распознавать случаи, когда эффект не нужен (производные данные, реакция на событие)."
+masteryCriteria:
+  - "Вы перечисляете в зависимостях все реактивные значения, которые читает эффект."
+  - "Вы всегда освобождаете то, что захватил эффект (подписку, таймер, запрос)."
+  - "Вы не используете эффект для вычисления данных из props и состояния и для реакции на клик."
+related:
+  - "react.fundamentals.state-with-usestate"
+  - "react.fundamentals.events-and-forms"
+next:
+  - "react.fundamentals.testing-library"
+tags:
+  - "react"
+  - "useEffect"
+  - "cleanup"
+  - "strictmode"
+  - "abortcontroller"
+facts:
+  - kind: "internals"
+    text: "В режиме разработки <StrictMode> после первого монтирования намеренно выполняет цикл «эффект - очистка - эффект», чтобы вскрыть эффекты без корректной очистки. В продакшене этого нет. Если после этого цикла приложение ведёт себя иначе, значит очистка неполная."
+    sources:
+      - "https://react.dev/reference/react/StrictMode"
+      - "https://react.dev/learn/synchronizing-with-effects"
+  - kind: "misconception"
+    text: "«useEffect - это componentDidMount плюс componentDidUpdate». Эффект описывает не момент жизненного цикла, а синхронизацию: он запускается, когда изменились значения из массива зависимостей, и каждому запуску соответствует очистка. Мысль «когда это выполнится» нужно заменить на «с чем это синхронизируется и когда прекращает»."
+  - kind: "historical"
+    text: "До React 18 эффект в продакшене мог выполниться только один раз при монтировании. React 18 ввёл в StrictMode повторный запуск эффектов в разработке, а React 19 не изменил этого правила. Документация подчёркивает: загрузка данных в эффекте допустима, но без отмены и защиты от гонок даёт ошибки, поэтому для серьёзных приложений рекомендуют библиотеки загрузки данных или возможности фреймворка."
+    sources:
+      - "https://react.dev/blog/2022/03/29/react-v18"
+      - "https://react.dev/learn/you-might-not-need-an-effect"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Когда выполняется функция, переданная в useEffect?"
+      options:
+        - "Во время рендера, до возврата JSX."
+        - "После того как React зафиксировал (закоммитил) изменения в DOM."
+        - "Только один раз при создании приложения."
+        - "Перед каждым вызовом setState."
+      answer: 1
+      explanation: "Эффекты выполняются после коммита. Поэтому они не блокируют отрисовку и безопасны для побочных действий."
+    - id: "q2"
+      type: "single"
+      prompt: "Что означает useEffect(fn, [])?"
+      options:
+        - "Эффект выполняется после каждого рендера."
+        - "Эффект выполняется после монтирования, его очистка - перед размонтированием; от значений компонента он не зависит."
+        - "Эффект не выполняется никогда."
+        - "Эффект выполняется только при изменении любого prop."
+      answer: 1
+      explanation: "Пустой массив: нет реактивных зависимостей, поэтому эффект запускается один раз за монтирование (в StrictMode разработки дважды с очисткой между запусками)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие задачи подходят для useEffect?"
+      options:
+        - "Подписка на событие окна с отпиской в очистке."
+        - "Вычисление fullName из firstName и lastName и запись в состояние."
+        - "Запрос данных по userId с отменой при смене userId."
+        - "Показ уведомления после клика на кнопку «Сохранить»."
+      answer:
+        - 0
+        - 2
+      explanation: "fullName считают прямо в рендере. Реакция на клик - дело обработчика события. Эффект нужен для синхронизации с внешней системой: подпиской, запросом, таймером."
+    - id: "q4"
+      type: "single"
+      prompt: "Зачем StrictMode в разработке запускает эффект, очищает его и запускает снова?"
+      options:
+        - "Это ошибка React, в продакшене она же."
+        - "Чтобы выявить эффекты без правильной очистки: после цикла эффект - очистка - эффект поведение должно быть корректным."
+        - "Чтобы ускорить загрузку данных."
+        - "Чтобы проверить, что массив зависимостей пуст."
+      answer: 1
+      explanation: "Цель - моделировать повторное монтирование. Если запрос не отменяется или подписка не снимается, это сразу видно в разработке."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется встроенный объект браузера и Node.js, через который отменяют fetch? Введите имя класса."
+      answer:
+        - "AbortController"
+        - "abortcontroller"
+      explanation: "new AbortController() даёт signal для fetch и метод abort(); отмена приводит к отклонению промиса с AbortError."
+exercise:
+  id: "react.fundamentals.effects.exercise"
+  title: "Профиль, заголовок и индикатор сети"
+  prompt: |
+    Нужно написать три компонента с эффектами. Сети нет: тесты подставляют свою функцию загрузки и управляют окном.
+
+    **`src/UserProfile.jsx`** - `UserProfile({ userId, fetchUser })`. `fetchUser(userId, signal)` возвращает промис с `{ name }`, `signal` - `AbortSignal`. Компонент:
+
+    * пока данных нет - абзац `Загрузка...`;
+    * после ответа - заголовок `<h2>` с именем;
+    * при отклонённом промисе - `<p role="alert">Ошибка: сообщение</p>` (сообщение - `error.message`);
+    * загружает данные в `useEffect`, зависящем от `userId` (и `fetchUser`); при смене `userId` снова показывает `Загрузка...` и запрашивает нового пользователя;
+    * в очистке эффекта отменяет запрос (`AbortController.abort()`) и **игнорирует ответ**, пришедший после очистки (функция `fetchUser` может не уважать отмену).
+    Ответ от устаревшего запроса не должен ни затереть свежие данные, ни вызвать обновление размонтированного компонента. Компонент должен корректно работать в `<StrictMode>`.
+
+    **`src/TitleSync.jsx`** - `TitleSync({ title })` ничего не рисует (`null`). Эффект записывает `title` в `document.title`, а очистка возвращает прежний заголовок.
+
+    **`src/OnlineBadge.jsx`** - `OnlineBadge()`. Начальное состояние берётся из `navigator.onLine`; выводит абзац `В сети` или `Нет сети`. Эффект подписывается на события `online` и `offline` окна (`window.addEventListener`), а очистка снимает **те же** обработчики.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/UserProfile.jsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "UserProfile хранит одно состояние вида { status: \"loading\" | \"done\" | \"error\", ... }. Запрос запускайте в useEffect(() => { ... }, [userId, fetchUser])."
+    - "Внутри эффекта: const controller = new AbortController(); let ignore = false; fetchUser(userId, controller.signal).then(ok, fail), где ok и fail проверяют !ignore. Очистка: ignore = true; controller.abort()."
+    - "TitleSync: в эффекте запомните const previous = document.title, запишите title, а в функции очистки верните previous. Зависимость - [title]."
+    - "OnlineBadge: объявите обработчики внутри эффекта, подпишите и в очистке снимите те же функции. Начальное состояние - useState(() => navigator.onLine)."
+  tests:
+    - id: "user-load"
+      title: "UserProfile: загрузка и имя"
+      match: "UserProfile > сначала показывает*"
+      hint: "Пока промис не завершился, выводится «Загрузка...», потом заголовок с именем."
+    - id: "user-args"
+      title: "UserProfile: аргументы fetchUser"
+      match: "UserProfile > вызывает fetchUser*"
+      hint: "fetchUser(userId, controller.signal): вторым аргументом передаётся AbortSignal."
+    - id: "title-set"
+      title: "TitleSync: запись заголовка"
+      match: "TitleSync > записывает*"
+      hint: "Присвойте document.title = title внутри useEffect."
+    - id: "online-show"
+      title: "OnlineBadge: текущее состояние"
+      match: "OnlineBadge > показывает*"
+      hint: "Начальное значение - navigator.onLine; при true выводится «В сети»."
+    - id: "user-error"
+      title: "UserProfile: ошибка (скрытый)"
+      match: "UserProfile > при ошибке*"
+      hidden: true
+      hint: "Обработайте отклонение промиса вторым аргументом then или catch и выведите «Ошибка: » и error.message."
+    - id: "user-switch"
+      title: "UserProfile: смена userId (скрытый)"
+      match: "UserProfile > при смене*"
+      hidden: true
+      hint: "userId должен быть в массиве зависимостей, а очистка - вызывать controller.abort()."
+    - id: "user-stale"
+      title: "UserProfile: устаревший ответ (скрытый)"
+      match: "UserProfile > устаревший*"
+      hidden: true
+      hint: "Заведите флаг ignore, который очистка переводит в true, и проверяйте его перед setState."
+    - id: "user-strict"
+      title: "UserProfile: StrictMode (скрытый)"
+      match: "UserProfile > в StrictMode*"
+      hidden: true
+      hint: "В StrictMode эффект идёт как «запуск - очистка - запуск». Очистка должна отменять первый запрос, а второй показывается на экране."
+    - id: "user-unmount"
+      title: "UserProfile: размонтирование (скрытый)"
+      match: "UserProfile > при размонтировании*"
+      hidden: true
+      hint: "Функция очистки вызывается и при размонтировании: abort() там обязателен."
+    - id: "title-update"
+      title: "TitleSync: смена title (скрытый)"
+      match: "TitleSync > обновляет*"
+      hidden: true
+      hint: "title должен быть в массиве зависимостей эффекта."
+    - id: "title-restore"
+      title: "TitleSync: возврат заголовка (скрытый)"
+      match: "TitleSync > при размонтировании*"
+      hidden: true
+      hint: "Запомните прежний document.title до записи и верните его в очистке."
+    - id: "online-events"
+      title: "OnlineBadge: события (скрытый)"
+      match: "OnlineBadge > реагирует*"
+      hidden: true
+      hint: "Подпишитесь на события online и offline окна и обновляйте состояние в обработчиках."
+    - id: "online-unsubscribe"
+      title: "OnlineBadge: отписка (скрытый)"
+      match: "OnlineBadge > при размонтировании*"
+      hidden: true
+      hint: "removeEventListener нужно вызывать с теми же функциями, что были переданы в addEventListener: создайте их внутри эффекта."

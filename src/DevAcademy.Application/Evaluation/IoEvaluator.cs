@@ -9,7 +9,7 @@ public sealed class IoEvaluator(ICodeRunner runner) : IExerciseEvaluator
     public EvaluationKind Kind => EvaluationKind.Io;
 
     public async Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null)
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null)
     {
         var request = new ExecutionRequest(exercise.LanguageId, EvaluatorSupport.ToSource(learnerFiles), exercise.EntryFile, isolation, python);
         await using var program = await runner.PrepareAsync(request, ct);

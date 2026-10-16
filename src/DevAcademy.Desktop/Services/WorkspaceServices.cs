@@ -2,6 +2,7 @@ using DevAcademy.Application.Ports;
 using DevAcademy.Application.Workspace;
 using DevAcademy.Execution;
 using DevAcademy.Infrastructure.Workspace;
+using DevAcademy.Notebooks.Kernel;
 using DevAcademy.Terminal;
 
 namespace DevAcademy.Desktop.Services;
@@ -21,6 +22,9 @@ public sealed class WorkspaceServices(
     public ProjectFileOps FileOps { get; } = fileOps;
     public IToolRunner Tools { get; } = tools;
     public IClock Clock { get; } = clock;
+
+    /// <summary>Starts Jupyter kernels for notebooks and installs ipykernel on request. Tests replace it with a fake.</summary>
+    public INotebookKernelService Notebooks { get; set; } = new NotebookKernelService();
 
     /// <summary>Whether the file watcher is started for opened projects (tests that call the change handler directly switch it off).</summary>
     public bool WatchFiles { get; set; } = true;

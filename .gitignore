@@ -10,3 +10,4 @@ __pycache__/
 TestResults/
 node_modules/
 .venv-content/
+.node-content/

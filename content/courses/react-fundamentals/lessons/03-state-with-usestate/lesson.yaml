@@ -1,0 +1,179 @@
+id: "react.fundamentals.state-with-usestate"
+title: "Состояние: useState"
+goal: "Хранить меняющиеся данные в состоянии, понимать, что состояние - снимок на момент рендера, и обновлять объекты и массивы неизменяемо."
+difficulty: "intro"
+estimatedMinutes: 60
+prerequisites:
+  - "react.fundamentals.props-composition-keys"
+objectives:
+  - "Объявить состояние через useState и отличить его от props и обычных переменных."
+  - "Объяснить, что состояние внутри одного рендера - снимок, и почему setN(n + 1) не меняет n немедленно."
+  - "Использовать обновляющую функцию setN(n => n + 1), когда новое значение зависит от предыдущего."
+  - "Обновлять объекты и массивы в состоянии, не изменяя исходные."
+  - "Объяснить пакетную обработку обновлений и ленивую инициализацию useState(() => ...)."
+masteryCriteria:
+  - "Вы никогда не меняете состояние на месте (push, присваивание поля), а создаёте новое значение."
+  - "Вы выбираете обновляющую функцию, когда новое значение выводится из прежнего."
+  - "Вы различаете, что должно быть состоянием, а что вычисляется из props и состояния во время рендера."
+related:
+  - "react.fundamentals.props-composition-keys"
+next:
+  - "react.fundamentals.events-and-forms"
+tags:
+  - "react"
+  - "state"
+  - "hooks"
+  - "immutability"
+facts:
+  - kind: "internals"
+    text: "Состояние хранится React вне вашей функции-компонента и привязано к позиции компонента в дереве. Поэтому два экземпляра одного компонента имеют независимые состояния, а хуки обязаны вызываться в одном и том же порядке на каждом рендере (не в условиях и не в циклах)."
+    sources:
+      - "https://react.dev/learn/state-a-components-memory"
+      - "https://react.dev/reference/rules/rules-of-hooks"
+  - kind: "misconception"
+    text: "«После setCount(count + 1) переменная count уже новая». Нет: в текущем рендере count остаётся прежним (снимок). Новое значение увидит следующий рендер, который React запланирует. Поэтому три подряд setCount(count + 1) дают +1, а три вызова setCount(c => c + 1) дают +3."
+  - kind: "historical"
+    text: "До React 18 обновления состояния объединялись в пакет только внутри обработчиков событий React. Начиная с React 18 пакетная обработка автоматическая везде: в таймерах, промисах и нативных обработчиках."
+    sources:
+      - "https://react.dev/blog/2022/03/29/react-v18"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Обработчик клика выполняет setCount(count + 1); setCount(count + 1); setCount(count + 1), где count равен 0. Чему станет count после следующего рендера?"
+      options:
+        - "0"
+        - "1"
+        - "3"
+        - "Произойдёт ошибка."
+      answer: 1
+      explanation: "Во всех трёх вызовах count - снимок, равный 0, поэтому каждый вызов просит поставить 1. Итог - 1. Для трёх прибавлений нужны обновляющие функции."
+    - id: "q2"
+      type: "single"
+      prompt: "Какая запись правильно добавляет элемент x в массив items, хранящийся в состоянии?"
+      options:
+        - "items.push(x); setItems(items);"
+        - "setItems([...items, x]);"
+        - "items[items.length] = x;"
+        - "setItems(items.push(x));"
+      answer: 1
+      explanation: "React сравнивает старое и новое значение по ссылке. Мутация массива на месте оставляет ссылку прежней, и перерисовки не будет; нужен новый массив."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что из перечисленного должно быть состоянием, а не хранимой копией?"
+      options:
+        - "Текст в поле поиска, который меняет пользователь."
+        - "Отфильтрованный список, который можно посчитать из полного списка и текста поиска."
+        - "Признак «меню открыто»."
+        - "Количество элементов в массиве, который уже лежит в состоянии."
+      answer:
+        - 0
+        - 2
+      explanation: "Отфильтрованный список и длину массива можно вычислить во время рендера: хранить их отдельно значит рисковать рассинхронизацией."
+    - id: "q4"
+      type: "single"
+      prompt: "Чем useState(compute()) отличается от useState(compute)?"
+      options:
+        - "Ничем."
+        - "Первая запись вызывает compute на каждом рендере (результат игнорируется после первого), вторая - только на первом."
+        - "Вторая запись не работает."
+        - "Первая запись вызывает compute один раз, вторая - на каждом рендере."
+      answer: 1
+      explanation: "Передача функции - ленивая инициализация: React вызывает её только при создании состояния. Результат compute() вычисляется каждый раз, даже если не используется."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция вида n => n + 1, которую передают в setter состояния? Назовите её тип одним-двумя словами (например, «обновляющая функция»)."
+      answer:
+        - "обновляющая функция"
+        - "updater"
+        - "updater function"
+        - "функция-обновитель"
+        - "функциональное обновление"
+      explanation: "Такую функцию React вызывает с последним значением состояния из очереди обновлений и берёт её результат как новое состояние."
+exercise:
+  id: "react.fundamentals.state-with-usestate.exercise"
+  title: "Счётчик, список дел и ленивое состояние"
+  prompt: |
+    Нужно написать три компонента с состоянием. Они проверяются настоящим Testing Library в окружении jsdom.
+
+    **`src/Counter.jsx`** - `Counter({ initial = 0, step = 1 })`. Выводит абзац `Значение: N` и четыре кнопки с текстами `Плюс` (прибавить `step`), `Минус` (вычесть `step`), `Плюс три` (за один клик прибавить `step` три раза подряд - используйте обновляющие функции) и `Сброс` (вернуть `initial`). Каждый экземпляр хранит своё состояние.
+
+    **`src/TodoList.jsx`** - `TodoList({ initialTodos })`, дело - `{ id, text, done }`. Выводит абзац `Осталось: K` (число невыполненных) и `<ul>`, где у каждого дела `<li>` с текстом и кнопкой: `Готово`, если дело не сделано, и `Вернуть`, если сделано. Клик переключает `done` у этого дела. Исходный массив и его объекты менять нельзя (тесты передают замороженные данные): создавайте новые объекты и массивы.
+
+    **`src/LazyCounter.jsx`** - `LazyCounter({ compute })`. Выводит `Значение: N`, начальное значение берётся из `compute()`, которая должна вызываться **ровно один раз** за всё время жизни компонента. Кнопка `Плюс` прибавляет единицу.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/Counter.jsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Counter: const [n, setN] = useState(initial); обработчики пишите как onClick={() => setN(v => v + step)}. Для «Плюс три» вызовите setN с обновляющей функцией три раза."
+    - "TodoList: const [todos, setTodos] = useState(initialTodos); переключение - setTodos(list => list.map(t => t.id === id ? { ...t, done: !t.done } : t)). Не меняйте t.done на месте."
+    - "Число невыполненных вычисляйте во время рендера: todos.filter(t => !t.done).length. Отдельное состояние для него не нужно."
+    - "LazyCounter: useState(compute) без скобок - React сам вызовет функцию один раз. Запись useState(compute()) вызывала бы её на каждом рендере."
+  tests:
+    - id: "counter-initial"
+      title: "Counter: начальное значение"
+      match: "Counter > начинается с начального значения"
+      hint: "Начальное значение берётся из prop initial: useState(initial)."
+    - id: "counter-plusminus"
+      title: "Counter: Плюс и Минус"
+      match: "Counter > кнопка Плюс*"
+      hint: "Каждая кнопка вызывает setter состояния; значение выводится в абзаце «Значение: N»."
+    - id: "todo-show"
+      title: "TodoList: дела и счётчик"
+      match: "TodoList > показывает дела*"
+      hint: "Выведите <li> на каждое дело и абзац «Осталось: K», где K - число дел с done равным false."
+    - id: "lazy-value"
+      title: "LazyCounter: начальное значение"
+      match: "LazyCounter > показывает вычисленное*"
+      hint: "Начальное значение - результат compute()."
+    - id: "counter-step"
+      title: "Counter: шаг (скрытый)"
+      match: "Counter > шаг step*"
+      hidden: true
+      hint: "Плюс и Минус меняют значение на step, а не на 1."
+    - id: "counter-reset"
+      title: "Counter: Сброс (скрытый)"
+      match: "Counter > Сброс*"
+      hidden: true
+      hint: "Сброс возвращает значение initial."
+    - id: "counter-three"
+      title: "Counter: Плюс три (скрытый)"
+      match: "Counter > Плюс три*"
+      hidden: true
+      hint: "Три вызова setN(n + step) в одном обработчике дадут только один шаг: нужны обновляющие функции setN(v => v + step)."
+    - id: "counter-independent"
+      title: "Counter: независимые экземпляры (скрытый)"
+      match: "Counter > два экземпляра*"
+      hidden: true
+      hint: "Состояние должно быть внутри компонента (useState), а не в переменной модуля."
+    - id: "todo-toggle"
+      title: "TodoList: переключение (скрытый)"
+      match: "TodoList > переключает*"
+      hidden: true
+      hint: "Клик меняет done только у выбранного дела; подпись кнопки зависит от done."
+    - id: "todo-immutable"
+      title: "TodoList: иммутабельность (скрытый)"
+      match: "TodoList > не изменяет*"
+      hidden: true
+      hint: "Не присваивайте todo.done. Создайте новый объект: { ...todo, done: !todo.done }."
+    - id: "lazy-once"
+      title: "LazyCounter: ленивая инициализация (скрытый)"
+      match: "LazyCounter > compute вызывается*"
+      hidden: true
+      hint: "Передайте в useState саму функцию (useState(compute)), а не результат её вызова."

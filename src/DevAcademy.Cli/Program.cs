@@ -1,4 +1,5 @@
 using DevAcademy.Application.Evaluation;
+using DevAcademy.Application.Node;
 using DevAcademy.Application.Python;
 using DevAcademy.Content;
 using DevAcademy.Domain;
@@ -11,7 +12,7 @@ internal static class Cli
 {
     private const string Usage = """
         usage:
-          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>]]
+          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>] [--node-env <dir>]]
           devacademy python-env-check --python-env <venv dir> [--content <dir>]
           devacademy list [--content <dir>]
           devacademy runtimes
@@ -33,8 +34,8 @@ internal static class Cli
 
         switch (args[0])
         {
-            case "validate-content" when options.PythonEnv is not null && !options.RunSolutions:
-                Console.Error.WriteLine("error: --python-env only applies together with --run-solutions");
+            case "validate-content" when (options.PythonEnv is not null || options.NodeEnv is not null) && !options.RunSolutions:
+                Console.Error.WriteLine("error: --python-env and --node-env only apply together with --run-solutions");
                 return 2;
             case "validate-content":
                 {
@@ -45,7 +46,18 @@ internal static class Cli
                         (manager, selection, var envError) = await OpenEnvironmentAsync(options.PythonEnv);
                         if (selection is null) { Console.Error.WriteLine(envError); return 2; }
                     }
-                    return await ValidateAsync(root, options.RunSolutions, manager, selection);
+                    NodeEnvironmentService? node = null;
+                    if (options.NodeEnv is not null)
+                    {
+                        var full = Path.GetFullPath(options.NodeEnv);
+                        if (!Directory.Exists(Path.Combine(full, "node_modules")))
+                        {
+                            Console.Error.WriteLine($"error: node environment '{options.NodeEnv}' has no node_modules (run `make node-env`)");
+                            return 2;
+                        }
+                        node = new NodeEnvironmentService(new SystemToolRunner(), full);
+                    }
+                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node);
                 }
             case "python-env-check" when options.PythonEnv is not null && !options.RunSolutions:
                 {
@@ -56,7 +68,7 @@ internal static class Cli
             case "python-env-check":
                 Console.Error.WriteLine("error: python-env-check needs --python-env <venv dir> (and takes no --run-solutions)");
                 return 2;
-            case "list" when !options.RunSolutions && options.PythonEnv is null: return List(root);
+            case "list" when !options.RunSolutions && options.PythonEnv is null && options.NodeEnv is null: return List(root);
             default: Console.Error.WriteLine(Usage); return 2;
         }
     }
@@ -74,11 +86,11 @@ internal static class Cli
         return 0;
     }
 
-    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv);
+    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null);
 
     internal static Options? Parse(string[] rest, out string? error)
     {
-        string? dir = null, env = null;
+        string? dir = null, env = null, nodeEnv = null;
         var run = false;
         error = null;
         for (var i = 0; i < rest.Length; i++)
@@ -87,11 +99,12 @@ internal static class Cli
             {
                 case "--content" when i + 1 < rest.Length: dir = rest[++i]; break;
                 case "--python-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): env = rest[++i]; break;
+                case "--node-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): nodeEnv = rest[++i]; break;
                 case "--run-solutions": run = true; break;
                 default: error = $"error: unknown or incomplete argument '{rest[i]}'"; return null;
             }
         }
-        return new Options(dir, run, env);
+        return new Options(dir, run, env, nodeEnv);
     }
 
     /// <summary>Finds the interpreter of a venv directory (bin/python or Scripts/python.exe) and checks that it answers.</summary>
@@ -164,11 +177,11 @@ internal static class Cli
         return 0;
     }
 
-    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python)
+    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null)
     {
         var result = ContentLoader.Load(root);
         var diagnostics = result.Diagnostics.ToList();
-        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python));
+        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node));
         else if (runSolutions) Console.WriteLine("skipping --run-solutions: fix content errors first");
 
         foreach (var d in diagnostics.OrderBy(d => d.Path, StringComparer.Ordinal).ThenBy(d => d.Severity))
@@ -187,12 +200,12 @@ internal static class Cli
         return string.Join(" and ", parts);
     }
 
-    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python)
+    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node)
     {
         var diagnostics = new List<ContentDiagnostic>();
         var runner = ExecutionEngine.CreateDefault();
         var resolver = manager is not null && python is not null ? new ExternalEnvironmentResolver(manager, python) : null;
-        var service = new ExerciseEvaluationService(runner, resolver);
+        var service = new ExerciseEvaluationService(runner, resolver, node);
         var missing = new HashSet<string>(StringComparer.Ordinal);
 
         void Add(DiagnosticSeverity s, Lesson l, string msg) => diagnostics.Add(new ContentDiagnostic(s, l.SourcePath, msg));
@@ -210,6 +223,12 @@ internal static class Cli
                 {
                     var tag = ex.HasExplicitVariants ? $"exercise '{ex.Id}' [{variant.LanguageId}]" : $"exercise '{ex.Id}'";
                     var needsEnv = variant.LanguageId == "python" && ex.HasRequirements;
+                    var needsNode = ex.NeedsNodeEnvironment;
+                    if (needsNode && node is null)
+                    {
+                        Add(DiagnosticSeverity.Warning, lesson, $"{tag}: needs npm packages ({string.Join(", ", ex.Requires?.Npm ?? [])}); pass --node-env <dir> (make node-env): solution and starter were not run");
+                        continue;
+                    }
                     if (needsEnv && resolver is null)
                     {
                         Add(DiagnosticSeverity.Warning, lesson, $"{tag}: requires {DescribeRequirements(ex.Requires!)}; pass --python-env <venv dir> (make python-env): solution and starter were not run");
@@ -219,6 +238,11 @@ internal static class Cli
                     if (solution.Status == Verdict.RuntimeMissing && needsEnv)
                     {
                         Add(DiagnosticSeverity.Error, lesson, $"{tag}: the Python environment cannot run it: {First(solution.Message ?? "")}");
+                        continue;
+                    }
+                    if (solution.Status == Verdict.RuntimeMissing && needsNode)
+                    {
+                        Add(DiagnosticSeverity.Error, lesson, $"{tag}: the node environment cannot run it: {First(solution.Message ?? "")}");
                         continue;
                     }
                     if (solution.Status == Verdict.RuntimeMissing) { RuntimeMissing(lesson, variant.LanguageId); continue; }
@@ -234,6 +258,7 @@ internal static class Cli
             // Theory samples have no requires of their own: a Python sample needs what the lesson's exercises declare.
             var lessonRequires = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.HasRequirements)?.Requires;
             var warnedSamples = false;
+            var nodeExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNodeEnvironment);
             foreach (var sample in lesson.Theory.Samples.Where(s => s.ExpectedOutput is not null))
             {
                 PythonRunSelection? sampleEnv = null;
@@ -249,9 +274,22 @@ internal static class Cli
                     if (problem is not null) { Add(DiagnosticSeverity.Error, lesson, $"code sample (python): {First(problem)}"); continue; }
                     sampleEnv = python;
                 }
+                NodeRunSelection? sampleNode = null;
+                if (sample.LanguageId == "javascript" && nodeExercise is not null)
+                {
+                    if (node is null)
+                    {
+                        if (!warnedSamples) Add(DiagnosticSeverity.Warning, lesson, "code samples (javascript) use npm packages; pass --node-env <dir> (make node-env): they were not run");
+                        warnedSamples = true;
+                        continue;
+                    }
+                    var nodeProblem = await node.CheckAsync(nodeExercise.Requires, [], CancellationToken.None);
+                    if (nodeProblem is not null) { Add(DiagnosticSeverity.Error, lesson, $"code sample (javascript): {First(nodeProblem)}"); continue; }
+                    sampleNode = node.Selection;
+                }
                 var file = EntryFileFor(sample.LanguageId);
                 var run = await runner.RunOnceAsync(
-                    new ExecutionRequest(sample.LanguageId, [new SourceFile(file, sample.Code)], file, IsolationLevel.OsSandbox, sampleEnv),
+                    new ExecutionRequest(sample.LanguageId, [new SourceFile(file, sample.Code)], file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode),
                     null, ResourceLimits.DefaultRun, CancellationToken.None);
                 if (run.Status == ExecutionStatus.RuntimeMissing) { RuntimeMissing(lesson, sample.LanguageId); continue; }
                 if (!run.IsSuccess)

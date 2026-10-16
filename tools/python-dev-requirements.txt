@@ -8,3 +8,6 @@ httpx==0.28.1
 pydantic==2.14.1
 pytest==9.1.1
 uvicorn==0.54.0
+# Jupyter kernel for the notebook workspace's real-kernel integration tests (tests/DevAcademy.Notebooks.Tests); keep in step with
+# KernelProvisioner.PinnedRequirement.
+ipykernel==7.4.0

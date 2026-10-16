@@ -120,6 +120,9 @@ public enum CommandReportFormat { Junit, GoTestJson }
 /// How a <see cref="EvaluationKind.Command"/> exercise is graded. <see cref="Run"/> is the argv (executable first; must be a tool
 /// <see cref="CommandPolicy"/> allows for the language). <see cref="TestFiles"/> are the content-supplied (hidden) test files,
 /// copied into the work directory below <see cref="TestsTarget"/> ("." = the root) at grading time; they are never shown in the editor.
+/// A command either names the language tool in <see cref="Run"/> (<c>node --test ...</c>, <c>go test ...</c>) or, for tools installed in the
+/// node content environment, a <see cref="Tool"/> (<c>vitest</c>) with <see cref="Args"/>; then <see cref="Run"/> is empty and the runner
+/// builds the argv itself (see <see cref="CommandPolicy.NodeToolArgv"/>), so content never names a script path.
 /// </summary>
 public sealed record CommandSpec(
     IReadOnlyList<string> Run,
@@ -127,7 +130,13 @@ public sealed record CommandSpec(
     string? ReportFile,
     int? TimeoutSeconds,
     string TestsTarget,
-    IReadOnlyList<ExerciseFile> TestFiles);
+    IReadOnlyList<ExerciseFile> TestFiles,
+    string? Tool = null,
+    IReadOnlyList<string>? Args = null)
+{
+    /// <summary>True when the command runs a tool from the node content environment.</summary>
+    public bool UsesNodeTool => Tool is not null;
+}
 
 public enum OutputComparison { Exact, Trim, Tokens, Numeric }
 
@@ -183,7 +192,10 @@ public sealed record Exercise(
     AcceleratorNeed Accelerator = AcceleratorNeed.None)
 {
     /// <summary>True when the exercise declares a Python version or packages it needs.</summary>
-    public bool HasRequirements => Requires is { IsEmpty: false };
+    public bool HasRequirements => Requires is { HasPython: true };
+
+    /// <summary>True when grading needs the node content environment (a <c>command.tool</c> or <c>requires.node/npmPackages</c>).</summary>
+    public bool NeedsNodeEnvironment => (Command?.UsesNodeTool ?? false) || Requires is { HasNode: true };
 
     /// <summary>Explicit variants (non-empty) when the exercise was declared with a <c>variants</c> map.</summary>
     public bool HasExplicitVariants => Variants is { Count: > 0 };

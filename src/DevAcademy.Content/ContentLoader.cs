@@ -316,7 +316,9 @@ public static class ContentLoader
 
         private static ExerciseRequirements? ParseRequires(RequiresDto? r) =>
             r is null ? null : new ExerciseRequirements(string.IsNullOrWhiteSpace(r.Python) ? null : r.Python.Trim(),
-                (r.Packages ?? []).Select(p => p.Trim()).ToList());
+                (r.Packages ?? []).Select(p => p.Trim()).ToList(),
+                string.IsNullOrWhiteSpace(r.Node) ? null : r.Node.Trim(),
+                (r.NpmPackages ?? []).Select(p => p.Trim()).ToList());
 
         private Exercise? ParseExerciseCore(ExerciseDto e, string lessonDir, string path, string courseLanguage)
         {
@@ -439,7 +441,8 @@ public static class ContentLoader
             { Error(path, $"exercise[{e.Id}].tests_dir must stay inside the lesson directory: '{dir}'"); return null; }
             if (report is null) return null;
             return new CommandSpec(c.Run ?? [], report.Value, c.ReportFile, c.TimeoutSeconds,
-                string.IsNullOrWhiteSpace(c.TestsTarget) ? "tests" : c.TestsTarget.Trim().TrimEnd('/'), ReadFiles(testsDir));
+                string.IsNullOrWhiteSpace(c.TestsTarget) ? "tests" : c.TestsTarget.Trim().TrimEnd('/'), ReadFiles(testsDir),
+                string.IsNullOrWhiteSpace(c.Tool) ? null : c.Tool.Trim(), c.Args);
         }
 
         private static List<ExerciseFile> ReadFiles(string dir) =>
