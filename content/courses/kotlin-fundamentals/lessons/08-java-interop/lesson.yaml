@@ -1,0 +1,222 @@
+id: "kotlin.fundamentals.java-interop"
+title: "Взаимодействие с Java: платформенные типы и JVM-аннотации"
+goal: "Безопасно использовать Java-код из Kotlin и настраивать то, как Kotlin-код выглядит для Java."
+difficulty: "medium"
+estimatedMinutes: 55
+prerequisites:
+  - "kotlin.fundamentals.concurrency-threads-and-coroutines"
+related:
+  - "java.first-steps.how-java-runs"
+  - "java.first-steps.primitives-objects-and-equality"
+  - "kotlin.fundamentals.types-and-null-safety"
+next: []
+objectives:
+  - "Объяснять платформенные типы T! и безопасно работать с ними."
+  - "Применять @JvmOverloads, @JvmStatic, @JvmField, @JvmName и @Throws и предсказывать результат для Java."
+  - "Описывать, как Kotlin использует nullability-аннотации Java."
+  - "Использовать SAM-преобразование и Java-коллекции из Kotlin."
+masteryCriteria:
+  - "Вы указываете место, где платформенное значение превращается в NPE, и исправляете его явным типом String?."
+  - "Вы по списку аннотаций перечисляете, какие публичные члены будут у класса в Java."
+  - "Вы отличаете поведение для Java-вызова без @JvmStatic и с ним."
+tags:
+  - "kotlin"
+  - "java"
+  - "interop"
+  - "platform-types"
+facts:
+  - kind: "internals"
+    text: "Значения из Java-кода без аннотаций nullability получают в Kotlin платформенный тип, обозначаемый T!: компилятор не требует проверок null, а ошибка проявляется в выполнении в месте использования или присваивания."
+    sources:
+      - "https://kotlinlang.org/docs/java-interop.html"
+  - kind: "internals"
+    text: "Аннотация @JvmOverloads заставляет компилятор Kotlin генерировать перегрузки для функции с параметрами по умолчанию, чтобы они были видны из Java; @JvmStatic создаёт настоящий static-метод для члена объекта или companion object."
+    sources:
+      - "https://kotlinlang.org/docs/java-to-kotlin-interop.html"
+  - kind: "misconception"
+    text: "«companion object - это static из Java» - неверно: без @JvmStatic или @JvmField член доступен из Java только через Foo.Companion."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что означает тип String! в Kotlin?"
+      options:
+        - "Строка, которая гарантированно не null."
+        - "Платформенный тип: из Java, null возможен, но компилятор не требует проверок."
+        - "Строка, которая может быть только null."
+        - "Строка, помеченная deprecated."
+      answer: 1
+      explanation: "String! - платформенный тип значения из Java без аннотаций nullability."
+    - id: "q2"
+      type: "single"
+      prompt: "Сколько перегрузок увидит Java у @JvmOverloads fun f(a: Int, b: Int = 1, c: Int = 2)?"
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+      answer: 2
+      explanation: "f(a), f(a, b) и f(a, b, c)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что делает Java-вызов Foo.bar() возможным (без Companion)?"
+      options:
+        - "@JvmStatic на bar в companion object."
+        - "const val для константы."
+        - "@JvmField на свойстве companion object."
+        - "Просто объявление bar в companion object."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Для функции нужен @JvmStatic; константе подходит const, а свойству - @JvmField. Без них доступ через Companion."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая аннотация добавляет throws IOException в сигнатуру метода для Java?"
+      answer:
+        - "@Throws"
+        - "Throws"
+      explanation: "@Throws(IOException::class) добавляет объявление исключения в байткод."
+    - id: "q5"
+      type: "single"
+      prompt: "Как безопаснее всего объявить результат Java-метода без аннотаций, который может вернуть null?"
+      options:
+        - "val s = javaCall()"
+        - "val s: String = javaCall()"
+        - "val s: String? = javaCall()"
+        - "val s = javaCall()!!"
+      answer: 2
+      explanation: "Явный String? заставляет обработать null."
+exercise:
+  id: "kotlin.fundamentals.java-interop.exercise"
+  title: "Config: платформенный тип и @JvmOverloads"
+  prompt: |
+    Первая строка - `n`, затем `n` строк `ключ значение` (значение - всё после первого пробела) для `java.util.Properties`. Затем строка `q` и `q` ключей.
+
+    Для каждого ключа выведите `describe(key)`: ключ, дополненный справа точками до ширины 8 (`padEnd`), и значение, либо `<missing>`, если ключа нет. В конце выведите `overloads=<число>`, где число - количество публичных методов `describe` в классе `Config`, видимых как отдельные перегрузки (рефлексия).
+
+    **Пример.** Свойства `host example.org`, запросы `host`, `port` дают
+
+    ```
+    host....example.org
+    port....<missing>
+    overloads=3
+    ```
+
+    В заготовке `props.getProperty` - Java-метод, а результат присвоен типу `String`, поэтому на отсутствующем ключе программа падает. Кроме того, `describe` не генерирует перегрузок для Java.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка падает с NullPointerException на отсутствующем ключе: getProperty возвращает String! и присваивание в String проверяет null."
+    - "Объявите val value: String? = props.getProperty(key) и подставьте значение по умолчанию через ?: \"<missing>\"."
+    - "overloads считает методы describe: без аннотации Java увидела бы только одну полную сигнатуру. Добавьте @JvmOverloads перед fun describe."
+    - "Для двух параметров по умолчанию (width, pad) @JvmOverloads создаст 3 метода: describe(key), describe(key, width), describe(key, width, pad)."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "1\nhost example.org\n2\nhost\nport\n"
+      expected: "host....example.org\nport....<missing>\noverloads=3\n"
+      hint: "Ширина по умолчанию 8, символ заполнения точка."
+    - id: "values-with-spaces"
+      title: "Значение с пробелами"
+      stdin: "2\ntitle Hello big world\nmode fast\n2\ntitle\nmode\n"
+      expected: "title...Hello big world\nmode....fast\noverloads=3\n"
+      hint: "Делите строку по первому пробелу: split(\" \", limit = 2)."
+    - id: "all-missing"
+      title: "Ключей нет"
+      stdin: "0\n2\na\nb\n"
+      expected: "a.......<missing>\nb.......<missing>\noverloads=3\n"
+      hint: "Нет данных - всё <missing>, и работает без исключения."
+    - id: "long-key"
+      title: "Ключ длиннее ширины (скрытый)"
+      stdin: "1\nlongerkeyname v\n1\nlongerkeyname\n"
+      expected: "longerkeynamev\noverloads=3\n"
+      hidden: true
+      hint: "padEnd не обрезает: ключ длиннее 8 выводится целиком."
+    - id: "repeat-key"
+      title: "Повторный ключ (скрытый)"
+      stdin: "2\nk one\nk two\n1\nk\n"
+      expected: "k.......two\noverloads=3\n"
+      hidden: true
+      hint: "setProperty заменяет значение: побеждает последнее."
+    - id: "mixed"
+      title: "Есть и нет (скрытый)"
+      stdin: "2\na 1\nb 2\n4\nb\nz\na\nq\n"
+      expected: "b.......2\nz.......<missing>\na.......1\nq.......<missing>\noverloads=3\n"
+      hidden: true
+      hint: "Каждый запрос обрабатывается независимо; <missing> не влияет на следующие."
+challenge:
+  id: "kotlin.fundamentals.java-interop.challenge"
+  title: "Registry: класс с нужным Java-видом"
+  prompt: |
+    Задача - изменить Kotlin-класс `Registry`, чтобы для Java он выглядел так:
+
+    ```java
+    public final class Registry {
+        public static final Registry DEFAULT;                 // поле без геттера
+        public static final int MAX = 10;                     // константа
+        public static final Registry.Companion Companion;
+        public static Registry create(String name);           // настоящий static
+        public String title();                                // геттер свойства name называется title
+        public Registry register(String key);
+        public Registry register(String key, int weight);
+        public Registry register(String key, int weight, String tag);
+        public String save() throws IOException;
+    }
+    ```
+
+    Конструктор остаётся приватным; `helper()` остаётся нестатическим членом companion. Функцию `main` менять нельзя: она читает `n`, затем `n` команд и печатает рефлексией описание класса:
+
+    * `statics` - публичные статические методы вида `имя/число-параметров`, отсортированные;
+    * `fields` - публичные статические поля, отсортированные;
+    * `overloads` - числа параметров публичных методов `register`;
+    * `throws` - исключения метода `save`;
+    * `instance` - публичные нестатические методы.
+
+    Пустой список выводится как `-`.
+
+    **Пример.** Команда `overloads` для целевого класса даёт `overloads: 1 2 3`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Заготовка отличается от целевого вида: нет перегрузок, статического create, публичных полей и throws. Запустите команды statics, fields, overloads."
+    - "Аннотации: @JvmOverloads на register, @JvmStatic на create, @JvmField на DEFAULT, const val для MAX, @Throws(IOException::class) на save."
+    - "Геттер переименуйте так: class Registry private constructor(@get:JvmName(\"title\") val name: String)."
+    - "Константа MAX объявляется как const val MAX = 10 внутри companion object; поле Companion и DEFAULT появятся в Registry автоматически."
+  tests:
+    - id: "overloads"
+      title: "Перегрузки"
+      stdin: "1\noverloads\n"
+      expected: "overloads: 1 2 3\n"
+      hint: "Нужен @JvmOverloads на register: должны быть методы с 1, 2 и 3 параметрами."
+    - id: "statics"
+      title: "Статические методы"
+      stdin: "1\nstatics\n"
+      expected: "statics: create/1\n"
+      hint: "create должен быть настоящим static-методом (@JvmStatic); helper остаётся в Companion."
+    - id: "fields"
+      title: "Статические поля"
+      stdin: "1\nfields\n"
+      expected: "fields: Companion DEFAULT MAX\n"
+      hint: "Поля: Companion, DEFAULT (@JvmField) и MAX (const val)."
+    - id: "throws"
+      title: "Throws (скрытый)"
+      stdin: "1\nthrows\n"
+      expected: "throws: IOException\n"
+      hidden: true
+      hint: "Добавьте @Throws(IOException::class) к save."
+    - id: "instance"
+      title: "Экземплярные методы (скрытый)"
+      stdin: "1\ninstance\n"
+      expected: "instance: register/1 register/2 register/3 save/0 title/0\n"
+      hidden: true
+      hint: "Геттер называется title, а не getName: @get:JvmName(\"title\")."
+    - id: "all"
+      title: "Все отчёты вместе (скрытый)"
+      stdin: "6\nstatics\nfields\noverloads\nthrows\ninstance\nbogus\n"
+      expected: "statics: create/1\nfields: Companion DEFAULT MAX\noverloads: 1 2 3\nthrows: IOException\ninstance: register/1 register/2 register/3 save/0 title/0\nunknown: bogus\n"
+      hidden: true
+      hint: "Сверьте каждую строку отчёта; неизвестная команда печатает unknown: имя."

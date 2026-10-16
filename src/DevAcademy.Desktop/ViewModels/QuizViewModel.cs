@@ -33,6 +33,12 @@ public sealed partial class QuizQuestionViewModel : ObservableObject
     public string Explanation => Question.Explanation;
     public string GroupName { get; }
     public IReadOnlyList<QuizOptionViewModel> Options { get; }
+    /// <summary>
+    /// Options rendered as radio buttons / check boxes. Exactly one of the two is non-empty, so a question never has hidden
+    /// controls of the other kind bound to the same IsSelected (a hidden radio group would clear a multiple-choice selection).
+    /// </summary>
+    public IReadOnlyList<QuizOptionViewModel> SingleOptions => IsSingle ? Options : [];
+    public IReadOnlyList<QuizOptionViewModel> MultipleOptions => IsMultiple ? Options : [];
     public bool IsSingle => Question.Type == QuestionType.Single;
     public bool IsMultiple => Question.Type == QuestionType.Multiple;
     public bool IsText => Question.Type is QuestionType.Short or QuestionType.Numeric;

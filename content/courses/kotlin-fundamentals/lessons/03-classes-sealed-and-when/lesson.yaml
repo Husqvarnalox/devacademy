@@ -1,0 +1,236 @@
+id: "kotlin.fundamentals.classes-sealed-and-when"
+title: "Классы, data-классы, sealed и when"
+goal: "Проектировать модели данных на data class и sealed-иерархиях и обрабатывать их исчерпывающим when."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "kotlin.fundamentals.functions-and-scope-functions"
+related:
+  - "csharp.fundamentals.classes-records-structs"
+  - "rust.fundamentals.structs-enums-pattern-matching"
+next:
+  - "kotlin.fundamentals.collections-and-sequences"
+objectives:
+  - "Объявлять классы с первичным конструктором, свойствами и init и объяснять, почему классы по умолчанию final."
+  - "Использовать data class: copy, деструктуризацию и знать, какие свойства участвуют в equals."
+  - "Описывать закрытые иерархии через sealed и писать when без else."
+  - "Применять object и companion object для синглтонов и фабрик."
+masteryCriteria:
+  - "Вы моделируете выражение или набор команд как sealed-иерархию и обрабатываете их исчерпывающим when."
+  - "Вы предсказываете результат equals и copy у data class и называете, что они игнорируют."
+  - "Вы объясняете, когда использовать enum, а когда sealed."
+tags:
+  - "kotlin"
+  - "classes"
+  - "data-class"
+  - "sealed"
+  - "when"
+facts:
+  - kind: "internals"
+    text: "Для data class компилятор генерирует equals, hashCode, toString, componentN и copy только по свойствам, объявленным в первичном конструкторе."
+    sources:
+      - "https://kotlinlang.org/docs/data-classes.html"
+  - kind: "internals"
+    text: "Прямые наследники sealed-класса или интерфейса должны находиться в том же пакете и том же модуле; благодаря этому when по sealed-типу может быть проверен компилятором на полноту без ветки else."
+    sources:
+      - "https://kotlinlang.org/docs/sealed-classes.html"
+  - kind: "internals"
+    text: "Объявление object создаёт единственный экземпляр, а companion object - объект, члены которого вызываются через имя содержащего класса."
+    sources:
+      - "https://kotlinlang.org/docs/object-declarations.html"
+  - kind: "misconception"
+    text: "«Классы Kotlin можно наследовать, как в Java» - неверно: по умолчанию класс final, для наследования нужен модификатор open."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какие свойства участвуют в equals() у data class?"
+      options:
+        - "Все свойства класса, включая объявленные в теле."
+        - "Только свойства первичного конструктора."
+        - "Только val-свойства."
+        - "Ни одно: сравниваются ссылки."
+      answer: 1
+      explanation: "equals, hashCode и toString строятся по свойствам первичного конструктора."
+    - id: "q2"
+      type: "single"
+      prompt: "Почему в when по sealed-типу не рекомендуется писать else?"
+      options:
+        - "Это синтаксическая ошибка."
+        - "Компилятор перестанет сообщать, что новый вариант не обработан."
+        - "Else замедляет программу."
+        - "Else допустим только для enum."
+      answer: 1
+      explanation: "Без else добавление нового варианта сразу даёт ошибку компиляции в каждом when."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно для object и companion object?"
+      options:
+        - "object создаёт единственный экземпляр."
+        - "Члены companion object вызываются через имя класса."
+        - "Companion object - это то же, что static в Java."
+        - "Фабричную функцию с private constructor удобно держать в companion object."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Companion - настоящий объект, а не static-член. Для JVM-статики нужны аннотации."
+    - id: "q4"
+      type: "short"
+      prompt: "Каким модификатором нужно пометить класс, чтобы от него можно было наследоваться?"
+      answer:
+        - "open"
+      explanation: "Классы Kotlin по умолчанию final; чтобы наследоваться, нужен open."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт Point(1, 2).copy(y = 5), если p = Point(1, 2)?"
+      options:
+        - "Изменит p на Point(1, 5) и вернёт его."
+        - "Новый Point(1, 5), p остаётся Point(1, 2)."
+        - "Ошибка: copy нельзя вызывать с именованным аргументом."
+        - "Point(5, 2)."
+      answer: 1
+      explanation: "copy создаёт новый объект и не меняет исходный."
+exercise:
+  id: "kotlin.fundamentals.classes-sealed-and-when.exercise"
+  title: "Выражения как sealed-иерархия"
+  prompt: |
+    Первая строка - `n`, затем `n` выражений в префиксной записи, токены через пробел: целые числа (возможно отрицательные), бинарные `+`, `-`, `*` и унарный `neg`.
+
+    Для каждого выражения выведите `<инфиксная запись> = <значение>`:
+
+    * число печатается как есть;
+    * `neg x` печатается как `-(x)`;
+    * бинарная операция печатается как `(левое оператор правое)`.
+
+    Значения считайте в `Long`.
+
+    **Пример.** Строки `+ 1 * 2 3` и `neg - 5 7` дают
+
+    ```
+    (1 + (2 * 3)) = 7
+    -((5 - 7)) = 2
+    ```
+
+    В заготовке иерархия `Expr` неполная, а `when` покрывает только число. Добавьте варианты и обработайте их в `eval`, `show` и `parse` без `else`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка падает на токене '+': parse превращает его в Num и вызывает toLong. Начните с недостающих вариантов Expr."
+    - "Добавьте data class Neg(val inner: Expr) и data class Bin(val op: Char, val left: Expr, val right: Expr). Когда вы это сделаете, компилятор потребует новые ветки в when."
+    - "parse: прочитайте токен; для '+', '-', '*' рекурсивно прочитайте два операнда, для 'neg' - один, иначе это число."
+    - "eval для Bin: посчитайте left и right, затем when (e.op) { '+' -> ...; '-' -> ...; else -> ... }. show для Bin: \"(${show(e.left)} ${e.op} ${show(e.right)})\"."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "2\n+ 1 * 2 3\nneg - 5 7\n"
+      expected: "(1 + (2 * 3)) = 7\n-((5 - 7)) = 2\n"
+      hint: "Проверьте форматирование скобок и вывод neg как -(x)."
+    - id: "number"
+      title: "Просто число"
+      stdin: "2\n42\n-7\n"
+      expected: "42 = 42\n-7 = -7\n"
+      hint: "Токен -7 - это число, а не операция."
+    - id: "nested"
+      title: "Вложенные выражения"
+      stdin: "2\n* + 1 2 - 10 4\n- * 3 3 neg 2\n"
+      expected: "((1 + 2) * (10 - 4)) = 18\n((3 * 3) - -(2)) = 11\n"
+      hint: "Разбор рекурсивный: каждый операнд сам может быть выражением."
+    - id: "large"
+      title: "Большие значения (скрытый)"
+      stdin: "1\n* 3000000000 3\n"
+      expected: "(3000000000 * 3) = 9000000000\n"
+      hidden: true
+      hint: "Значения хранятся в Long, Int здесь переполнится."
+    - id: "double-neg"
+      title: "Двойное neg (скрытый)"
+      stdin: "2\nneg neg 5\nneg + 1 -1\n"
+      expected: "-(-(5)) = 5\n-((1 + -1)) = 0\n"
+      hidden: true
+      hint: "neg применяется к любому выражению, включая другое neg."
+    - id: "deep"
+      title: "Глубокое вложение (скрытый)"
+      stdin: "1\n+ + + 1 2 3 + 4 * 5 6\n"
+      expected: "(((1 + 2) + 3) + (4 + (5 * 6))) = 40\n"
+      hidden: true
+      hint: "Левый операнд может быть таким же сложным, как правый."
+challenge:
+  id: "kotlin.fundamentals.classes-sealed-and-when.challenge"
+  title: "Банк команд: sealed, companion и object"
+  prompt: |
+    Первая строка - `n`, затем `n` команд. Реализуйте мини-банк:
+
+    * `open A` - создаёт счёт с нулевым балансом;
+    * `deposit A x` - пополнение;
+    * `withdraw A x` - снятие;
+    * `transfer A B x` - перевод со счёта A на счёт B;
+    * `show A` - печатает `A: <баланс>`.
+
+    Для успешных изменяющих команд выведите `ok`. Ошибки:
+
+    * неизвестная команда, неверное число аргументов или сумма, не являющаяся положительным целым: `error: bad command`;
+    * `open` для существующего счёта: `error: exists A`;
+    * счёт не найден: `error: no account A` (в `transfer` сначала проверяется A, затем B);
+    * баланса не хватает: `error: insufficient A`, при этом ничего не меняется.
+
+    В конце выведите `total=<сумма балансов всех счетов>`. Перевод на тот же счёт при достаточном балансе - `ok` без изменений.
+
+    **Пример.** Команды `open a`, `deposit a 10`, `open b`, `transfer a b 4`, `show a`, `show b`, `withdraw b 9`, `oops` дают
+
+    ```
+    ok
+    ok
+    ok
+    ok
+    a: 6
+    b: 4
+    error: insufficient b
+    error: bad command
+    total=10
+    ```
+
+    Требования к устройству: `Command` - sealed-интерфейс, разбор строки - в `companion object`, банк - `object`, счёт - неизменяемый `data class`, изменения делаются через `copy`, `when` без `else`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Заготовка не распознаёт ни одной команды, кроме open. Начните с parse: разделите строку по пробелам и сверьте первое слово и число частей."
+    - "Сумму разбирайте так: s.toLongOrNull()?.takeIf { it > 0 }. Если результат null, parse возвращает null, и main печатает bad command."
+    - "Добавьте варианты Deposit, Withdraw, Transfer, Show и ветки в when. Для обновления счёта: accounts[id] = a.copy(balance = a.balance + x)."
+    - "В transfer проверяйте по порядку: счёт from, счёт to, достаточность баланса. После списания читайте счёт to заново, чтобы перевод на тот же счёт не потерял изменение."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "8\nopen a\ndeposit a 10\nopen b\ntransfer a b 4\nshow a\nshow b\nwithdraw b 9\noops\n"
+      expected: "ok\nok\nok\nok\na: 6\nb: 4\nerror: insufficient b\nerror: bad command\ntotal=10\n"
+      hint: "Сверьте формат вывода show и итог total."
+    - id: "errors"
+      title: "Ошибки счетов"
+      stdin: "6\nopen x\nopen x\ndeposit y 5\nshow z\ntransfer x y 1\ntransfer y x 1\n"
+      expected: "ok\nerror: exists x\nerror: no account y\nerror: no account z\nerror: no account y\nerror: no account y\ntotal=0\n"
+      hint: "В transfer сначала проверяется from, затем to."
+    - id: "bad"
+      title: "Неверные команды"
+      stdin: "7\nopen a\ndeposit a 0\ndeposit a -5\ndeposit a abc\nwithdraw a\nshow\nopen a b\n"
+      expected: "ok\nerror: bad command\nerror: bad command\nerror: bad command\nerror: bad command\nerror: bad command\nerror: bad command\ntotal=0\n"
+      hint: "Сумма должна быть положительным целым; число аргументов проверяется точно."
+    - id: "self-transfer"
+      title: "Перевод на себя (скрытый)"
+      stdin: "5\nopen a\ndeposit a 10\ntransfer a a 4\ntransfer a a 11\nshow a\n"
+      expected: "ok\nok\nok\nerror: insufficient a\na: 10\ntotal=10\n"
+      hidden: true
+      hint: "Перевод на тот же счёт при достаточном балансе - ok без изменений; при недостатке - insufficient."
+    - id: "atomic"
+      title: "Неудачный перевод ничего не меняет (скрытый)"
+      stdin: "7\nopen a\nopen b\ndeposit a 5\ntransfer a b 6\nshow a\nshow b\nwithdraw a 5\n"
+      expected: "ok\nok\nok\nerror: insufficient a\na: 5\nb: 0\nok\ntotal=0\n"
+      hidden: true
+      hint: "При ошибке баланс обоих счетов остаётся прежним."
+    - id: "big"
+      title: "Большие суммы (скрытый)"
+      stdin: "4\nopen a\ndeposit a 3000000000\ndeposit a 3000000000\nshow a\n"
+      expected: "ok\nok\nok\na: 6000000000\ntotal=6000000000\n"
+      hidden: true
+      hint: "Суммы хранятся в Long."

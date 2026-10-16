@@ -1,0 +1,274 @@
+id: "java.fundamentals.interfaces-sealed-patterns"
+title: "Интерфейсы, наследование, sealed-типы и сопоставление с образцом"
+goal: "Проектировать иерархии из интерфейсов и записей, закрывать их через sealed и обрабатывать исчерпывающим switch с образцами."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "java.fundamentals.classes-records-enums"
+related:
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+  - "go.fundamentals.interfaces"
+  - "rust.fundamentals.structs-enums-pattern-matching"
+  - "python.advanced.inheritance-composition-protocols"
+next:
+  - "java.fundamentals.generics-collections"
+objectives:
+  - "Объявлять интерфейсы с default, static и private методами и разрешать конфликт default-методов через Интерфейс.super."
+  - "Отличать переопределение (по реальному типу) от перегрузки (по статическому типу) и скрытие полей от переопределения."
+  - "Объявлять sealed-иерархии и объяснять, почему switch по ним проверяется на полноту."
+  - "Применять instanceof с образцом, switch с образцами, охранные условия when и образцы записей, включая вложенные."
+  - "Называть версии Java, в которых появились instanceof с образцом, sealed и switch с образцами."
+masteryCriteria:
+  - "Вы предсказываете вывод программы с переопределением, перегрузкой и вызовом виртуального метода из конструктора."
+  - "Вы пишете switch по sealed-интерфейсу без ветки default и объясняете, что произойдёт при добавлении нового подтипа."
+  - "Вы упорядочиваете ветки с образцами так, чтобы частные случаи стояли перед общими, и поясняете ошибку доминирования."
+  - "Вы подтверждаете версию языка для каждой возможности компиляцией с javac --release."
+tags:
+  - "java"
+  - "interfaces"
+  - "inheritance"
+  - "sealed"
+  - "pattern-matching"
+  - "switch"
+facts:
+  - kind: "historical"
+    text: "Закрытые классы и интерфейсы (sealed) стали стандартной возможностью в Java 17 (JEP 409). Компиляция sealed-типа с --release 16 завершается ошибкой."
+    sources:
+      - "https://openjdk.org/jeps/409"
+  - kind: "historical"
+    text: "Сопоставление с образцом для switch и образцы записей стали стандартными в Java 21 (JEP 441 и JEP 440); в Java 19 и 20 они были предварительными. Сопоставление с образцом для instanceof стандартно с Java 16 (JEP 394)."
+    sources:
+      - "https://openjdk.org/jeps/441"
+      - "https://openjdk.org/jeps/440"
+      - "https://openjdk.org/jeps/394"
+  - kind: "internals"
+    text: "Выражение switch обязано быть исчерпывающим; для sealed-селектора достаточно перечислить все разрешённые подтипы. Если пропущен подтип, компилятор сообщает об ошибке, а если иерархия изменилась после компиляции, во время выполнения бросается MatchException."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.28.1"
+  - kind: "internals"
+    text: "Default-методы интерфейсов появились в Java 8, private-методы интерфейсов - в Java 9. Если класс наследует два default-метода с одной сигнатурой, он обязан переопределить метод и может вызвать нужную версию как Интерфейс.super.метод()."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-9.html#jls-9.4"
+  - kind: "misconception"
+    text: "«Поля переопределяются так же, как методы» - нет: поля скрываются, и b.name зависит от объявленного типа переменной, а не от реального класса объекта."
+  - kind: "real-world"
+    text: "Конструктор родителя выполняется до инициализации полей потомка, поэтому вызов переопределяемого метода из конструктора может увидеть поле в состоянии по умолчанию."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В какой версии Java switch с образцами стал стандартной (не предварительной) возможностью?"
+      options:
+        - "Java 16"
+        - "Java 17"
+        - "Java 19"
+        - "Java 21"
+      answer: 3
+      explanation: "JEP 441 завершил стандартизацию в Java 21; в 19 и 20 возможность была предварительной."
+    - id: "q2"
+      type: "single"
+      prompt: "Конструктор Base вызывает init(), который переопределён в Derived и печатает поле value = 42, объявленное в Derived. Что напечатает new Derived()?"
+      options:
+        - "42"
+        - "0"
+        - "null"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Конструктор родителя выполняется раньше инициализаторов полей потомка, поэтому поле ещё равно 0."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о sealed-типах верны?"
+      options:
+        - "Каждый разрешённый подтип должен быть final, sealed или non-sealed."
+        - "switch по sealed-интерфейсу без default должен покрыть все подтипы."
+        - "Запись можно объявить подтипом sealed-интерфейса."
+        - "sealed появился в Java 16."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "sealed стал стандартным в Java 17; записи неявно final и подходят в качестве разрешённых подтипов."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое слово после sealed interface перечисляет разрешённые подтипы?"
+      options:
+        - "permits"
+      answer: "permits"
+      explanation: "После permits идёт список подтипов; если все они лежат в том же файле, список можно опустить."
+    - id: "q5"
+      type: "single"
+      prompt: "Что произойдёт при добавлении нового подтипа в sealed-интерфейс, если в коде есть switch без default по этому интерфейсу?"
+      options:
+        - "Ничего, switch продолжит работать."
+        - "Ошибка компиляции в этом switch, пока ветка не добавлена."
+        - "Предупреждение во время выполнения."
+        - "Все новые значения попадут в первую ветку."
+      answer: 1
+      explanation: "Исчерпывающий switch-выражение перестаёт быть исчерпывающим, и компилятор требует добавить ветку. Это главная причина не писать default."
+exercise:
+  id: "java.fundamentals.interfaces-sealed-patterns.exercise"
+  title: "Фигуры: switch по sealed-интерфейсу"
+  prompt: |
+    Первая строка ввода - число `n`, затем `n` строк с описанием фигур (все числа - целые от 1):
+
+    * `circle r` - круг радиуса `r`;
+    * `rect w h` - прямоугольник;
+    * `tri a b c` - треугольник со сторонами `a`, `b`, `c`.
+
+    Для каждой допустимой фигуры выведите строку `<вид> area=<площадь> perimeter=<периметр>` с двумя знаками после точки (используйте `Locale.ROOT`). **Вид**: `circle`; для прямоугольника - `square`, если `w == h`, иначе `rect`; для треугольника - `equilateral` (все стороны равны), `isosceles` (равны ровно две) или `scalene`. Площадь треугольника - по формуле Герона.
+
+    Строка **недопустима**, если фигура неизвестна, число аргументов неверно, аргумент не является целым числом не меньше 1 или треугольник не существует (сумма двух сторон должна быть строго больше третьей). Для неё выведите `invalid: <исходная строка>`. В конце выведите `total=<сумма площадей допустимых фигур>`.
+
+    **Пример.**
+
+    ```
+    4
+    circle 1
+    rect 4 4
+    tri 3 4 5
+    tri 1 1 5
+    ```
+
+    ```
+    circle area=3.14 perimeter=6.28
+    square area=16.00 perimeter=16.00
+    scalene area=6.00 perimeter=12.00
+    invalid: tri 1 1 5
+    total=25.14
+    ```
+
+    **Что дано.** Иерархия `Shape` уже закрыта через `sealed`, разбор строки готов. Методы `area`, `perimeter` и `kind` - заглушки: реализуйте их через `switch` с образцами записей, без ветки `default`. Охранное условие `when` выберет `square` и виды треугольников.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Используйте switch-выражение по s: ветки case Circle c -> ..., case Rect(int w, int h) -> ..., case Triangle(int a, int b, int c) -> ... Ветка default не нужна: Shape закрыт."
+    - "Для круга площадь равна Math.PI * r * r, периметр 2 * Math.PI * r. Для прямоугольника следите за типом: (double) w * h не переполнит int."
+    - "Герон: p = (a + b + c) / 2.0, площадь = Math.sqrt(p * (p - a) * (p - b) * (p - c)). Блок в ветке switch возвращает значение через yield."
+    - "В kind поставьте case Rect(int w, int h) when w == h -> \"square\" перед общим case Rect r. Для треугольников - две ветки с when: сначала a == b && b == c, затем любая пара равных, затем общий случай."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "4\ncircle 1\nrect 4 4\ntri 3 4 5\ntri 1 1 5\n"
+      expected: "circle area=3.14 perimeter=6.28\nsquare area=16.00 perimeter=16.00\nscalene area=6.00 perimeter=12.00\ninvalid: tri 1 1 5\ntotal=25.14\n"
+      hint: "Квадрат 4x4: площадь 16.00, периметр 16.00. Треугольник 1 1 5 не существует."
+    - id: "kinds"
+      title: "Виды треугольников"
+      stdin: "4\ntri 2 2 2\ntri 2 2 3\ntri 3 3 2\ntri 4 5 6\n"
+      expected: "equilateral area=1.73 perimeter=6.00\nisosceles area=1.98 perimeter=7.00\nisosceles area=2.83 perimeter=8.00\nscalene area=9.92 perimeter=15.00\ntotal=16.47\n"
+      hint: "Равносторонний, равнобедренный (в любом порядке сторон) и разносторонний."
+    - id: "rect"
+      title: "Прямоугольники и круги"
+      stdin: "3\nrect 2 5\ncircle 10\nrect 7 7\n"
+      expected: "rect area=10.00 perimeter=14.00\ncircle area=314.16 perimeter=62.83\nsquare area=49.00 perimeter=28.00\ntotal=373.16\n"
+      hint: "rect 2 5: площадь 10.00, периметр 14.00; круг радиуса 10: 314.16 и 62.83."
+    - id: "invalid"
+      title: "Недопустимые строки (скрытый)"
+      stdin: "7\ncircle\ncircle x\ncircle 0\nhex 3\nrect 2\ntri 1 2 3\ntri 2 3 -4\n"
+      expected: "invalid: circle\ninvalid: circle x\ninvalid: circle 0\ninvalid: hex 3\ninvalid: rect 2\ninvalid: tri 1 2 3\ninvalid: tri 2 3 -4\ntotal=0.00\n"
+      hidden: true
+      hint: "Неизвестная фигура, неверное число аргументов, нечисла, нули и треугольник 1 2 3 (сумма равна, а не больше) - invalid."
+    - id: "large"
+      title: "Большие числа (скрытый)"
+      stdin: "3\nrect 100000 100000\ncircle 1000000\ntri 1000 1000 1000\n"
+      expected: "square area=10000000000.00 perimeter=400000.00\ncircle area=3141592653589.79 perimeter=6283185.31\nequilateral area=433012.70 perimeter=3000.00\ntotal=3151593086602.49\n"
+      hidden: true
+      hint: "Площадь прямоугольника 10^10 не помещается в int: умножайте как double."
+    - id: "none"
+      title: "Нет допустимых фигур (скрытый)"
+      stdin: "1\nsquare 5\n"
+      expected: "invalid: square 5\ntotal=0.00\n"
+      hidden: true
+      hint: "Итог без допустимых фигур - total=0.00."
+challenge:
+  id: "java.fundamentals.interfaces-sealed-patterns.challenge"
+  title: "Выражения: вычисление и упрощение дерева"
+  prompt: |
+    Программа читает **привязки переменных**, затем выражения в префиксной записи.
+
+    Первая строка - `m`, затем `m` строк `<имя> <значение>` (имя - одна строчная латинская буква, значение - целое типа `long`). Потом число `n` и `n` строк - выражения. Токены выражения разделены пробелами: бинарные `+`, `-`, `*`, унарный `neg`, целый литерал (`-?[0-9]+`, помещается в `long`) или переменная (одна буква `a-z`).
+
+    Для каждого выражения выведите
+
+    ```
+    <исходное> => <упрощённое> = <значение>
+    ```
+
+    Запись выражения: число и переменная как есть, `(a + b)`, `(a - b)`, `(a * b)` и `neg(a)`.
+
+    **Значение** вычисляется по исходному дереву слева направо; операции выполняются точно (`Math.addExact` и аналоги), порядок такой: сначала вычисляются оба операнда, потом применяется операция. Если встретилась неизвестная переменная, вместо значения печатается `unbound`; при переполнении `long` - `overflow` (побеждает первая проблема в порядке вычисления). Если токены не образуют ровно одно выражение (лишние или недостающие токены, неизвестный токен), выведите `error: <исходная строка>`.
+
+    **Упрощение** выполняется снизу вверх, сначала упрощаются потомки, затем узел по правилам в таком порядке:
+
+    1. оба операнда - числа: сложение, вычитание или умножение выполняются, `neg` числа даёт число с другим знаком; если при этом `long` переполняется, узел остаётся как есть;
+    2. `0 + e`, `e + 0`, `e - 0`, `1 * e`, `e * 1` дают `e`; `0 * e` и `e * 0` дают `0`;
+    3. `neg(neg(e))` даёт `e`.
+
+    **Пример.**
+
+    ```
+    2
+    x 5
+    y -2
+    3
+    + x 0
+    * 1 + x y
+    neg neg z
+    ```
+
+    ```
+    (x + 0) => x = 5
+    (1 * (x + y)) => (x + y) = 3
+    neg(neg(z)) => z = unbound
+    ```
+
+    **Что дано.** Деревья (`sealed interface Expr` и пять записей) и разбор готовы. `show`, `eval` и `simplify` - заглушки. Реализуйте их через `switch` с образцами записей без `default`; для правил упрощения подойдут вложенные образцы и `instanceof` с образцом записи.
+  entryFile: "Main.java"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "show, eval и simplify - три switch по Expr. Ветки: case Num n, case Var v, case Add(Expr l, Expr r), case Sub(...), case Mul(...), case Neg(Expr x). Без default."
+    - "eval: операнды вычисляйте в локальные переменные по порядку (сначала левый, затем правый), затем Math.addExact, subtractExact, multiplyExact; Neg - Math.negateExact. Для неизвестной переменной бросайте собственное исключение и ловите его в main."
+    - "simplify: в каждой ветке сначала упростите потомков рекурсивно, затем вызовите вспомогательный метод add(l, r), sub, mul, neg. В них первым делом проверьте l instanceof Num(long a) && r instanceof Num(long b)."
+    - "Свёртка с переполнением: оберните Math.addExact в try/catch ArithmeticException и верните исходный узел new Add(l, r). Правило neg(neg(e)): в neg(x) используйте case Neg(Expr inner) -> inner."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2\nx 5\ny -2\n3\n+ x 0\n* 1 + x y\nneg neg z\n"
+      expected: "(x + 0) => x = 5\n(1 * (x + y)) => (x + y) = 3\nneg(neg(z)) => z = unbound\n"
+      hint: "Правило 1 для чисел, правила 2 и 3 для остальных. Переменная z не задана: unbound."
+    - id: "fold"
+      title: "Свёртка констант"
+      stdin: "0\n3\n+ 2 * 3 4\n- 10 neg 5\nneg - 0 7\n"
+      expected: "(2 + (3 * 4)) => 14 = 14\n(10 - neg(5)) => 15 = 15\nneg((0 - 7)) => 7 = 7\n"
+      hint: "Все литералы складываются в одно число; neg(-7) снова положительное."
+    - id: "zeros"
+      title: "Нули и единицы"
+      stdin: "1\na 9\n4\n* 0 a\n+ * 1 a 0\n* a * 1 1\n- a 0\n"
+      expected: "(0 * a) => 0 = 0\n((1 * a) + 0) => a = 9\n(a * (1 * 1)) => a = 9\n(a - 0) => a = 9\n"
+      hint: "0 * e даёт 0 даже для переменной; 1 * a и a + 0 упрощаются до a."
+    - id: "errors"
+      title: "Ошибки разбора (скрытый)"
+      stdin: "0\n5\n+ 1\n+ 1 2 3\nfoo\n\n* + 1 2\n"
+      expected: "error: + 1\nerror: + 1 2 3\nerror: foo\nerror: \nerror: * + 1 2\n"
+      hidden: true
+      hint: "Недостаточно токенов, лишние токены, неизвестный токен и пустая строка - error."
+    - id: "overflow"
+      title: "Переполнение long (скрытый)"
+      stdin: "1\nm 9223372036854775807\n4\n+ m 1\n* 3037000500 3037000500\n+ m neg 1\n- 9223372036854775807 neg 1\n"
+      expected: "(m + 1) => (m + 1) = overflow\n(3037000500 * 3037000500) => (3037000500 * 3037000500) = overflow\n(m + neg(1)) => (m + -1) = 9223372036854775806\n(9223372036854775807 - neg(1)) => (9223372036854775807 - -1) = overflow\n"
+      hidden: true
+      hint: "Вычисление даёт overflow, а свёртка в упрощении не выполняется и оставляет узел как есть."
+    - id: "order"
+      title: "Порядок неполадок (скрытый)"
+      stdin: "1\nm 9223372036854775807\n3\n+ + m 1 q\n+ q + m 1\n* neg neg 4 + 0 m\n"
+      expected: "((m + 1) + q) => ((m + 1) + q) = overflow\n(q + (m + 1)) => (q + (m + 1)) = unbound\n(neg(neg(4)) * (0 + m)) => (4 * m) = overflow\n"
+      hidden: true
+      hint: "Побеждает первая проблема слева направо: в первом выражении переполнение раньше unbound, во втором - наоборот."
+    - id: "nested"
+      title: "Вложенные упрощения (скрытый)"
+      stdin: "2\nx 2\ny 3\n3\n* + 0 x + y 0\n+ neg neg neg x 0\n- * 1 x * x 1\n"
+      expected: "((0 + x) * (y + 0)) => (x * y) = 6\n(neg(neg(neg(x))) + 0) => neg(x) = -2\n((1 * x) - (x * 1)) => (x - x) = 0\n"
+      hidden: true
+      hint: "Упрощение идёт снизу вверх: после упрощения потомков срабатывают правила для узла."

@@ -1,0 +1,168 @@
+id: "java.fundamentals.jvm-types-and-memory"
+title: "JVM, байткод, типы и память"
+goal: "Объяснить путь от .java до выполнения на JVM, различать примитивы и ссылки, предсказывать результат приведений и описать стек, кучу и сборку мусора."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "java.first-steps.how-java-runs"
+  - "java.first-steps.primitives-objects-and-equality"
+related:
+  - "csharp.fundamentals.type-system-and-memory"
+  - "go.fundamentals.types-values-zero-values"
+  - "kotlin.first-steps.how-kotlin-runs"
+  - "python.fundamentals.how-python-runs"
+next:
+  - "java.fundamentals.classes-records-enums"
+objectives:
+  - "Описать этапы: javac, байткод, загрузка и проверка класса, интерпретация и JIT-компиляция."
+  - "Назвать размеры примитивных типов и предсказать результат сужающего приведения и арифметики char, byte, short."
+  - "Объяснить передачу параметров по значению и псевдонимы ссылок на примере массивов."
+  - "Различать стек потока, кучу и область методов и называть ошибки StackOverflowError и OutOfMemoryError."
+  - "Объяснить достижимость объектов и почему сборщик мусора не устраняет утечки через удержание ссылок."
+masteryCriteria:
+  - "Вы предсказываете значения (byte) 200, (int) 1e20 и -5 % 2 и объясняете их через биты и усечение."
+  - "Вы проверяете переполнение с помощью Math.toIntExact и Math.addExact вместо ручных сравнений."
+  - "Вы объясняете, почему метод не может заменить переменную вызывающего, но может изменить переданный объект."
+  - "Вы называете версию Java, ограничиваемую параметром javac --release, и умеете проверить, что возможность появилась в нужной версии."
+tags:
+  - "java"
+  - "jvm"
+  - "bytecode"
+  - "primitives"
+  - "references"
+  - "heap"
+  - "stack"
+  - "gc"
+facts:
+  - kind: "internals"
+    text: "Спецификация JVM делит память на области: у каждого потока свой стек JVM, а общая для потоков куча хранит объекты и массивы; метаданные классов лежат в области методов. Исчерпание стека приводит к StackOverflowError, нехватка кучи - к OutOfMemoryError."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5"
+  - kind: "internals"
+    text: "Сужающее приведение целого типа отбрасывает старшие биты, а приведение дробного числа к целому усекает его к нулю и насыщает до границ типа; NaN превращается в 0."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-5.html#jls-5.1.3"
+  - kind: "internals"
+    text: "Размеры примитивных типов определены спецификацией языка и не зависят от платформы: int занимает 32 бита, long - 64, char - 16 бит без знака."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.2"
+  - kind: "real-world"
+    text: "В HotSpot сборщик G1 является сборщиком по умолчанию на машинах серверного класса; он делит кучу на регионы и ориентирован на предсказуемые паузы. Для небольших машин выбирается последовательный сборщик."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/gctuning/garbage-first-g1-garbage-collector1.html"
+  - kind: "misconception"
+    text: "«В Java объекты передаются по ссылке» - неверно: передаётся копия ссылки. Поэтому присваивание параметру не влияет на вызывающий код, а изменение содержимого массива влияет."
+  - kind: "misconception"
+    text: "«Сборщик мусора исключает утечки памяти» - нет: он удаляет только недостижимые объекты. Запись в статической коллекции остаётся достижимой, даже если она больше не нужна."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно выражение (byte) 200?"
+      options:
+        - "127"
+        - "-56"
+        - "200"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Сужение берёт младшие 8 бит: 200 = 0xC8, а как знаковое число byte это -56."
+    - id: "q2"
+      type: "single"
+      prompt: "Метод void f(int[] a) { a[0] = 1; a = new int[] {2}; a[0] = 3; } вызвали с массивом x = {0}. Чему равно x[0] после вызова?"
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+      answer: 1
+      explanation: "Первое присваивание изменило общий массив. Затем локальная копия ссылки указала на новый массив, и тройка записана уже в него."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "StackOverflowError является подклассом Error."
+        - "Объекты и массивы располагаются в куче."
+        - "Сборщик мусора гарантирует отсутствие утечек памяти."
+        - "(int) 1e20 равно Integer.MAX_VALUE."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Дробное число, выходящее за диапазон, насыщается до Integer.MAX_VALUE. Достижимые, но ненужные объекты GC не удаляет."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой параметр javac ограничивает язык и API версией N?"
+      options:
+        - "--release"
+        - "-release"
+        - "--release N"
+      answer: "--release"
+      explanation: "javac --release N компилирует по правилам Java N, и использование более новых возможностей отклоняется компилятором."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Чему равно -7 % 3 в Java?"
+      answer: -1
+      explanation: "Остаток имеет знак делимого: -7 = -2 * 3 + (-1). Неотрицательный остаток даёт Math.floorMod(-7, 3), то есть 2."
+exercise:
+  id: "java.fundamentals.jvm-types-and-memory.exercise"
+  title: "Приведения long к узким типам"
+  prompt: |
+    Первая строка ввода - число `n`, затем `n` целых чисел `x` (тип `long`, по модулю не больше 10^15), по одному в строке.
+
+    Для каждого `x` выведите строку
+
+    ```
+    <x>: byte=<b> short=<s> int=<i> char=<c> exact=<e>
+    ```
+
+    где `b`, `s`, `i` - результат приведения `(byte) x`, `(short) x`, `(int) x`; `c` - числовой код после приведения `(char) x` (число от 0 до 65535); `e` - результат `Math.toIntExact(x)`, а если число не помещается в `int`, слово `overflow`.
+
+    **Пример.** Для `200` ответ:
+
+    ```
+    200: byte=-56 short=200 int=200 char=200 exact=200
+    ```
+
+    **Что дано.** В заготовке все значения просто печатаются как есть. Замените их приведениями типов и обработайте `ArithmeticException`.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Сужение записывается приведением типа в скобках: (byte) x. Для short и int то же самое."
+    - "char - беззнаковый тип. Чтобы получить его числовой код, приведите (char) x, а затем результат к int."
+    - "Math.toIntExact(x) бросает ArithmeticException, если число не помещается в int. Перехватите её в try/catch и подставьте строку overflow."
+    - "Строка собирается так: x + \": byte=\" + (byte) x + \" short=\" + (short) x + \" int=\" + (int) x + \" char=\" + (int) (char) x + \" exact=\" + exact, где exact - результат try/catch."
+  tests:
+    - id: "basic"
+      title: "Небольшие числа"
+      stdin: "3\n200\n-1\n0\n"
+      expected: "200: byte=-56 short=200 int=200 char=200 exact=200\n-1: byte=-1 short=-1 int=-1 char=65535 exact=-1\n0: byte=0 short=0 int=0 char=0 exact=0\n"
+      hint: "Для 200: byte=-56, short=200; для -1: char=65535."
+    - id: "bounds"
+      title: "Границы int"
+      stdin: "4\n2147483647\n2147483648\n-2147483648\n-2147483649\n"
+      expected: "2147483647: byte=-1 short=-1 int=2147483647 char=65535 exact=2147483647\n2147483648: byte=0 short=0 int=-2147483648 char=0 exact=overflow\n-2147483648: byte=0 short=0 int=-2147483648 char=0 exact=-2147483648\n-2147483649: byte=-1 short=-1 int=2147483647 char=65535 exact=overflow\n"
+      hint: "2147483648 не помещается в int: (int) даёт -2147483648, а exact=overflow."
+    - id: "short-wrap"
+      title: "Границы short и byte"
+      stdin: "4\n127\n128\n32768\n65536\n"
+      expected: "127: byte=127 short=127 int=127 char=127 exact=127\n128: byte=-128 short=128 int=128 char=128 exact=128\n32768: byte=0 short=-32768 int=32768 char=32768 exact=32768\n65536: byte=0 short=0 int=65536 char=0 exact=65536\n"
+      hint: "128 в byte становится -128, 32768 в short - -32768, а 65536 в char - 0."
+    - id: "big"
+      title: "Большие значения (скрытый)"
+      stdin: "3\n1000000000000000\n-1000000000000000\n4294967296\n"
+      expected: "1000000000000000: byte=0 short=-32768 int=-1530494976 char=32768 exact=overflow\n-1000000000000000: byte=0 short=-32768 int=1530494976 char=32768 exact=overflow\n4294967296: byte=0 short=0 int=0 char=0 exact=overflow\n"
+      hidden: true
+      hint: "Старшие биты отбрасываются: 4294967296 = 2^32, поэтому int=0."
+    - id: "negative-char"
+      title: "Отрицательные значения и char (скрытый)"
+      stdin: "3\n-129\n-32769\n-65537\n"
+      expected: "-129: byte=127 short=-129 int=-129 char=65407 exact=-129\n-32769: byte=-1 short=32767 int=-32769 char=32767 exact=-32769\n-65537: byte=-1 short=-1 int=-65537 char=65535 exact=-65537\n"
+      hidden: true
+      hint: "(char) отрицательного числа берёт младшие 16 бит: -129 даёт 65407."
+    - id: "single"
+      title: "Одно число (скрытый)"
+      stdin: "1\n255\n"
+      expected: "255: byte=-1 short=255 int=255 char=255 exact=255\n"
+      hidden: true
+      hint: "(byte) 255 равно -1, а char остаётся 255."

@@ -1,0 +1,166 @@
+id: "kotlin.fundamentals.error-handling"
+title: "Обработка ошибок: исключения, Result, require и check"
+goal: "Выбирать между исключениями, null, Result и sealed-типами и корректно проверять аргументы и состояние."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "kotlin.fundamentals.generics-and-variance"
+related:
+  - "rust.fundamentals.error-handling"
+  - "csharp.fundamentals.exceptions-and-resources"
+  - "go.fundamentals.functions-and-errors"
+next:
+  - "kotlin.fundamentals.concurrency-threads-and-coroutines"
+objectives:
+  - "Использовать try/catch/finally как выражения и объяснять тип throw."
+  - "Различать require, check и error и выбирать нужный."
+  - "Работать с Result и runCatching и знать их ограничения."
+  - "Закрывать ресурсы через use."
+masteryCriteria:
+  - "Вы предсказываете, какое исключение и с каким сообщением будет брошено при нарушении require, check и делении на ноль."
+  - "Вы объясняете, почему в Kotlin нет checked exceptions и как это влияет на документацию API."
+  - "Вы выбираете между null, исключением и Result для конкретного сценария и обосновываете выбор."
+tags:
+  - "kotlin"
+  - "exceptions"
+  - "result"
+  - "require"
+facts:
+  - kind: "internals"
+    text: "В Kotlin нет проверяемых исключений: компилятор не требует ни объявлять исключения в сигнатуре, ни перехватывать их."
+    sources:
+      - "https://kotlinlang.org/docs/exceptions.html"
+  - kind: "internals"
+    text: "require бросает IllegalArgumentException, check - IllegalStateException, а try в Kotlin является выражением, значением которого служит последнее выражение блока try или выбранного catch."
+    sources:
+      - "https://kotlinlang.org/docs/exceptions.html"
+  - kind: "misconception"
+    text: "«runCatching безопасно оборачивать любой код» - неверно: он ловит и Error, и CancellationException, что может нарушить отмену корутин."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какое исключение бросает require(false)?"
+      options:
+        - "IllegalStateException"
+        - "IllegalArgumentException"
+        - "NullPointerException"
+        - "AssertionError"
+      answer: 1
+      explanation: "require проверяет аргументы и бросает IllegalArgumentException; check бросает IllegalStateException."
+    - id: "q2"
+      type: "single"
+      prompt: "Каков тип выражения throw IllegalStateException()?"
+      options:
+        - "Unit"
+        - "Nothing"
+        - "Exception"
+        - "Any"
+      answer: 1
+      explanation: "throw имеет тип Nothing, поэтому его можно использовать после ?:."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно для Kotlin?"
+      options:
+        - "Нет проверяемых исключений."
+        - "try можно использовать как выражение."
+        - "finally выполняется даже после return в try."
+        - "Метод обязан объявлять throws."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Объявлять throws в Kotlin не нужно."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция проверяет состояние объекта и бросает IllegalStateException?"
+      answer:
+        - "check"
+      explanation: "check проверяет состояние, require - аргументы."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт runCatching { \"x\".toInt() }.getOrElse { -1 }?"
+      options:
+        - "Бросит NumberFormatException."
+        - "-1"
+        - "null"
+        - "0"
+      answer: 1
+      explanation: "runCatching ловит исключение, а getOrElse подставит -1."
+exercise:
+  id: "kotlin.fundamentals.error-handling.exercise"
+  title: "Стековая машина с проверками"
+  prompt: |
+    Первая строка - `n`, затем `n` команд стековой машины для `Int`:
+
+    * `push X` - положить число, вывести `ok X`;
+    * `pop` - снять верхнее, вывести `ok <снятое>`;
+    * `div` - снять два верхних, положить частное «второе / верхнее», вывести `ok <частное>`;
+    * `sqrt` - заменить верхнее на целую часть корня, вывести `ok <результат>`.
+
+    Ошибки выводятся как `error <ИмяКласса>: <сообщение>`, команда при ошибке **не меняет стек**:
+
+    * `push` без аргумента, с лишними аргументами: `IllegalArgumentException`, `push needs one argument`;
+    * `push` не числа: `NumberFormatException`, `bad number: X`;
+    * пустой стек у `pop`, `sqrt`: `IllegalStateException`, `stack is empty`;
+    * меньше двух элементов у `div`: `IllegalStateException`, `need two operands`;
+    * деление на ноль: `ArithmeticException`, `/ by zero`;
+    * `sqrt` отрицательного: `IllegalArgumentException`, `negative: X`;
+    * неизвестная команда: `IllegalArgumentException`, `unknown command: X`.
+
+    В конце выведите `stack=[...]` от дна к вершине.
+
+    **Пример.** Команды `push 8`, `push 2`, `div`, `pop`, `pop` дают
+
+    ```
+    ok 8
+    ok 2
+    ok 4
+    ok 4
+    error IllegalStateException: stack is empty
+    stack=[]
+    ```
+
+    Используйте `require`, `check`, исключения стандартной библиотеки и `runCatching` в `main`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка не проверяет ни аргументы, ни состояние: исключения получатся другого типа или с другим сообщением. Запустите её на pop для пустого стека."
+    - "В начале каждой ветки вызывайте check(stack.isNotEmpty()) { \"stack is empty\" } или require(...) { \"...\" }: сообщение берётся из лямбды."
+    - "Для div и sqrt сначала прочитайте значения (stack.last()) и выполните проверки и вычисление, и только потом изменяйте стек: тогда ошибка не оставит его испорченным."
+    - "Число в push: parts[1].toIntOrNull() ?: throw NumberFormatException(\"bad number: ${parts[1]}\"). Деление на ноль JVM сама бросает ArithmeticException с сообщением '/ by zero'."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "5\npush 8\npush 2\ndiv\npop\npop\n"
+      expected: "ok 8\nok 2\nok 4\nok 4\nerror IllegalStateException: stack is empty\nstack=[]\n"
+      hint: "Сверьте порядок операндов в div и сообщение при пустом стеке."
+    - id: "bad-input"
+      title: "Неверный ввод"
+      stdin: "5\npush\npush abc\npush 1 2\nfoo\npush 9\n"
+      expected: "error IllegalArgumentException: push needs one argument\nerror NumberFormatException: bad number: abc\nerror IllegalArgumentException: push needs one argument\nerror IllegalArgumentException: unknown command: foo\nok 9\nstack=[9]\n"
+      hint: "Разные типы исключений: IllegalArgumentException для аргументов, NumberFormatException для числа."
+    - id: "sqrt"
+      title: "Корень и отрицательные числа"
+      stdin: "6\npush 17\nsqrt\npush -4\nsqrt\npop\nsqrt\n"
+      expected: "ok 17\nok 4\nok -4\nerror IllegalArgumentException: negative: -4\nok -4\nok 2\nstack=[2]\n"
+      hint: "Отрицательное число в sqrt - require, и стек остаётся прежним."
+    - id: "div-zero"
+      title: "Деление на ноль не портит стек (скрытый)"
+      stdin: "5\npush 10\npush 0\ndiv\npop\npop\n"
+      expected: "ok 10\nok 0\nerror ArithmeticException: / by zero\nok 0\nok 10\nstack=[]\n"
+      hidden: true
+      hint: "Читайте операнды без снятия, делите и только затем изменяйте стек."
+    - id: "few-operands"
+      title: "Мало операндов (скрытый)"
+      stdin: "4\ndiv\npush 5\ndiv\npop\n"
+      expected: "error IllegalStateException: need two operands\nok 5\nerror IllegalStateException: need two operands\nok 5\nstack=[]\n"
+      hidden: true
+      hint: "Для div нужно минимум два элемента: check(stack.size >= 2)."
+    - id: "negative-div"
+      title: "Отрицательное частное (скрытый)"
+      stdin: "4\npush -7\npush 2\ndiv\npop\n"
+      expected: "ok -7\nok 2\nok -3\nok -3\nstack=[]\n"
+      hidden: true
+      hint: "Целочисленное деление в Kotlin округляет к нулю: -7 / 2 равно -3."

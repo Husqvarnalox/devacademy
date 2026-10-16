@@ -1,0 +1,188 @@
+id: "java.fundamentals.threads-executors-virtual"
+title: "Потоки, модель памяти, ExecutorService и виртуальные потоки"
+goal: "Понимать гонки данных и отношение happens-before, безопасно разделять состояние между потоками и запускать задачи через ExecutorService и виртуальные потоки."
+difficulty: "hard"
+estimatedMinutes: 70
+prerequisites:
+  - "java.fundamentals.exceptions-try-with-resources"
+related:
+  - "csharp.fundamentals.async-await"
+  - "go.fundamentals.goroutines-and-channels"
+  - "python.concurrency.threading-and-synchronization"
+  - "rust.fundamentals.concurrency-fearless"
+  - "kotlin.fundamentals.concurrency-threads-and-coroutines"
+next:
+  - "java.fundamentals.text-and-io"
+objectives:
+  - "Объяснить, почему count++ не атомарен, и исправить гонку через synchronized, AtomicInteger или LongAdder."
+  - "Применять правила happens-before: start, join, volatile, монитор, Future.get."
+  - "Отправлять задачи в ExecutorService, получать результаты через Future и обрабатывать ExecutionException."
+  - "Закрывать пул через try-with-resources и понимать разницу между shutdown и close."
+  - "Создавать виртуальные потоки и выбирать между ними и платформенными потоками."
+masteryCriteria:
+  - "Вы объясняете, почему volatile int не делает инкремент атомарным."
+  - "Вы строите детерминированный вывод многопоточной программы, собирая результаты через Future.get в порядке отправки."
+  - "Вы называете случаи, когда виртуальные потоки полезны, а когда нет."
+  - "Вы не используете sleep как способ синхронизации."
+tags:
+  - "java"
+  - "threads"
+  - "jmm"
+  - "executors"
+  - "virtual-threads"
+  - "concurrency"
+facts:
+  - kind: "internals"
+    text: "Отношение happens-before определяет, когда запись одного потока гарантированно видна другому: освобождение монитора, запись volatile, Thread.start и Thread.join создают такие рёбра. Обращения без happens-before образуют гонку данных."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.4.5"
+  - kind: "internals"
+    text: "Запись и чтение нестатического long и double без volatile могут быть неатомарными: спецификация разрешает разделить их на две 32-битные операции."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.7"
+  - kind: "historical"
+    text: "Виртуальные потоки окончательно включены в Java 21 (JEP 444). Это легковесные потоки, не привязанные к потокам ОС; для них не нужен пул, а Executors.newVirtualThreadPerTaskExecutor создаёт новый поток на каждую задачу."
+    sources:
+      - "https://openjdk.org/jeps/444"
+  - kind: "historical"
+    text: "В Java 21 блокирующая операция внутри synchronized закрепляет виртуальный поток за потоком-носителем. Это ограничение снято в JDK 24 (JEP 491)."
+    sources:
+      - "https://openjdk.org/jeps/491"
+  - kind: "real-world"
+    text: "С Java 19 ExecutorService реализует AutoCloseable: close() вызывает shutdown и ждёт завершения всех задач, поэтому пул можно объявлять в try-with-resources."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/concurrent/ExecutorService.html"
+  - kind: "misconception"
+    text: "«volatile делает операции над переменной атомарными» - нет: он даёт видимость и порядок, но count++ остаётся тремя шагами (чтение, сложение, запись) и теряет обновления."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Два потока по 1000 раз вызывают incrementAndGet на общем AtomicInteger, начальное значение 0. Чему равно значение после join обоих?"
+      options:
+        - "Ровно 2000"
+        - "Меньше или равно 2000"
+        - "Не определено"
+        - "Зависит от числа ядер"
+      answer: 0
+      explanation: "Операции AtomicInteger атомарны, обновления не теряются."
+    - id: "q2"
+      type: "single"
+      prompt: "Что гарантирует volatile для поля?"
+      options:
+        - "Атомарность count++"
+        - "Видимость записи и порядок относительно других операций"
+        - "Взаимное исключение"
+        - "Запрет чтения из нескольких потоков"
+      answer: 1
+      explanation: "Видимость и порядок, но не атомарность составных операций."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о виртуальных потоках в Java 21 верны?"
+      options:
+        - "Их не нужно пулировать."
+        - "Они всегда являются демонами."
+        - "Они ускоряют вычисления, нагружающие процессор."
+        - "Они полезны для задач, ожидающих ввода-вывода."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Виртуальные потоки помогают масштабировать ожидание, а не вычисления."
+    - id: "q4"
+      type: "short"
+      prompt: "Какое исключение бросает Future.get(), если задача завершилась с ошибкой?"
+      options:
+        - "ExecutionException"
+        - "java.util.concurrent.ExecutionException"
+      answer: "ExecutionException"
+      explanation: "Исходная ошибка доступна через getCause()."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Четыре потока по 1000 раз выполняют synchronized (lock) { c++; }, c = 0 в начале. Чему равно c после join всех?"
+      answer: 4000
+      explanation: "Монитор обеспечивает атомарность и happens-before."
+exercise:
+  id: "java.fundamentals.threads-executors-virtual.exercise"
+  title: "Параллельная сумма по частям"
+  prompt: |
+    Первая строка ввода - два числа `k` и `n` (`1 <= k <= 8`, `0 <= n <= 1000`), затем `n` целых чисел типа `long`, разделённых пробелами или переводами строк.
+
+    Разбейте числа на `k` подряд идущих частей: часть `i` (от 0) содержит `n / k` элементов и ещё один, если `i < n % k`. Каждую часть обработайте отдельной задачей `Callable` в `ExecutorService` (`Executors.newFixedThreadPool(k)`), которая возвращает количество элементов и сумму. Заодно все задачи увеличивают счётчики остатков `Math.floorMod(x, 3)` в общем `ConcurrentHashMap` через `merge`.
+
+    Результаты получайте через `Future.get()` строго в порядке номеров частей. Вывод:
+
+    ```
+    chunk <i>: count=<число элементов> sum=<сумма>
+    ...
+    total=<общая сумма>
+    largest=<номер части с наибольшей суммой; при равенстве - наименьший номер>
+    mod0=<..> mod1=<..> mod2=<..>
+    ```
+
+    Если часть пустая, она выводится как `count=0 sum=0`. Если `n = 0`, `largest=0`.
+
+    **Пример.**
+
+    ```
+    2 5
+    1 2 3 4 -5
+    ```
+
+    ```
+    chunk 0: count=3 sum=6
+    chunk 1: count=2 sum=-1
+    total=5
+    largest=0
+    mod0=1 mod1=3 mod2=1
+    ```
+
+    **Что дано.** Заготовка читает данные и печатает только общую сумму. Добавьте разбиение, пул и счётчики. Тесты не зависят от времени и порядка завершения потоков.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Размер части i: n / k + (i < n % k ? 1 : 0). Границы накапливайте: from = end после каждой части; в лямбду передавайте копии start и end (эффективно финальные переменные)."
+    - "submit(Callable<ChunkResult>) возвращает Future. Положите все Future в список и отправляйте задачи в цикле, не вызывая get до отправки всех - иначе задачи выполняются по очереди."
+    - "Объявите пул в try-with-resources (Java 19+): close() дождётся завершения. Future.get() бросает ExecutionException и InterruptedException - объявите throws Exception у main."
+    - "Счётчики: mods.merge((int) Math.floorMod(x, 3L), 1, Integer::sum). Для отрицательных чисел floorMod даёт остаток от 0 до 2, в отличие от оператора %. Наибольшую сумму ищите строгим сравнением > в порядке номеров: первый максимум побеждает."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2 5\n1 2 3 4 -5\n"
+      expected: "chunk 0: count=3 sum=6\nchunk 1: count=2 sum=-1\ntotal=5\nlargest=0\nmod0=1 mod1=3 mod2=1\n"
+      hint: "Части 3 и 2 элемента; floorMod(-5, 3) = 1."
+    - id: "even"
+      title: "Ровное деление"
+      stdin: "3 6\n10 20 30 40 50 60\n"
+      expected: "chunk 0: count=2 sum=30\nchunk 1: count=2 sum=70\nchunk 2: count=2 sum=110\ntotal=210\nlargest=2\nmod0=2 mod1=2 mod2=2\n"
+      hint: "Три части по два элемента; наибольшая последняя."
+    - id: "negatives"
+      title: "Отрицательные числа"
+      stdin: "4 10\n-7 -1 -3 5 9 -9 0 2 -4 8\n"
+      expected: "chunk 0: count=3 sum=-11\nchunk 1: count=3 sum=5\nchunk 2: count=2 sum=2\nchunk 3: count=2 sum=4\ntotal=0\nlargest=1\nmod0=4 mod1=0 mod2=6\n"
+      hint: "Остатки отрицательных чисел через floorMod; части 3,3,2,2."
+    - id: "empty-chunks"
+      title: "Пустые части (скрытый)"
+      stdin: "5 2\n7 -8\n"
+      expected: "chunk 0: count=1 sum=7\nchunk 1: count=1 sum=-8\nchunk 2: count=0 sum=0\nchunk 3: count=0 sum=0\nchunk 4: count=0 sum=0\ntotal=-1\nlargest=0\nmod0=0 mod1=2 mod2=0\n"
+      hidden: true
+      hint: "k больше n: три пустые части с count=0 sum=0."
+    - id: "no-data"
+      title: "Нет данных (скрытый)"
+      stdin: "3 0\n"
+      expected: "chunk 0: count=0 sum=0\nchunk 1: count=0 sum=0\nchunk 2: count=0 sum=0\ntotal=0\nlargest=0\nmod0=0 mod1=0 mod2=0\n"
+      hidden: true
+      hint: "n = 0: все части пустые, largest=0."
+    - id: "ties"
+      title: "Равные суммы (скрытый)"
+      stdin: "3 6\n5 5 1 9 4 6\n"
+      expected: "chunk 0: count=2 sum=10\nchunk 1: count=2 sum=10\nchunk 2: count=2 sum=10\ntotal=30\nlargest=0\nmod0=2 mod1=2 mod2=2\n"
+      hidden: true
+      hint: "Суммы 10, 10, 10: побеждает наименьший номер."
+    - id: "big"
+      title: "Большие значения (скрытый)"
+      stdin: "4 8\n9000000000000000000 1 -9000000000000000000 2 4000000000 4000000000 -1 -2\n"
+      expected: "chunk 0: count=2 sum=9000000000000000001\nchunk 1: count=2 sum=-8999999999999999998\nchunk 2: count=2 sum=8000000000\nchunk 3: count=2 sum=-3\ntotal=8000000000\nlargest=0\nmod0=2 mod1=4 mod2=2\n"
+      hidden: true
+      hint: "Значения вне диапазона int; числа читаются как long. Перевод строки внутри данных."

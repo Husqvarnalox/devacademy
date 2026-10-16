@@ -1,0 +1,208 @@
+id: "kotlin.fundamentals.collections-and-sequences"
+title: "Коллекции, функции высшего порядка и последовательности"
+goal: "Строить конвейеры map/filter/fold/groupBy и осознанно выбирать между жадными списками и ленивыми последовательностями."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "kotlin.fundamentals.classes-sealed-and-when"
+related:
+  - "csharp.fundamentals.linq"
+  - "rust.fundamentals.collections-and-iterators"
+next:
+  - "kotlin.fundamentals.generics-and-variance"
+objectives:
+  - "Различать read-only и изменяемые интерфейсы коллекций и объяснять, почему read-only не значит неизменяемый."
+  - "Применять map, filter, fold, groupBy, groupingBy, partition и sortedWith."
+  - "Предсказывать порядок вычислений в цепочке над List и над Sequence."
+  - "Писать функции высшего порядка и замыкания."
+masteryCriteria:
+  - "Вы называете число вызовов лямбд в цепочке на списке и на последовательности."
+  - "Вы переписываете цикл с накоплением на fold или groupingBy."
+  - "Вы объясняете, когда ленивая последовательность выигрывает, а когда нет."
+tags:
+  - "kotlin"
+  - "collections"
+  - "sequences"
+  - "lambdas"
+facts:
+  - kind: "internals"
+    text: "Операции над Iterable выполняются жадно и создают промежуточные коллекции, а операции над Sequence ленивы: каждый элемент проходит всю цепочку, прежде чем обрабатывается следующий."
+    sources:
+      - "https://kotlinlang.org/docs/sequences.html"
+  - kind: "internals"
+    text: "Интерфейсы List, Set и Map в Kotlin предоставляют только операции чтения; MutableList, MutableSet и MutableMap добавляют изменяющие операции."
+    sources:
+      - "https://kotlinlang.org/docs/collections-overview.html"
+  - kind: "misconception"
+    text: "«List<T> неизменяем» - неверно: это только интерфейс без методов записи, а под ним может лежать изменяемый список, доступный по другой ссылке."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Сколько раз вызовется map в listOf(1,2,3,4).asSequence().map { it * 2 }.first()?"
+      options:
+        - "4"
+        - "1"
+        - "0"
+        - "2"
+      answer: 1
+      explanation: "first() запрашивает один элемент, и конвейер останавливается после первого."
+    - id: "q2"
+      type: "single"
+      prompt: "Что делает seq.map { it + 1 } без терминальной операции?"
+      options:
+        - "Выполняет преобразование для всех элементов."
+        - "Ничего не вычисляет, а только описывает конвейер."
+        - "Бросает исключение."
+        - "Меняет исходную коллекцию."
+      answer: 1
+      explanation: "map на Sequence ленивая операция; вычисление запускает терминальная."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о List<T> верны?"
+      options:
+        - "У List<T> нет метода add."
+        - "Под List<T> может скрываться MutableList."
+        - "toList() создаёт копию, не зависящую от исходного списка."
+        - "List<T> гарантирует неизменяемость содержимого."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "List только запрещает изменения через эту ссылку, но не гарантирует их отсутствие вообще."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция превращает список в ленивую последовательность?"
+      answer:
+        - "asSequence"
+        - "asSequence()"
+      explanation: "asSequence() оборачивает коллекцию в Sequence."
+    - id: "q5"
+      type: "single"
+      prompt: "Что выведет println(listOf(1, 2, 3).fold(10) { acc, x -> acc + x })?"
+      options:
+        - "6"
+        - "16"
+        - "10"
+        - "12"
+      answer: 1
+      explanation: "fold начинает с 10 и прибавляет 1, 2, 3: результат 16."
+exercise:
+  id: "kotlin.fundamentals.collections-and-sequences.exercise"
+  title: "Частоты слов"
+  prompt: |
+    Первая строка - `k`. Дальше идёт текст до конца ввода (несколько строк). Слова разделены пробелами или табуляцией, регистр не важен (приводите к нижнему).
+
+    Выведите `k` самых частых слов, по одному на строку: `слово число`. Порядок: по убыванию числа вхождений, при равенстве - по слову в алфавитном порядке. Если различных слов меньше `k`, выведите все.
+
+    **Пример.** `k = 2` и текст `b a B c a b` дают
+
+    ```
+    b 3
+    a 2
+    ```
+
+    Заготовка читает слова, но выводит первые `k` слов с единицей. Посчитайте частоты через `groupingBy` и отсортируйте через `sortedWith`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка не считает частоты. Нужна Map<String, Int>: слово -> число вхождений."
+    - "words.groupingBy { it }.eachCount() даёт такую карту. Возьмите её entries."
+    - "Сортировка: sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })."
+    - "После сортировки .take(k).forEach { println(\"${it.key} ${it.value}\") }."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "2\nb a B c a b\n"
+      expected: "b 3\na 2\n"
+      hint: "Слова приводятся к нижнему регистру: B и b - одно слово."
+    - id: "ties"
+      title: "Равные частоты"
+      stdin: "3\nz y x z y x w\n"
+      expected: "x 2\ny 2\nz 2\n"
+      hint: "При равных частотах слова идут по алфавиту."
+    - id: "multi-line"
+      title: "Несколько строк"
+      stdin: "2\nthe cat\nthe dog and the bird\ncat\n"
+      expected: "the 3\ncat 2\n"
+      hint: "Читайте текст до конца ввода, а не одну строку."
+    - id: "k-too-big"
+      title: "k больше числа слов (скрытый)"
+      stdin: "10\na b a\n"
+      expected: "a 2\nb 1\n"
+      hidden: true
+      hint: "take(k) безопасен, если слов меньше k."
+    - id: "spaces"
+      title: "Лишние пробелы и табы (скрытый)"
+      stdin: "2\n  a\t\tb  a \n\nb   a   c\n"
+      expected: "a 3\nb 2\n"
+      hidden: true
+      hint: "Пустые фрагменты после split нужно отбросить."
+    - id: "single"
+      title: "Одно слово (скрытый)"
+      stdin: "1\nHELLO hello Hello\n"
+      expected: "hello 3\n"
+      hidden: true
+      hint: "Все три вхождения - одно слово hello."
+challenge:
+  id: "kotlin.fundamentals.collections-and-sequences.challenge"
+  title: "Ленивый конвейер со счётчиком просмотров"
+  prompt: |
+    Ввод: `n`, затем строка из `n` целых чисел, затем `m` и `t`.
+
+    Нужно вычислить квадраты первых `m` **нечётных** чисел, которые **больше `t`** (в порядке следования во вводе), и вывести их через пробел (или `(none)`, если таких нет). Второй строкой выведите `inspected=<k>`, где `k` - сколько элементов источника конвейер реально просмотрел.
+
+    Конвейер должен быть ленивым: как только найдено `m` результатов, остальные элементы не просматриваются. При `m = 0` просмотров нет.
+
+    **Пример.** Числа `3 8 5 7 9 11`, `m = 2`, `t = 4` дают
+
+    ```
+    25 49
+    inspected=4
+    ```
+
+    (просмотрены 3, 8, 5, 7). Заготовка жадная и всегда выдаёт `inspected=n`. Сделайте конвейер ленивым через `asSequence()`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Заготовка считает inspected = n, потому что onEach на списке проходит по всем элементам сразу."
+    - "Превратите источник в последовательность: nums.asSequence()."
+    - "Порядок шагов: onEach { inspected++ }, filter, map, take(m), затем терминальная операция toList()."
+    - "Элемент должен считаться в onEach до фильтра, иначе отброшенные элементы не попадут в inspected."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "6\n3 8 5 7 9 11\n2\n4\n"
+      expected: "25 49\ninspected=4\n"
+      hint: "Просмотрены ровно те элементы, что понадобились до второго результата."
+    - id: "none"
+      title: "Подходящих нет"
+      stdin: "4\n2 4 6 8\n3\n0\n"
+      expected: "(none)\ninspected=4\n"
+      hint: "Если результатов меньше m, просмотрены все элементы."
+    - id: "negative"
+      title: "Отрицательные числа"
+      stdin: "5\n-3 -1 1 3 5\n2\n-2\n"
+      expected: "1 1\ninspected=3\n"
+      hint: "Для отрицательных нечётных -3 % 2 равно -1, поэтому проверяйте != 0."
+    - id: "zero-m"
+      title: "m равно нулю (скрытый)"
+      stdin: "3\n1 3 5\n0\n0\n"
+      expected: "(none)\ninspected=0\n"
+      hidden: true
+      hint: "take(0) ничего не запрашивает у источника."
+    - id: "early"
+      title: "Результат найден сразу (скрытый)"
+      stdin: "6\n9 11 13 15 17 19\n1\n5\n"
+      expected: "81\ninspected=1\n"
+      hidden: true
+      hint: "После первого результата просмотр прекращается: inspected=1."
+    - id: "all-rejected-then-match"
+      title: "Много отброшенных в начале (скрытый)"
+      stdin: "7\n2 4 6 8 10 12 13\n1\n0\n"
+      expected: "169\ninspected=7\n"
+      hidden: true
+      hint: "Отброшенные фильтром элементы тоже учитываются в inspected."

@@ -1,0 +1,157 @@
+id: "kotlin.fundamentals.types-and-null-safety"
+title: "Типы, val/var и null-безопасность"
+goal: "Уверенно пользоваться системой типов Kotlin: числовыми типами без неявных преобразований, smart cast и безопасными операторами вместо !!."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "kotlin.first-steps.null-safety-and-val-var"
+related:
+  - "csharp.first-steps.value-types-and-nullable"
+  - "csharp.fundamentals.type-system-and-memory"
+  - "java.first-steps.primitives-objects-and-equality"
+next:
+  - "kotlin.fundamentals.functions-and-scope-functions"
+objectives:
+  - "Выбирать val или var и объяснять, что val не делает объект неизменяемым."
+  - "Предсказывать переполнение Int и явно приводить числа к Long и Double."
+  - "Применять smart cast после is и != null и называть случаи, когда он недоступен."
+  - "Заменять !! и as на ?:, as? и ?.let."
+masteryCriteria:
+  - "Вы пишете функцию над Any?, обрабатывающую null и несколько типов через when без единого !!."
+  - "Вы находите в коде место, где сумма Int переполнится, и исправляете его через Long."
+  - "Вы объясняете, почему smart cast не работает для изменяемого свойства класса."
+tags:
+  - "kotlin"
+  - "types"
+  - "null-safety"
+  - "smart-cast"
+facts:
+  - kind: "internals"
+    text: "Smart cast работает, только если компилятор может гарантировать, что значение не изменится между проверкой и использованием: для val, локальных var без изменяющих замыканий, но не для изменяемых свойств класса."
+    sources:
+      - "https://kotlinlang.org/docs/typecasts.html"
+  - kind: "internals"
+    text: "Kotlin не выполняет неявное расширение числовых типов: значение Int нужно явно преобразовать функцией toLong() и аналогичными, а литерал подстраивается под объявленный тип."
+    sources:
+      - "https://kotlinlang.org/docs/numbers.html"
+  - kind: "misconception"
+    text: "«val означает неизменяемый объект» - неверно: val запрещает только переприсваивание ссылки, а содержимое изменяемой коллекции по-прежнему можно менять."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что выведет println(Int.MAX_VALUE + 1)?"
+      options:
+        - "2147483648"
+        - "-2147483648"
+        - "Исключение ArithmeticException"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Int переполняется молча и переходит к Int.MIN_VALUE, исключения нет."
+    - id: "q2"
+      type: "single"
+      prompt: "Почему у class A { var name: String? = null } проверка if (name != null) name.length не компилируется?"
+      options:
+        - "Потому что String? не имеет свойства length."
+        - "Потому что изменяемое свойство могло измениться между проверкой и использованием, поэтому smart cast недоступен."
+        - "Потому что smart cast работает только для Int."
+        - "Потому что надо использовать !! в любом случае."
+      answer: 1
+      explanation: "Компилятор не может гарантировать стабильность изменяемого свойства. Скопируйте значение в локальный val."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие выражения безопасны при x: Any? = 5 и не бросят исключение?"
+      options:
+        - "x as? String"
+        - "x as String"
+        - "(x as? String) ?: \"нет\""
+        - "x!!.toString()"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "as? вернёт null, ?: подставит значение, а x!! при ненулевом x безопасен. x as String бросит ClassCastException."
+    - id: "q4"
+      type: "short"
+      prompt: "Каким методом Int превращается в Long?"
+      answer:
+        - "toLong"
+        - "toLong()"
+      explanation: "Неявного расширения нет, нужен явный вызов toLong()."
+    - id: "q5"
+      type: "single"
+      prompt: "Какой тип имеет выражение x ?: return, если x: String??"
+      options:
+        - "String?"
+        - "String"
+        - "Nothing"
+        - "Any"
+      answer: 1
+      explanation: "return имеет тип Nothing, поэтому результат - String без null."
+exercise:
+  id: "kotlin.fundamentals.types-and-null-safety.exercise"
+  title: "Токены разных типов"
+  prompt: |
+    Первая строка - `n`, затем `n` строк по одному токену. Токен разбирается так (порядок важен):
+
+    1. если `toIntOrNull()` даёт число - это `Int`;
+    2. иначе, если `toDoubleOrNull()` даёт число - это `Double`;
+    3. иначе `true` и `false` - это `Boolean`; `-` означает `null`;
+    4. всё остальное - строка.
+
+    Для каждого токена выведите одну строку: `int:<x*2>`, `double:<x*2>`, `bool:<!x>`, `str:<длина>` или `null`. После всех токенов выведите `sum=<сумма всех Int-токенов>`; сумма должна считаться в `Long`.
+
+    **Пример.** Токены `5`, `3.5`, `true`, `-`, `hello` дают
+
+    ```
+    int:10
+    double:7.0
+    bool:false
+    null
+    str:5
+    sum=5
+    ```
+
+    В заготовке все функции - заглушки. Реализуйте `parse` и `describe` через smart cast в `when`, без `!!`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Запустите заготовку: она выводит other для каждого токена, потому что parse всегда возвращает строку. Начните с parse."
+    - "parse можно собрать цепочкой: token.toIntOrNull() ?: token.toDoubleOrNull() ?: when (token) { ... }. Элвис выбирает первый не-null вариант."
+    - "В describe используйте when (v) { null -> ...; is Int -> ...; is Double -> ... }. В ветке is Int переменная v уже имеет тип Int."
+    - "Сумму объявите как var sum = 0L и прибавляйте v.toLong() под условием if (v is Int)."
+  tests:
+    - id: "mixed"
+      title: "Пример из условия"
+      stdin: "5\n5\n3.5\ntrue\n-\nhello\n"
+      expected: "int:10\ndouble:7.0\nbool:false\nnull\nstr:5\nsum=5\n"
+      hint: "Проверьте порядок разбора: сначала Int, потом Double, потом Boolean и null."
+    - id: "ints"
+      title: "Только целые"
+      stdin: "3\n10\n-4\n007\n"
+      expected: "int:20\nint:-8\nint:14\nsum=13\n"
+      hint: "Токен 007 - это Int 7; удвоенное значение 14."
+    - id: "strings"
+      title: "Строки и булевы"
+      stdin: "4\nabc\nfalse\nTrue\nkotlin\n"
+      expected: "str:3\nbool:true\nstr:4\nstr:6\nsum=0\n"
+      hint: "Только точное true и false даёт Boolean; True - это строка из 4 символов."
+    - id: "overflow"
+      title: "Переполнение Int (скрытый)"
+      stdin: "4\n1000000000\n1000000000\n1000000000\n7\n"
+      expected: "int:2000000000\nint:2000000000\nint:2000000000\nint:14\nsum=3000000007\n"
+      hidden: true
+      hint: "Сумма не помещается в Int: используйте Long и toLong()."
+    - id: "doubles"
+      title: "Дробные и экспонента (скрытый)"
+      stdin: "4\n1e3\n.5\n2.25\n-0.5\n"
+      expected: "double:2000.0\ndouble:1.0\ndouble:4.5\ndouble:-1.0\nsum=0\n"
+      hidden: true
+      hint: "Эти токены - Double; Int-разбор у них даёт null."
+    - id: "only-null"
+      title: "Только null (скрытый)"
+      stdin: "2\n-\n-\n"
+      expected: "null\nnull\nsum=0\n"
+      hidden: true
+      hint: "Сумма без Int-токенов равна 0."

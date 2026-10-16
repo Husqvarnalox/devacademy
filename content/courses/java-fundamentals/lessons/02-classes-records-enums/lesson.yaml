@@ -1,0 +1,179 @@
+id: "java.fundamentals.classes-records-enums"
+title: "Классы, записи, перечисления и равенство"
+goal: "Выбирать между class, record и enum, писать согласованные equals и hashCode и строить неизменяемые типы данных."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "java.fundamentals.jvm-types-and-memory"
+related:
+  - "csharp.fundamentals.classes-records-structs"
+  - "go.fundamentals.structs-methods-embedding"
+  - "kotlin.first-steps.null-safety-and-val-var"
+  - "python.advanced.dunder-methods-and-dataclasses"
+next:
+  - "java.fundamentals.interfaces-sealed-patterns"
+objectives:
+  - "Объяснить контракт equals и hashCode и последствия его нарушения для HashSet и HashMap."
+  - "Объявлять записи с компактным конструктором, методами и статическими фабриками."
+  - "Описать, что запись неглубоко неизменяема, и делать защитные копии через List.copyOf."
+  - "Объявлять перечисления с полями, методами и телом констант и использовать EnumMap."
+  - "Различать final, неизменяемые фабричные коллекции и представление unmodifiableList."
+masteryCriteria:
+  - "Вы предсказываете результат == и equals для записей, обычных классов и перечислений."
+  - "Вы объясняете, почему изменение поля ключа делает объект недоступным в HashSet."
+  - "Вы называете версию Java, в которой запись стала стандартной возможностью, и подтверждаете её запуском javac --release."
+  - "Вы заменяете изменяемый класс на запись с проверкой данных и сохраняете корректное равенство."
+tags:
+  - "java"
+  - "records"
+  - "enum"
+  - "equals"
+  - "hashcode"
+  - "immutability"
+facts:
+  - kind: "historical"
+    text: "Записи (record) были предварительной возможностью в Java 14 и 15 и стали стандартными в Java 16 (JEP 395). Компиляция кода с record параметром --release 15 без предварительного режима завершается ошибкой."
+    sources:
+      - "https://openjdk.org/jeps/395"
+  - kind: "internals"
+    text: "Контракт Object.hashCode требует: если два объекта равны по equals, то hashCode у них одинаков. Обратное не требуется, коллизии допустимы."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#hashCode()"
+  - kind: "internals"
+    text: "Для записи компилятор выводит equals, hashCode и toString из всех компонентов. Компоненты ссылочного типа сравниваются через equals, примитивы - по значению; запись нельзя расширять, а дополнительные поля экземпляра объявить нельзя."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.10"
+  - kind: "internals"
+    text: "Константа перечисления с телом является анонимным подклассом перечисления, поэтому её getClass() отличается от класса перечисления; для сравнения классов используйте getDeclaringClass()."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.9"
+  - kind: "real-world"
+    text: "Фабричные методы List.of, Set.of и Map.of возвращают неизменяемые коллекции, не допускающие null. Collections.unmodifiableList создаёт лишь представление над исходным списком, а List.copyOf - независимую неизменяемую копию."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html"
+  - kind: "misconception"
+    text: "«Запись неизменяема целиком» - нет: неизменяемы лишь ссылки на компоненты. Компонент-список можно менять, а компонент-массив сравнивается по ссылке, а не по содержимому."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что нарушает класс, у которого переопределён equals, но не hashCode?"
+      options:
+        - "Транзитивность equals."
+        - "Требование: равные объекты имеют равные hashCode."
+        - "Правила видимости полей."
+        - "Контракт Comparable."
+      answer: 1
+      explanation: "Равные по equals объекты получат разные хеши, поэтому HashSet и HashMap смогут хранить дубликаты и не находить уже вставленное."
+    - id: "q2"
+      type: "single"
+      prompt: "Даны record Point(int x, int y) и p = new Point(1, 2), q = new Point(1, 2). Что дают p == q и p.equals(q)?"
+      options:
+        - "true и true"
+        - "false и true"
+        - "false и false"
+        - "true и false"
+      answer: 1
+      explanation: "Оператор == сравнивает ссылки (два объекта), а equals записи сравнивает компоненты."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Запись может реализовывать интерфейс."
+        - "В записи можно объявить дополнительное поле экземпляра."
+        - "List.of(1, 2).add(3) бросает UnsupportedOperationException."
+        - "final List<String> xs запрещает вызывать xs.add(\"a\")."
+      answer:
+        - 0
+        - 2
+      explanation: "Дополнительные поля экземпляра в записи запрещены, а final защищает только переменную от переприсваивания."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется метод чтения компонента x у record Point(int x, int y)?"
+      options:
+        - "x()"
+        - "x"
+      answer: "x()"
+      explanation: "Методы доступа записи названы так же, как компоненты, без префикса get."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Чему равно Level.HIGH.ordinal() для enum Level { LOW, MEDIUM, HIGH }?"
+      answer: 2
+      explanation: "Нумерация начинается с нуля в порядке объявления: LOW=0, MEDIUM=1, HIGH=2."
+exercise:
+  id: "java.fundamentals.classes-records-enums.exercise"
+  title: "Реестр версий: запись, перечисление и равенство"
+  prompt: |
+    Первая строка ввода - число `n`, затем `n` строк. Каждая строка - версия вида `major.minor.patch` или `major.minor.patch-stage`, где `stage` равен `alpha` или `beta`. Отсутствие суффикса означает релиз (`RELEASE`). Порядок стадий: `alpha` < `beta` < релиз.
+
+    Каждое из трёх чисел - непустая последовательность цифр `0-9`, не длиннее 7 цифр, значение не больше 1 000 000. Строка **недопустима**, если частей не три, число некорректно, число больше 1 000 000 или стадия неизвестна. Для недопустимой строки сразу выведите `invalid: <исходная строка>`.
+
+    После чтения выведите все **различные** допустимые версии по возрастанию (сначала `major`, затем `minor`, `patch`, затем стадия), по одной в строке: `1.2.3`, `1.2.3-beta`. Затем выведите `distinct=<k>`. Если `k > 0`, последней строкой выведите `latest=<наибольшая версия>`.
+
+    **Пример.**
+
+    ```
+    4
+    1.2.3
+    1.2.3-beta
+    1.10.0
+    1.2.3
+    ```
+
+    ```
+    1.2.3-beta
+    1.2.3
+    1.10.0
+    distinct=3
+    latest=1.10.0
+    ```
+
+    **Что дано.** В заготовке `Version` - обычный класс: у него нет `equals`, `hashCode` и `toString`, а проверку диапазона никто не выполняет. Превратите `Version` в запись с компактным конструктором.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Замените class Version на record Version(int major, int minor, int patch, Stage stage) implements Comparable<Version>. Поля, конструктор, equals, hashCode получатся сами."
+    - "Компонент записи читается как major(), а не как поле, но внутри записи поля доступны напрямую. Метод compareTo можно оставить как есть."
+    - "Добавьте компактный конструктор Version { ... } и выбросьте IllegalArgumentException, если какое-либо число больше 1_000_000. Исключение уже перехватывается в main."
+    - "Переопределите toString: major + \".\" + minor + \".\" + patch + stage.suffix(). Метод suffix уже возвращает пустую строку для RELEASE."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "4\n1.2.3\n1.2.3-beta\n1.10.0\n1.2.3\n"
+      expected: "1.2.3-beta\n1.2.3\n1.10.0\ndistinct=3\nlatest=1.10.0\n"
+      hint: "Запись даёт equals по значению: две строки 1.2.3 считаются одной версией."
+    - id: "stages"
+      title: "Порядок стадий"
+      stdin: "4\n2.0.0-beta\n2.0.0\n2.0.0-alpha\n1.99.99\n"
+      expected: "1.99.99\n2.0.0-alpha\n2.0.0-beta\n2.0.0\ndistinct=4\nlatest=2.0.0\n"
+      hint: "Порядок: alpha, beta, релиз. Сравнение стадий в compareTo уже есть."
+    - id: "invalid"
+      title: "Недопустимые строки"
+      stdin: "6\n1.2\n1.2.x\n1.2.3-gamma\n1..3\n-1.2.3\n7.8.9\n"
+      expected: "invalid: 1.2\ninvalid: 1.2.x\ninvalid: 1.2.3-gamma\ninvalid: 1..3\ninvalid: -1.2.3\n7.8.9\ndistinct=1\nlatest=7.8.9\n"
+      hint: "Строка из двух частей, пустая часть, нечисло и неизвестная стадия - invalid. Исходная строка печатается как есть."
+    - id: "limit"
+      title: "Предел 1 000 000 (скрытый)"
+      stdin: "3\n1000000.0.0\n1000001.0.0\n0.0.1000001\n"
+      expected: "invalid: 1000001.0.0\ninvalid: 0.0.1000001\n1000000.0.0\ndistinct=1\nlatest=1000000.0.0\n"
+      hidden: true
+      hint: "1000000 допустимо, 1000001 - нет. Проверьте компактный конструктор."
+    - id: "spaces"
+      title: "Пробелы по краям (скрытый)"
+      stdin: "3\n  3.1.4  \n3.1.4\n 1.0.0-beta\n"
+      expected: "1.0.0-beta\n3.1.4\ndistinct=2\nlatest=3.1.4\n"
+      hidden: true
+      hint: "Разбор делает trim, поэтому оба варианта 3.1.4 - одна версия."
+    - id: "empty"
+      title: "Нет допустимых версий (скрытый)"
+      stdin: "2\nabc\n1.2.3.4\n"
+      expected: "invalid: abc\ninvalid: 1.2.3.4\ndistinct=0\n"
+      hidden: true
+      hint: "Если версий нет, выводится только invalid и distinct=0 без строки latest."
+    - id: "leading"
+      title: "Ведущие нули равны (скрытый)"
+      stdin: "3\n01.002.0003\n1.2.3\n1.2.3-alpha\n"
+      expected: "1.2.3-alpha\n1.2.3\ndistinct=2\nlatest=1.2.3\n"
+      hidden: true
+      hint: "01.002.0003 и 1.2.3 - одна и та же версия 1.2.3."

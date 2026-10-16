@@ -18,22 +18,24 @@
               <TextBlock Text="{Binding Number, StringFormat='{}{0}.'}" Classes="caption" />
               <SelectableTextBlock Text="{Binding Prompt}" TextWrapping="Wrap" FontSize="15" />
               <TextBlock Text="{Binding HintText}" Classes="caption" />
-              <ItemsControl ItemsSource="{Binding Options}" IsVisible="{Binding !IsText}">
+              <ItemsControl ItemsSource="{Binding SingleOptions}" IsVisible="{Binding IsSingle}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:QuizOptionViewModel">
-                    <StackPanel>
-                      <RadioButton Content="{Binding Text}" IsChecked="{Binding IsSelected}"
-                                   GroupName="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).GroupName}"
-                                   IsVisible="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsSingle}"
-                                   IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
-                      <CheckBox Content="{Binding Text}" IsChecked="{Binding IsSelected}"
-                                IsVisible="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsMultiple}"
-                                IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
-                    </StackPanel>
+                    <RadioButton Content="{Binding Text}" IsChecked="{Binding IsSelected}"
+                                 GroupName="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).GroupName}"
+                                 IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" IsEnabled="{Binding !IsLocked}" MaxWidth="320" HorizontalAlignment="Left"
+              <ItemsControl ItemsSource="{Binding MultipleOptions}" IsVisible="{Binding IsMultiple}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:QuizOptionViewModel">
+                    <CheckBox Content="{Binding Text}" IsChecked="{Binding IsSelected}"
+                              IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBox Text="{Binding Text}" IsVisible="{Binding IsText}" IsEnabled="{Binding !IsLocked}" Width="320" HorizontalAlignment="Left"
                        AutomationProperties.Name="{loc:T Quiz_Answer}" />
               <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" Classes.success="{Binding IsCorrect}" Classes.danger="{Binding IsWrong}" IsVisible="{Binding IsLocked}" />
               <Border Classes="codeout" IsVisible="{Binding HasExplanation}">

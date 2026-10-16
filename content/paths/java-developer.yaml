@@ -1,0 +1,10 @@
+id: java-developer
+title: Java-разработчик
+description: "Путь к уверенному владению Java и платформой JVM. Сначала «Java: первые шаги» (запуск, типы, ввод-вывод), затем «Java: язык и платформа JVM»: типы и память, классы и записи, интерфейсы и запечатанные типы, обобщения и коллекции, Streams, исключения, потоки и виртуальные потоки, текст и ввод-вывод. Spring, JDBC и сборка пока не входят."
+goal: backend
+targets: [java-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [java-first-steps]
+  - title: Язык и платформа JVM
+    courses: [java-fundamentals]

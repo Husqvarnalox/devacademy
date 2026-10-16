@@ -1,0 +1,17 @@
+id: "java-fundamentals"
+version: "1.0.0"
+title: "Java: язык и платформа JVM"
+description: "Курс из восьми уроков: JVM, байт-код, типы и память, классы, записи и перечисления, интерфейсы, запечатанные типы и сопоставление с образцом, обобщения и коллекции, Streams и Optional, исключения и try-with-resources, потоки, модель памяти и виртуальные потоки, текст и ввод-вывод. Примеры и утверждения проверены запуском на JDK 21 (выбор версий проверен ключом --release). Spring, JDBC и сборка Maven/Gradle пока не входят."
+languageId: "java"
+level: 1
+track: "java"
+requires: [java-first-steps]
+lessons:
+  - "01-jvm-types-and-memory"
+  - "02-classes-records-enums"
+  - "03-interfaces-sealed-patterns"
+  - "04-generics-collections"
+  - "05-streams-lambdas-optional"
+  - "06-exceptions-try-with-resources"
+  - "07-threads-executors-virtual"
+  - "08-text-and-io"

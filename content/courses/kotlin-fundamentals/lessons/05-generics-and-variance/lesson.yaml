@@ -1,0 +1,156 @@
+id: "kotlin.fundamentals.generics-and-variance"
+title: "Обобщения: вариантность, reified и проекции"
+goal: "Писать обобщённый код с ограничениями, понимать in/out-вариантность и использовать reified вместо обходов стирания типов."
+difficulty: "hard"
+estimatedMinutes: 60
+prerequisites:
+  - "kotlin.fundamentals.collections-and-sequences"
+related:
+  - "csharp.fundamentals.generics-and-collections"
+  - "rust.fundamentals.traits-and-generics"
+next:
+  - "kotlin.fundamentals.error-handling"
+objectives:
+  - "Объявлять обобщённые классы и функции с ограничениями T : Bound и where."
+  - "Объяснять, почему List<Int> подставляется вместо List<Number>, а MutableList - нет."
+  - "Выбирать между out, in и проекциями в месте использования."
+  - "Использовать inline и reified для проверки типа во время выполнения."
+masteryCriteria:
+  - "Вы определяете, какую вариантность допускает интерфейс по положению параметра типа: в параметрах метода или в возвращаемых значениях."
+  - "Вы объясняете, почему is List<String> нельзя проверить, и предлагаете замену."
+  - "Вы пишете inline-функцию с reified и вызываете её из кода."
+tags:
+  - "kotlin"
+  - "generics"
+  - "variance"
+  - "reified"
+facts:
+  - kind: "internals"
+    text: "Kotlin задаёт вариантность на стороне объявления модификаторами out и in; List<out E> ковариантен, а MutableList<E> инвариантен."
+    sources:
+      - "https://kotlinlang.org/docs/generics.html"
+  - kind: "internals"
+    text: "Обобщённые параметры типов стираются на JVM, поэтому во время выполнения тип параметра недоступен, если только он не помечен reified в inline-функции."
+    sources:
+      - "https://kotlinlang.org/docs/generics.html"
+      - "https://kotlinlang.org/docs/inline-functions.html"
+  - kind: "misconception"
+    text: "«reified можно использовать в любой функции» - неверно: он доступен только в inline-функциях и inline-свойствах."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какую вариантность имеет параметр T в interface Source<T> { fun next(): T }, если нужно передавать Source<String> туда, где ждут Source<Any>?"
+      options:
+        - "in T"
+        - "out T"
+        - "Инвариантность без модификатора"
+        - "reified T"
+      answer: 1
+      explanation: "T встречается только на выходе, поэтому подходит out."
+    - id: "q2"
+      type: "single"
+      prompt: "Почему нельзя присвоить MutableList<Int> переменной типа MutableList<Number>?"
+      options:
+        - "Потому что Int не подтип Number."
+        - "Потому что в такой список можно было бы положить Double, нарушив типизацию исходного списка."
+        - "Это возможно и работает."
+        - "Потому что список изменяемый и значит потокобезопасный."
+      answer: 1
+      explanation: "MutableList инвариантен: запись допускает вставку другого подтипа."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие условия нужны для использования is T внутри функции?"
+      options:
+        - "Функция помечена inline."
+        - "Параметр типа помечен reified."
+        - "Функция является методом класса."
+        - "T имеет ограничение Any."
+      answer:
+        - 0
+        - 1
+      explanation: "reified доступен только в inline-функциях."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой символ-проекция обозначает «список какого-то неизвестного типа» в List<?>?"
+      answer:
+        - "*"
+        - "List<*>"
+      explanation: "Звёздочка: List<*> - список неизвестного типа, читать можно как Any?."
+    - id: "q5"
+      type: "single"
+      prompt: "Какое утверждение верно для interface Consumer<in T>?"
+      options:
+        - "Consumer<String> - подтип Consumer<Any>."
+        - "Consumer<Any> - подтип Consumer<String>."
+        - "Consumer<T> и Consumer<Any> несовместимы."
+        - "Параметр in T нельзя использовать в параметрах методов."
+      answer: 1
+      explanation: "Потребитель любых значений годится там, где нужен потребитель строк."
+exercise:
+  id: "kotlin.fundamentals.generics-and-variance.exercise"
+  title: "Обобщённые утилиты: reified, границы и ковариантность"
+  prompt: |
+    Первая строка - `n`, затем `n` токенов. Каждый токен хранится как `Int` (если `toIntOrNull()` вернул число), иначе как `Double` (если `toDoubleOrNull()` вернул число), иначе как `String`.
+
+    Выведите четыре строки:
+
+    ```
+    ints=<k> doubles=<k> strings=<k>
+    max-int=<наибольший Int или none>
+    max-str=<наибольшая строка по compareTo или none>
+    numsum=<сумма всех Int и Double как Double>
+    ```
+
+    **Пример.** Токены `3`, `2.5`, `abc`, `10`, `abd` дают
+
+    ```
+    ints=2 doubles=1 strings=2
+    max-int=10
+    max-str=abd
+    numsum=15.5
+    ```
+
+    Реализуйте в заготовке три обобщённые функции: `countOf` с `reified`, `maxOrNone` с ограничением `T : Comparable<T>` и `sumAll` над `List<Number>`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка возвращает нули и null. Начните с countOf: внутри нужно сравнить каждый элемент с типом T."
+    - "inline fun <reified T> List<Any>.countOf(): Int = count { it is T }. Без reified проверка is T не скомпилируется."
+    - "maxOrNone: пройдите по списку, храните лучший элемент и обновляйте его, когда x > best. Оператор > доступен благодаря T : Comparable<T>."
+    - "sumAll: xs.sumOf { it.toDouble() }. Число Number приводится к Double методом toDouble()."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "5\n3\n2.5\nabc\n10\nabd\n"
+      expected: "ints=2 doubles=1 strings=2\nmax-int=10\nmax-str=abd\nnumsum=15.5\n"
+      hint: "Сверьте подсчёт по типам и сумму как Double."
+    - id: "ints-only"
+      title: "Только целые"
+      stdin: "3\n5\n-2\n9\n"
+      expected: "ints=3 doubles=0 strings=0\nmax-int=9\nmax-str=none\nnumsum=12.0\n"
+      hint: "Если строк нет, max-str равен none; numsum всё равно Double."
+    - id: "strings-only"
+      title: "Только строки"
+      stdin: "3\nkiwi\napple\npear\n"
+      expected: "ints=0 doubles=0 strings=3\nmax-int=none\nmax-str=pear\nnumsum=0.0\n"
+      hint: "Если чисел нет, max-int равен none, numsum равен 0.0."
+    - id: "case"
+      title: "Регистр в сравнении (скрытый)"
+      stdin: "3\nZed\nabc\nB\n"
+      expected: "ints=0 doubles=0 strings=3\nmax-int=none\nmax-str=abc\nnumsum=0.0\n"
+      hidden: true
+      hint: "compareTo сравнивает по кодам символов: заглавные буквы меньше строчных."
+    - id: "negative"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "3\n-5\n-2\n-9\n"
+      expected: "ints=3 doubles=0 strings=0\nmax-int=-2\nmax-str=none\nnumsum=-16.0\n"
+      hidden: true
+      hint: "Максимум среди отрицательных - наименьший по модулю. Не инициализируйте максимум нулём."
+    - id: "doubles"
+      title: "Дробные числа (скрытый)"
+      stdin: "4\n1.5\n2.25\n7\n.5\n"
+      expected: "ints=1 doubles=3 strings=0\nmax-int=7\nmax-str=none\nnumsum=11.25\n"
+      hidden: true
+      hint: "max-int смотрит только на Int, а numsum складывает Int и Double."

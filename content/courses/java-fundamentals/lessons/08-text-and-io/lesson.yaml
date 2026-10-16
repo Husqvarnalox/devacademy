@@ -1,0 +1,275 @@
+id: "java.fundamentals.text-and-io"
+title: "Текст и ввод-вывод: String, StringBuilder, java.nio.file, Scanner"
+goal: "Уверенно работать со строками и текстом в Юникоде, читать и писать файлы через java.nio.file и разбирать стандартный ввод без типичных ловушек."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "java.fundamentals.threads-executors-virtual"
+related:
+  - "python.fundamentals.strings"
+  - "python.fundamentals.errors-and-files"
+  - "python.stdlib.pathlib-os-shutil-tempfile"
+  - "kotlin.fundamentals.error-handling"
+  - "csharp.fundamentals.exceptions-and-resources"
+next: []
+objectives:
+  - "Объяснить неизменяемость String, пул строк и разницу между == и equals."
+  - "Собирать строки через StringBuilder, форматировать их и использовать текстовые блоки."
+  - "Предсказывать результат split с пределом и без него, включая пустые поля."
+  - "Различать char, кодовую точку и байт; корректно считать длину и работать с кодировками."
+  - "Читать и писать файлы через Path и Files, закрывать потоки, разбирать ввод через Scanner и BufferedReader."
+masteryCriteria:
+  - "Вы объясняете, почему length() эмодзи равно 2, и измеряете ширину через codePointCount."
+  - "Вы называете, чем split(\",\") отличается от split(\",\", -1)."
+  - "Вы не оставляете открытыми потоки Files.lines и Files.walk."
+  - "Вы разбираете построчный ввод с пустыми строками и комментариями без исключений в обычных случаях."
+tags:
+  - "java"
+  - "string"
+  - "stringbuilder"
+  - "nio"
+  - "files"
+  - "scanner"
+  - "unicode"
+facts:
+  - kind: "internals"
+    text: "Класс String представляет строки UTF-16; символы вне базовой плоскости представляются суррогатными парами, а методы length и charAt работают с единицами char."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html"
+  - kind: "historical"
+    text: "Текстовые блоки окончательно добавлены в Java 15 (JEP 378)."
+    sources:
+      - "https://openjdk.org/jeps/378"
+  - kind: "historical"
+    text: "Начиная с Java 18 кодировкой по умолчанию стандартных API является UTF-8 (JEP 400), но явная кодировка остаётся хорошей практикой."
+    sources:
+      - "https://openjdk.org/jeps/400"
+  - kind: "real-world"
+    text: "Files.lines, Files.walk и Files.list возвращают потоки, удерживающие открытый ресурс файловой системы, поэтому их закрывают в try-with-resources."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Files.html"
+  - kind: "internals"
+    text: "Метод split принимает регулярное выражение и по умолчанию отбрасывает завершающие пустые строки; при отрицательном пределе они сохраняются."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html#split(java.lang.String,int)"
+  - kind: "misconception"
+    text: "«Конкатенация строк в цикле всегда медленна» - не совсем: одно выражение с + компилятор оптимизирует сам; проблема в накоплении результата через += на каждой итерации цикла."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно \"A\\uD83D\\uDE00\".length() (вторая и третья единицы - суррогатная пара одного эмодзи)?"
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "1"
+      answer: 1
+      explanation: "Один символ A и две единицы UTF-16 пары; codePointCount даст 2."
+    - id: "q2"
+      type: "single"
+      prompt: "Что вернёт \"a,b,,\".split(\",\").length?"
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "1"
+      answer: 0
+      explanation: "Завершающие пустые строки отбрасываются; с пределом -1 длина была бы 4."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Строки в Java неизменяемы."
+        - "new String(\"x\") == \"x\" истинно."
+        - "trim() и strip() всегда равнозначны."
+        - "Files.lines нужно закрывать."
+      answer:
+        - 0
+        - 3
+      explanation: "new String создаёт новый объект; strip понимает пробелы Юникода."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой метод String возвращает количество символов Юникода (кодовых точек) на диапазоне? Назовите метод, без аргументов."
+      options:
+        - "codePointCount"
+        - "codePointCount()"
+      answer: "codePointCount"
+      explanation: "Метод codePointCount(begin, end) считает кодовые точки."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Scanner читает ввод \"5 7\\nabc\\n\": nextInt(), nextInt(), затем nextLine(). Сколько символов в строке, которую вернул последний nextLine()?"
+      answer: 0
+      explanation: "После второго nextInt остаётся перевод строки, поэтому nextLine возвращает пустую строку."
+exercise:
+  id: "java.fundamentals.text-and-io.exercise"
+  title: "INI-файл: разбор секций и ключей"
+  prompt: |
+    Первая строка ввода - число `n`, затем `n` строк конфигурационного файла (пустые строки тоже считаются). Номера строк идут с 1 среди этих `n` строк.
+
+    Правила для каждой строки после `strip()`:
+
+    * пустая строка и строка, начинающаяся с `#` или `;`, пропускаются;
+    * `[имя]` задаёт текущую секцию; имя (после `strip()` внутри скобок) состоит из символов `A-Za-z0-9_.-`, одной или более;
+    * `ключ = значение`: делится по **первому** `=`; ключ после `strip()` состоит из тех же символов; значение после `strip()`; если значение начинается и заканчивается двойной кавычкой (минимум две), кавычки снимаются, а пробелы внутри сохраняются; значение может быть пустым;
+    * всё остальное - некорректная строка: `invalid line <номер>: <строка после strip()>`.
+
+    Ключи до первой секции относятся к секции `global`. Повторный ключ в той же секции заменяет значение.
+
+    Вывод: сначала все сообщения `invalid line ...` в порядке чтения, затем секции: `global` первой (если в ней есть ключи), остальные по имени (`String.compareTo`), заголовок `[имя]` и ключи по возрастанию как `ключ=<значение>`; в конце `sections=<число выведенных секций> keys=<общее число ключей>`. Секция, объявленная, но без ключей, тоже выводится (с заголовком). Секция `global` без ключей не выводится.
+
+    **Пример.**
+
+    ```
+    7
+    # comment
+    [db]
+    host = localhost
+    name = "  a = b  "
+    [bad
+    =x
+    port=5432
+    ```
+
+    ```
+    invalid line 5: [bad
+    invalid line 6: =x
+    [db]
+    host=<localhost>
+    name=<  a = b  >
+    port=<5432>
+    sections=1 keys=3
+    ```
+
+    **Что дано.** Заготовка читает строки через `BufferedReader` и выводит только `sections=0 keys=0`. Реализуйте разбор.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Читайте через BufferedReader.readLine() ровно n раз (на null прекращайте). Пропуск: text.isEmpty() || text.startsWith(\"#\") || text.startsWith(\";\"), где text = line.strip()."
+    - "Имя и ключ проверяйте регулярным выражением [A-Za-z0-9_.-]+ (Pattern.matcher(...).matches()). Для секции: text.endsWith(\"]\") и имя text.substring(1, text.length() - 1).strip()."
+    - "Ключ и значение: int eq = text.indexOf('='); если eq < 0, то строка некорректна. key = text.substring(0, eq).strip(); value = text.substring(eq + 1).strip(); кавычки снимайте, если value.length() >= 2 и value начинается и заканчивается на \"."
+    - "Храните TreeMap<String, TreeMap<String, String>> (computeIfAbsent), секцию global выводите отдельно первой. Предупреждения копите в списке и печатайте до секций."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "7\n# comment\n[db]\nhost = localhost\nname = \"  a = b  \"\n[bad\n=x\nport=5432\n"
+      expected: "invalid line 5: [bad\ninvalid line 6: =x\n[db]\nhost=<localhost>\nname=<  a = b  >\nport=<5432>\nsections=1 keys=3\n"
+      hint: "Значение в кавычках сохраняет внутренние пробелы и знак =; [bad без закрывающей скобки некорректна."
+    - id: "global"
+      title: "Глобальные ключи и повторы"
+      stdin: "8\ntop = 1\n[b]\nx=1\nx = 2\n[a]\n\ny=\"\"\n"
+      expected: "[global]\ntop=<1>\n[a]\ny=<>\n[b]\nx=<2>\nsections=3 keys=3\n"
+      hint: "Ключ до секции попадает в global (выводится первым); повтор x заменяет значение; пустое значение выводится как <>."
+    - id: "comments"
+      title: "Комментарии и пробелы"
+      stdin: "6\n   # indented comment\n  ; another\n\t[ s ]\t\n\tk\t=\tv = w \n\n"
+      expected: "[s]\nk=<v = w>\nsections=1 keys=1\n"
+      hint: "Строки обрезаются strip(); имя секции в скобках тоже; значение делится по первому =."
+    - id: "invalid"
+      title: "Некорректные строки (скрытый) (скрытый)"
+      stdin: "7\njust text\n[]\n[a b]\n[ok]\nbad key = 1\n=\nk = 1\n"
+      expected: "invalid line 1: just text\ninvalid line 2: []\ninvalid line 3: [a b]\ninvalid line 5: bad key = 1\ninvalid line 6: =\n[ok]\nk=<1>\nsections=1 keys=1\n"
+      hidden: true
+      hint: "Пустое имя, пробел в имени, ключ с пробелом и пустой ключ некорректны; секция ok выводится с ключом k."
+    - id: "empty-section"
+      title: "Секция без ключей и пустой ввод (скрытый) (скрытый)"
+      stdin: "3\n[zeta]\n[Alpha]\n[beta]\n"
+      expected: "[Alpha]\n[beta]\n[zeta]\nsections=3 keys=0\n"
+      hidden: true
+      hint: "Секции без ключей выводятся; порядок String.compareTo: заглавные раньше строчных."
+    - id: "none"
+      title: "Нет строк (скрытый) (скрытый)"
+      stdin: "0\n"
+      expected: "sections=0 keys=0\n"
+      hidden: true
+      hint: "Пустой файл: sections=0 keys=0."
+    - id: "quotes"
+      title: "Кавычки (скрытый) (скрытый)"
+      stdin: "6\n[q]\na=\"\nb=\"x\nc=\"\"\nd=\"y z\"\ne = \"a\" b \"\n"
+      expected: "[q]\na=<\">\nb=<\"x>\nc=<>\nd=<y z>\ne=<a\" b >\nsections=1 keys=5\n"
+      hidden: true
+      hint: "Одиночная кавычка не снимается; пара пустых кавычек даёт пустое значение; последнее значение начинается и заканчивается кавычкой."
+challenge:
+  id: "java.fundamentals.text-and-io.challenge"
+  title: "CSV в таблицу с выравниванием по кодовым точкам"
+  prompt: |
+    Первая строка ввода - число `n`, затем `n` строк CSV; первая из них - заголовок. Поля разделены запятой. Поле может быть в двойных кавычках; внутри кавычек допустимы запятые, а `""` означает одну кавычку. Пустое поле допустимо (`a,,b` - три поля; строка `a,b,` - три поля с пустым последним).
+
+    Ошибки разбора строки:
+
+    * `unterminated quote` - кавычка не закрыта до конца строки;
+    * `bad quote` - кавычка в середине неквотированного поля или символы между закрывающей кавычкой и запятой.
+
+    Число полей заголовка задаёт число столбцов. Строки с другим числом полей не попадают в таблицу и порождают `error line <номер>: expected <h> fields, got <g>`. Строки с ошибкой разбора порождают `error line <номер>: <причина>`. Если ошибка в заголовке, выведите только `error line 1: <причина>`.
+
+    Таблица: каждая ячейка дополняется пробелами справа до максимальной **ширины в кодовых точках** столбца (пробелы в конце строки таблицы отбрасываются, `stripTrailing()`), столбцы разделяются `" | "`. После заголовка идёт разделитель из `-` шириной столбца, склеенных через `-+-`. Затем строки данных. После таблицы - все сообщения об ошибках в порядке строк. Если нет ни одной корректной строки, выводятся только сообщения.
+
+    **Пример.**
+
+    ```
+    4
+    name,note
+    Anna,"say ""hi"", ok"
+    Bob,😀😀
+    x,"open
+    ```
+
+    ```
+    name | note
+    -----+-------------
+    Anna | say "hi", ok
+    Bob  | 😀😀
+    error line 4: unterminated quote
+    ```
+
+    **Что дано.** Заготовка делит строки по запятой и печатает без выравнивания. Напишите разбор по символам и измеряйте ширину через `codePointCount`.
+  entryFile: "Main.java"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Разбирайте строку циклом по индексу с StringBuilder для текущего поля. Если поле начинается с кавычки: читайте до закрывающей, пара \"\" добавляет одну кавычку; после закрывающей должен идти конец строки или запятая."
+    - "Завершающая запятая означает ещё одно пустое поле: после последней запятой добавьте \"\". Ошибки разбора выбрасывайте IllegalArgumentException с текстом причины и ловите их в main с номером строки."
+    - "Ширину ячейки считайте как s.codePointCount(0, s.length()). Отступ - \" \".repeat(w - width), в конце готовой строки вызовите stripTrailing(). Разделитель: \"-\".repeat(w) для каждого столбца, соединённые \"-+-\"."
+    - "Сначала соберите все корректные строки и найдите максимумы по столбцам, затем печатайте. Строки с неверным числом полей и ошибки разбора копите в списке сообщений и печатайте после таблицы."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "4\nname,note\nAnna,\"say \"\"hi\"\", ok\"\nBob,😀😀\nx,\"open\n"
+      expected: "name | note\n-----+-------------\nAnna | say \"hi\", ok\nBob  | 😀😀\nerror line 4: unterminated quote\n"
+      hint: "Эмодзи считаются как две кодовые точки, не как четыре единицы UTF-16; незакрытая кавычка - ошибка."
+    - id: "simple"
+      title: "Простая таблица"
+      stdin: "3\nid,name,city\n1,Ann,Oslo\n22,Bob,Rome\n"
+      expected: "id | name | city\n---+------+-----\n1  | Ann  | Oslo\n22 | Bob  | Rome\n"
+      hint: "Ширина столбцов по самому длинному значению; пробелы в конце строки отбрасываются."
+    - id: "empty-fields"
+      title: "Пустые поля"
+      stdin: "4\na,b,c\n,,\n1,,3\n\"\",x,\"\"\n"
+      expected: "a | b | c\n--+---+--\n  |   |\n1 |   | 3\n  | x |\n"
+      hint: "Пустое поле и пара кавычек одинаково дают пустую ячейку; завершающая запятая означает пустое последнее поле."
+    - id: "errors"
+      title: "Ошибки (скрытый) (скрытый)"
+      stdin: "6\nk,v\n1,2\n3\n4,5,6\n\"a\"b,1\nq\"x,2\n"
+      expected: "k | v\n--+--\n1 | 2\nerror line 3: expected 2 fields, got 1\nerror line 4: expected 2 fields, got 3\nerror line 5: bad quote\nerror line 6: bad quote\n"
+      hidden: true
+      hint: "Неверное число полей, bad quote в двух вариантах; корректные строки остаются в таблице."
+    - id: "header-error"
+      title: "Ошибка в заголовке (скрытый) (скрытый)"
+      stdin: "3\nname,\"oops\nx,y\n1,2\n"
+      expected: "error line 1: unterminated quote\n"
+      hidden: true
+      hint: "Ошибка заголовка: только error line 1."
+    - id: "unicode"
+      title: "Юникод (скрытый) (скрытый)"
+      stdin: "4\nслово,x\nПривет,😀\n日本語,ab\né,1\n"
+      expected: "слово  | x\n-------+---\nПривет | 😀\n日本語    | ab\né     | 1\n"
+      hidden: true
+      hint: "Кириллица и иероглифы: по одной кодовой точке на символ. Буква e с комбинирующим акцентом - две кодовые точки."
+    - id: "only-errors"
+      title: "Нет корректных строк (скрытый) (скрытый)"
+      stdin: "1\n\"a\n"
+      expected: "error line 1: unterminated quote\n"
+      hidden: true
+      hint: "Единственная строка - заголовок с ошибкой."

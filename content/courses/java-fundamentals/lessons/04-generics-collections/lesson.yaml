@@ -1,0 +1,179 @@
+id: "java.fundamentals.generics-collections"
+title: "Обобщения и фреймворк коллекций"
+goal: "Понимать стирание типов, подстановочные символы и правило PECS и выбирать подходящую коллекцию по порядку и сложности."
+difficulty: "medium"
+estimatedMinutes: 65
+prerequisites:
+  - "java.fundamentals.interfaces-sealed-patterns"
+related:
+  - "csharp.fundamentals.generics-and-collections"
+  - "typescript.fundamentals.generics"
+  - "rust.fundamentals.traits-and-generics"
+  - "python.fundamentals.dicts-and-sets"
+  - "go.fundamentals.maps-and-slices-deep-dive"
+next:
+  - "java.fundamentals.streams-lambdas-optional"
+objectives:
+  - "Объявлять обобщённые классы, записи и методы с ограничениями типа."
+  - "Объяснить стирание типов и его следствия: загрязнение кучи, запрет new T[], запрет instanceof с аргументом типа."
+  - "Применять ? extends и ? super по правилу PECS и объяснять инвариантность обобщений и ковариантность массивов."
+  - "Выбирать между ArrayList, ArrayDeque, HashMap, LinkedHashMap, TreeMap и PriorityQueue по порядку обхода и сложности."
+  - "Избегать ловушек: remove(int) против remove(Object), ConcurrentModificationException, неизменяемые фабричные коллекции."
+masteryCriteria:
+  - "Вы предсказываете, компилируется ли присваивание между List<Integer>, List<Number> и List<? extends Number>, и объясняете почему."
+  - "Вы пишете сигнатуру метода копирования по правилу PECS без подсказки."
+  - "Вы не полагаетесь на порядок обхода HashMap и выбираете LinkedHashMap или TreeMap, когда порядок важен."
+  - "Вы строите составной компаратор через Comparator.comparing, thenComparing и reversed и считаете частоты через Map.merge."
+tags:
+  - "java"
+  - "generics"
+  - "erasure"
+  - "wildcards"
+  - "pecs"
+  - "collections"
+  - "hashmap"
+  - "treemap"
+facts:
+  - kind: "internals"
+    text: "Обобщённые типы стираются при компиляции: параметр типа заменяется своей верхней границей, а приведения вставляет компилятор. Поэтому во время выполнения List<String> и List<Integer> - один и тот же класс."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-4.html#jls-4.6"
+  - kind: "internals"
+    text: "Массивы в Java ковариантны, а параметризованные типы инвариантны: Number[] a = new Integer[1] допустимо, но запись a[0] = 1.5 бросает ArrayStoreException, тогда как List<Number> = new ArrayList<Integer>() не компилируется."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-10.html#jls-10.5"
+  - kind: "internals"
+    text: "Спецификация HashMap не гарантирует порядок обхода и не обещает, что он останется неизменным со временем. LinkedHashMap сохраняет порядок вставки, TreeMap упорядочивает по ключу."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html"
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/TreeMap.html"
+  - kind: "historical"
+    text: "Обобщения появились в Java 5 (2004) и были реализованы через стирание, чтобы сохранить совместимость с байткодом и библиотеками предыдущих версий. Фабричные методы List.of, Set.of и Map.of добавлены в Java 9."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html"
+  - kind: "real-world"
+    text: "Итераторы стандартных коллекций работают по принципу fail-fast: структурное изменение во время обхода обычно приводит к ConcurrentModificationException, но спецификация называет это поведение best-effort, а не гарантией."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ConcurrentModificationException.html"
+  - kind: "misconception"
+    text: "«Если List<Integer> хранит числа, то это подтип List<Number>» - нет, обобщения инвариантны. Для чтения используют List<? extends Number>, для записи Integer - List<? super Integer>."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно выражение new ArrayList<String>().getClass() == new ArrayList<Integer>().getClass()?"
+      options:
+        - "true"
+        - "false"
+        - "Ошибка компиляции"
+        - "Зависит от JVM"
+      answer: 0
+      explanation: "Из-за стирания типов во время выполнения оба объекта принадлежат одному классу ArrayList."
+    - id: "q2"
+      type: "single"
+      prompt: "Какая сигнатура копирования из src в dst соответствует правилу PECS?"
+      options:
+        - "<T> void copy(List<T> dst, List<T> src)"
+        - "<T> void copy(List<? extends T> dst, List<? super T> src)"
+        - "<T> void copy(List<? super T> dst, List<? extends T> src)"
+        - "void copy(List<Object> dst, List<Object> src)"
+      answer: 2
+      explanation: "Источник - производитель (extends), приёмник - потребитель (super)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Порядок обхода HashMap не определён спецификацией."
+        - "TreeMap обходит ключи в порядке сортировки."
+        - "List.of(1, null) допустим."
+        - "Удаление элемента в for-each по ArrayList может привести к ConcurrentModificationException."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "List.of запрещает null и бросает NullPointerException."
+    - id: "q4"
+      type: "short"
+      prompt: "Какой метод коллекции удаляет все элементы, удовлетворяющие предикату?"
+      options:
+        - "removeIf"
+        - "removeIf()"
+      answer: "removeIf"
+      explanation: "Метод Collection.removeIf безопасно удаляет элементы без явного цикла."
+    - id: "q5"
+      type: "numeric"
+      prompt: "List<Integer> l = new ArrayList<>(List.of(10, 20, 30)); l.remove(1); Чему равно l.get(1)?"
+      answer: 30
+      explanation: "remove(1) удаляет по индексу, а не значение 1: остаются 10 и 30, поэтому l.get(1) равно 30."
+exercise:
+  id: "java.fundamentals.generics-collections.exercise"
+  title: "Частоты слов: обобщённый top"
+  prompt: |
+    Первая строка ввода - число `k`. Остальные строки (до конца ввода) - произвольный текст. **Слово** - максимальная последовательность букв (`Character.isLetter`, поддерживаются и кириллица); всё остальное - разделители. Слова приводятся к нижнему регистру через `toLowerCase(Locale.ROOT)`.
+
+    Выведите `k` самых частых слов в формате `<слово> <число>`: сначала по убыванию числа вхождений, при равенстве - по возрастанию слова (`String.compareTo`). Если различных слов меньше `k`, выведите все. Затем выведите две строки: `unique=<число различных слов>` и `total=<число всех слов>`.
+
+    **Пример.**
+
+    ```
+    2
+    the cat and the hat.
+    The end, and THE start
+    ```
+
+    ```
+    the 4
+    and 2
+    unique=6
+    total=10
+    ```
+
+    **Что дано.** Подсчёт готов, а обобщённый метод `top(Map<K, Integer>, int, Comparator<? super K>)` - заглушка: она возвращает первые `k` записей в произвольном порядке обхода `HashMap`. Реализуйте сортировку записей и верните первые `k`.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Скопируйте counts.entrySet() в новый ArrayList и отсортируйте его методом sort: HashMap порядка не гарантирует."
+    - "Компаратор записей: сначала Integer.compare(b.getValue(), a.getValue()) (по убыванию частоты), при нуле - tie.compare(a.getKey(), b.getKey())."
+    - "Результат метода - list.subList(0, Math.min(k, list.size())); если k больше числа слов, берите все."
+    - "Не вычитайте значения в компараторе (a - b может переполниться), используйте Integer.compare. Метод должен оставаться обобщённым: ключ K ничего не знает про String."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "2\nthe cat and the hat.\nThe end, and THE start\n"
+      expected: "the 4\nand 2\nunique=6\ntotal=10\n"
+      hint: "the встречается 4 раза, and - 2 раза. Различных слов 6, всего слов 10."
+    - id: "ties"
+      title: "Равные частоты"
+      stdin: "3\nb a c\nb a d\ne\n"
+      expected: "a 2\nb 2\nc 1\nunique=5\ntotal=7\n"
+      hint: "При равных частотах слова упорядочены по алфавиту: a 2, b 2, затем c 1."
+    - id: "more"
+      title: "k больше числа слов"
+      stdin: "10\nOne two\ntwo\n"
+      expected: "two 2\none 1\nunique=2\ntotal=3\n"
+      hint: "Выводятся все слова, затем unique и total."
+    - id: "russian"
+      title: "Кириллица и цифры (скрытый)"
+      stdin: "3\nДа нет, да! Нет-нет 123 да\nИ ещё: Да\n"
+      expected: "да 4\nнет 3\nещё 1\nunique=4\ntotal=9\n"
+      hidden: true
+      hint: "Цифры и дефисы разделяют слова; регистр кириллицы приводится к нижнему: да 4, нет 3."
+    - id: "empty"
+      title: "Нет слов (скрытый)"
+      stdin: "5\n123 456\n...\n"
+      expected: "unique=0\ntotal=0\n"
+      hidden: true
+      hint: "Если слов нет, остаются только unique=0 и total=0."
+    - id: "zero"
+      title: "k = 0 (скрытый)"
+      stdin: "0\na b a\n"
+      expected: "unique=2\ntotal=3\n"
+      hidden: true
+      hint: "При k = 0 слова не выводятся, но unique и total печатаются."
+    - id: "many"
+      title: "Много слов с общим счётом (скрытый)"
+      stdin: "4\nz y x w v u t s r q p\no n m l k j i h g f e\nd c b a z y x w v u t\n"
+      expected: "t 2\nu 2\nv 2\nw 2\nunique=26\ntotal=33\n"
+      hidden: true
+      hint: "Порядок при равных частотах - по возрастанию слова: t, u, v, w встречаются дважды."

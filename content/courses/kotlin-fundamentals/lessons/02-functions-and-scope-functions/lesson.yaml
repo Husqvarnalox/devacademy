@@ -1,0 +1,151 @@
+id: "kotlin.fundamentals.functions-and-scope-functions"
+title: "Функции: аргументы по умолчанию, расширения и scope-функции"
+goal: "Писать компактные функции с параметрами по умолчанию, добавлять расширения и осознанно выбирать let, run, with, apply и also."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "kotlin.fundamentals.types-and-null-safety"
+related:
+  - "csharp.fundamentals.delegates-lambdas-events"
+  - "go.fundamentals.functions-and-errors"
+next:
+  - "kotlin.fundamentals.classes-sealed-and-when"
+objectives:
+  - "Заменять перегрузки параметрами по умолчанию и вызывать функции с именованными аргументами."
+  - "Объявлять функции-расширения и называть их ограничения: статическая диспетчеризация, приоритет члена, отсутствие доступа к приватному."
+  - "Выбирать scope-функцию по двум признакам: it или this и результат блока или объект."
+masteryCriteria:
+  - "Вы предсказываете, какая из двух функций-расширений вызовется для переменной базового типа."
+  - "Вы заполняете таблицу let/run/with/apply/also по памяти: объект внутри и возвращаемое значение."
+  - "Вы переписываете цепочку из нескольких перегрузок в одну функцию с параметрами по умолчанию."
+tags:
+  - "kotlin"
+  - "functions"
+  - "extensions"
+  - "scope-functions"
+facts:
+  - kind: "internals"
+    text: "Функции-расширения разрешаются статически: вызов определяется объявленным типом выражения, а не динамическим типом объекта. Если у типа есть член с той же сигнатурой, всегда вызывается член."
+    sources:
+      - "https://kotlinlang.org/docs/extensions.html"
+  - kind: "internals"
+    text: "Переопределяющая функция всегда использует значения параметров по умолчанию базовой функции и не может задавать свои."
+    sources:
+      - "https://kotlinlang.org/docs/functions.html"
+  - kind: "real-world"
+    text: "В документации Kotlin scope-функции различаются двумя признаками: способом обращения к объекту (this или it) и возвращаемым значением (сам объект или результат лямбды)."
+    sources:
+      - "https://kotlinlang.org/docs/scope-functions.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какая scope-функция возвращает сам объект и обращается к нему через this?"
+      options:
+        - "let"
+        - "also"
+        - "apply"
+        - "run"
+      answer: 2
+      explanation: "apply: this внутри, возвращается объект. also: it внутри, возвращается объект."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет код: open class A; class B : A(); fun A.n() = \"a\"; fun B.n() = \"b\"; val x: A = B(); println(x.n())?"
+      options:
+        - "a"
+        - "b"
+        - "Ошибка компиляции"
+        - "Исключение"
+      answer: 0
+      explanation: "Расширения разрешаются по статическому типу переменной, то есть A."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о расширениях верны?"
+      options:
+        - "Они не имеют доступа к приватным членам класса."
+        - "Если у класса есть член с той же сигнатурой, вызывается член."
+        - "Расширение можно вызвать на значении null, если получатель объявлен как T?."
+        - "Расширение переопределяет метод класса."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Расширение - статическая функция снаружи класса; переопределять методы оно не умеет."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется функция, которая принимает лямбду с получателем и возвращает собранную строку: buildString или ... (одно слово)?"
+      answer:
+        - "buildString"
+      explanation: "buildString { append(...) } выполняет блок с StringBuilder в роли this."
+    - id: "q5"
+      type: "single"
+      prompt: "Что выведет println(\"5\".let { it.toInt() + 1 })?"
+      options:
+        - "5"
+        - "6"
+        - "\"6\""
+        - "Unit"
+      answer: 1
+      explanation: "let возвращает результат блока: 6."
+exercise:
+  id: "kotlin.fundamentals.functions-and-scope-functions.exercise"
+  title: "Карточки с аргументами по умолчанию"
+  prompt: |
+    Первая строка - `n`, затем `n` строк `имя возраст город`. Имя записано как `anna_maria`; возраст может быть числом или `-`; город может быть словом или `-`.
+
+    Для каждой строки выведите карточку `<Имя Слова>, age <возраст>, city <город>`:
+
+    * имя: каждое слово через `_` с заглавной буквы, слова разделены пробелом;
+    * вместо отсутствующего возраста выведите `n/a`;
+    * вместо отсутствующего города выведите `unknown`.
+
+    **Пример.** Строки `anna_maria 30 Paris` и `bob - -` дают
+
+    ```
+    Anna Maria, age 30, city Paris
+    Bob, age n/a, city unknown
+    ```
+
+    Реализуйте расширение `String.titleWords()` и функцию `card` с параметрами по умолчанию: отсутствие города в `main` выражается тем, что аргумент просто не передаётся.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка выводит только имя. Сначала сделайте titleWords: разбейте строку по _, у каждой части поднимите первую букву."
+    - "Для заглавной буквы подойдёт part.replaceFirstChar { it.uppercaseChar() }, а склеить части - joinToString(\" \")."
+    - "Сигнатура card: fun card(name: String, age: Int? = null, city: String = \"unknown\"). Возраст null выводите через age ?: \"n/a\"."
+    - "В main: if (city == null) card(name, age) else card(name, age, city). Тело card удобно собрать через buildString."
+  tests:
+    - id: "basic"
+      title: "Полные данные"
+      stdin: "2\nanna_maria 30 Paris\nbob 25 Berlin\n"
+      expected: "Anna Maria, age 30, city Paris\nBob, age 25, city Berlin\n"
+      hint: "Формат: Имя, age N, city Город."
+    - id: "missing"
+      title: "Нет возраста или города"
+      stdin: "3\nbob - -\neve 41 -\nzed - Rome\n"
+      expected: "Bob, age n/a, city unknown\nEve, age 41, city unknown\nZed, age n/a, city Rome\n"
+      hint: "Для '-' в возрасте выведите n/a, для '-' в городе - unknown."
+    - id: "single"
+      title: "Одна строка"
+      stdin: "1\njean_paul_sartre 70 Paris\n"
+      expected: "Jean Paul Sartre, age 70, city Paris\n"
+      hint: "Каждое слово имени начинается с заглавной буквы."
+    - id: "negative"
+      title: "Нулевой и отрицательный возраст (скрытый)"
+      stdin: "2\nx 0 A\ny -5 B\n"
+      expected: "X, age 0, city A\nY, age -5, city B\n"
+      hidden: true
+      hint: "Возраст - это любое число, которое разбирается toIntOrNull; только отсутствие числа даёт n/a."
+    - id: "one-letter"
+      title: "Однобуквенные слова (скрытый)"
+      stdin: "2\na_b_c 1 X\nz - -\n"
+      expected: "A B C, age 1, city X\nZ, age n/a, city unknown\n"
+      hidden: true
+      hint: "Слова из одной буквы тоже получают заглавную."
+    - id: "all-missing"
+      title: "Всё отсутствует (скрытый)"
+      stdin: "2\nq - -\nw - -\n"
+      expected: "Q, age n/a, city unknown\nW, age n/a, city unknown\n"
+      hidden: true
+      hint: "Оба значения по умолчанию должны сработать одновременно."

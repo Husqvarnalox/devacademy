@@ -1,0 +1,265 @@
+id: "java.fundamentals.streams-lambdas-optional"
+title: "Лямбды, Streams API и Optional"
+goal: "Писать лямбды и ссылки на методы, строить ленивые конвейеры Stream с коллекторами и использовать Optional как тип результата."
+difficulty: "medium"
+estimatedMinutes: 70
+prerequisites:
+  - "java.fundamentals.generics-collections"
+related:
+  - "csharp.fundamentals.linq"
+  - "csharp.fundamentals.delegates-lambdas-events"
+  - "rust.fundamentals.collections-and-iterators"
+  - "python.advanced.functions-as-objects"
+  - "kotlin.first-steps.null-safety-and-val-var"
+next:
+  - "java.fundamentals.exceptions-try-with-resources"
+objectives:
+  - "Назвать основные функциональные интерфейсы и записать лямбду и ссылку на метод всех четырёх видов."
+  - "Объяснить ленивость и одноразовость потоков и предсказать порядок обработки элементов."
+  - "Строить агрегации через groupingBy, partitioningBy, toMap, joining, summingInt и teeing."
+  - "Использовать Optional как возвращаемый тип: map, filter, orElseGet, orElseThrow, ifPresentOrElse."
+  - "Объяснить требование эффективной финальности для захваченных переменных и различия orElse и orElseGet."
+masteryCriteria:
+  - "Вы предсказываете, какие элементы пройдут по конвейеру до findFirst или limit и что вернёт повторный вызов терминальной операции."
+  - "Вы заменяете цикл с накоплением на поток с коллектором и выбираете TreeMap::new, когда важен порядок ключей."
+  - "Вы не используете Optional.get() без проверки и не передаёте Optional в параметры и поля."
+  - "Вы называете версию Java для Stream.toList (16), ifPresentOrElse (9) и teeing (12) и подтверждаете её компиляцией."
+tags:
+  - "java"
+  - "streams"
+  - "lambdas"
+  - "optional"
+  - "collectors"
+  - "functional"
+facts:
+  - kind: "internals"
+    text: "Промежуточные операции потока ленивы: конвейер выполняется только при вызове терминальной операции, элементы проходят через него по одному, а короткозамыкающие операции останавливают обработку досрочно. Поток нельзя использовать повторно."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/package-summary.html"
+  - kind: "historical"
+    text: "Лямбда-выражения, Stream API и Optional появились в Java 8 (2014); метод Stream.toList() добавлен в Java 16, Collectors.teeing - в Java 12. Компиляция вызова toList() с --release 15 завершается ошибкой."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/stream/Stream.html#toList()"
+  - kind: "internals"
+    text: "Лямбда может захватывать только эффективно финальные локальные переменные. В отличие от анонимного класса, ключевое слово this внутри лямбды обозначает экземпляр окружающего класса."
+    sources:
+      - "https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.27.2"
+  - kind: "real-world"
+    text: "Документация Optional прямо указывает, что класс предназначен для использования как тип возвращаемого значения метода, где нужно явно показать отсутствие результата; для полей и параметров он не предназначен."
+    sources:
+      - "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Optional.html"
+  - kind: "performance"
+    text: "Параллельные потоки выполняются в общем пуле ForkJoinPool; они полезны только для достаточно больших объёмов вычислений без побочных эффектов, и польза должна подтверждаться измерениями."
+    sources:
+      - "https://docs.oracle.com/javase/tutorial/collections/streams/parallelism.html"
+  - kind: "misconception"
+    text: "«Optional.orElse не вычисляет аргумент, если значение есть» - неверно: аргумент вычисляется всегда, потому что это обычный вызов метода. Для ленивого значения используйте orElseGet."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Когда выполняются промежуточные операции filter и map в конвейере потока?"
+      options:
+        - "В момент вызова каждой из них."
+        - "Только при вызове терминальной операции."
+        - "Параллельно в отдельных потоках сразу после создания потока."
+        - "Никогда, пока не вызван sorted."
+      answer: 1
+      explanation: "Конвейер ленив: фактическая работа начинается с терминальной операции."
+    - id: "q2"
+      type: "single"
+      prompt: "Что произойдёт при вызове Optional.of(null)?"
+      options:
+        - "Вернётся Optional.empty()."
+        - "Вернётся Optional с null."
+        - "NullPointerException."
+        - "Ошибка компиляции."
+      answer: 2
+      explanation: "Для значения, которое может быть null, используйте Optional.ofNullable."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Один и тот же Stream нельзя обойти дважды."
+        - "Stream.toList() возвращает неизменяемый список."
+        - "Аргумент orElse(...) вычисляется, только если Optional пуст."
+        - "Лямбда может присваивать новое значение захваченной локальной переменной."
+      answer:
+        - 0
+        - 1
+      explanation: "orElse вычисляет аргумент всегда; захваченная локальная переменная должна быть эффективно финальной."
+    - id: "q4"
+      type: "short"
+      prompt: "Как называется функциональный интерфейс для функции, принимающей T и возвращающей boolean?"
+      options:
+        - "Predicate"
+        - "Predicate<T>"
+      answer: "Predicate"
+      explanation: "Predicate<T> с методом test; есть также and, or и negate."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Чему равно IntStream.rangeClosed(1, 4).map(x -> x * x).sum()?"
+      answer: 30
+      explanation: "1 + 4 + 9 + 16 = 30; rangeClosed включает обе границы."
+exercise:
+  id: "java.fundamentals.streams-lambdas-optional.exercise"
+  title: "Отчёт по отделам: группировка потоками"
+  prompt: |
+    Первая строка ввода - число `n`, затем `n` строк `<имя> <отдел> <зарплата>`. Зарплата - целое число из 1-9 цифр; если в строке не три части или зарплата не число, строка **недопустима**: сразу выведите `invalid: <исходная строка>` и пропустите её.
+
+    После чтения для каждого отдела (в порядке возрастания названия, `String.compareTo`) выведите
+
+    ```
+    <отдел>: count=<число сотрудников> avg=<средняя зарплата, 2 знака> top=<имя> <зарплата>
+    ```
+
+    где `top` - сотрудник с наибольшей зарплатой; при равных зарплатах - с меньшим именем. Среднее печатайте с `Locale.ROOT`. Последняя строка - `total=<сумма всех допустимых зарплат>`.
+
+    **Пример.**
+
+    ```
+    4
+    ann dev 100
+    bob dev 150
+    cid ops 90
+    zed ops x
+    ```
+
+    ```
+    invalid: zed ops x
+    dev: count=2 avg=125.00 top=bob 150
+    ops: count=1 avg=90.00 top=cid 90
+    total=340
+    ```
+
+    **Что дано.** Запись `Employee`, разбор строки через `Optional` и сбор списка готовы. В заготовке нет группировки и отчёта: добавьте `Collectors.groupingBy` с `TreeMap::new`, статистику через `mapToInt(...).average()` и `max` с составным компаратором, а итоговую сумму вычислите потоком.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Сгруппируйте сотрудников: all.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new, Collectors.toList())). TreeMap даёт порядок отделов."
+    - "Среднее: list.stream().mapToInt(Employee::salary).average().orElse(0). Лучший сотрудник: max с Comparator.comparingInt(Employee::salary)."
+    - "При равных зарплатах top - сотрудник с меньшим именем. Для max нужен компаратор, где меньшее имя считается большим: thenComparing(Employee::name, Comparator.reverseOrder())."
+    - "Сумма для total может превысить int: используйте mapToLong(Employee::salary).sum() и тип long. Строка отчёта: printf(Locale.ROOT, \"%s: count=%d avg=%.2f top=%s %d%n\", ...)."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "4\nann dev 100\nbob dev 150\ncid ops 90\nzed ops x\n"
+      expected: "invalid: zed ops x\ndev: count=2 avg=125.00 top=bob 150\nops: count=1 avg=90.00 top=cid 90\ntotal=340\n"
+      hint: "Недопустимая строка выводится сразу при чтении, до отчёта по отделам."
+    - id: "ties"
+      title: "Равные зарплаты"
+      stdin: "4\nzoe qa 70\namy qa 70\nbea qa 60\ncal dev 50\n"
+      expected: "dev: count=1 avg=50.00 top=cal 50\nqa: count=3 avg=66.67 top=amy 70\ntotal=250\n"
+      hint: "При равных зарплатах top - меньшее имя: amy. Отделы по алфавиту: dev, qa."
+    - id: "single"
+      title: "Один сотрудник"
+      stdin: "1\nann hr 1\n"
+      expected: "hr: count=1 avg=1.00 top=ann 1\ntotal=1\n"
+      hint: "Один сотрудник: count=1, avg=1.00, top=ann 1."
+    - id: "shape"
+      title: "Неверная форма строки (скрытый)"
+      stdin: "5\nann dev\nann dev 10 20\nbob dev 1x\ncid dev 12345678901\ndan dev 20\n"
+      expected: "invalid: ann dev\ninvalid: ann dev 10 20\ninvalid: bob dev 1x\ninvalid: cid dev 12345678901\ndev: count=1 avg=20.00 top=dan 20\ntotal=20\n"
+      hidden: true
+      hint: "Две или четыре части, нечисло и более девяти цифр - invalid. Остаётся только dan."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: "3\na x 1\nb x 2\nc x 2\n"
+      expected: "x: count=3 avg=1.67 top=b 2\ntotal=5\n"
+      hidden: true
+      hint: "Среднее 5/3 печатается как 1.67 через %.2f."
+    - id: "big"
+      title: "Большая сумма (скрытый)"
+      stdin: "3\na x 999999999\nb x 999999999\nc y 999999999\n"
+      expected: "x: count=2 avg=999999999.00 top=a 999999999\ny: count=1 avg=999999999.00 top=c 999999999\ntotal=2999999997\n"
+      hidden: true
+      hint: "Сумма 2999999997 не помещается в int: считайте в long."
+    - id: "order"
+      title: "Порядок отделов (скрытый)"
+      stdin: "4\na Zeta 5\nb alpha 5\nc Beta 5\nd beta 5\n"
+      expected: "Beta: count=1 avg=5.00 top=c 5\nZeta: count=1 avg=5.00 top=a 5\nalpha: count=1 avg=5.00 top=b 5\nbeta: count=1 avg=5.00 top=d 5\ntotal=20\n"
+      hidden: true
+      hint: "Сравнение String.compareTo: заглавные буквы раньше строчных (Beta, Zeta, alpha, beta)."
+challenge:
+  id: "java.fundamentals.streams-lambdas-optional.challenge"
+  title: "Поиск по документам: индекс на потоках"
+  prompt: |
+    Первая строка - число документов `d`. Затем `d` строк вида `<id>: <текст>`, где `id` - целое число (все различны). **Слова** документа - максимальные последовательности букв и цифр (`\p{L}`, `\p{Nd}`), приведённые к нижнему регистру через `Locale.ROOT`. Потом число запросов `q` и `q` строк-запросов.
+
+    **Запрос** - слова через пробел. Слово без префикса требуется в документе, слово с префиксом `-` (например `-cat`) в документе запрещено. Результат запроса - id всех документов, где есть **все** требуемые слова и нет ни одного запрещённого, по возрастанию. Если требуемых слов в запросе нет, результат пуст. Регистр слов в запросе не важен.
+
+    Для каждого запроса выведите `<исходный запрос> -> <id через пробел>`, а если результат пуст - `<исходный запрос> -> none`. Последняя строка - `top=<слово> <k>`, где слово встречается в наибольшем числе документов (`k` - это число), при равенстве - меньшее слово; если слов в документах нет, `top=none`.
+
+    **Пример.**
+
+    ```
+    3
+    1: Cat and dog
+    2: The cat sat
+    5: Dog days
+    3
+    cat
+    dog -cat
+    -cat
+    ```
+
+    ```
+    cat -> 1 2
+    dog -cat -> 5
+    -cat -> none
+    top=cat 2
+    ```
+
+    (Слова `cat` и `dog` встречаются по два раза; из них меньшее - `cat`.)
+
+    **Что дано.** Разбор документов готов. Метод `search`, построение индекса и выбор `top` - заглушки с подсказками. Постройте индекс `слово -> TreeSet<id>` через `flatMap` и `groupingBy` с `mapping`, ищите через `Optional.ofNullable(...)` и `reduce` для пересечения, а `top` найдите потоком `max`.
+  entryFile: "Main.java"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Индекс: docs.stream().flatMap(doc -> doc.words().stream().map(w -> Map.entry(w, doc.id()))).collect(groupingBy(Map.Entry::getKey, TreeMap::new, mapping(Map.Entry::getValue, toCollection(TreeSet::new))))."
+    - "Запрос: разделите на токены; токены с префиксом - это запрещённые слова (substring(1)), остальные - требуемые. Для каждого требуемого слова возьмите Optional.ofNullable(index.get(w)).orElse(Set.of())."
+    - "Пересечение множеств: превратите каждое множество в TreeSet и сведите reduce((a, b) -> { a.retainAll(b); return a; }). Без требуемых слов reduce вернёт пустой Optional - используйте orElseGet(TreeSet::new). Затем вычтите запрещённые removeAll."
+    - "top: index.entrySet().stream().max(...) с компаратором comparingInt по размеру множества, затем по ключу в обратном порядке (меньшее слово считается большим). Результат Optional превратите через map(...).orElse(\"none\")."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: "3\n1: Cat and dog\n2: The cat sat\n5: Dog days\n3\ncat\ndog -cat\n-cat\n"
+      expected: "cat -> 1 2\ndog -cat -> 5\n-cat -> none\ntop=cat 2\n"
+      hint: "Для запроса из одних запрещённых слов результат пуст: none. top=cat 2, потому что cat < dog."
+    - id: "and"
+      title: "Несколько требуемых слов"
+      stdin: "4\n1: a b c\n2: b c d\n3: c d e\n4: a c e\n4\nc\nb c\na c e\nx\n"
+      expected: "c -> 1 2 3 4\nb c -> 1 2\na c e -> 4\nx -> none\ntop=c 4\n"
+      hint: "Пересечение множеств id: слово x отсутствует в индексе - none."
+    - id: "case"
+      title: "Регистр и пунктуация"
+      stdin: "2\n10: Hello, WORLD! 42\n20: world-wide web, 42\n3\nWORLD\n42 -web\n-42 hello\n"
+      expected: "WORLD -> 10 20\n42 -web -> 10\n-42 hello -> none\ntop=42 2\n"
+      hint: "Слова приводятся к нижнему регистру; дефис и запятая разделяют слова."
+    - id: "unicode"
+      title: "Кириллица (скрытый)"
+      stdin: "3\n7: Мама мыла раму\n3: Раму мыла Мама\n9: Папа\n3\nмама раму\nМАМА -РАМУ\nпапа\n"
+      expected: "мама раму -> 3 7\nМАМА -РАМУ -> none\nпапа -> 9\ntop=мама 2\n"
+      hidden: true
+      hint: "Регистр кириллицы тоже игнорируется: обе фразы содержат мама и раму. Результат упорядочен по id: 3 7."
+    - id: "empty-docs"
+      title: "Документы без слов (скрытый)"
+      stdin: "2\n1: !!!\n2: ...\n2\nfoo\n-\n"
+      expected: "foo -> none\n- -> none\ntop=none\n"
+      hidden: true
+      hint: "Если слов нет, top=none; одиночный дефис - не слово."
+    - id: "top-tie"
+      title: "Равенство в top (скрытый)"
+      stdin: "3\n1: b a\n2: b a\n3: c\n1\nc\n"
+      expected: "c -> 3\ntop=a 2\n"
+      hidden: true
+      hint: "a и b встречаются в двух документах; top - меньшее слово a."
+    - id: "order"
+      title: "Порядок id (скрытый)"
+      stdin: "3\n30: x\n4: x\n100: x\n2\nx\nx -y\n"
+      expected: "x -> 4 30 100\nx -y -> 4 30 100\ntop=x 3\n"
+      hidden: true
+      hint: "id упорядочены числово: 4 30 100, а не по строке."
