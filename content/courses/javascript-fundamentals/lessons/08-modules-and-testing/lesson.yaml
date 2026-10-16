@@ -1,0 +1,191 @@
+id: javascript.fundamentals.modules-and-testing
+title: "ES-модули и тесты на node:test"
+goal: "Разбивать программу на ES-модули, понимать живые привязки и границу между языком и Node.js и покрывать код тестами на node:test и node:assert."
+difficulty: medium
+estimatedMinutes: 70
+prerequisites:
+  - javascript.fundamentals.promises-and-async
+related:
+  - nodejs.first-steps.modules-and-node-test
+next: []
+tags: [javascript, modules, esm, commonjs, node-test, assert, testing]
+objectives:
+  - "Объяснить, чем статические import и export отличаются от require и module.exports."
+  - "Описать живые привязки и единственный экземпляр модуля."
+  - "Назвать отличия ESM от CommonJS в Node.js: расширения в путях, отсутствие require и __dirname, строгий режим."
+  - "Написать тесты на node:test и node:assert/strict, включая проверки исключений и граничных случаев."
+  - "Разделить небольшой проект на модули с зависимостями в одну сторону."
+masteryCriteria:
+  - "Вы без подсказок пишете модуль с именованными экспортами и импортируете его с правильным расширением."
+  - "Вы предсказываете, увидит ли импортёр изменение экспортированной переменной."
+  - "Вы пишете тесты, проверяющие и обычные, и ошибочные входы, а состояние пересоздаёте в beforeEach."
+  - "Вы запускаете node --test и читаете отчёт."
+facts:
+  - kind: internals
+    text: "Статическая структура import и export определена в ECMAScript: граф модулей строится до выполнения кода, а импортированное имя - живая привязка только для чтения к переменной модуля-источника. Правила поиска файлов, расширения и различие .mjs, .cjs и поля type в package.json задаёт Node.js, а не язык."
+    sources:
+      - "https://tc39.es/ecma262/#sec-modules"
+      - "https://nodejs.org/api/packages.html#determining-module-system"
+  - kind: real-world
+    text: "Встроенный раннер node:test и модуль node:assert позволяют писать и запускать тесты без сторонних пакетов командой node --test. Это возможности среды Node.js, а не ECMAScript."
+    sources:
+      - "https://nodejs.org/api/test.html"
+      - "https://nodejs.org/api/assert.html"
+  - kind: misconception
+    text: "«import копирует значение» - нет: импортёр видит текущее значение переменной экспортирующего модуля. Копию делает только ваш код, например const copy = count."
+  - kind: misconception
+    text: "«Расширение в пути можно опустить, как в бандлере» - в ES-модулях Node.js нужен полный путь с расширением, иначе будет ERR_MODULE_NOT_FOUND."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Модуль a.mjs: export let n = 1; export function inc() { n++; }
+        Модуль b.mjs:
+        import { n, inc } from "./a.mjs";
+        const copy = n;
+        inc();
+        console.log(n, copy);
+
+        Что выведет b.mjs?
+      options:
+        - "1 1"
+        - "2 1"
+        - "2 2"
+        - "TypeError"
+      answer: 1
+      explanation: "Импортированное n - живая привязка, она показывает 2. Переменная copy сохранила значение на момент присваивания, то есть 1."
+    - id: q2
+      type: single
+      prompt: "Что произойдёт при import \"./noext\" в ES-модуле Node.js, если есть файл noext.mjs?"
+      options:
+        - "Файл будет найден по расширению .mjs автоматически."
+        - "Ошибка ERR_MODULE_NOT_FOUND: расширение нужно писать явно."
+        - "Файл будет найден, но с предупреждением."
+        - "Будет выброшен SyntaxError."
+      answer: 1
+      explanation: "В ESM Node.js не подставляет расширение; нужно писать \"./noext.mjs\"."
+    - id: q3
+      type: multiple
+      prompt: "Какие утверждения о модулях верны?"
+      options:
+        - "Код ES-модуля всегда выполняется в строгом режиме."
+        - "В ES-модуле Node.js доступен require."
+        - "Модуль выполняется один раз, все импортёры делят одно состояние."
+        - "Присвоение импортированному имени (count = 5) допустимо."
+        - "Динамический import() возвращает промис."
+      answer: [0, 2, 4]
+      explanation: "В ESM нет require, а присваивание импортированному имени даёт TypeError."
+    - id: q4
+      type: single
+      prompt: "Какая проверка пройдёт в node:assert/strict: assert.equal([1], [1]), assert.deepEqual([1], [1]) или assert.equal(NaN, NaN)?"
+      options:
+        - "Только первая."
+        - "Только вторая."
+        - "Вторая и третья."
+        - "Все три."
+      answer: 2
+      explanation: "equal сравнивает через Object.is: разные массивы не равны, а NaN равен NaN. deepEqual сравнивает содержимое."
+    - id: q5
+      type: short
+      prompt: "Какой командой Node.js запускает все тесты на node:test в файлах tests/*.test.mjs? Назовите только флаг (без пути)."
+      answer:
+        - "--test"
+        - "node --test"
+      explanation: "Флаг --test включает встроенный раннер."
+exercise:
+  id: javascript.fundamentals.modules-and-testing.exercise
+  title: "Склад из трёх модулей"
+  prompt: |
+    Проект состоит из трёх ES-модулей и тестов на `node:test` (папка `tests/` скрыта от редактирования и запускается по кнопке «Проверить»). Реализуйте функции так, чтобы все тесты прошли. Зависимости идут в одну сторону: `report` -> `inventory` -> `sku`.
+
+    **`src/sku.mjs`** - артикул вида `ABC-0001` (три заглавные латинские буквы, дефис, четыре цифры).
+
+    * `isValidSku(value)` - `true`, если `value` - строка нужного формата; для любых других значений `false`.
+    * `normalizeSku(value)` - обрезает пробелы по краям и переводит в верхний регистр. Не строка - `TypeError`; результат неверного формата - `RangeError`.
+
+    **`src/inventory.mjs`** - класс `Inventory` с приватным хранилищем.
+
+    * `add(sku, qty)` и `remove(sku, qty)` возвращают `this`. Артикул нормализуется через `normalizeSku`. `qty` - целое не меньше 1, иначе `RangeError`. `remove` бросает `RangeError`, если остатка не хватает, а нулевые позиции удаляются.
+    * `stock(sku)` - остаток, для неизвестного артикула `0`. `skus()` - отсортированный массив артикулов. Геттер `total` - сумма всех остатков.
+
+    **`src/report.mjs`**
+
+    * `lowStock(inventory, threshold)` - артикулы с остатком **строго меньше** порога. Не `Inventory` - `TypeError`.
+    * `formatReport(inventory)` - массив строк `"ABC-0001: 5"` по артикулам, затем `"Всего: N поз., M ед."`. Не `Inventory` - `TypeError`.
+
+    Начните с `sku.mjs`, затем `inventory.mjs` и `report.mjs`. Не забывайте расширение `.mjs` в импортах.
+  evaluation: command
+  languageId: javascript
+  entryFile: src/sku.mjs
+  starter: exercise/starter
+  solution: exercise/solution
+  tests_dir: exercise/tests
+  command:
+    run: ["node", "--test", "--test-reporter=junit", "--test-reporter-destination=report.xml", "--test-reporter=spec", "--test-reporter-destination=stdout", "tests/*.test.mjs"]
+    report: junit
+    reportFile: report.xml
+    timeoutSeconds: 30
+  hints:
+    - "isValidSku: typeof value === \"string\" && /^[A-Z]{3}-\\d{4}$/.test(value). normalizeSku: сначала проверка типа, потом value.trim().toUpperCase(), потом проверка формата."
+    - "Inventory: поле #stock = new Map(). В add проверьте Number.isInteger(qty) && qty >= 1 и нормализуйте артикул, затем stock.set(sku, текущий + qty)."
+    - "remove: если остатка меньше qty - RangeError; после вычитания при нуле вызовите delete. skus() - [...this.#stock.keys()].sort(); total - сумма значений Map."
+    - "report.mjs: сначала instanceof Inventory, иначе TypeError. lowStock - фильтр inventory.skus() по stock < threshold. В formatReport строки собираются map по skus(), последняя - итог с inventory.skus().length и inventory.total."
+  tests:
+    - id: sku-normalize
+      title: "normalizeSku: пробелы и регистр"
+      match: "normalizeSku > обрезает пробелы и переводит в верхний регистр"
+      hint: "Сначала trim, затем toUpperCase."
+    - id: isvalid-ok
+      title: "isValidSku: верный формат"
+      match: "isValidSku > принимает верный формат"
+      hint: "Регулярное выражение с якорями ^ и $."
+    - id: inventory-add
+      title: "Inventory: add накапливает остаток"
+      match: "Inventory > add накапливает остаток"
+      hint: "Повторный add складывает количество с текущим остатком."
+    - id: report-lines
+      title: "formatReport: строки и итог"
+      match: "formatReport > строки по артикулам и итог"
+      hint: "Формат строки \"ABC-0001: 5\"; последняя строка - \"Всего: N поз., M ед.\"."
+    - id: isvalid-bad
+      title: "isValidSku: неверный формат (скрытый)"
+      hidden: true
+      match: "isValidSku > отвергает неверный формат"
+      hint: "Проверьте длину, регистр, дефис и количество цифр."
+    - id: normalize-bad
+      title: "normalizeSku: ошибки (скрытый)"
+      hidden: true
+      match: "normalizeSku > неверный формат - RangeError"
+      hint: "После нормализации формат проверяется ещё раз; тип - TypeError, формат - RangeError."
+    - id: inventory-remove
+      title: "Inventory: remove (скрытый)"
+      hidden: true
+      match: "Inventory > remove*"
+      hint: "Недостаток остатка - RangeError, а нулевая позиция удаляется из Map."
+    - id: inventory-qty
+      title: "Inventory: количество (скрытый)"
+      hidden: true
+      match: "Inventory > количество - положительное целое"
+      hint: "Number.isInteger отсекает дроби, NaN и строки."
+    - id: inventory-state
+      title: "Inventory: состояние экземпляров (скрытый)"
+      hidden: true
+      match: "Inventory > состояние*"
+      hint: "Хранилище создаётся в поле экземпляра, а не на уровне модуля."
+    - id: report-empty
+      title: "formatReport: пустой склад (скрытый)"
+      hidden: true
+      match: "formatReport > пустой склад"
+      hint: "Для пустого склада остаётся только итоговая строка."
+    - id: lowstock
+      title: "lowStock (скрытый)"
+      hidden: true
+      match: "lowStock*"
+      hint: "Сравнение строгое: остаток равный порогу не попадает в результат."
+    - id: report-type
+      title: "formatReport: не Inventory (скрытый)"
+      hidden: true
+      match: "formatReport > не Inventory - TypeError"
+      hint: "Проверка instanceof в начале функции."

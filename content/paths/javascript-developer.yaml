@@ -1,0 +1,14 @@
+id: javascript-developer
+title: JavaScript-разработчик
+description: "Путь от первых шагов к уверенному владению языком. Сначала «JavaScript: первые шаги», затем «JavaScript: основы языка» (типы, замыкания, прототипы, массивы, ошибки, промисы, модули и тесты). Дальше на выбор серверная среда («Node.js: первые шаги») или статическая типизация («TypeScript: первые шаги»). Браузерная среда и фреймворки пока не входят."
+goal: general
+targets: [javascript-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [javascript-first-steps]
+  - title: Основы языка
+    courses: [javascript-fundamentals]
+  - title: Среда или типы на выбор
+    courses: [nodejs-first-steps, typescript-first-steps]
+alternatives:
+  - [nodejs-first-steps, typescript-first-steps]

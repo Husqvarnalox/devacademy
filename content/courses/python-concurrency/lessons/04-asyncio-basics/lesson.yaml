@@ -1,0 +1,157 @@
+id: python.concurrency.asyncio-basics
+title: "asyncio: event loop, корутины и задачи"
+goal: Понимать устройство event loop, отличать корутину от задачи, запускать задачи конкурентно через create_task и TaskGroup и не блокировать цикл синхронными вызовами.
+difficulty: medium
+estimatedMinutes: 80
+prerequisites: [python.concurrency.concurrency-models, python.advanced.iterators-and-generators, python.advanced.context-managers]
+related: [python.concurrency.concurrent-futures, python.concurrency.threading-and-synchronization]
+next: [python.concurrency.cancellation-and-timeouts]
+objectives:
+  - Объяснить, что такое event loop и как корутина приостанавливается и возобновляется на await.
+  - Различать корутинную функцию, объект корутины и Task; знать, что вызов async def сам ничего не запускает.
+  - Запускать работу конкурентно через asyncio.create_task, asyncio.gather и asyncio.TaskGroup и объяснять разницу в обработке ошибок.
+  - Показать, как блокирующий вызов замораживает цикл, и вынести его в поток через asyncio.to_thread.
+  - Строить детерминированный порядок выполнения через asyncio.Event, а не через sleep.
+masteryCriteria:
+  - Вы можете предсказать порядок вывода программы с несколькими задачами, зная, что переключение происходит только на await.
+  - Вы выбираете TaskGroup, когда нужна отмена остальных задач при ошибке, и gather, когда достаточно собрать результаты.
+  - Вы находите в корутине блокирующий вызов и заменяете его на await или на asyncio.to_thread.
+tags: [python, asyncio, event-loop, coroutine, task, taskgroup, gather, to_thread]
+facts:
+  - kind: historical
+    text: >-
+      asyncio добавлен в стандартную библиотеку по PEP 3156 (Python 3.4), синтаксис async/await - PEP 492 (Python 3.5). asyncio.run появился в Python 3.7,
+      asyncio.TaskGroup, asyncio.timeout и ExceptionGroup - в Python 3.11 (PEP 654 для ExceptionGroup и except*), asyncio.to_thread - в Python 3.9.
+    sources:
+      - https://peps.python.org/pep-3156/
+      - https://peps.python.org/pep-0492/
+      - https://peps.python.org/pep-0654/
+      - https://docs.python.org/3/library/asyncio-task.html
+  - kind: internals
+    text: >-
+      Корутина, которую вызвали, но не ожидали и не обернули в Task, не выполняется: интерпретатор лишь выдаёт предупреждение "coroutine ... was never awaited".
+      Task планирует корутину в event loop сразу при создании, но её тело начнёт выполняться только когда текущая задача дойдёт до await (или завершится) и цикл возьмётся за следующую.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#coroutines
+      - https://docs.python.org/3/library/asyncio-task.html#creating-tasks
+  - kind: misconception
+    text: >-
+      «Event loop сам по себе запускает код параллельно». Нет: цикл выполняет одну задачу за раз в одном потоке. Конкурентность возникает потому, что задача отдаёт управление
+      на await. Синхронный блокирующий вызов (time.sleep, requests.get) внутри корутины останавливает все задачи цикла.
+    sources:
+      - https://docs.python.org/3/library/asyncio-dev.html#running-blocking-code
+  - kind: internals
+    text: >-
+      Event loop хранит лишь слабые ссылки на задачи: документация asyncio.create_task предупреждает, что задачу, на которую нет других ссылок, может собрать сборщик мусора
+      до её завершения, и советует сохранять ссылку. TaskGroup и gather удерживают ссылки на свои задачи сами.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Что произойдёт при вызове coro = fetch() для async def fetch(), если результат нигде не ожидается?
+      options:
+        - "Тело fetch выполнится синхронно"
+        - "Будет создан объект корутины, тело не выполнится; позже появится предупреждение о том, что корутина не была ожидаема"
+        - "Будет создан поток"
+        - "Будет поднят SyntaxError"
+      answer: 1
+      explanation: >-
+        Вызов async def возвращает объект корутины. Тело выполняется только когда её ожидают (await) или оборачивают в Task.
+    - id: q2
+      type: single
+      prompt: Чем asyncio.create_task(coro()) отличается от await coro()?
+      options:
+        - "Ничем"
+        - "create_task планирует корутину в фоне и сразу возвращает Task, await coro() ждёт её завершения прямо здесь"
+        - "create_task запускает отдельный поток"
+        - "await coro() быстрее, потому что использует несколько ядер"
+      answer: 1
+      explanation: >-
+        Конкурентность появляется, когда вы создали несколько Task и только потом ждёте их. Последовательные await выполняют корутины одну за другой.
+    - id: q3
+      type: single
+      prompt: Что произойдёт, если внутри async def вызвать time.sleep(2)?
+      options:
+        - "Только эта корутина заснёт на 2 секунды, остальные работают"
+        - "Весь event loop заблокируется на 2 секунды, все задачи остановятся"
+        - "Программа завершится с ошибкой"
+        - "time.sleep автоматически превратится в await"
+      answer: 1
+      explanation: >-
+        Цикл однопоточный, блокирующий вызов держит поток. Используйте await asyncio.sleep(2) или asyncio.to_thread для блокирующего кода.
+    - id: q4
+      type: multiple
+      prompt: Какие утверждения о TaskGroup (Python 3.11+) верны? Выберите все верные.
+      options:
+        - "Выход из async with ждёт завершения всех задач группы"
+        - "Если одна задача упала, остальные отменяются"
+        - "Ошибки собираются в ExceptionGroup"
+        - "Задачи группы выполняются в отдельных потоках"
+      answer: [0, 1, 2]
+      explanation: >-
+        TaskGroup реализует структурную конкурентность: время жизни задач ограничено блоком async with. Потоки не создаются.
+    - id: q5
+      type: short
+      prompt: Какая функция запускает главную корутину и управляет жизненным циклом event loop? (имя функции с модулем или без)
+      answer: ["asyncio.run", "run"]
+      explanation: >-
+        asyncio.run(main()) создаёт цикл, выполняет корутину до завершения, закрывает цикл.
+exercise:
+  id: python.concurrency.asyncio-basics.exercise
+  title: Задачи, события и блокирующий вызов
+  prompt: |
+    В файле `async_task.py` реализуйте три корутины. Функцию `worker` менять не нужно: она записывает в журнал `"start i"`,
+    сигналит `started`, ждёт `release` и пишет `"end i"`.
+
+    1. `gather_ok(coros)` - принимает список объектов корутин, запускает их **конкурентно** в `asyncio.TaskGroup` и возвращает
+       список результатов в порядке входа. Если какая-то корутина упала, TaskGroup отменяет остальные и поднимает `ExceptionGroup` -
+       перехватывать её не нужно.
+    2. `reverse_finish(n)` - создаёт `n` задач `worker(i, started[i], release[i], log)` и возвращает `log`, в котором сначала идут
+       `start 0 ... start n-1` (в порядке создания), а затем `end n-1 ... end 0` (в обратном порядке). Порядок обеспечьте
+       **событиями**, а не `sleep`: сначала дождитесь `started[i]` у всех, затем разрешайте завершение задач с последней, дожидаясь
+       каждой завершившейся задачи, прежде чем отпускать следующую. Для `n == 0` вернуть `[]`.
+    3. `run_blocking(func, *args, **kwargs)` - вызывает **блокирующую** синхронную функцию так, чтобы event loop не замораживался
+       (`asyncio.to_thread`), и возвращает её результат; исключения функции должны пробрасываться.
+
+    ```python
+    await gather_ok([asyncio.sleep(0, "a"), asyncio.sleep(0, "b")])   # ['a', 'b']
+    await reverse_finish(2)   # ['start 0', 'start 1', 'end 1', 'end 0']
+    ```
+  entryFile: async_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "gather_ok: async with asyncio.TaskGroup() as tg: tasks = [tg.create_task(c) for c in coros]; после выхода из блока все задачи завершены, соберите [t.result() for t in tasks]."
+    - "reverse_finish: создайте списки Event, задачи через asyncio.create_task(worker(...)), затем for s in started: await s.wait(). Так вы гарантируете, что все задачи уже написали start."
+    - "Завершение в обратном порядке: for i in reversed(range(n)): release[i].set(); await tasks[i]. await tasks[i] гарантирует, что end i записан до того, как будет разрешена следующая задача."
+    - "run_blocking: return await asyncio.to_thread(func, *args, **kwargs) - блокирующая функция работает в потоке, а цикл остаётся свободным."
+  tests:
+    - id: gather-concurrent
+      title: gather_ok - корутины действительно конкурентны
+      hint: Две корутины ждут друг друга; последовательное выполнение зависнет. Создайте задачи в TaskGroup до ожидания.
+    - id: reverse-finish
+      title: reverse_finish(3)
+      hint: Журнал - start 0, start 1, start 2, end 2, end 1, end 0.
+    - id: blocking-offload
+      title: run_blocking не замораживает цикл
+      hint: Пока блокирующая функция ждёт, другая задача цикла должна продолжать работать - вызывайте её через asyncio.to_thread.
+    - id: gather-errors
+      title: gather_ok - ошибка отменяет остальных (скрытый)
+      hidden: true
+      hint: "Используйте именно TaskGroup: упавшая задача отменяет соседей, ошибка приходит как ExceptionGroup."
+    - id: reverse-sizes
+      title: reverse_finish - границы (скрытый)
+      hidden: true
+      hint: n == 0 даёт [], n == 1 - start 0 и end 0, n == 6 - строго обратный порядок завершения.
+    - id: blocking-args
+      title: run_blocking - аргументы и исключения (скрытый)
+      hidden: true
+      hint: Передавайте *args и **kwargs в to_thread; исключение функции должно подняться в вызывающей корутине.
+    - id: gather-order
+      title: gather_ok - порядок результатов (скрытый)
+      hidden: true
+      hint: Результаты возвращаются в порядке входа, даже если корутины завершились в другом порядке.

@@ -1,0 +1,22 @@
+id: javascript-fundamentals
+version: 1.0.0
+title: "JavaScript: основы языка"
+description: >-
+  Второй курс по JavaScript: типы и приведение типов, область видимости и замыкания, this и функции, объекты и прототипы,
+  массивы и итерация, ошибки, цикл событий с промисами и async/await, ES-модули и тесты. В каждом уроке отделено то,
+  что задаёт язык (ECMAScript), от того, что даёт среда выполнения (Node.js, браузер). Восемь уроков, у каждого
+  запускаемые примеры, тест и упражнение с автоматической проверкой.
+languageId: javascript
+level: 1
+track: javascript
+requires:
+  - javascript-first-steps
+lessons:
+  - 01-types-and-coercion
+  - 02-scope-and-closures
+  - 03-this-and-functions
+  - 04-objects-and-prototypes
+  - 05-arrays-and-iteration
+  - 06-errors-and-exceptions
+  - 07-promises-and-async
+  - 08-modules-and-testing

@@ -1,0 +1,139 @@
+id: javascript.fundamentals.errors-and-exceptions
+title: "Ошибки и исключения"
+goal: "Бросать и ловить исключения осознанно: выбирать тип ошибки, сохранять причину, понимать семантику finally и писать свои классы ошибок."
+difficulty: medium
+estimatedMinutes: 50
+prerequisites:
+  - javascript.fundamentals.arrays-and-iteration
+related:
+  - javascript.fundamentals.promises-and-async
+next:
+  - javascript.fundamentals.promises-and-async
+tags: [javascript, errors, exceptions, try-catch, finally, error-cause]
+objectives:
+  - "Различать встроенные типы ошибок (TypeError, RangeError, SyntaxError, ReferenceError) и выбирать подходящий."
+  - "Объяснить, почему следует бросать Error, а не произвольные значения."
+  - "Сохранять первопричину через опцию cause при оборачивании ошибок."
+  - "Предсказывать порядок выполнения try, catch и finally, включая return и throw внутри finally."
+  - "Написать класс ошибки с name и дополнительными полями."
+masteryCriteria:
+  - "Вы без запуска говорите, что вернёт функция с return в try и return в finally."
+  - "Вы пишете parse-функцию, превращающую SyntaxError в свою ошибку с cause."
+  - "Вы ловите только ожидаемый тип ошибки и пробрасываете остальные."
+  - "Вы гарантируете закрытие ресурса через finally, не теряя исходную ошибку."
+facts:
+  - kind: internals
+    text: "Оператор throw принимает любое значение, но только объекты Error (и наследники) получают свойство stack и стандартные поля name и message. Формат строки stack не стандартизирован."
+    sources:
+      - "https://tc39.es/ecma262/#sec-throw-statement"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw"
+  - kind: historical
+    text: "Опция cause конструктора Error (ECMAScript 2022) позволила хранить исходную ошибку при оборачивании. До этого авторы вручную добавляли свои поля вроде originalError."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/cause"
+  - kind: internals
+    text: "Блок finally выполняется при любом выходе из try/catch. Если сам finally завершается через return, break, continue или throw, он перекрывает результат или исключение, с которыми завершался try/catch."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch"
+      - "https://tc39.es/ecma262/#sec-try-statement"
+  - kind: misconception
+    text: "«JSON.stringify(error) годится для логирования» - нет: message и stack неперечисляемые свойства, поэтому в результат они не попадают."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "function g() { try { return 1; } finally { return 2; } } Что вернёт g()?"
+      options:
+        - "1"
+        - "2"
+        - "undefined"
+        - "бросит исключение"
+      answer: 1
+      explanation: "return в finally перекрывает return из try. finally выполняется перед фактическим выходом из функции."
+    - id: q2
+      type: single
+      prompt: "Что вернёт JSON.stringify(new Error(\"x\"))?"
+      options:
+        - "\"{}\""
+        - "\"{\\\"message\\\":\\\"x\\\"}\""
+        - "\"Error: x\""
+        - "бросит TypeError"
+      answer: 0
+      explanation: "message и stack - неперечисляемые собственные свойства, JSON.stringify их пропускает."
+    - id: q3
+      type: multiple
+      prompt: "Какие утверждения верны?"
+      options:
+        - "throw может бросить значение любого типа."
+        - "catch (e: TypeError) ловит только TypeError."
+        - "finally выполняется и после return в блоке try."
+        - "new Error(message, { cause }) сохраняет исходную ошибку в error.cause."
+        - "return в finally никак не влияет на результат функции."
+      answer: [0, 2, 3]
+      explanation: "В JavaScript нет типизированного catch: тип проверяют вручную через instanceof. return в finally перекрывает результат."
+    - id: q4
+      type: short
+      prompt: "try { null.x; } catch (e) { console.log(e.name); } Что будет выведено?"
+      answer:
+        - "TypeError"
+      explanation: "Чтение свойства у null - операция над значением не того типа, поэтому TypeError."
+    - id: q5
+      type: single
+      prompt: "В try брошена Error(\"a\"), в catch брошена Error(\"b\"), в finally выполняется console.log(\"c\") без return. Что произойдёт?"
+      options:
+        - "Выведется c, наружу вылетит ошибка b."
+        - "Выведется c, наружу вылетит ошибка a."
+        - "c не выведется, потому что catch бросил ошибку."
+        - "Наружу вылетит AggregateError из a и b."
+      answer: 0
+      explanation: "finally выполняется даже при исключении из catch. Исключение из catch заменяет предыдущее, поэтому наружу выходит b."
+exercise:
+  id: javascript.fundamentals.errors-and-exceptions.exercise
+  title: "Свои ошибки, cause, retry и очистка"
+  prompt: |
+    Файл `errors.mjs`. Реализуйте классы и функции.
+
+    * `class ValidationError extends Error` - конструктор `(message, field, options)`; `name === "ValidationError"`, свойство `field`, поддерживается `options.cause`.
+    * `class ConfigError extends Error` - конструктор `(message, options)`; `name === "ConfigError"`.
+    * `parseConfig(text)` - разбирает JSON и возвращает объект. Неверный JSON - `ConfigError` с сообщением `"Некорректный JSON"` и `cause` - исходной `SyntaxError`. Если результат не объект или `port` не целое число от 1 до 65535, бросьте `ValidationError` с `field === "port"`.
+    * `retry(fn, attempts)` - вызывает `fn(номерПопытки)` (номера с 1) до `attempts` раз и возвращает результат первого успеха. Если все неудачны - бросает ошибку **последней** попытки. `attempts` не целое или меньше 1 - `RangeError`.
+    * `withCleanup(fn, cleanup)` - возвращает `fn()`, а `cleanup()` вызывает ровно один раз в любом случае. Исключение `fn` пробрасывается дальше, даже если `cleanup` тоже бросило; если `fn` успешна, а `cleanup` бросило, пробрасывается ошибка `cleanup`.
+  entryFile: errors.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "Классы ошибок: class X extends Error { constructor(message, options) { super(message, options); this.name = \"X\"; } }. Тогда instanceof Error и cause работают без дополнительных усилий."
+    - "parseConfig: оберните JSON.parse в try/catch и бросайте new ConfigError(\"Некорректный JSON\", { cause: error }). Проверку порта делайте уже после разбора, учитывая null и массивы (typeof null === \"object\")."
+    - "retry: проверьте attempts, затем цикл по попыткам с try { return fn(attempt) } catch (e) { last = e }; после цикла throw last."
+    - "withCleanup: try { result = fn() } catch (e) { try { cleanup() } catch {} throw e } cleanup(); return result. Вложенный try нужен, чтобы ошибка очистки не скрыла исходную."
+  tests:
+    - id: error-classes
+      title: "Классы ошибок: name, field, наследование"
+      hint: "Классы должны наследовать Error и задавать name."
+    - id: parse-ok
+      title: "parseConfig: корректная конфигурация"
+      hint: "Верните разобранный объект как есть."
+    - id: retry-basic
+      title: "retry: успех с третьей попытки"
+      hint: "Передавайте номер попытки в fn и возвращайте результат первого успеха."
+    - id: cleanup-basic
+      title: "withCleanup: cleanup после успеха"
+      hint: "cleanup вызывается один раз после fn."
+    - id: parse-invalid-json
+      title: "parseConfig: неверный JSON (скрытый)"
+      hidden: true
+      hint: "Оберните JSON.parse в try/catch и передайте исходную ошибку в cause."
+    - id: parse-validation
+      title: "parseConfig: проверка порта (скрытый)"
+      hidden: true
+      hint: "Port должен быть целым в диапазоне 1..65535; результат может быть null, массивом, числом."
+    - id: retry-exhausted
+      title: "retry: все попытки исчерпаны (скрытый)"
+      hidden: true
+      hint: "Запоминайте ошибку каждой попытки и бросайте последнюю; проверьте attempts."
+    - id: cleanup-throws
+      title: "withCleanup: исходная ошибка не теряется (скрытый)"
+      hidden: true
+      hint: "Если fn бросила ошибку, ошибка cleanup не должна её заменить."

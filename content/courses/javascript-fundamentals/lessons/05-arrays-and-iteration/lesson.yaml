@@ -1,0 +1,189 @@
+id: javascript.fundamentals.arrays-and-iteration
+title: "Массивы, итерация и генераторы"
+goal: "Уверенно пользоваться методами массивов, избегать ловушек sort и map, понимать протокол итерации и писать ленивые генераторы."
+difficulty: medium
+estimatedMinutes: 60
+prerequisites:
+  - javascript.fundamentals.objects-and-prototypes
+related:
+  - javascript.fundamentals.promises-and-async
+next:
+  - javascript.fundamentals.errors-and-exceptions
+tags: [javascript, arrays, iterators, generators, destructuring, spread, sort]
+objectives:
+  - "Выбирать между map, filter, reduce, find, some, every, flat и flatMap и знать, какие методы мутируют массив."
+  - "Сортировать числа и строки с правильным компаратором и объяснить умолчательный порядок sort."
+  - "Описать протокол итерации (iterable, iterator, done/value) и написать собственный итерируемый объект."
+  - "Написать генератор, в том числе бесконечный, и объяснить, что делает break с генератором."
+  - "Применять spread, rest и деструктуризацию со значениями по умолчанию."
+masteryCriteria:
+  - "Вы без запуска говорите, что вернёт [10, 9, 1].sort() и ['1', '2', '3'].map(parseInt)."
+  - "Вы пишете функцию, возвращающую отсортированную копию, не изменяя исходный массив."
+  - "Вы пишете ленивый генератор, который не читает источник дальше нужного."
+  - "Вы отличаете случаи, когда сработает значение по умолчанию при деструктуризации (undefined), от тех, когда нет (null, 0, '')."
+facts:
+  - kind: internals
+    text: "Без компаратора Array.prototype.sort приводит элементы к строкам и сравнивает их по кодовым единицам UTF-16. Начиная с ECMAScript 2019 сортировка обязана быть стабильной."
+    sources:
+      - "https://tc39.es/ecma262/#sec-array.prototype.sort"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort"
+  - kind: internals
+    text: "Протокол итерации в ECMAScript: итерируемый объект имеет метод [Symbol.iterator](), итератор - метод next(), возвращающий { value, done }, и необязательный return(), который вызывается при досрочном выходе из цикла."
+    sources:
+      - "https://tc39.es/ecma262/#sec-iteration"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols"
+  - kind: historical
+    text: "Копирующие методы массивов toSorted, toReversed, toSpliced и with добавлены в ECMAScript 2023, а Object.groupBy - в ECMAScript 2024. Проверяйте таблицу совместимости MDN, если код должен работать в старых средах."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toSorted"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/groupBy"
+  - kind: misconception
+    text: "«map(parseInt) разбирает строки в числа» - только по недосмотру: map передаёт колбэку (элемент, индекс, массив), и индекс попадает в parseInt как основание системы счисления."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что вернёт [5, 25, 100, 1].sort().join(\",\")?"
+      options:
+        - "\"1,5,25,100\""
+        - "\"1,100,25,5\""
+        - "\"100,25,5,1\""
+        - "\"5,25,100,1\""
+      answer: 1
+      explanation: "Без компаратора числа сравниваются как строки: \"1\" < \"100\" < \"25\" < \"5\"."
+    - id: q2
+      type: single
+      prompt: "Что вернёт [\"1\", \"2\", \"3\"].map(parseInt)?"
+      options:
+        - "[1, 2, 3]"
+        - "[1, NaN, NaN]"
+        - "[NaN, NaN, NaN]"
+        - "TypeError"
+      answer: 1
+      explanation: "map вызывает parseInt(\"1\", 0), parseInt(\"2\", 1), parseInt(\"3\", 2). Основание 0 считается десятичным, а 1 и 2 для цифр 2 и 3 недопустимы."
+    - id: q3
+      type: short
+      prompt: "const { a = 5 } = { a: null }; Что выведет console.log(a)?"
+      answer:
+        - "null"
+      explanation: "Значение по умолчанию подставляется только для undefined. null остаётся null."
+    - id: q4
+      type: multiple
+      prompt: "Какие методы НЕ изменяют исходный массив?"
+      options:
+        - "toSorted"
+        - "reverse"
+        - "slice"
+        - "splice"
+        - "with"
+      answer: [0, 2, 4]
+      explanation: "reverse и splice меняют массив на месте. toSorted, slice и with возвращают новый массив."
+    - id: q5
+      type: single
+      prompt: "Выполнится ли блок finally внутри генератора, если выйти из for...of по нему через break?"
+      options:
+        - "Да: break вызывает return() итератора, и генератор завершается через finally."
+        - "Нет: генератор просто остаётся приостановленным навсегда, finally не выполняется."
+        - "Только если генератор конечный."
+        - "Только если перед break был вызван next()."
+      answer: 0
+      explanation: "Досрочный выход из for...of вызывает метод return() итератора. Для генератора это завершает его с выполнением блоков finally."
+exercise:
+  id: javascript.fundamentals.arrays-and-iteration.exercise
+  title: "Сортировка, подсчёт, порции и умолчания"
+  prompt: |
+    Файл `arrays.mjs`. Реализуйте четыре функции.
+
+    * `sortNumbers(numbers)` - **новый** массив чисел по возрастанию; исходный массив не менять.
+    * `countBy(items, keyFn)` - `Map` «ключ -> сколько раз встретился»; ключ вычисляет `keyFn(item)`. Порядок записей - по первому появлению ключа.
+    * `chunks(iterable, size)` - **генератор**, выдающий массивы по `size` элементов (последний может быть короче) из любого итерируемого объекта. Он должен быть ленивым: для очередной порции читается ровно столько элементов источника, сколько в ней нужно (источник может быть бесконечным).
+    * `summarize({ name, age, tags })` - строка `"<имя>:<возраст>:<число тегов>"`. Умолчания: `name` - `"аноним"`, `age` - `18`, `tags` - `[]`. Функция должна работать и без аргумента, и с частичным объектом. Значения `0` и `null` умолчанием не заменяются.
+  entryFile: arrays.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "sortNumbers: нужен компаратор (a, b) => a - b и копирование. Метод toSorted делает и то, и другое. Либо [...numbers].sort(...)."
+    - "countBy: Map и счётчик: counts.set(key, (counts.get(key) ?? 0) + 1). Map сохраняет порядок вставки."
+    - "chunks: функция-генератор function*, внутри for...of по iterable, накапливайте текущую порцию и делайте yield, когда её длина достигла size. После цикла отдайте остаток, если он не пуст. Не вызывайте [...iterable] заранее."
+    - "summarize: деструктурируйте прямо в параметрах: function summarize({ name = \"аноним\", age = 18, tags = [] } = {}) {...}. Последний = {} позволяет вызвать функцию без аргумента."
+  tests:
+    - id: sort-basic
+      title: "sortNumbers: числовой порядок"
+      hint: "Сравнивайте числа, а не строки: компаратор (a, b) => a - b."
+    - id: count-by
+      title: "countBy: подсчёт по ключу"
+      hint: "Возвращайте Map; для ключа берите keyFn(item)."
+    - id: chunks-basic
+      title: "chunks: порции массива"
+      hint: "Последняя порция может быть короче size."
+    - id: summarize-basic
+      title: "summarize: полный объект"
+      hint: "Число тегов - tags.length."
+    - id: sort-no-mutation
+      title: "sortNumbers: исходный массив цел (скрытый)"
+      hidden: true
+      hint: "sort и reverse меняют массив на месте. Используйте toSorted или сначала скопируйте."
+    - id: count-by-edge
+      title: "countBy: пустой вход и порядок ключей (скрытый)"
+      hidden: true
+      hint: "Не превращайте ключи в строки: Map различает 1 и \"1\"; порядок - по первому появлению."
+    - id: chunks-lazy
+      title: "chunks: ленивость (скрытый)"
+      hidden: true
+      hint: "Источник бесконечен: читайте его по одному элементу в цикле for...of и останавливайтесь, получив порцию."
+    - id: chunks-edge
+      title: "chunks: пустой вход, строки, Set (скрытый)"
+      hidden: true
+      hint: "Принимайте любой iterable, а не только массив; пустой вход не даёт порций."
+    - id: summarize-defaults
+      title: "summarize: умолчания (скрытый)"
+      hidden: true
+      hint: "Умолчание сработает только для undefined, поэтому age: 0 и age: null остаются как есть. Параметр целиком тоже нуждается в умолчании {}."
+challenge:
+  id: javascript.fundamentals.arrays-and-iteration.challenge
+  title: "Ленивый конвейер на генераторах"
+  prompt: |
+    Файл `lazy_task.mjs`. Реализуйте `lazy(iterable)` - ленивый конвейер, как у итераторных помощников, но на ваших генераторах.
+
+    * Методы `map(fn)`, `filter(predicate)` и `take(n)` возвращают **новый** конвейер.
+    * `toArray()` выполняет конвейер и возвращает массив; сам конвейер итерируемый (`for...of`, спрэд).
+    * Ничего не вычисляется, пока конвейер не начали обходить. Каждый элемент проходит через всю цепочку, прежде чем из источника будет прочитан следующий.
+    * `take(n)` не читает из источника лишний элемент и после `n` элементов **закрывает** источник (его `finally` выполняется). `take(0)` не читает ничего.
+    * Источник может быть бесконечным генератором.
+
+    Сейчас заготовка жадная: она превращает источник в массив и зависает на бесконечном.
+  entryFile: lazy_task.mjs
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.mjs
+  hints:
+    - "Каждый метод конвейера может возвращать новый объект с методом [Symbol.iterator], реализованным генератором: *[Symbol.iterator]() { for (const x of source) yield fn(x); }."
+    - "filter - тот же приём с if (predicate(x)) yield x. Так элементы обрабатываются по одному, без промежуточных массивов."
+    - "take(n): считайте выданные элементы и сразу после n-го делайте return внутри for...of: это вызовет return() источника, и его finally выполнится. Не проверяйте условие в начале следующей итерации - тогда прочитается лишний элемент."
+    - "Не забудьте take(0): ничего не читать, сразу завершить. toArray() - это [...this], если сам конвейер итерируемый."
+  tests:
+    - id: lazy-basic
+      title: "lazy: map, filter, take на массиве"
+      hint: "Методы возвращают конвейеры; toArray запускает обход."
+    - id: lazy-infinite
+      title: "lazy: бесконечный источник"
+      hint: "Нельзя вызывать [...source] на бесконечном генераторе. Пусть take ограничивает обход."
+    - id: lazy-iterable
+      title: "lazy: for...of и spread"
+      hint: "У конвейера должен быть метод [Symbol.iterator]."
+    - id: lazy-order
+      title: "lazy: порядок вызовов (скрытый)"
+      hidden: true
+      hint: "Элемент проходит map и filter целиком, затем читается следующий. Не используйте Array.prototype.map внутри."
+    - id: lazy-take-stops
+      title: "lazy: take закрывает источник (скрытый)"
+      hidden: true
+      hint: "Выходите из цикла сразу после n-го элемента: тогда прочитано ровно n и вызван finally источника."
+    - id: lazy-deferred
+      title: "lazy: ленивое начало и take(0) (скрытый)"
+      hidden: true
+      hint: "Не обходите источник в конструкторе и в take/map/filter, а только при итерации."

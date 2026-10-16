@@ -1,0 +1,144 @@
+id: javascript.fundamentals.objects-and-prototypes
+title: "Объекты, прототипы и классы"
+goal: "Понимать цепочку прототипов и дескрипторы свойств, видеть в class синтаксис над прототипами и копировать объекты осознанно."
+difficulty: medium
+estimatedMinutes: 60
+prerequisites:
+  - javascript.fundamentals.this-and-functions
+related:
+  - javascript.fundamentals.arrays-and-iteration
+next:
+  - javascript.fundamentals.arrays-and-iteration
+tags: [javascript, objects, prototypes, classes, descriptors, structuredClone]
+objectives:
+  - "Прочитать и задать дескриптор свойства через Object.getOwnPropertyDescriptor и Object.defineProperty."
+  - "Объяснить, как идёт поиск свойства по цепочке прототипов и почему запись затеняет унаследованное."
+  - "Создавать объекты через Object.create и через class и сказать, что class добавляет к прототипной схеме."
+  - "Использовать приватные поля #x, static-члены, геттеры и сеттеры."
+  - "Отличать поверхностную копию от глубокой и выбирать между спрэдом и structuredClone."
+masteryCriteria:
+  - "Вы считаете длину цепочки прототипов у {}, [] и экземпляра подкласса."
+  - "Вы делаете свойство неизменяемым и предсказываете, что будет при записи в строгом и нестрогом режиме."
+  - "Вы пишете класс с приватным состоянием и валидирующим сеттером."
+  - "Вы объясняете, почему { ...obj } не защищает вложенные данные, и чем это лечится."
+facts:
+  - kind: internals
+    text: "У каждого объекта есть внутренний слот [[Prototype]]. Чтение свойства идёт по цепочке прототипов до null; запись создаёт собственное свойство, если на пути нет неизменяемого свойства или сеттера."
+    sources:
+      - "https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Inheritance_and_the_prototype_chain"
+  - kind: internals
+    text: "Приватные элементы классов (#name) не являются свойствами: обращение к ним возможно только в теле класса, а за его пределами это синтаксическая ошибка. Они появились в ECMAScript 2022."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_elements"
+  - kind: real-world
+    text: "structuredClone - функция среды выполнения (она описана в стандарте HTML и доступна в браузерах и Node.js), а не часть ECMAScript. Она копирует Date, Map, Set и циклические ссылки, но не функции, и не сохраняет прототип."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone"
+      - "https://nodejs.org/api/globals.html#structuredclonevalue-options"
+  - kind: misconception
+    text: "«В JavaScript классы работают как в Java». На самом деле class - синтаксис над прототипным наследованием: методы лежат в prototype, а экземпляр хранит ссылку на него."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "const p = { x: 1 }; const c = Object.create(p); c.x = 2; delete c.x; Чему равно c.x?"
+      options:
+        - "1"
+        - "2"
+        - "undefined"
+        - "TypeError"
+      answer: 0
+      explanation: "Присваивание создало собственное свойство c.x, delete его удалил, и поиск снова дошёл до прототипа p, где x равно 1."
+    - id: q2
+      type: multiple
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Класс нельзя вызвать без new."
+        - "Методы класса перечисляемы и видны в Object.keys(Class.prototype)."
+        - "Приватное поле #x видно в Object.keys(instance)."
+        - "static-члены принадлежат самому классу, а не экземплярам."
+        - "Object.freeze замораживает вложенные объекты рекурсивно."
+      answer: [0, 3]
+      explanation: "Методы класса неперечисляемы, приватные поля не являются свойствами, а Object.freeze работает только на первом уровне."
+    - id: q3
+      type: short
+      prompt: "Что выведет console.log(Object.getPrototypeOf(Object.getPrototypeOf([])) === Object.prototype)? Введите true или false."
+      answer:
+        - "true"
+      explanation: "Цепочка массива: [] -> Array.prototype -> Object.prototype -> null, то есть прототип прототипа массива - Object.prototype."
+    - id: q4
+      type: single
+      prompt: "class User {} Что даст structuredClone(new User()) instanceof User?"
+      options:
+        - "true"
+        - "false"
+        - "TypeError"
+        - "undefined"
+      answer: 1
+      explanation: "structuredClone не сохраняет прототип: результат - простой объект."
+    - id: q5
+      type: single
+      prompt: "В нестрогом режиме: const o = {}; Object.defineProperty(o, \"k\", { value: 1 }); o.k = 2; Чему равно o.k?"
+      options:
+        - "1, запись молча игнорируется"
+        - "2"
+        - "бросается TypeError"
+        - "undefined"
+      answer: 0
+      explanation: "По умолчанию defineProperty создаёт свойство с writable: false. В нестрогом режиме запись игнорируется молча, в строгом даёт TypeError."
+exercise:
+  id: javascript.fundamentals.objects-and-prototypes.exercise
+  title: "Дескрипторы, цепочка прототипов и класс с приватным полем"
+  prompt: |
+    Файл `objects.mjs` (ES-модуль, строгий режим). Реализуйте четыре вещи.
+
+    * `defineReadOnly(obj, key, value)` - определите на `obj` свойство `key`: **только для чтения**, **перечисляемое**, **неудаляемое**. Верните `obj`.
+    * `chainLength(obj)` - число объектов в цепочке прототипов `obj` (сам `obj` не считается): для `{}` это 1, для `[]` - 2, для `Object.create(null)` - 0.
+    * `class Temperature` - температура в градусах Цельсия, хранится в приватном поле `#celsius`. Геттер и сеттер `celsius` (значение ниже `-273.15`, не число или `NaN` - `RangeError`, в том числе из конструктора), геттер `fahrenheit` (только чтение, `c * 9 / 5 + 32`) и статический метод `fromFahrenheit(f)`, возвращающий новый `Temperature`.
+    * `copyState(state)` - независимая глубокая копия состояния: вложенные объекты, массивы, `Date`, `Map` и `Set`.
+  entryFile: objects.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "defineReadOnly: используйте Object.defineProperty с явными флагами. Помните, что неуказанные флаги по умолчанию false."
+    - "chainLength: цикл с Object.getPrototypeOf. Начните с p = Object.getPrototypeOf(obj) и считайте, пока p !== null."
+    - "Temperature: объявите #celsius в теле класса. Конструктор может присваивать this.celsius = celsius, чтобы проверка выполнялась в сеттере. Аксессоры лежат в prototype, поэтому свойств у экземпляра быть не должно."
+    - "copyState: return structuredClone(state). Для fromFahrenheit: new Temperature(((f - 32) * 5) / 9); проверку диапазона уже делает сеттер."
+  tests:
+    - id: readonly-basic
+      title: "defineReadOnly: флаги дескриптора"
+      hint: "Проверьте writable, enumerable и configurable через Object.getOwnPropertyDescriptor."
+    - id: chain-length
+      title: "chainLength: {}, [] и функция"
+      hint: "Считайте прототипы, пока не дойдёте до null."
+    - id: temperature-basic
+      title: "Temperature: celsius, fahrenheit, fromFahrenheit"
+      hint: "fahrenheit = celsius * 9 / 5 + 32; fromFahrenheit - статический метод."
+    - id: copy-basic
+      title: "copyState: вложенные структуры независимы"
+      hint: "Спрэд копирует лишь верхний уровень."
+    - id: readonly-strict
+      title: "defineReadOnly: запись и удаление (скрытый)"
+      hidden: true
+      hint: "В строгом режиме запись в writable: false и delete для configurable: false бросают TypeError; другие свойства объекта не должны пострадать."
+    - id: chain-special
+      title: "chainLength: без прототипа и наследование (скрытый)"
+      hidden: true
+      hint: "Object.create(null) даёт 0; экземпляр подкласса: два prototype плюс Object.prototype."
+    - id: temperature-validation
+      title: "Temperature: проверки диапазона (скрытый)"
+      hidden: true
+      hint: "Ровно -273.15 допустимо; проверка должна срабатывать и в конструкторе, и в сеттере, и из fromFahrenheit."
+    - id: temperature-private
+      title: "Temperature: состояние приватно (скрытый)"
+      hidden: true
+      hint: "Значение лежит в #celsius, а у экземпляра нет собственных свойств; fahrenheit - только геттер."
+    - id: copy-types
+      title: "copyState: Date, Map и Set (скрытый)"
+      hidden: true
+      hint: "structuredClone сохраняет Date, Map и Set, а JSON.parse(JSON.stringify(...)) нет."

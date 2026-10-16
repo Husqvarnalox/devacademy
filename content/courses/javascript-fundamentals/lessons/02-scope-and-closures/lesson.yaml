@@ -1,0 +1,182 @@
+id: javascript.fundamentals.scope-and-closures
+title: "Области видимости и замыкания"
+goal: "Объяснять, где видна переменная, что такое подъём и TDZ, и использовать замыкания для приватного состояния."
+difficulty: easy
+estimatedMinutes: 55
+prerequisites:
+  - javascript.fundamentals.types-and-coercion
+related:
+  - javascript.fundamentals.this-and-functions
+next:
+  - javascript.fundamentals.this-and-functions
+tags: [javascript, scope, closures, hoisting, tdz, let, var]
+objectives:
+  - "Выбирать между const, let и var и объяснять разницу в областях видимости."
+  - "Объяснить подъём объявлений и временную мёртвую зону для let, const и class."
+  - "Предсказать результат цикла с колбэками при var и при let."
+  - "Написать замыкание с приватным состоянием: счётчик, once, memoize."
+  - "Описать область видимости модуля и отличие её от глобальной."
+masteryCriteria:
+  - "Вы без запуска говорите, что напечатает цикл for (var ...) с setTimeout и почему."
+  - "Вы отличаете ReferenceError из-за TDZ от undefined у var."
+  - "Вы пишете once и memoize, не заводя глобальных переменных."
+  - "Вы исправляете багованное замыкание в цикле, не прибегая к IIFE."
+facts:
+  - kind: internals
+    text: "У let/const/class есть временная мёртвая зона: привязка создаётся при входе в область, но до выполнения объявления остаётся неинициализированной, и обращение к ней даёт ReferenceError. У var привязка сразу инициализируется значением undefined."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let#temporal_dead_zone_tdz"
+      - "https://tc39.es/ecma262/#sec-let-and-const-declarations"
+  - kind: internals
+    text: "В цикле for (let ...) спецификация создаёт для каждой итерации новое окружение и копирует в него значения переменных цикла (CreatePerIterationEnvironment). Поэтому замыкания, созданные на разных итерациях, видят разные привязки."
+    sources:
+      - "https://tc39.es/ecma262/#sec-forbodyevaluation"
+  - kind: historical
+    text: "let и const появились в ECMAScript 2015 (ES6). До этого единственным способом объявить локальную переменную был var, а область блока эмулировали немедленно вызываемыми функциями (IIFE)."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/let"
+  - kind: misconception
+    text: "«Замыкание копирует значения переменных». На самом деле функция хранит ссылку на окружение, поэтому видит последующие изменения переменной."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что вернёт fns[0]() после цикла for (var i = 0; i < 3; i++) fns.push(() => i)?"
+      options:
+        - "0"
+        - "2"
+        - "3"
+        - "undefined"
+      answer: 2
+      explanation: "Единственная переменная i делится всеми замыканиями; цикл завершается при i === 3, и все функции возвращают 3."
+    - id: q2
+      type: single
+      prompt: "Что напечатает код for (let i = 0; i < 3; i++) setTimeout(() => console.log(i))?"
+      options:
+        - "3 3 3"
+        - "0 1 2"
+        - "0 0 0"
+        - "ничего"
+      answer: 1
+      explanation: "У каждой итерации for (let ...) своя привязка i, поэтому колбэки видят значения 0, 1 и 2."
+    - id: q3
+      type: single
+      prompt: "Что произойдёт при выполнении: console.log(typeof x); let x = 1; ?"
+      options:
+        - "Напечатается \"undefined\""
+        - "Напечатается \"number\""
+        - "ReferenceError из-за временной мёртвой зоны"
+        - "SyntaxError"
+      answer: 2
+      explanation: "Даже typeof не спасает от TDZ: привязка x уже создана, но не инициализирована, и обращение к ней бросает ReferenceError."
+    - id: q4
+      type: multiple
+      prompt: "Какие утверждения верны?"
+      options:
+        - "const делает объект неизменяемым."
+        - "Замыкание хранит ссылку на привязку, а не копию значения."
+        - "var имеет область видимости функции."
+        - "Объявление function f() {} можно вызвать раньше места его объявления в тексте."
+        - "var на верхнем уровне ES-модуля становится свойством globalThis."
+      answer: [1, 2, 3]
+      explanation: "const фиксирует только имя. Объявления функций поднимаются вместе с телом. Область видимости модуля отдельная, поэтому var не попадает в глобальный объект."
+    - id: q5
+      type: short
+      prompt: "Что напечатает код: var a = 1; function f() { console.log(a); var a = 2; } f();"
+      answer:
+        - "undefined"
+      explanation: "Внутри f объявление var a поднимается, локальная a равна undefined до присваивания и закрывает внешнюю a."
+exercise:
+  id: javascript.fundamentals.scope-and-closures.exercise
+  title: "Замыкания на практике"
+  prompt: |
+    В файле `closures.mjs` четыре функции. Три из них пока ведут себя неправильно: им не хватает замыкания, а в `makeAdders` классическая ошибка с `var`.
+
+    * `makeCounter(start = 0)` - возвращает объект `{ inc, dec, value }`. `inc()` и `dec()` меняют счёт и возвращают **новое** значение, `value()` возвращает текущее. Разные счётчики независимы.
+    * `makeAdders(n)` - массив из `n` функций; функция с индексом `i` всегда возвращает `i`.
+    * `once(fn)` - обёртка, которая вызывает `fn` только в первый раз (с аргументами и `this` первого вызова) и в дальнейшем возвращает тот же результат, даже если он `undefined`.
+    * `memoize(fn)` - кэш для функции одного аргумента: для каждого значения аргумента `fn` вызывается не больше одного раза. Ключи сравниваются как в `Map`, поэтому `1` и `"1"` разные.
+
+    Глобальные переменные для хранения состояния использовать нельзя: состояние должно жить в замыкании.
+  entryFile: closures.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "Состояние счётчика должно создаваться внутри makeCounter при каждом вызове, а не снаружи. Объявите там let count = start."
+    - "В makeAdders замените var i на let i. Тогда на каждой итерации создаётся своя привязка, и функции вернут 0, 1, 2."
+    - "once: заведите в замыкании let called = false и let result. Для undefined-результата проверяйте флаг called, а не сам result. Вызывайте fn.apply(this, args) из обычной функции, чтобы сохранить this."
+    - "memoize: const cache = new Map(); внутри if (!cache.has(arg)) cache.set(arg, fn(arg)); return cache.get(arg). Проверка has нужна, чтобы кэшировать и undefined."
+  tests:
+    - id: counter-basic
+      title: "makeCounter: inc, dec, value"
+      hint: "inc() возвращает уже увеличенное значение; start по умолчанию 0."
+    - id: adders
+      title: "makeAdders: функции возвращают свои индексы"
+      hint: "Проверьте объявление переменной цикла: нужна новая привязка на итерацию."
+    - id: once-basic
+      title: "once: fn вызывается один раз"
+      hint: "Второй вызов должен вернуть результат первого, не вызывая fn."
+    - id: counter-independent
+      title: "Счётчики независимы (скрытый)"
+      hidden: true
+      hint: "Состояние не должно лежать вне makeCounter: каждый вызов создаёт свою переменную."
+    - id: adders-edge
+      title: "makeAdders: пустой массив и повторные вызовы (скрытый)"
+      hidden: true
+      hint: "Результат функции не должен меняться при повторных вызовах; n = 0 даёт пустой массив."
+    - id: once-undefined-result
+      title: "once: undefined и this (скрытый)"
+      hidden: true
+      hint: "Следите за флагом called, а не за значением результата; для this используйте function и apply."
+    - id: memoize
+      title: "memoize: кэширование (скрытый)"
+      hidden: true
+      hint: "Результат для уже виденного аргумента берётся из Map, функция не вызывается."
+    - id: memoize-keys
+      title: "memoize: ключи и undefined (скрытый)"
+      hidden: true
+      hint: "Используйте Map и has(): объект-словарь превратит 1 и \"1\" в один ключ, а проверка if (cache[arg]) не кэширует undefined."
+challenge:
+  id: javascript.fundamentals.scope-and-closures.challenge
+  title: "compose, curry и маленькое хранилище"
+  prompt: |
+    В файле `fp_task.mjs` нужно реализовать три утилиты, построенные на замыканиях.
+
+    * `compose(...fns)` - `compose(f, g, h)(x)` равно `f(g(h(x)))`. Без аргументов возвращает тождественную функцию.
+    * `curry(fn)` - каррирование по `fn.length`. Аргументы накапливаются между вызовами; за один вызов можно передать сразу несколько: `add3(1)(2, 3)` и `add3(1, 2)(3)` равны `add3(1)(2)(3)`. Промежуточная функция должна быть переиспользуемой: `const times3 = f(3); times3(4); times3(5)`.
+    * `createStore(initial)` - возвращает `{ get, set, subscribe }`. `set(next)` принимает значение или функцию `prev => новое`. `subscribe(listener)` возвращает функцию отписки; `listener(новое, старое)` вызывается только когда значение изменилось по `Object.is` (поэтому `NaN` заменить на `NaN` - не изменение).
+  entryFile: fp_task.mjs
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.mjs
+  hints:
+    - "compose: fns.reduceRight((acc, fn) => fn(acc), x) - применяет функции справа налево, а для пустого массива сразу возвращает x."
+    - "curry: внутренняя функция curried(...args) сравнивает args.length с fn.length. Если аргументов хватает, вызовите fn(...args), иначе верните функцию, которая принимает more и вызывает curried(...args, ...more)."
+    - "Не мутируйте накопленный массив аргументов: каждая промежуточная функция должна собирать новый массив, иначе f(3) нельзя будет использовать дважды."
+    - "createStore: let value, const listeners = new Set(). В set вычислите newValue, выйдите, если Object.is(newValue, value); иначе запомните old, обновите value и вызовите подписчиков. subscribe возвращает () => listeners.delete(listener)."
+  tests:
+    - id: compose-basic
+      title: "compose: порядок применения"
+      hint: "Правая функция выполняется первой."
+    - id: curry-basic
+      title: "curry: накопление аргументов"
+      hint: "Допускайте несколько аргументов за один вызов."
+    - id: store-basic
+      title: "createStore: get, set, подписчик"
+      hint: "Подписчик получает новое и старое значения; set принимает и функцию."
+    - id: compose-edge
+      title: "compose: пустой и три этапа (скрытый)"
+      hidden: true
+      hint: "Пустая композиция - тождественная функция."
+    - id: curry-edge
+      title: "curry: повторное использование (скрытый)"
+      hidden: true
+      hint: "Накопленные аргументы не должны изменяться между вызовами промежуточной функции."
+    - id: store-unsubscribe
+      title: "createStore: отписка и Object.is (скрытый)"
+      hidden: true
+      hint: "Не вызывайте подписчиков при том же значении (включая NaN), и не вызывайте отписавшихся."

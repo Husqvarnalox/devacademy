@@ -9,7 +9,7 @@ tracks:
       что происходит внутри интерпретатора, и проверяется запуском вашего кода.
     languageId: python
     status: available
-    courses: [python-fundamentals, python-advanced, python-stdlib, python-numpy]
+    courses: [python-fundamentals, python-advanced, python-stdlib, python-numpy, python-concurrency]
   - id: javascript
     kind: language
     title: JavaScript
@@ -17,10 +17,12 @@ tracks:
       Язык JavaScript (ECMAScript) как таковой, независимо от среды запуска: типы и приведение типов,
       объекты и прототипы, замыкания, цикл событий, промисы и async/await, модули. Библиотеки и
       фреймворки (React, Vue, Angular) и серверная среда Node.js вынесены в отдельные треки.
-      Сейчас в треке доступен только вводный курс из двух уроков (запуск кода и ввод-вывод плюс одна ключевая особенность языка); остальные темы запланированы.
+      Сейчас в треке два курса: вводный из двух уроков (запуск кода и ввод-вывод, значения и равенство) и «JavaScript: основы языка»
+      из восьми уроков (типы, замыкания, this, прототипы, массивы и итерация, ошибки, промисы и async/await, модули и тесты).
+      Запланированы итераторы и генераторы в глубину, Proxy и Reflect, регулярные выражения, Intl и Temporal, браузерная среда.
     languageId: javascript
     status: available
-    courses: [javascript-first-steps]
+    courses: [javascript-first-steps, javascript-fundamentals]
   - id: typescript
     kind: language
     title: TypeScript

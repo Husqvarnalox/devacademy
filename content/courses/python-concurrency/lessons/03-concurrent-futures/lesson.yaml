@@ -1,0 +1,162 @@
+id: python.concurrency.concurrent-futures
+title: "concurrent.futures: пулы потоков и процессов"
+goal: Запускать работу в пулах потоков и процессов через Executor и Future, собирать результаты и ошибки и понимать требования к сериализации данных для процессов.
+difficulty: medium
+estimatedMinutes: 70
+prerequisites: [python.concurrency.threading-and-synchronization, python.advanced.functions-as-objects]
+related: [python.concurrency.concurrency-models, python.advanced.context-managers]
+next: [python.concurrency.asyncio-basics]
+objectives:
+  - Использовать ThreadPoolExecutor и ProcessPoolExecutor как контекстные менеджеры и объяснять, что делает выход из with.
+  - Различать submit, map и as_completed, знать порядок результатов в каждом случае.
+  - Объяснить, как исключения попадают из рабочего потока или процесса в вызывающий код через Future.result.
+  - Назвать требования к функциям и данным для процессов (pickle, функции верхнего уровня) и различать start methods fork, spawn и forkserver.
+  - Выбрать между потоками и процессами для заданной нагрузки.
+masteryCriteria:
+  - Вы собираете результаты и ошибки множества задач, не теряя индексов и не останавливаясь на первой ошибке.
+  - Вы объясняете, почему лямбду нельзя отправить в ProcessPoolExecutor, и умеете проверить объект на picklability.
+  - Вы знаете, что код, использующий процессы, должен быть защищён if __name__ == "__main__" из-за способа spawn.
+tags: [python, concurrent.futures, executor, future, threadpool, processpool, pickle, multiprocessing]
+facts:
+  - kind: internals
+    text: >-
+      Future - это объект-обещание результата. Исключение, возникшее в задаче, сохраняется в Future и повторно поднимается при вызове result() или exception()
+      в вызывающем коде. Для ProcessPoolExecutor исключение и результат передаются через pickle, поэтому и они должны быть сериализуемы.
+    sources:
+      - https://docs.python.org/3/library/concurrent.futures.html#future-objects
+  - kind: internals
+    text: >-
+      Методы запуска процессов в multiprocessing: spawn запускает новый интерпретатор и импортирует главный модуль заново (поэтому нужен if __name__ == "__main__"),
+      fork копирует процесс (POSIX; небезопасен при наличии потоков), forkserver запускает отдельный сервер, порождающий процессы. По документации Python 3.14:
+      на Windows и macOS умолчание spawn; на остальных POSIX-платформах умолчание forkserver (в Python 3.13 и ранее на Linux было fork).
+      Метод можно выбрать явно через multiprocessing.get_context и параметр mp_context у ProcessPoolExecutor.
+    sources:
+      - https://docs.python.org/3/library/multiprocessing.html#contexts-and-start-methods
+      - https://docs.python.org/3/whatsnew/3.14.html
+  - kind: performance
+    text: >-
+      Если max_workers не задан, ThreadPoolExecutor использует min(32, (os.process_cpu_count() or 1) + 4) потоков в Python 3.13+ (в 3.8-3.12 вместо process_cpu_count
+      использовался os.cpu_count()); ProcessPoolExecutor по умолчанию берёт число доступных процессоров. Для CPU-bound кода потоки в сборке с GIL не дают ускорения,
+      а процессы дают, если стоимость работы выше накладных расходов на сериализацию.
+    sources:
+      - https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor
+      - https://docs.python.org/3/library/concurrent.futures.html#processpoolexecutor
+  - kind: misconception
+    text: >-
+      «executor.map выполняет задачи по очереди». Нет: задачи выполняются параллельно, но результаты итератор отдаёт строго в порядке входных данных,
+      а исключение поднимается в тот момент, когда итерация доходит до упавшего элемента. as_completed отдаёт Future в порядке завершения.
+    sources:
+      - https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.Executor.map
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: В каком порядке executor.map(f, items) отдаёт результаты?
+      options:
+        - "В порядке завершения задач"
+        - "В порядке входных элементов, независимо от порядка завершения"
+        - "В случайном порядке"
+        - "В обратном порядке"
+      answer: 1
+      explanation: >-
+        map сохраняет порядок входа. Если нужен порядок завершения, используйте submit и as_completed.
+    - id: q2
+      type: single
+      prompt: Где проявится исключение, возникшее внутри задачи, отправленной через submit?
+      options:
+        - "Сразу в месте вызова submit"
+        - "При вызове future.result() (или future.exception())"
+        - "Оно будет молча потеряно"
+        - "Оно завершит весь пул"
+      answer: 1
+      explanation: >-
+        Исключение хранится в Future и повторно поднимается при result(). Если никогда не вызвать result() или exception(), ошибка останется незамеченной.
+    - id: q3
+      type: single
+      prompt: "Почему executor.submit(lambda x: x + 1, 1) на ProcessPoolExecutor не сработает?"
+      options:
+        - "Лямбды слишком медленные"
+        - "Функцию нужно сериализовать через pickle, а лямбда не имеет импортируемого по имени представления"
+        - "Процессы запрещают арифметику"
+        - "Это сработает без проблем"
+      answer: 1
+      explanation: >-
+        pickle сохраняет функции по имени модуля и имени, поэтому подходят функции верхнего уровня; лямбды и вложенные функции не сериализуются.
+    - id: q4
+      type: multiple
+      prompt: Что верно о start methods multiprocessing в Python 3.14? Выберите все верные.
+      options:
+        - "На macOS умолчание spawn"
+        - "На Linux умолчание forkserver"
+        - "spawn заново импортирует главный модуль, поэтому нужна защита if __name__ == '__main__'"
+        - "fork безопасен при любом числе потоков"
+      answer: [0, 1, 2]
+      explanation: >-
+        Fork процесса с несколькими потоками проблематичен, поэтому умолчание на Linux сменилось на forkserver в 3.14.
+    - id: q5
+      type: short
+      prompt: Какая функция модуля concurrent.futures отдаёт Future в порядке завершения? (имя функции)
+      answer: ["as_completed"]
+      explanation: >-
+        as_completed(futures) возвращает итератор по Future по мере их завершения; wait позволяет дождаться первой или всех.
+exercise:
+  id: python.concurrency.concurrent-futures.exercise
+  title: Сбор результатов из пула
+  prompt: |
+    В файле `futures_task.py` реализуйте четыре функции (модуль `concurrent.futures` уже импортирован; для имени `ThreadPoolExecutor`
+    используйте именно это имя из модуля, не создавайте потоки вручную).
+
+    1. `run_collect(func, items, max_workers=4)` - выполняет `func(item)` для каждого элемента в `ThreadPoolExecutor(max_workers=max_workers)`
+       через `submit`, а результаты забирает через `as_completed`. Возвращает пару `(values, errors)`: словари `индекс -> результат`
+       и `индекс -> исключение`. Ошибка одной задачи не мешает остальным. Пул должен корректно закрываться (используйте `with`).
+    2. `map_strict(func, items, max_workers=4)` - то же через `executor.map`: возвращает список результатов **в порядке входа**;
+       если задачи падали, поднимается исключение первого по порядку входа упавшего элемента.
+    3. `check_picklable(obj)` - `True`, если объект можно сериализовать `pickle.dumps` (то есть передать в `ProcessPoolExecutor`),
+       иначе `False`. Должна ловить любое исключение сериализации, а не только один тип.
+    4. `chunked(items, size)` - делит последовательность на списки по `size` элементов (последний может быть короче);
+       `size <= 0` - `ValueError`. Так список мелких задач группируют в крупные для процессов.
+
+    ```python
+    values, errors = run_collect(lambda x: 10 // x, [5, 0, 2])
+    # values == {0: 2, 2: 5}, errors == {1: ZeroDivisionError(...)}
+    chunked([1, 2, 3, 4, 5], 2)    # [[1, 2], [3, 4], [5]]
+    ```
+  entryFile: futures_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "submit возвращает Future; сохраните соответствие future -> индекс в словаре, чтобы при as_completed знать, какому элементу принадлежит результат."
+    - "Для каждого завершённого Future: exc = fut.exception(); если exc is None - values[i] = fut.result(), иначе errors[i] = exc. Всё внутри with ThreadPoolExecutor(...) as pool."
+    - "map_strict: with ThreadPoolExecutor(max_workers=max_workers) as pool: return list(pool.map(func, items)) - исключение поднимется при дойдёт итерации до упавшего элемента."
+    - "check_picklable: try: pickle.dumps(obj) except Exception: return False; return True. chunked: [list(items[i:i + size]) for i in range(0, len(items), size)] после проверки size."
+  tests:
+    - id: collect-basic
+      title: run_collect - значения по индексам
+      hint: Ключи - индексы входных элементов, а не сами элементы.
+    - id: collect-errors
+      title: run_collect - ошибки не останавливают остальных
+      hint: Исключения складываются в errors по индексу; остальные задачи выполняются.
+    - id: chunked-basic
+      title: chunked
+      hint: Последний фрагмент может быть короче; пустой вход даёт пустой список.
+    - id: picklable
+      title: check_picklable
+      hint: Функции верхнего уровня сериализуются, лямбды и вложенные функции - нет.
+    - id: pool-contract
+      title: Пул - параметры, одновременность, закрытие (скрытый)
+      hidden: true
+      hint: ThreadPoolExecutor(max_workers=max_workers) через with; задачи реально выполняются одновременно, пул закрывается.
+    - id: map-strict
+      title: map_strict - порядок и ошибка (скрытый)
+      hidden: true
+      hint: Результаты в порядке входа; поднимается ошибка первого по порядку упавшего элемента, а не первой завершившейся.
+    - id: picklable-edge
+      title: check_picklable - особые объекты (скрытый)
+      hidden: true
+      hint: Генераторы, замки и вложенные функции не сериализуются; functools.partial от функции верхнего уровня - да.
+    - id: chunked-edge
+      title: chunked - границы (скрытый)
+      hidden: true
+      hint: size больше длины даёт один фрагмент; size <= 0 - ValueError; вход может быть кортежем.

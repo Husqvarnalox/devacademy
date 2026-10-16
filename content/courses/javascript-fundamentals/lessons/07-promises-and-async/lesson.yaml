@@ -1,0 +1,199 @@
+id: javascript.fundamentals.promises-and-async
+title: "Цикл событий, промисы и async/await"
+goal: "Предсказывать порядок выполнения синхронного кода, микрозадач и макрозадач и писать корректный асинхронный код на промисах и async/await."
+difficulty: hard
+estimatedMinutes: 75
+prerequisites:
+  - javascript.fundamentals.errors-and-exceptions
+  - javascript.first-steps.how-javascript-runs
+related:
+  - nodejs.first-steps.modules-and-event-loop
+next:
+  - javascript.fundamentals.modules-and-testing
+tags: [javascript, promises, async-await, event-loop, microtasks, macrotasks]
+objectives:
+  - "Описать модель выполнения: стек вызовов, очередь макрозадач, очередь микрозадач."
+  - "Предсказать порядок вывода при смеси синхронного кода, setTimeout, Promise.then, queueMicrotask и process.nextTick в Node.js."
+  - "Объяснить, во что превращается async/await и что именно приостанавливает await."
+  - "Обрабатывать ошибки в промисах и в async-функциях, не оставляя необработанных отказов."
+  - "Выбирать между Promise.all, allSettled, race и any и между последовательным и параллельным ожиданием."
+masteryCriteria:
+  - "Вы без запуска пишете точный порядок строк для программы из шести-восьми вызовов console.log с таймером, промисами и await."
+  - "Вы переписываете цепочку then в async/await и обратно."
+  - "Вы запускаете независимые операции параллельно и не теряете ошибки."
+  - "Вы объясняете, почему необработанный отказ промиса в Node.js 22 завершает процесс."
+facts:
+  - kind: internals
+    text: "ECMAScript определяет «задания» (jobs), например PromiseReactionJob, и порядок их выполнения внутри очереди заданий. Сам цикл событий, таймеры, макрозадачи и process.nextTick определяет среда выполнения (HTML-стандарт в браузере, Node.js и libuv на сервере)."
+    sources:
+      - "https://tc39.es/ecma262/#sec-jobs"
+      - "https://html.spec.whatwg.org/multipage/webappapis.html#event-loops"
+  - kind: internals
+    text: "process.nextTick - возможность Node.js, а не ECMAScript. Её очередь обрабатывается раньше очереди микрозадач промисов. В ES-модулях код верхнего уровня выполняется внутри промисной задачи, поэтому там промисные колбэки могут выполниться раньше nextTick."
+    sources:
+      - "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick"
+      - "https://nodejs.org/api/process.html#processnexttickcallback-args"
+  - kind: security
+    text: "Начиная с Node.js 15 режим --unhandled-rejections по умолчанию равен throw: отказ промиса без обработчика превращается в необработанное исключение, и процесс завершается с ненулевым кодом. Раньше он только выводил предупреждение."
+    sources:
+      - "https://nodejs.org/api/cli.html#--unhandled-rejectionsmode"
+      - "https://nodejs.org/api/process.html#event-unhandledrejection"
+  - kind: real-world
+    text: "Promise.all не отменяет остальные операции после первой ошибки: они продолжают выполняться, их результат просто игнорируется. Отмена требует отдельного механизма, например AbortController."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all"
+  - kind: misconception
+    text: "«await блокирует поток» - нет: приостанавливается только выполнение текущей async-функции, остальной код продолжает работать, а продолжение после await ставится в очередь микрозадач."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Код запущен как CommonJS-скрипт в Node.js:
+
+        setTimeout(() => console.log("A timeout"), 0);
+        Promise.resolve().then(() => console.log("B then"));
+        (async () => { console.log("C async"); await 0; console.log("D after await"); })();
+        queueMicrotask(() => console.log("E microtask"));
+        console.log("F sync");
+
+        Каков порядок вывода?
+      options:
+        - "C, F, B, D, E, A"
+        - "C, F, A, B, D, E"
+        - "F, C, B, D, E, A"
+        - "C, F, E, B, D, A"
+      answer: 0
+      explanation: "Сначала синхронная часть: C (async-функция работает до первого await) и F. Затем микрозадачи в порядке постановки: B, D (продолжение после await), E. Макрозадача A (таймер) идёт последней."
+    - id: q2
+      type: single
+      prompt: "Что вернёт вызов async function f() { return 1; } f()?"
+      options:
+        - "Число 1."
+        - "Промис, который выполнится значением 1."
+        - "undefined, потому что результат асинхронный."
+        - "Генератор."
+      answer: 1
+      explanation: "async-функция всегда возвращает промис; return x выполняет его значением x."
+    - id: q3
+      type: multiple
+      prompt: "Какие утверждения верны?"
+      options:
+        - "process.nextTick определён в стандарте ECMAScript."
+        - "Обработчики then вызываются асинхронно, даже если промис уже выполнен."
+        - "Промисные колбэки выполняются раньше таймера setTimeout(fn, 0)."
+        - "Promise.all отменяет остальные операции после первой ошибки."
+        - "В Node.js 22 необработанный отказ промиса по умолчанию завершает процесс с ненулевым кодом."
+      answer: [1, 2, 4]
+      explanation: "nextTick принадлежит Node.js. Promise.all лишь перестаёт ждать, остальные операции продолжаются."
+    - id: q4
+      type: short
+      prompt: "new Promise((res, rej) => { res(1); rej(new Error(\"no\")); res(2); }).then((v) => console.log(v)); Что выведется?"
+      answer:
+        - "1"
+      explanation: "Промис завершается один раз, остальные вызовы resolve и reject игнорируются."
+    - id: q5
+      type: single
+      prompt: "Promise.reject(new Error(\"r\")).finally(() => console.log(\"fin\")).catch((e) => console.log(\"caught\")); Что будет выведено?"
+      options:
+        - "Только caught."
+        - "fin, затем caught."
+        - "caught, затем fin."
+        - "Только fin."
+      answer: 1
+      explanation: "finally выполняется при любом исходе и пропускает отказ дальше, а catch затем его обрабатывает."
+exercise:
+  id: javascript.fundamentals.promises-and-async.exercise
+  title: "Параллельно, по очереди, с таймаутом"
+  prompt: |
+    Файл `async_task.mjs`: пять асинхронных функций. Заготовки сейчас сразу отклоняются.
+
+    * `sleep(ms, value)` - промис, который выполнится значением `value` через `ms` миллисекунд.
+    * `parallelMap(items, fn)` - запускает `fn(item, index)` для **всех** элементов сразу и возвращает промис массива результатов в исходном порядке (первая ошибка отклоняет результат).
+    * `sequentialMap(items, fn)` - вызывает `fn(item, index)` **по очереди**: следующий вызов начинается только после завершения предыдущего. При первой ошибке промис отклоняется ею, оставшиеся элементы не запускаются.
+    * `withTimeout(promise, ms)` - если `promise` не завершился за `ms` мс, результат отклоняется `Error("timeout")`; иначе повторяет исход `promise` (значение или та же причина отказа). Таймер нужно очистить.
+    * `settleAll(promises)` - дождитесь всех, не прерываясь на ошибках, и верните `{ fulfilled: [значения], rejected: [message причин] }`, каждый список в порядке исходного массива.
+  entryFile: async_task.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "sleep - обёртка над таймером: new Promise((resolve) => setTimeout(resolve, ms, value)). parallelMap - это Promise.all(items.map(...))."
+    - "sequentialMap: async-функция с циклом for и await внутри; результаты складывайте в массив. Исключение из await выйдет из цикла само, остальные элементы не запустятся."
+    - "withTimeout: создайте промис-таймер, который отклоняется через ms, и верните Promise.race([promise, timeout]). Хранить id таймера нужно, чтобы вызвать clearTimeout в .finally(...)."
+    - "settleAll: const results = await Promise.allSettled(promises); затем пройдите по результатам: status === \"fulfilled\" -> value, иначе reason.message."
+  tests:
+    - id: sleep
+      title: "sleep: значение через время"
+      hint: "Передайте value в resolve; ожидание не меньше ms."
+    - id: parallel-basic
+      title: "parallelMap: все стартуют сразу"
+      hint: "Не используйте await внутри цикла: все вызовы fn должны начаться до первого завершения."
+    - id: sequential-basic
+      title: "sequentialMap: строго по очереди"
+      hint: "Следующий вызов fn начинается после await предыдущего."
+    - id: timeout-fires
+      title: "withTimeout: отказ по таймауту"
+      hint: "Сравните исходный промис с таймером через Promise.race; ошибка - Error с message \"timeout\"."
+    - id: timeout-passthrough
+      title: "withTimeout: исход исходного промиса (скрытый)"
+      hidden: true
+      hint: "Если промис успел, результат и причина отказа должны пройти без изменений."
+    - id: sequential-stops
+      title: "sequentialMap: остановка на ошибке (скрытый)"
+      hidden: true
+      hint: "Не перехватывайте ошибку внутри цикла: пусть await её выбросит."
+    - id: parallel-error-and-index
+      title: "parallelMap: индекс, ошибка, пустой массив (скрытый)"
+      hidden: true
+      hint: "fn получает (item, index); первая ошибка отклоняет итог (это поведение Promise.all)."
+    - id: settle-all
+      title: "settleAll: собрать всё (скрытый)"
+      hidden: true
+      hint: "Promise.allSettled не отклоняется; порядок значений и причин совпадает с порядком входа."
+challenge:
+  id: javascript.fundamentals.promises-and-async.challenge
+  title: "mapLimit: не больше N задач одновременно"
+  prompt: |
+    Файл `limit_task.mjs`. Реализуйте `mapLimit(items, limit, fn)`: применить async-функцию `fn(item, index)` ко всем элементам, но чтобы **одновременно выполнялось не больше `limit` вызовов**.
+
+    * Результаты возвращаются в порядке элементов, а не в порядке завершения.
+    * Как только одна задача завершилась, сразу стартует следующая (слот не ждёт остальных в «пачке»).
+    * При первой ошибке итоговый промис отклоняется ею и новые задачи больше не запускаются.
+    * `limit` должен быть целым числом не меньше 1, иначе промис отклоняется `RangeError`. Пустой массив даёт `[]`.
+
+    Заготовка запускает всё сразу и игнорирует `limit`.
+  entryFile: limit_task.mjs
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.mjs
+  hints:
+    - "Идея: запустите limit «рабочих» (async-функций), которые берут задания из общей очереди, пока она не опустеет."
+    - "Общий счётчик let next = 0; рабочий делает while (next < list.length) { const i = next++; results[i] = await fn(list[i], i); }. Так порядок результатов сохраняется по индексу."
+    - "Рабочих создайте через Array.from({ length: Math.min(limit, list.length) }, worker) и дождитесь Promise.all. Проверку limit делайте в начале async-функции: бросок превратится в отказ промиса."
+    - "Чтобы после ошибки новые задачи не запускались, заведите флаг failed: рабочий ставит его в catch и пробрасывает ошибку, а цикл while проверяет !failed."
+  tests:
+    - id: limit-basic
+      title: "mapLimit: не больше limit одновременно"
+      hint: "Следите, чтобы одновременно работало не больше limit задач."
+    - id: limit-order
+      title: "mapLimit: порядок результатов"
+      hint: "Записывайте результат по индексу, а не push по порядку завершения."
+    - id: limit-edge
+      title: "mapLimit: граничные случаи"
+      hint: "limit больше длины, пустой массив и limit 1."
+    - id: limit-refill
+      title: "mapLimit: слот освобождается сразу (скрытый)"
+      hidden: true
+      hint: "Не делите массив на пачки с ожиданием каждой: рабочие берут следующий элемент по мере освобождения."
+    - id: limit-error
+      title: "mapLimit: остановка после ошибки (скрытый)"
+      hidden: true
+      hint: "После первой ошибки рабочие не должны брать новые элементы из очереди."
+    - id: limit-invalid
+      title: "mapLimit: неверный limit (скрытый)"
+      hidden: true
+      hint: "0, отрицательные, дробные, строки, NaN и undefined дают RangeError; бросайте внутри async-функции."

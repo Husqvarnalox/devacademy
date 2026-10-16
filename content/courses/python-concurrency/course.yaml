@@ -1,0 +1,21 @@
+id: python-concurrency
+version: 1.0.0
+title: "Конкурентность и асинхронность в Python"
+description: >-
+  Курс о том, как заставить программу делать несколько дел «одновременно» и не получить гонки и зависания.
+  Модели конкурентности (процессы, потоки, корутины), GIL и free-threaded сборки, threading и примитивы синхронизации,
+  concurrent.futures, asyncio: задачи, TaskGroup, отмена и таймауты, asyncio-примитивы и очереди, структурная конкурентность,
+  мост между потоками и event loop, отладка. Тесты упражнений детерминированы: порядок гарантируется синхронизацией,
+  а степень конкурентности измеряется счётчиками, а не часами.
+languageId: python
+level: 4
+track: python
+requires: [python-advanced]
+lessons:
+  - 01-concurrency-models
+  - 02-threading-and-synchronization
+  - 03-concurrent-futures
+  - 04-asyncio-basics
+  - 05-cancellation-and-timeouts
+  - 06-async-sync-primitives
+  - 07-structured-concurrency-in-practice

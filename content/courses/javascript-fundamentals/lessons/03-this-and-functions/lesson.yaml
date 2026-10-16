@@ -1,0 +1,133 @@
+id: javascript.fundamentals.this-and-functions
+title: "this и функции"
+goal: "Определять значение this по способу вызова, чинить потерянный this и выбирать между обычными и стрелочными функциями."
+difficulty: medium
+estimatedMinutes: 55
+prerequisites:
+  - javascript.fundamentals.scope-and-closures
+related:
+  - javascript.fundamentals.objects-and-prototypes
+next:
+  - javascript.fundamentals.objects-and-prototypes
+tags: [javascript, this, functions, arrow-functions, bind, strict-mode]
+objectives:
+  - "Назвать четыре правила определения this и порядок их применения."
+  - "Объяснить, почему метод, вынутый из объекта, теряет this, и починить это тремя способами."
+  - "Описать, чем стрелочная функция отличается от обычной (this, arguments, new)."
+  - "Использовать call, apply и bind и сказать, что вернёт каждый из них."
+  - "Объяснить влияние строгого режима на this при обычном вызове."
+masteryCriteria:
+  - "Вы без запуска говорите, чему равен this в obj.f(), f(), new F() и в вызове через bind."
+  - "Вы находите потерю this в колбэке и исправляете её без глобальных переменных."
+  - "Вы реализуете partial и bindMethod, сохраняющие this."
+facts:
+  - kind: internals
+    text: "У стрелочных функций нет собственных привязок this, arguments, super и new.target: эти имена разрешаются через окружение, в котором функция создана. Поэтому call, apply и bind не могут изменить this стрелки."
+    sources:
+      - "https://tc39.es/ecma262/#sec-arrow-function-definitions"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions"
+  - kind: internals
+    text: "Код ES-модулей и тела классов выполняется в строгом режиме автоматически. В строгом режиме при обычном вызове функции this равен undefined, а в нестрогом - глобальному объекту."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode"
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/this"
+  - kind: real-world
+    text: "Значение this в обработчиках событий и в колбэках таймеров задают API среды (DOM в браузере, Node.js на сервере), а не язык. Надёжнее не зависеть от него: используйте стрелки или bind."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/this"
+  - kind: misconception
+    text: "«this ссылается на функцию, в которой он написан» или «на объект, где функция объявлена» - неверно. this определяется при вызове (кроме стрелок, где он берётся из окружения)."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "В ES-модуле: const o = { n: 1, f() { return this.n; } }; const g = o.f; g(); Что произойдёт?"
+      options:
+        - "Вернётся 1."
+        - "Вернётся undefined."
+        - "TypeError: this равен undefined."
+        - "Вернётся NaN."
+      answer: 2
+      explanation: "g() - обычный вызов; код ES-модуля строгий, поэтому this равен undefined, и чтение this.n бросает TypeError."
+    - id: q2
+      type: short
+      prompt: "function f() { return this.x; } const b = f.bind({ x: 1 }); Что вернёт b.call({ x: 2 })? Введите число."
+      answer:
+        - "1"
+      explanation: "Связанная функция фиксирует this навсегда; call с другим объектом его не меняет."
+    - id: q3
+      type: multiple
+      prompt: "Какие варианты сохранят this объекта obj в методе obj.method?"
+      options:
+        - "setTimeout(obj.method, 0)"
+        - "setTimeout(() => obj.method(), 0)"
+        - "setTimeout(obj.method.bind(obj), 0)"
+        - "const m = obj.method; m();"
+        - "obj.method()"
+      answer: [1, 2, 4]
+      explanation: "Вызов через obj.method(), обёртка-стрелка и bind сохраняют this. Передача метода без объекта (в таймер или в переменную) его теряет."
+    - id: q4
+      type: single
+      prompt: "Откуда стрелочная функция берёт this?"
+      options:
+        - "От объекта, у которого её вызвали."
+        - "Из окружающего кода в месте создания; call, apply и bind его не меняют."
+        - "Всегда из глобального объекта."
+        - "Она всегда получает undefined."
+      answer: 1
+      explanation: "У стрелки нет собственного this: имя разрешается лексически, как обычная переменная."
+    - id: q5
+      type: single
+      prompt: "Что произойдёт при new (() => {})?"
+      options:
+        - "TypeError: стрелочная функция не конструктор."
+        - "Создастся пустой объект."
+        - "Вернётся undefined."
+        - "ReferenceError."
+      answer: 0
+      explanation: "У стрелочных функций нет внутреннего метода [[Construct]], поэтому их нельзя вызвать с new."
+exercise:
+  id: javascript.fundamentals.this-and-functions.exercise
+  title: "Сохранить this"
+  prompt: |
+    Файл `this_task.mjs` - ES-модуль, то есть строгий режим: потерянный `this` тут проявится ошибкой. Исправьте три места.
+
+    * `bindMethod(obj, name)` - вернуть функцию, которая вызывает `obj[name]` с `this === obj` и передаёт ей все свои аргументы. Метод нужно искать в момент вызова (если потом `obj[name]` заменят, вызовется новый метод). Подменить `this` вызовом `call` на результате нельзя.
+    * `partial(fn, ...preset)` - `partial(fn, a)(b, c)` вызывает `fn(a, b, c)`. Значение `this`, с которым вызвали **возвращённую** функцию, должно попасть в `fn`.
+    * `class Logger` - `log(msg)` возвращает `"<prefix>: <msg>"`; `logAll(msgs)` возвращает массив результатов `this.log` для каждого сообщения. Сейчас `logAll` падает, потому что колбэк внутри `map` не видит `this`. Подкласс, переопределивший `log`, должен влиять на `logAll`.
+  entryFile: this_task.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "Во всех трёх случаях причина одна: функция вызывается без объекта слева от точки. Найдите, где сейчас теряется this."
+    - "bindMethod: не доставайте метод заранее. Верните (...args) => obj[name](...args): это вызов как метода, this будет obj. partial: нужна обычная function, а не стрелка, чтобы у неё был собственный this."
+    - "В partial вызовите fn.apply(this, [...preset, ...args]). В logAll замените function (msg) {...} на стрелочную функцию: у неё this берётся из метода logAll."
+    - "Скелет: bindMethod -> return (...args) => obj[name](...args); partial -> return function (...args) { return fn.apply(this, [...preset, ...args]); }; logAll -> return msgs.map((msg) => this.log(msg));"
+  tests:
+    - id: bind-method
+      title: "bindMethod: this сохраняется"
+      hint: "Вызывайте obj[name](...), чтобы объект стоял слева от точки."
+    - id: partial-basic
+      title: "partial: предустановленные аргументы"
+      hint: "Аргументы preset идут перед новыми."
+    - id: logger-basic
+      title: "Logger: log и logAll"
+      hint: "logAll должен вызывать this.log для каждого элемента."
+    - id: bind-late-lookup
+      title: "bindMethod: метод ищется при вызове (скрытый)"
+      hidden: true
+      hint: "Не читайте obj[name] при создании обёртки, читайте внутри неё."
+    - id: partial-this
+      title: "partial: this передаётся в fn (скрытый)"
+      hidden: true
+      hint: "Возвращайте function, не стрелку, и вызывайте fn.apply(this, ...)."
+    - id: logger-all-subclass
+      title: "logAll использует переопределённый log (скрытый)"
+      hidden: true
+      hint: "Вызывайте this.log, а не Logger.prototype.log и не копируйте код log."
+    - id: logger-this-preserved
+      title: "logAll: порядок и исходный массив (скрытый)"
+      hidden: true
+      hint: "map возвращает новый массив; исходный менять не нужно."

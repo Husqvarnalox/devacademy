@@ -1,0 +1,199 @@
+id: python.concurrency.threading-and-synchronization
+title: "threading: потоки, блокировки и очереди"
+goal: Писать корректные многопоточные программы на threading - защищать общие данные блокировками, координировать потоки событиями и очередями и избегать взаимных блокировок.
+difficulty: medium
+estimatedMinutes: 75
+prerequisites: [python.concurrency.concurrency-models, python.advanced.context-managers, python.stdlib.collections]
+related: [python.concurrency.concurrent-futures]
+next: [python.concurrency.concurrent-futures]
+objectives:
+  - Создавать потоки, дожидаться их через join и объяснять смысл daemon-потоков.
+  - Защищать составные операции над общими данными через Lock и контекстный менеджер with.
+  - Различать Lock и RLock, объяснять, когда нужен Condition, Event и Semaphore.
+  - Объяснить, как возникает взаимная блокировка (deadlock), и предотвращать её единым порядком захвата блокировок.
+  - Строить ограниченный (bounded) producer/consumer на queue.Queue с корректной остановкой.
+masteryCriteria:
+  - Вы пишете счётчик, корректный при любом числе потоков, и объясняете, почему counter += 1 без блокировки небезопасен.
+  - Вы останавливаете потоки-потребители сигнальным значением (sentinel) без зависаний и без потери элементов.
+  - Вы приводите захват нескольких блокировок к фиксированному порядку.
+tags: [python, threading, lock, rlock, condition, event, semaphore, queue, deadlock]
+facts:
+  - kind: internals
+    text: >-
+      Lock в threading не принадлежит потоку: освободить его может любой поток, а повторный acquire из того же потока блокируется навсегда.
+      RLock принадлежит потоку и допускает повторный захват тем же потоком (с таким же числом release). Контекстный менеджер with lock гарантирует release
+      даже при исключении.
+    sources:
+      - https://docs.python.org/3/library/threading.html#lock-objects
+      - https://docs.python.org/3/library/threading.html#rlock-objects
+  - kind: real-world
+    text: >-
+      queue.Queue потокобезопасна: put и get внутри используют блокировки и условия, поэтому producer/consumer через очередь не требует собственных Lock.
+      Параметр maxsize создаёт обратное давление: put блокируется, пока в очереди нет места. Для учёта завершения работы служат task_done и join.
+    sources:
+      - https://docs.python.org/3/library/queue.html
+  - kind: misconception
+    text: >-
+      «Если поток daemon, его работа корректно завершится при выходе». Нет: при завершении интерпретатора daemon-потоки останавливаются внезапно, без finally
+      и закрытия ресурсов. Для корректной остановки используйте Event или sentinel и join.
+    sources:
+      - https://docs.python.org/3/library/threading.html#thread-objects
+  - kind: internals
+    text: >-
+      Захват блокировок A, B в одном потоке и B, A в другом - классическая причина deadlock. Надёжное лекарство - глобальный порядок захвата (например, по идентификатору объекта);
+      дополнительная защита - acquire(timeout=...) вместо бесконечного ожидания.
+    sources:
+      - https://docs.python.org/3/library/threading.html#threading.Lock.acquire
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Почему counter += 1 из нескольких потоков может терять обновления даже при наличии GIL?
+      options:
+        - "Потому что GIL отключается при записи"
+        - "Операция состоит из чтения, сложения и записи, и поток может быть вытеснен между ними"
+        - "Потому что int неизменяем и копируется между потоками"
+        - "Такого не бывает: GIL делает любую строку кода атомарной"
+      answer: 1
+      explanation: >-
+        GIL гарантирует целостность интерпретатора, но не атомарность составных операций. Два потока могут прочитать одно значение, и одно приращение потеряется.
+    - id: q2
+      type: single
+      prompt: Что произойдёт при повторном lock.acquire() из того же потока на обычном threading.Lock, если он уже захвачен этим потоком?
+      options:
+        - "Захват пройдёт, счётчик захватов увеличится"
+        - "Поток заблокируется навсегда (самоблокировка)"
+        - "Будет поднято RuntimeError"
+        - "Lock будет автоматически освобождён"
+      answer: 1
+      explanation: >-
+        Lock не знает владельца и не допускает повторного захвата. Если нужен повторный вход из одного потока, используется RLock.
+    - id: q3
+      type: multiple
+      prompt: Какие меры помогают избежать взаимной блокировки двух потоков? Выберите все верные.
+      options:
+        - "Единый порядок захвата блокировок во всех потоках"
+        - "acquire(timeout=...) и обработка неудачи"
+        - "Замена Lock на RLock"
+        - "Держать блокировку как можно короче и не вызывать чужой код под ней"
+      answer: [0, 1, 3]
+      explanation: >-
+        RLock разрешает повторный вход одного потока, но не лечит циклическое ожидание двух разных потоков.
+    - id: q4
+      type: single
+      prompt: Зачем задавать maxsize у queue.Queue в схеме producer/consumer?
+      options:
+        - "Чтобы очередь работала быстрее"
+        - "Чтобы producer блокировался, когда consumer не успевает, и память не росла безгранично"
+        - "Чтобы очередь стала потокобезопасной"
+        - "Чтобы элементы выдавались в обратном порядке"
+      answer: 1
+      explanation: >-
+        Потокобезопасность есть у любой Queue. maxsize даёт обратное давление: put ждёт свободного места.
+    - id: q5
+      type: short
+      prompt: Какой метод потока нужно вызвать, чтобы дождаться его завершения? (имя метода)
+      answer: ["join", "join()"]
+      explanation: >-
+        thread.join(timeout=None) блокирует вызывающего до завершения потока; без join основная программа может завершиться, не дождавшись работы.
+exercise:
+  id: python.concurrency.threading-and-synchronization.exercise
+  title: Счётчик под замком и ограниченный конвейер
+  prompt: |
+    В файле `sync_task.py` реализуйте два компонента.
+
+    **1. `SafeCounter(lock_factory=threading.Lock)`** - потокобезопасный счётчик. Блокировку создайте как `self._lock = lock_factory()` и
+    используйте через `with`.
+
+    * `increment(n=1)` - прибавляет `n` и возвращает новое значение.
+    * свойство `value` - текущее значение (чтение тоже под блокировкой).
+    * `increment_if_below(limit)` - если значение строго меньше `limit`, прибавляет 1 и возвращает `True`, иначе ничего не меняет и
+      возвращает `False`. Проверка и увеличение должны быть **одной атомарной** операцией (check-then-act).
+
+    **2. `bounded_pipeline(items, transform, workers=3, capacity=2)`** - ограниченный producer/consumer:
+    `capacity` - максимальный размер очереди, `workers` - число потоков-потребителей. Создайте `queue.Queue(maxsize=capacity)`
+    (именно через `queue.Queue`, модуль `queue` уже импортирован), запустите `workers` потоков, поставьте в очередь пары `(индекс, элемент)`
+    и остановите потребителей сигнальным значением (по одному на потребителя). Функция возвращает список результатов `transform(элемент)`
+    **в порядке входных элементов**. Если `transform` бросил исключение, остальные элементы всё равно обрабатываются (иначе производитель
+    зависнет на полной очереди), все потоки завершаются, а в конце поднимается исключение элемента с наименьшим индексом.
+    В конце работы не должно оставаться живых потоков.
+
+    ```python
+    bounded_pipeline([1, 2, 3, 4], lambda x: x * x)   # [1, 4, 9, 16]
+    c = SafeCounter()
+    c.increment(5); c.value                           # 5
+    ```
+  entryFile: sync_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Счётчик: with self._lock: self._value += n; return self._value. Любое чтение и запись _value должны быть под одной и той же блокировкой."
+    - "increment_if_below: проверку value < limit и увеличение нужно выполнить внутри одного блока with self._lock, иначе между ними вклинится другой поток."
+    - "Конвейер: потребитель в цикле берёт job = q.get(); если job is None - выходит; иначе (i, x) = job, results[i] = transform(x) в try/except, ошибки складывает в словарь errors[i]."
+    - "Производитель (вызывающий поток): for job in enumerate(items): q.put(job) - блокируется на полной очереди. Затем workers раз q.put(None) и join всех потоков. После join: if errors: raise errors[min(errors)]; return results."
+  tests:
+    - id: counter-basic
+      title: SafeCounter - основные операции
+      hint: increment возвращает новое значение; value читает текущее.
+    - id: counter-uses-lock
+      title: Блокировка действительно используется
+      hint: Каждая операция должна брать блокировку, созданную через lock_factory, и отпускать её (в том числе при исключении).
+    - id: pipeline-basic
+      title: Конвейер - порядок результатов
+      hint: Результаты складывайте по индексу, а не в порядке завершения.
+    - id: counter-threads
+      title: Счётчик при 8 потоках (скрытый)
+      hidden: true
+      hint: Все 8000 приращений должны быть учтены; increment_if_below не должен превысить лимит ни при каком числе потоков.
+    - id: pipeline-bounded
+      title: Очередь ограничена (скрытый)
+      hidden: true
+      hint: Создайте queue.Queue(maxsize=capacity); размер очереди никогда не должен превышать capacity.
+    - id: pipeline-parallel-and-clean
+      title: Потребители работают одновременно и завершаются (скрытый)
+      hidden: true
+      hint: Запустите ровно workers потоков и дождитесь их через join; после возврата живых потоков быть не должно.
+    - id: pipeline-error
+      title: Исключение в transform (скрытый)
+      hidden: true
+      hint: Не прерывайте потребитель при ошибке - запишите её и продолжайте; поднимите ошибку с наименьшим индексом после join.
+challenge:
+  id: python.concurrency.threading-and-synchronization.challenge
+  title: Переводы без взаимной блокировки
+  prompt: |
+    В файле `bank_task.py` реализуйте `class Account` и функцию `transfer(src, dst, amount)`.
+
+    * `Account(id, balance)` - у объекта публичные атрибуты `id`, `balance` и `lock` (`threading.Lock()`).
+    * `transfer(src, dst, amount)` - переводит `amount` со счёта `src` на счёт `dst`. Должна быть потокобезопасной даже когда
+      параллельно выполняются `transfer(a, b, ...)` и `transfer(b, a, ...)`, поэтому блокировки обоих счетов нужно захватывать
+      **в порядке возрастания `id`**, независимо от направления перевода. Блокировки берутся через `with`.
+    * Если `src.balance < amount`, поднимите `ValueError("insufficient funds")` - баланс не меняется, блокировки освобождены.
+    * Перевод на тот же счёт (`src is dst`) допустим и ничего не меняет (блокировку при этом нужно брать один раз, иначе будет самоблокировка).
+    * `amount <= 0` - `ValueError`.
+  entryFile: bank_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Две блокировки нужно брать в одном и том же глобальном порядке. Подходит сортировка по id."
+    - "first, second = sorted((src, dst), key=lambda a: a.id). Для src is dst используйте одну блокировку."
+    - "Внутри обеих блокировок проверьте баланс, затем src.balance -= amount; dst.balance += amount. Исключение внутри with всё равно отпустит блокировки."
+  tests:
+    - id: transfer-basic
+      title: Простой перевод
+      hint: Баланс src уменьшается, dst увеличивается на сумму.
+    - id: lock-order
+      title: Порядок захвата по id
+      hint: Независимо от направления перевода первой берётся блокировка счёта с меньшим id.
+    - id: errors-release
+      title: Ошибки и освобождение блокировок (скрытый)
+      hint: После ValueError блокировки должны быть свободны, баланс не изменён.
+      hidden: true
+    - id: opposite-threads
+      title: Встречные переводы в потоках (скрытый)
+      hint: Суммарный баланс сохраняется, потоки не зависают.
+      hidden: true

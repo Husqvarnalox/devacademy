@@ -1,0 +1,198 @@
+id: python.concurrency.structured-concurrency-in-practice
+title: "Структурная конкурентность на практике: shutdown, потоки и отладка"
+goal: Проектировать асинхронные программы вокруг TaskGroup, корректно останавливать их, безопасно соединять потоки с event loop и находить проблемы с помощью режима отладки asyncio.
+difficulty: expert
+estimatedMinutes: 90
+prerequisites: [python.concurrency.async-sync-primitives, python.concurrency.cancellation-and-timeouts, python.concurrency.concurrent-futures]
+related: [python.concurrency.threading-and-synchronization]
+next: []
+objectives:
+  - "Объяснить принцип структурной конкурентности и его выгоды: время жизни задач ограничено блоком, ошибки не теряются."
+  - Спроектировать службу с воркерами в TaskGroup и корректным graceful shutdown по сигналу остановки.
+  - Вызывать корутины из других потоков через asyncio.run_coroutine_threadsafe и выносить блокирующий код через asyncio.to_thread.
+  - Построить мост между синхронным кодом и отдельным event loop в фоновом потоке.
+  - Включать режим отладки asyncio, читать предупреждения о медленных callback и необработанных корутинах.
+masteryCriteria:
+  - Вы можете показать, что после завершения блока async with TaskGroup не осталось незавершённых дочерних задач.
+  - Вы останавливаете службу так, что текущая работа завершается, а новая не начинается, и возвращаете необработанный остаток.
+  - Вы объясняете, почему asyncio-объекты нельзя трогать из чужого потока и какими функциями это делается правильно.
+tags: [python, asyncio, structured-concurrency, taskgroup, graceful-shutdown, run_coroutine_threadsafe, debug-mode, threads]
+facts:
+  - kind: real-world
+    text: >-
+      Структурная конкурентность - принцип, по которому порождённые задачи не живут дольше блока кода, который их создал, а ошибки дочерних задач гарантированно доходят до родителя.
+      В asyncio его реализует TaskGroup (Python 3.11+), в отличие от «огня и забвения» через create_task, где задачу можно потерять, а ошибку не заметить.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#task-groups
+  - kind: internals
+    text: >-
+      asyncio.run_coroutine_threadsafe(coro, loop) планирует корутину в цикле, работающем в другом потоке, и возвращает concurrent.futures.Future; вызов result() этого Future блокирует вызывающий поток.
+      Вызывать его из потока самого цикла и блокироваться на result() нельзя - это приведёт к взаимной блокировке. Обычные методы цикла небезопасны вне его потока; для коротких вызовов есть loop.call_soon_threadsafe.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#asyncio.run_coroutine_threadsafe
+      - https://docs.python.org/3/library/asyncio-dev.html#concurrency-and-multithreading
+  - kind: internals
+    text: >-
+      Режим отладки asyncio включается параметром asyncio.run(main(), debug=True), переменной окружения PYTHONASYNCIODEBUG=1 или режимом разработки python -X dev. В нём цикл логирует
+      (логгер asyncio) callback и шаги задач, выполняющиеся дольше loop.slow_callback_duration (по умолчанию 0.1 с), предупреждает о корутинах, которые не были ожидаемы, и об вызовах не из потока цикла.
+    sources:
+      - https://docs.python.org/3/library/asyncio-dev.html#debug-mode
+  - kind: real-world
+    text: >-
+      Начиная с Python 3.14, запущенный процесс с asyncio можно исследовать из командной строки: python -m asyncio ps PID выводит таблицу задач, а python -m asyncio pstree PID - дерево ожидающих корутин;
+      это помогает находить зависшие программы.
+    sources:
+      - https://docs.python.org/3/whatsnew/3.14.html
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: В чём главное преимущество TaskGroup перед «голым» create_task?
+      options:
+        - "Задачи работают быстрее"
+        - "Время жизни задач ограничено блоком async with, а их ошибки не теряются и приводят к отмене соседей"
+        - "TaskGroup создаёт потоки"
+        - "Преимуществ нет"
+      answer: 1
+      explanation: >-
+        Структурная конкурентность: после выхода из блока гарантированно нет дочерних задач, а ошибки дошли до родителя.
+    - id: q2
+      type: single
+      prompt: Как из обычного потока безопасно запустить корутину в event loop, работающем в другом потоке?
+      options:
+        - "asyncio.run(coro) в этом потоке: он подключится к чужому циклу"
+        - "asyncio.run_coroutine_threadsafe(coro, loop)"
+        - "loop.create_task(coro) напрямую из чужого потока"
+        - "await coro в обычной функции"
+      answer: 1
+      explanation: >-
+        run_coroutine_threadsafe потокобезопасно планирует корутину и возвращает concurrent.futures.Future. loop.create_task не потокобезопасен.
+    - id: q3
+      type: single
+      prompt: Что опасно сделать в корутине, работающей в потоке цикла, при использовании run_coroutine_threadsafe?
+      options:
+        - "Вызвать для того же цикла run_coroutine_threadsafe и сразу result() - получится взаимная блокировка"
+        - "Вызвать await"
+        - "Создать Task"
+        - "Ничего"
+      answer: 0
+      explanation: >-
+        result() блокирует поток цикла, и корутине, которую нужно выполнить в этом цикле, не дадут запуститься.
+    - id: q4
+      type: multiple
+      prompt: Что входит в graceful shutdown службы с воркерами? Выберите все верные.
+      options:
+        - "Перестать брать новую работу после сигнала остановки"
+        - "Дать завершиться текущей обработке"
+        - "Не потерять необработанные элементы: вернуть или сохранить остаток"
+        - "Немедленно убить процесс через os._exit"
+      answer: [0, 1, 2]
+      explanation: >-
+        Цель - предсказуемо остановиться: завершить начатое, не начинать новое, сохранить остаток. Жёсткий выход теряет работу и пропускает finally.
+    - id: q5
+      type: short
+      prompt: Какая переменная окружения включает режим отладки asyncio? (запишите PYTHONASYNCIODEBUG=1 или её имя)
+      answer: ["PYTHONASYNCIODEBUG", "PYTHONASYNCIODEBUG=1"]
+      explanation: >-
+        Также можно передать debug=True в asyncio.run или запустить интерпретатор с -X dev.
+exercise:
+  id: python.concurrency.structured-concurrency-in-practice.exercise
+  title: Мост между синхронным кодом и event loop
+  prompt: |
+    Реализуйте в файле `bridge.py` класс `AsyncBridge` - постоянный event loop в фоновом потоке, из которого синхронный код вызывает
+    корутины (шаблон для библиотек с синхронным API поверх асинхронного ядра).
+
+    * `start()` - запускает поток с именем `"async-bridge"` и **собственным** event loop (`asyncio.run` внутри потока) и дожидается, пока
+      цикл начнёт работать. Возвращает `self`. `__enter__` вызывает `start()`, `__exit__` вызывает `close()`.
+    * `run(coro_func, *args, timeout=None)` - вызывается из **любого** потока: выполняет `coro_func(*args)` в цикле моста через
+      `asyncio.run_coroutine_threadsafe`, блокируется до результата и возвращает его; исключение корутины пробрасывается вызывающему.
+      Если `timeout` истёк - корутина **отменяется** и поднимается `TimeoutError`. Если мост закрыт (или не запущен) - `RuntimeError`.
+      Вызов из потока самого моста - `RuntimeError` (иначе взаимная блокировка).
+    * `close()` - останавливает цикл, **отменяя** все ещё работающие корутины (их `finally` выполняются), и дожидается завершения потока.
+      Повторный `close()` ничего не делает. После `close()` поток не жив.
+
+    Подсказка: удобно, чтобы главная корутина потока ждала `asyncio.Event` и по `close()` его выставляли через `loop.call_soon_threadsafe`;
+    при выходе `asyncio.run` сам отменит оставшиеся задачи.
+  entryFile: bridge.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Поток: threading.Thread(target=self._thread_main, name='async-bridge'); _thread_main вызывает asyncio.run(self._main()). _main сохраняет self._loop = asyncio.get_running_loop(), создаёт self._stop = asyncio.Event(), выставляет threading.Event ready и ждёт await self._stop.wait()."
+    - "start() запускает поток и ждёт self._ready.wait(). Тогда self._loop гарантированно готов, когда start() вернёт управление."
+    - "run: fut = asyncio.run_coroutine_threadsafe(coro_func(*args), self._loop); try: return fut.result(timeout) except TimeoutError: fut.cancel(); raise. Проверки: закрыт ли мост, не из потока ли моста (threading.current_thread() is self._thread)."
+    - "close: if self._closed: return; self._closed = True; self._loop.call_soon_threadsafe(self._stop.set); self._thread.join(). Остановка главной корутины заставляет asyncio.run отменить и дождаться остальных задач."
+  tests:
+    - id: bridge-basic
+      title: run возвращает результат из потока моста
+      hint: Корутина выполняется в потоке async-bridge, а не в вызывающем.
+    - id: bridge-error
+      title: Исключение корутины доходит до вызывающего
+      hint: fut.result() повторно поднимает исключение корутины.
+    - id: bridge-concurrent
+      title: Параллельные вызовы из нескольких потоков
+      hint: Все вызовы идут в один цикл и выполняются конкурентно; run не должен держать глобальную блокировку на время выполнения корутины.
+    - id: bridge-closed
+      title: close - состояние после закрытия (скрытый)
+      hidden: true
+      hint: После close поток не жив, run поднимает RuntimeError, повторный close безопасен.
+    - id: bridge-timeout
+      title: timeout отменяет корутину (скрытый)
+      hidden: true
+      hint: После TimeoutError выполнить fut.cancel(); отмена дойдёт до корутины, и её finally сработает.
+    - id: bridge-shutdown-cancels
+      title: close отменяет работающие корутины (скрытый)
+      hidden: true
+      hint: "Не обрывайте поток насильно: пусть asyncio.run завершится и отменит оставшиеся задачи, затем join."
+    - id: bridge-reentrant
+      title: Вызов из потока моста запрещён (скрытый)
+      hidden: true
+      hint: Сравните threading.current_thread() с потоком моста и поднимите RuntimeError до run_coroutine_threadsafe.
+challenge:
+  id: python.concurrency.structured-concurrency-in-practice.challenge
+  title: Служба с graceful shutdown
+  prompt: |
+    В файле `service_task.py` реализуйте корутину `serve(queue, handler, workers, stop)`:
+
+    * `queue` - `asyncio.Queue` с работой, `handler` - `async def handler(item)`, `workers` - число воркеров,
+      `stop` - `asyncio.Event` сигнала остановки.
+    * Запустите `workers` воркеров в `asyncio.TaskGroup`. Каждый воркер: пока `stop` не выставлен - берёт элемент из очереди
+      и обрабатывает его `await handler(item)`. Если очередь пуста, воркер ждёт **либо** нового элемента, **либо** сигнала `stop`
+      (не опрашивайте очередь в цикле).
+    * Если `stop` уже выставлен, воркер **не берёт новых элементов**. Взятый элемент всегда обрабатывается до конца - его
+      обработку сигнал остановки не прерывает.
+    * Когда все воркеры вышли, `serve` возвращает пару `(processed, remaining)`: `processed` - список обработанных элементов
+      в порядке завершения обработки, `remaining` - список элементов, оставшихся в очереди, в порядке очереди.
+    * После `serve` не должно оставаться висящих задач (включая вспомогательные). Ошибки `handler` не перехватывайте: они
+      приводят к обычному поведению `TaskGroup` (`ExceptionGroup`).
+  entryFile: service_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Воркер: while not stop.is_set(): item = await next_item(); if item is STOP: break; await handler(item); processed.append(item)."
+    - "next_item ждёт сразу два события: getter = asyncio.ensure_future(queue.get()); waiter = asyncio.ensure_future(stop.wait()); await asyncio.wait({getter, waiter}, return_when=asyncio.FIRST_COMPLETED)."
+    - "В finally отмените waiter и (если не завершён) getter, иначе останутся висящие задачи. Если getter завершился - верните getter.result(); иначе верните STOP."
+    - "Остаток: после выхода воркеров вычерпайте очередь через get_nowait() до QueueEmpty и верните (processed, remaining)."
+  tests:
+    - id: serve-stop-signal
+      title: Сигнал остановки из обработчика
+      hint: После выставления stop новые обработки не начинаются, обработанные и оставшиеся элементы вместе дают исходный набор без повторов.
+    - id: serve-idle-stop
+      title: Остановка простаивающей службы
+      hint: Пустая очередь, воркеры ждут; stop должен их разбудить и завершить serve.
+    - id: serve-in-flight
+      title: Текущая обработка завершается (скрытый)
+      hidden: true
+      hint: После stop воркеры дорабатывают взятые элементы; serve не возвращается, пока те не завершены, остальные остаются в очереди по порядку.
+    - id: serve-stop-before-start
+      title: stop выставлен заранее (скрытый)
+      hidden: true
+      hint: Проверяйте stop.is_set() перед каждым взятием элемента, включая первое.
+    - id: serve-late-items
+      title: Элементы, поступившие позже (скрытый)
+      hidden: true
+      hint: Ожидающий воркер просыпается от нового элемента; задач не остаётся.

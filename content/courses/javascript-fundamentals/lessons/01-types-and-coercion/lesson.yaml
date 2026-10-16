@@ -1,0 +1,143 @@
+id: javascript.fundamentals.types-and-coercion
+title: "Типы и приведение типов"
+goal: "Предсказывать результат приведений типов в JavaScript и обращаться с NaN, -0 и большими числами без потери точности."
+difficulty: easy
+estimatedMinutes: 50
+prerequisites:
+  - javascript.first-steps.values-and-equality
+related:
+  - javascript.fundamentals.errors-and-exceptions
+next:
+  - javascript.fundamentals.scope-and-closures
+tags: [javascript, types, coercion, number, bigint]
+objectives:
+  - "Перечислить примитивные типы ECMAScript и отличить их от объектов."
+  - "Объяснить, что делают ToPrimitive, ToNumber и ToString, и в каком порядке вызываются valueOf и toString."
+  - "Предсказать результат + и == для значений разных типов."
+  - "Отличать NaN и -0 от обычных чисел и проверять их правильно (Number.isNaN, Object.is)."
+  - "Назвать границу точных целых Number.MAX_SAFE_INTEGER и применить BigInt там, где её недостаточно."
+masteryCriteria:
+  - "Вы без запуска вычисляете 1 + 2 + \"3\", +\"\" и [] == false."
+  - "Вы пишете функцию, различающую null, массив и NaN, не полагаясь на голый typeof."
+  - "Вы разбираете число из строки так, чтобы пустая строка и \"12px\" не превращались в число."
+  - "Вы складываете целые больше 2**53 через BigInt без потери точности."
+facts:
+  - kind: internals
+    text: "Приведения описаны в стандарте ECMAScript как абстрактные операции ToPrimitive, ToNumber, ToString, ToBoolean. Оператор == определён алгоритмом IsLooselyEqual: разные типы приводятся по фиксированной последовательности шагов."
+    sources:
+      - "https://tc39.es/ecma262/#sec-type-conversion"
+      - "https://tc39.es/ecma262/#sec-islooselyequal"
+  - kind: historical
+    text: "typeof null возвращает \"object\", хотя null является примитивным значением типа Null. MDN называет это ошибкой первой реализации языка, оставленной ради обратной совместимости."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof"
+  - kind: internals
+    text: "Тип number - 64-битное число двойной точности по IEEE 754. Number.MAX_SAFE_INTEGER равно 2^53 - 1 (9007199254740991): выше этого значения не каждое целое представимо точно."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER"
+  - kind: real-world
+    text: "BigInt нельзя передать в JSON.stringify (будет TypeError), а смешивание BigInt и number в арифметике запрещено. Большие идентификаторы в API поэтому обычно передают строками."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt"
+  - kind: misconception
+    text: "«Приведения в JavaScript случайны». На самом деле у них детерминированные правила из спецификации; странными кажутся их следствия, например [] + {} и [] == false."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Чему равно выражение 1 + 2 + \"3\"?"
+      options:
+        - "\"33\""
+        - "\"123\""
+        - "6"
+        - "NaN"
+      answer: 0
+      explanation: "Вычисление идёт слева направо: 1 + 2 даёт число 3, затем 3 + \"3\" - конкатенация, то есть строка \"33\"."
+    - id: q2
+      type: single
+      prompt: "Что вернёт typeof NaN?"
+      options:
+        - "\"NaN\""
+        - "\"undefined\""
+        - "\"number\""
+        - "\"object\""
+      answer: 2
+      explanation: "NaN - значение типа number (результат неудачной числовой операции), поэтому typeof даёт \"number\"."
+    - id: q3
+      type: multiple
+      prompt: "Какие из сравнений истинны?"
+      options:
+        - "null == undefined"
+        - "null == 0"
+        - "\"\" == 0"
+        - "NaN == NaN"
+        - "[2] == 2"
+      answer: [0, 2, 4]
+      explanation: "null == undefined истинно, но null не равен 0 через ==. Пустая строка приводится к 0. NaN не равен ничему, включая себя. Массив [2] через ToPrimitive становится строкой \"2\", затем числом 2."
+    - id: q4
+      type: short
+      prompt: "Что выведет console.log(9007199254740992 + 1)? Введите число."
+      answer:
+        - "9007199254740992"
+      explanation: "9007199254740992 - это 2**53. Следующее целое 2**53 + 1 непредставимо в double и округляется обратно до 2**53."
+    - id: q5
+      type: single
+      prompt: "Какое значение даёт Number(\"\")?"
+      options:
+        - "NaN"
+        - "0"
+        - "null"
+        - "TypeError"
+      answer: 1
+      explanation: "По правилам ToNumber пустая строка и строка из пробелов превращаются в 0, поэтому для разбора ввода одного Number недостаточно."
+exercise:
+  id: javascript.fundamentals.types-and-coercion.exercise
+  title: "Четыре ловушки типов"
+  prompt: |
+    В файле `types_task.mjs` четыре экспортируемые функции. Сейчас каждая из них наивна и ломается на граничных значениях. Реализуйте их по описанию.
+
+    * `typeOf(value)` - точное имя типа. Как `typeof`, но: `null` даёт `"null"`, массив - `"array"`, `NaN` - `"nan"`. Остальное - результат `typeof` (`"number"`, `"string"`, `"function"`, `"object"` для обычных объектов и т. д.).
+    * `toNumberStrict(text)` - строгий разбор числа. Возвращает **конечное число** или `null`. `null` получают: не-строки, пустая строка и строка из пробелов, `"12px"`, `"abc"`, `"NaN"`, `"Infinity"`. Пробелы по краям допустимы: `" 3.5 "` даёт `3.5`.
+    * `isNegativeZero(x)` - `true` только для числа `-0`.
+    * `bigSum(list)` - точная сумма целых, записанных строками (в том числе длиннее 2**53), результат тоже строка; для пустого массива `"0"`.
+
+    Проверка запускает ваш модуль и вызывает функции с набором значений. Часть тестов скрыта: в них граничные случаи.
+  entryFile: types_task.mjs
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.mjs
+  hints:
+    - "Начните с typeOf: до обычного typeof обработайте три особых случая - null, массив и NaN."
+    - "Для NaN используйте Number.isNaN(value), для массива - Array.isArray(value). Для toNumberStrict сначала проверьте typeof и trim() !== \"\", затем Number.isFinite."
+    - "isNegativeZero: Object.is(x, -0). Обычное x === 0 не отличает 0 от -0. Для bigSum превращайте каждую строку в BigInt(s) и складывайте через 0n."
+    - "Скелет bigSum: return list.reduce((sum, s) => sum + BigInt(s), 0n).toString(); а toNumberStrict: const s = text.trim(); if (s === \"\") return null; const n = Number(s); return Number.isFinite(n) ? n : null;"
+  tests:
+    - id: type-basic
+      title: "typeOf: обычные типы"
+      hint: "Для обычных значений подойдёт результат typeof; не ломайте его."
+    - id: parse-basic
+      title: "toNumberStrict: обычные строки"
+      hint: "Число с пробелами по краям - число; \"12px\" - null."
+    - id: neg-zero
+      title: "isNegativeZero: нули"
+      hint: "Object.is(x, -0) отличает -0 от 0."
+    - id: bigsum-basic
+      title: "bigSum: маленькие числа и пустой массив"
+      hint: "Начальное значение суммы 0n; результат переведите в строку."
+    - id: type-special
+      title: "typeOf: null, массив и NaN (скрытый)"
+      hidden: true
+      hint: "typeof null и typeof [] дают \"object\", typeof NaN - \"number\"; эти три случая проверьте раньше."
+    - id: parse-edge
+      title: "toNumberStrict: граничные строки (скрытый)"
+      hidden: true
+      hint: "Number(\"\") равно 0, а Number(\"Infinity\") - Infinity; не-строки тоже должны давать null."
+    - id: neg-zero-edge
+      title: "isNegativeZero: вычисленные нули (скрытый)"
+      hidden: true
+      hint: "Значение -0 может получиться из вычисления; строка \"-0\" и BigInt -0n числом -0 не являются."
+    - id: bigsum-large
+      title: "bigSum: числа за пределами 2**53 (скрытый)"
+      hidden: true
+      hint: "Складывайте BigInt, а не number; не используйте Number(s) для больших строк. Отрицательные строки допустимы."

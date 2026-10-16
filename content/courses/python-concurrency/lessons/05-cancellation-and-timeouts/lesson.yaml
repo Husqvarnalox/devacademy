@@ -1,0 +1,197 @@
+id: python.concurrency.cancellation-and-timeouts
+title: "Отмена, таймауты и ExceptionGroup"
+goal: Корректно отменять задачи asyncio, ограничивать время операций через asyncio.timeout, очищать ресурсы в finally и обрабатывать ошибки TaskGroup через except*.
+difficulty: hard
+estimatedMinutes: 80
+prerequisites: [python.concurrency.asyncio-basics]
+related: [python.concurrency.async-sync-primitives, python.advanced.context-managers]
+next: [python.concurrency.async-sync-primitives]
+objectives:
+  - Объяснить, как работает отмена в asyncio (CancelledError, точка await) и почему CancelledError нельзя глотать.
+  - Писать очистку ресурсов в try/finally, которая выполняется при отмене.
+  - Ограничивать время операции через asyncio.timeout и asyncio.wait_for и отличать таймаут от отмены извне.
+  - Защищать критичную операцию от отмены через asyncio.shield и понимать её ограничения.
+  - Описать, что делает TaskGroup при первой ошибке, и разбирать ExceptionGroup через except*.
+masteryCriteria:
+  - Вы пишете корутину, которая освобождает ресурсы при отмене и пробрасывает CancelledError дальше.
+  - Вы объясняете, чем TimeoutError от asyncio.timeout отличается от CancelledError, пришедшего извне.
+  - Вы обрабатываете несколько разнотипных ошибок из TaskGroup отдельными ветками except*.
+tags: [python, asyncio, cancellation, timeout, shield, taskgroup, exceptiongroup, except-star]
+facts:
+  - kind: internals
+    text: >-
+      Task.cancel() не прерывает задачу немедленно: он планирует поднятие CancelledError в точке, где задача ждёт (await). Задача может выполнить очистку в finally и должна
+      повторно поднять CancelledError. Документация asyncio прямо предупреждает: подавление CancelledError может сломать структурную конкурентность и таймауты
+      (asyncio.timeout и TaskGroup полагаются на отмену). Task.cancelled() возвращает True только если задача завершилась как отменённая.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#asyncio.Task.cancel
+      - https://docs.python.org/3/library/asyncio-exceptions.html#asyncio.CancelledError
+  - kind: historical
+    text: >-
+      asyncio.timeout() (асинхронный контекстный менеджер), asyncio.TaskGroup и ExceptionGroup с синтаксисом except* появились в Python 3.11; ExceptionGroup описан в PEP 654.
+      В Python 3.11 asyncio.TimeoutError стал псевдонимом встроенного TimeoutError.
+    sources:
+      - https://peps.python.org/pep-0654/
+      - https://docs.python.org/3/library/asyncio-task.html#timeouts
+      - https://docs.python.org/3/library/asyncio-task.html#task-groups
+  - kind: internals
+    text: >-
+      TaskGroup: если одна из задач группы завершилась ошибкой (кроме CancelledError), остальные задачи отменяются, группа дожидается их завершения и поднимает ExceptionGroup
+      со всеми ошибками. Если отменена сама задача, выполняющая async with TaskGroup, группа тоже отменяет дочерние задачи. CancelledError, ставшая результатом такой отмены, в группу ошибок не попадает.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#task-groups
+      - https://docs.python.org/3/library/exceptions.html#exception-groups
+  - kind: misconception
+    text: >-
+      «shield делает задачу неотменяемой». asyncio.shield(aw) защищает внутреннюю задачу от отмены, пришедшей во внешнюю корутину: ожидающий получит CancelledError,
+      а внутренняя работа продолжится. Но ссылку на внутреннюю задачу нужно сохранить, а её результат и исключения - обработать; при остановке цикла она всё равно прервётся.
+    sources:
+      - https://docs.python.org/3/library/asyncio-task.html#asyncio.shield
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Как правильно обработать CancelledError в корутине, которой нужно освободить ресурс?
+      options:
+        - "Поймать и вернуть None, чтобы отмена не прошла дальше"
+        - "Освободить ресурс в finally и дать CancelledError подняться дальше (или повторно поднять его)"
+        - "Игнорировать: asyncio сам освободит ресурсы"
+        - "Вызвать sys.exit()"
+      answer: 1
+      explanation: >-
+        Очистка в finally выполняется при любой отмене, а проброс CancelledError нужен, чтобы вызывающий код (и TaskGroup, и timeout) увидели отмену.
+    - id: q2
+      type: single
+      prompt: "Что поднимет выход из async with asyncio.timeout(0.1): когда операция внутри не уложилась во время?"
+      options:
+        - "CancelledError"
+        - "TimeoutError"
+        - "RuntimeError"
+        - "ничего, блок просто завершится"
+      answer: 1
+      explanation: >-
+        Внутри блока операция отменяется, а на выходе менеджер превращает эту отмену в TimeoutError. Отмена, пришедшая извне, остаётся CancelledError.
+    - id: q3
+      type: single
+      prompt: В TaskGroup одна задача упала с ValueError, остальные ещё работали. Что произойдёт?
+      options:
+        - "Остальные продолжат работу, ошибка будет поднята сразу"
+        - "Остальные будут отменены, группа дождётся их и поднимет ExceptionGroup с ValueError"
+        - "Ошибка будет проигнорирована"
+        - "Программа завершится без исключения"
+      answer: 1
+      explanation: >-
+        Это ключевое отличие от gather: структурная конкурентность не оставляет «осиротевших» задач.
+    - id: q4
+      type: multiple
+      prompt: Что верно про asyncio.shield? Выберите все верные.
+      options:
+        - "Внешний await получит CancelledError при отмене, а внутренняя задача продолжит выполняться"
+        - "Он делает задачу абсолютно неотменяемой"
+        - "Нужно сохранить ссылку на внутреннюю задачу и обработать её исход"
+        - "Он подходит для критичного завершающего шага, например фиксации транзакции"
+      answer: [0, 2, 3]
+      explanation: >-
+        shield разрывает связь отмены между ожидающим и внутренней задачей. Он не гарантирует выживание при остановке цикла и не отменяет обязанность обработать результат.
+    - id: q5
+      type: short
+      prompt: "Какое ключевое слово синтаксиса позволяет обработать часть исключений из ExceptionGroup по типу (форма except со звёздочкой)? (запишите: except*)"
+      answer: ["except*", "except *"]
+      explanation: >-
+        except* ValueError выбирает из группы только ValueError, остальные продолжат распространяться. Появилось в Python 3.11 (PEP 654).
+exercise:
+  id: python.concurrency.cancellation-and-timeouts.exercise
+  title: Таймаут, очистка и сбор ошибок
+  prompt: |
+    В файле `cancel_task.py` реализуйте четыре корутины (Python 3.11+).
+
+    1. `run_with_timeout(func, seconds)` - `func` это функция без аргументов, возвращающая корутину. Выполните её с ограничением по
+       времени (`asyncio.timeout`). Верните `("ok", результат)`, а при превышении времени - `("timeout", None)`; незавершённая операция
+       при этом должна быть отменена. Исключения самой `func` пробрасываются как есть, а **отмена извне** (CancelledError) не должна
+       превращаться в `"timeout"`.
+    2. `worker_with_cleanup(work, log)` - добавляет в `log` строку `"acquire"`, выполняет `await work()` и в любом случае (успех, ошибка,
+       отмена) добавляет `"release"`. Результат `work()` возвращается; ошибки и CancelledError не подавляются.
+    3. `cancel_and_wait(task)` - отменяет задачу и дожидается её завершения. Возвращает `True`, если задача завершилась **как отменённая**,
+       иначе `False` (она уже была завершена или не поддалась отмене). Само исключение CancelledError наружу не выходит.
+    4. `collect_errors(funcs)` - запускает все `func()` (функции без аргументов, возвращающие корутины) в `asyncio.TaskGroup` и возвращает
+       словарь `{имя типа исключения: количество}` по всем упавшим задачам (ключи в алфавитном порядке); пустой словарь, если ошибок
+       нет. Отменённые из-за чужой ошибки задачи в результат не входят.
+
+    ```python
+    await run_with_timeout(lambda: asyncio.sleep(0, "x"), 1)       # ('ok', 'x')
+    await run_with_timeout(lambda: asyncio.sleep(10), 0.01)        # ('timeout', None)
+    ```
+  entryFile: cancel_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "run_with_timeout: try: async with asyncio.timeout(seconds): return 'ok', await func() except TimeoutError: return 'timeout', None. CancelledError ловить не нужно."
+    - "worker_with_cleanup: log.append('acquire'); try: return await work() finally: log.append('release'). finally выполняется и при CancelledError, а исключение продолжит подниматься само."
+    - "cancel_and_wait: task.cancel(); try: await task except asyncio.CancelledError: pass; return task.cancelled(). Для уже завершённой задачи cancel() ничего не меняет, а cancelled() вернёт False."
+    - "collect_errors: try: async with asyncio.TaskGroup() as tg: for f in funcs: tg.create_task(f()) except* Exception as group: ... ; в group.exceptions лежат ошибки (без CancelledError). Считайте через collections.Counter по type(e).__name__ и верните dict(sorted(counter.items()))."
+  tests:
+    - id: timeout-basic
+      title: run_with_timeout - успех и таймаут
+      hint: Успех возвращает ('ok', значение), превышение времени - ('timeout', None).
+    - id: cleanup-normal-cancel
+      title: worker_with_cleanup - успех и отмена
+      hint: release записывается и при успехе, и при отмене; при отмене задача заканчивается отменённой.
+    - id: cancel-and-wait-basic
+      title: cancel_and_wait - ожидающая задача
+      hint: После возврата задача должна быть завершена (task.done()) и отменена.
+    - id: timeout-details
+      title: run_with_timeout - очистка, ошибки, отмена извне (скрытый)
+      hidden: true
+      hint: Внутренняя операция отменяется и выполняет finally; свои исключения не превращаются в таймаут; внешний cancel не маскируется под 'timeout'.
+    - id: cleanup-errors
+      title: worker_with_cleanup - ошибка в work (скрытый)
+      hidden: true
+      hint: Исключение work пробрасывается наружу, release всё равно записывается; никаких except Exception вокруг.
+    - id: cancel-edge
+      title: cancel_and_wait - завершённая и упрямая задачи (скрытый)
+      hidden: true
+      hint: Для уже завершённой задачи - False; если задача подавила отмену и вернула значение - тоже False.
+    - id: collect-errors
+      title: collect_errors (скрытый)
+      hidden: true
+      hint: except* Exception получает ExceptionGroup; считайте типы ошибок в group.exceptions, отменённые соседи в неё не попадают.
+challenge:
+  id: python.concurrency.cancellation-and-timeouts.challenge
+  title: Фиксация, которую нельзя прервать
+  prompt: |
+    В файле `commit_task.py` реализуйте корутину `shielded_commit(commit, log)`. `commit` - функция без аргументов, возвращающая
+    корутину фиксации транзакции.
+
+    * Фиксация запускается как отдельная задача и защищается `asyncio.shield`: если задачу, выполняющую `shielded_commit`, отменили,
+      фиксация **всё равно доводится до конца**.
+    * Если отмены не было, результат `commit()` возвращается, а его ошибки пробрасываются.
+    * Если пришла отмена: дождитесь завершения фиксации, затем добавьте в `log` строку `"cancelled after commit"` и **повторно поднимите**
+      `CancelledError`. Задача, выполнявшая `shielded_commit`, должна завершиться как отменённая.
+    * Внутреннюю задачу фиксации сама отмена не затрагивает (`inner.cancelled()` остаётся `False`).
+  entryFile: commit_task.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Создайте внутреннюю задачу: inner = asyncio.ensure_future(commit()). Ожидайте её через asyncio.shield(inner)."
+    - "try: return await asyncio.shield(inner) except asyncio.CancelledError: ... - сюда вы попадёте при отмене внешней задачи; inner при этом продолжает работать."
+    - "В обработчике: await inner (дождаться фиксации), затем log.append('cancelled after commit') и raise."
+  tests:
+    - id: commit-normal
+      title: Без отмены
+      hint: Результат commit() возвращается как есть; ошибка commit() пробрасывается.
+    - id: commit-survives-cancel
+      title: Отмена не прерывает фиксацию
+      hint: После cancel внешняя задача ещё не завершена, пока фиксация не закончится; в журнале - committed, затем cancelled after commit.
+    - id: inner-not-cancelled
+      title: Внутренняя задача не отменяется (скрытый)
+      hidden: true
+      hint: asyncio.shield не пробрасывает отмену внутрь - не ожидайте inner напрямую до обработки отмены.
+    - id: commit-error
+      title: Ошибка фиксации без отмены (скрытый)
+      hidden: true
+      hint: Ошибка commit() доходит до вызывающего кода без изменений.

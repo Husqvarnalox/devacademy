@@ -1,0 +1,155 @@
+id: python.concurrency.async-sync-primitives
+title: "asyncio: Lock, Semaphore, Queue и обратное давление"
+goal: Использовать примитивы asyncio для защиты критических секций, ограничения числа одновременных операций и построения конвейеров с очередью и воркерами.
+difficulty: hard
+estimatedMinutes: 80
+prerequisites: [python.concurrency.cancellation-and-timeouts, python.concurrency.threading-and-synchronization]
+related: [python.concurrency.concurrent-futures]
+next: [python.concurrency.structured-concurrency-in-practice]
+objectives:
+  - Объяснить, зачем нужен asyncio.Lock, если все задачи работают в одном потоке (критическая секция, пересекающая await).
+  - Ограничивать число одновременных операций через asyncio.Semaphore и измерять достигнутую конкурентность счётчиками.
+  - Строить конвейер с asyncio.Queue и фиксированным числом воркеров; использовать join и task_done.
+  - Объяснить обратное давление (backpressure) и роль maxsize у очереди.
+  - Знать, что asyncio-примитивы не потокобезопасны и связаны с одним event loop.
+masteryCriteria:
+  - Вы можете показать на примере, как две корутины теряют обновление, если между чтением и записью есть await, и исправить это Lock.
+  - Вы пишете краулер или клиента с ограничением параллелизма и проверяете лимит счётчиком в тесте.
+  - Вы корректно останавливаете воркеров очереди после обработки всех элементов.
+tags: [python, asyncio, lock, semaphore, queue, backpressure, workers, rate-limiting]
+facts:
+  - kind: misconception
+    text: >-
+      «В asyncio нет гонок, потому что поток один». Переключение происходит на каждом await, поэтому если между чтением и записью общего состояния есть await,
+      другая задача успеет вклиниться. Код между двумя await атомарен относительно других задач цикла, но не относительно того, что происходит во время ожидания.
+    sources:
+      - https://docs.python.org/3/library/asyncio-sync.html
+      - https://docs.python.org/3/library/asyncio-dev.html
+  - kind: internals
+    text: >-
+      Примитивы asyncio (Lock, Semaphore, Event, Condition, Queue) не потокобезопасны и не предназначены для использования из других потоков; они привязываются к event loop,
+      в котором используются. Для потоков есть threading и queue. Мост между потоками и циклом - loop.call_soon_threadsafe и asyncio.run_coroutine_threadsafe.
+    sources:
+      - https://docs.python.org/3/library/asyncio-sync.html
+      - https://docs.python.org/3/library/asyncio-dev.html#concurrency-and-multithreading
+  - kind: real-world
+    text: >-
+      asyncio.Queue(maxsize=N) блокирует put, когда в очереди N элементов, - это естественное обратное давление: быстрый производитель замедляется до скорости потребителей.
+      Очередь без maxsize (по умолчанию 0) неограничена и при отставании потребителей растёт без предела. join() ждёт, пока на каждый put будет вызван task_done.
+    sources:
+      - https://docs.python.org/3/library/asyncio-queue.html
+  - kind: historical
+    text: >-
+      Начиная с Python 3.13 у asyncio.Queue есть метод shutdown() (по аналогии с queue.Queue.shutdown), поднимающий QueueShutDown. Для универсального кода остаются актуальными sentinel и отмена воркеров.
+    sources:
+      - https://docs.python.org/3/library/asyncio-queue.html#asyncio.Queue.shutdown
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: Зачем asyncio.Lock, если все корутины выполняются в одном потоке?
+      options:
+        - "Незачем: однопоточный код не имеет гонок"
+        - "Чтобы защитить критическую секцию, внутри которой есть await, ведь на await управление переходит другим задачам"
+        - "Чтобы синхронизировать потоки"
+        - "Чтобы ускорить цикл"
+      answer: 1
+      explanation: >-
+        Атомарно только то, что выполняется между двумя await. Если секция «прочитал - await - записал» пересекает await, другая задача вмешается.
+    - id: q2
+      type: single
+      prompt: Что делает asyncio.Semaphore(3) в краулере?
+      options:
+        - "Не пускает больше трёх задач в защищённый блок одновременно, остальные ждут"
+        - "Запускает три потока"
+        - "Ограничивает общее число запросов тремя"
+        - "Отменяет четвёртую задачу"
+      answer: 0
+      explanation: >-
+        Семафор ограничивает одновременность, а не общее количество: как только одна задача выйдет из async with sem, следующая войдёт.
+    - id: q3
+      type: single
+      prompt: Зачем задавать maxsize у asyncio.Queue?
+      options:
+        - "Чтобы put блокировал производителя, когда потребители не успевают, и память не росла"
+        - "Чтобы очередь стала потокобезопасной"
+        - "Чтобы get возвращал элементы в обратном порядке"
+        - "Это обязательный параметр"
+      answer: 0
+      explanation: >-
+        Это обратное давление. Без maxsize очередь неограниченна.
+    - id: q4
+      type: multiple
+      prompt: Какие шаги нужны, чтобы корректно завершить пул воркеров над asyncio.Queue? Выберите все верные.
+      options:
+        - "Вызывать task_done() после обработки каждого элемента"
+        - "Дождаться await queue.join()"
+        - "После join отменить воркеров, которые бесконечно ждут get()"
+        - "Вызвать time.sleep, пока очередь не опустеет"
+      answer: [0, 1, 2]
+      explanation: >-
+        join ждёт, пока на каждый put придёт task_done. После этого воркеры блокируются на get() и должны быть отменены (или остановлены sentinel). time.sleep блокирует цикл.
+    - id: q5
+      type: short
+      prompt: Какой метод очереди ожидает, пока все помещённые элементы будут обработаны (по task_done)? (имя метода)
+      answer: ["join", "join()"]
+      explanation: >-
+        await queue.join() возвращается, когда счётчик необработанных элементов станет нулевым.
+exercise:
+  id: python.concurrency.async-sync-primitives.exercise
+  title: Краулер с лимитом и воркеры над очередью
+  prompt: |
+    В файле `crawler.py` реализуйте три компонента. Сетевых вызовов нет: `fetch` и `handler` - асинхронные функции, которые передаёт тест.
+
+    1. `AsyncCounter` - счётчик с `async def add(n=1)`, который **читает** значение, делает `await asyncio.sleep(0)` (имитация
+       ввода-вывода между чтением и записью) и **записывает** `значение + n`, возвращая новое значение. В заготовке есть гонка:
+       10 конкурентных `add(1)` дают `1`, а не `10`. Исправьте её через `asyncio.Lock`, не убирая `await`.
+    2. `crawl(urls, fetch, max_concurrency)` - конкурентно вызывает `await fetch(url)` для каждого адреса, но **не более**
+       `max_concurrency` вызовов одновременно (`asyncio.Semaphore`). Возвращает словарь `url -> результат` с ключами в порядке `urls`.
+       Если `fetch` бросил `Exception`, значением становится это исключение (остальные продолжают работу).
+       `max_concurrency < 1` - `ValueError`.
+    3. `run_workers(items, handler, workers, queue_size)` - конвейер: производитель кладёт пары `(индекс, элемент)` в
+       `asyncio.Queue(maxsize=queue_size)` (именно `asyncio.Queue`), `workers` воркеров вызывают `await handler(элемент)`. Возвращает список
+       результатов в порядке `items`; ошибка `handler` (Exception) записывается на место результата как объект исключения. После
+       обработки всех элементов воркеры должны быть остановлены (в конце не остаётся живых задач).
+
+    ```python
+    results = await crawl(["a", "b"], fetch, 2)    # {'a': ..., 'b': ...}
+    await run_workers([1, 2, 3], handler, 2, 1)    # [h(1), h(2), h(3)]
+    ```
+  entryFile: crawler.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "AsyncCounter: создайте self._lock = asyncio.Lock() в __init__ и оберните всё тело add (чтение, sleep, запись) в async with self._lock."
+    - "crawl: sem = asyncio.Semaphore(max_concurrency); внутри вспомогательной корутины async with sem: try: return await fetch(url) except Exception as exc: return exc. Запустите все через TaskGroup и соберите результаты по порядку urls."
+    - "run_workers: queue = asyncio.Queue(maxsize=queue_size); воркер: while True: i, item = await queue.get(); try: results[i] = await handler(item) except Exception as exc: results[i] = exc finally: queue.task_done()."
+    - "Производитель: for job in enumerate(items): await queue.put(job). Затем await queue.join(), потом отмените задачи воркеров (task.cancel()); если воркеры созданы внутри TaskGroup, выход из блока дождётся их отмены."
+  tests:
+    - id: counter-fixed
+      title: AsyncCounter - гонка исправлена
+      hint: Чтение, sleep и запись должны быть внутри одного async with lock.
+    - id: crawl-basic
+      title: crawl - результаты в порядке urls
+      hint: Ключи словаря идут в порядке входного списка, даже если fetch завершались в другом порядке.
+    - id: workers-basic
+      title: run_workers - результаты в порядке items
+      hint: Результат кладите по индексу, а не в порядке завершения.
+    - id: crawl-limit
+      title: crawl - лимит конкурентности (скрытый)
+      hidden: true
+      hint: Пик одновременных fetch равен ровно max_concurrency (не больше и не меньше, если адресов достаточно).
+    - id: crawl-errors
+      title: crawl - ошибки и аргументы (скрытый)
+      hidden: true
+      hint: Ошибка fetch сохраняется как значение; max_concurrency < 1 даёт ValueError.
+    - id: workers-bounded
+      title: run_workers - очередь ограничена (скрытый)
+      hidden: true
+      hint: asyncio.Queue(maxsize=queue_size); размер очереди никогда не превышает queue_size.
+    - id: workers-concurrency
+      title: run_workers - ровно workers одновременных обработчиков, ошибки, чистое завершение (скрытый)
+      hidden: true
+      hint: Запускайте workers воркеров; ошибки handler складывайте в результат; после join отмените воркеров.
