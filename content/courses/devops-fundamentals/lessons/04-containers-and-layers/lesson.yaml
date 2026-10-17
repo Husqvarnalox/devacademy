@@ -1,0 +1,492 @@
+id: "devops.fundamentals.containers-and-layers"
+title: "Контейнеры: образы, слои и инвалидация кеша"
+goal: "Объяснять устройство образа контейнера из слоёв, определять по Dockerfile и набору изменений, какие слои пересоберутся, и применять практики .dockerignore, многоступенчатой сборки, непривилегированного пользователя и закреплённых базовых образов."
+difficulty: "medium"
+estimatedMinutes: 100
+prerequisites:
+  - "devops.fundamentals.build-pipelines-as-dags"
+related:
+  - "os.fundamentals.processes-and-system-calls"
+  - "security.fundamentals.secrets-and-dependencies"
+  - "os.fundamentals.file-systems"
+next:
+  - "devops.fundamentals.configuration-and-secrets"
+seeAlso:
+  - "Оркестрация контейнеров (Kubernetes) и сети контейнеров"
+  - "Изоляция на уровне ядра: пространства имён (namespaces) и cgroups подробно"
+  - "Кеш BuildKit с внешним хранилищем, монтирование кеша (RUN --mount=type=cache) и сборка для нескольких платформ"
+objectives:
+  - "Объяснить, что образ - упорядоченный набор неизменяемых слоёв файловой системы плюс метаданные, а контейнер - запущенный процесс над образом с изоляцией."
+  - "Сформулировать правило инвалидации кеша: слой переиспользуется, только если не изменились инструкция, входные файлы (для COPY и ADD) и все предыдущие слои."
+  - "Упорядочить инструкции Dockerfile так, чтобы редко меняющееся (манифесты зависимостей) шло раньше часто меняющегося (исходники)."
+  - "Описать роль .dockerignore, многоступенчатой сборки, непривилегированного пользователя и закреплённых версий базовых образов."
+  - "Реализовать симулятор кеша слоёв: по списку инструкций и изменённым файлам определить, что пересоберётся."
+masteryCriteria:
+  - "Вы знаете, что изменение одного слоя пересобирает все следующие в этой стадии, даже если им файлы не нужны."
+  - "Вы ставите COPY с манифестом зависимостей и установку зависимостей до COPY всего исходного кода."
+  - "Вы понимаете, что файлы, исключённые .dockerignore, не попадают в контекст сборки и не инвалидируют COPY."
+  - "Вы объясняете, что COPY --from берёт файлы из другой стадии и пересобирается, когда эта стадия изменилась."
+  - "Вы понимаете, что симулятор упрощён: настоящий кеш сравнивает хеши содержимого, учитывает ARG, режимы файлов и поведение базового образа."
+tags:
+  - "devops"
+  - "docker"
+  - "containers"
+  - "layers"
+  - "build-cache"
+  - "dockerignore"
+  - "multi-stage"
+  - "non-root"
+facts:
+  - kind: "real-world"
+    text: "Документация Docker описывает правило кеша слоёв: если слой изменился, все следующие слои тоже пересобираются; для COPY и ADD проверяются контрольные суммы копируемых файлов. Поэтому в Dockerfile редко меняющиеся шаги размещают раньше часто меняющихся."
+    sources:
+      - "https://docs.docker.com/build/cache/"
+  - kind: "real-world"
+    text: "Файл .dockerignore, лежащий в корне контекста сборки, исключает перечисленные пути из контекста, отправляемого сборщику: это ускоряет сборку и не даёт секретам и локальным артефактам попасть в образ. Шаблоны используют синтаксис, близкий к filepath.Match в Go, и поддерживают ** для любого числа каталогов."
+    sources:
+      - "https://docs.docker.com/build/concepts/context/#dockerignore-files"
+  - kind: "security"
+    text: "Многоступенчатая сборка позволяет собрать приложение в образе с компилятором, а затем скопировать (COPY --from) в итоговый минимальный образ только результат. Итоговый образ меньше и содержит меньше поверхности атаки: нет компиляторов, менеджеров пакетов, исходников."
+    sources:
+      - "https://docs.docker.com/build/building/multi-stage/"
+  - kind: "security"
+    text: "Рекомендации Docker по сборке: закреплять версии базовых образов (а для воспроизводимости - дайджест), не запускать процесс от root (инструкция USER с числовым идентификатором) и не передавать секреты через ARG или ENV, поскольку они сохраняются в истории слоёв."
+    sources:
+      - "https://docs.docker.com/build/building/best-practices/"
+  - kind: "misconception"
+    text: "«Контейнер - это лёгкая виртуальная машина»: контейнер разделяет ядро хоста и изолирован средствами этого ядра (пространства имён и cgroups), а не отдельным ядром, поэтому его безопасность и совместимость определяются хостовым ядром."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему COPY requirements.txt и установка зависимостей ставятся раньше COPY . ?"
+      options:
+        - "Так требует синтаксис Dockerfile"
+        - "Слой с зависимостями остаётся в кеше, пока не изменился requirements.txt, даже если меняется исходный код"
+        - "Так образ получается меньше"
+        - "Это ускоряет запуск контейнера"
+      answer: 1
+      explanation: "Порядок определяет, что инвалидирует кеш: частая правка исходников не должна заставлять заново ставить зависимости."
+    - id: "q2"
+      type: "numeric"
+      prompt: "В Dockerfile 6 инструкций; изменился текст четвёртой, предыдущая сборка была полностью в кеше. Сколько инструкций пересоберётся (одно число)?"
+      answer: 3
+      tolerance: 0
+      explanation: "Четвёртая, пятая и шестая: инвалидированный слой и все после него."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие практики уменьшают риск и размер итогового образа? Выберите все верные утверждения."
+      options:
+        - "Многоступенчатая сборка с копированием только результата"
+        - "Запуск процесса от непривилегированного пользователя"
+        - "Использование тега latest для базового образа"
+        - "Передача пароля через ARG"
+      answer:
+        - 0
+        - 1
+      explanation: "latest нарушает воспроизводимость, а ARG и ENV остаются в истории слоёв."
+    - id: "q4"
+      type: "single"
+      prompt: "Что делает .dockerignore?"
+      options:
+        - "Запрещает запуск контейнера"
+        - "Исключает пути из контекста сборки, отправляемого сборщику"
+        - "Удаляет слои из кеша"
+        - "Скрывает переменные окружения"
+      answer: 1
+      explanation: "Исключённые файлы не попадают в контекст и не влияют на кеш COPY."
+    - id: "q5"
+      type: "single"
+      prompt: "Контейнер в отличие от виртуальной машины:"
+      options:
+        - "Имеет собственное ядро"
+        - "Разделяет ядро хоста и изолируется его средствами"
+        - "Не может иметь собственную файловую систему"
+        - "Всегда запускается от root без ограничений"
+      answer: 1
+      explanation: "Изоляция обеспечивается пространствами имён и cgroups одного ядра."
+exercise:
+  id: "devops.fundamentals.containers-and-layers.exercise"
+  title: "Симулятор кеша слоёв Docker"
+  prompt: |
+    Напишите в `main.py` симулятор кеша слоёв. Используйте только стандартную библиотеку.
+
+    **Ввод.** Сначала инструкции Dockerfile по одной в строке (пустые строки и строки, начинающиеся с `#`, пропускайте; продолжений строк нет), затем строка `---`. Инструкции нумеруются с единицы. После `---` идут команды (пустые строки пропускайте):
+
+    * `IGNORE <шаблон>...` - добавить шаблоны `.dockerignore` (действуют на все следующие сборки);
+    * `EDIT <n> <новый текст инструкции>` - заменить инструкцию `n` (учитывается в следующей сборке `BUILD`);
+    * `BUILD [файл...]` - выполнить сборку; перечислены файлы контекста, изменённые **с предыдущей сборки**.
+
+    **Шаблоны `.dockerignore`** (только три формы): `**/*.ext` - любой файл с таким расширением на любой глубине; `*.ext` - файл с таким расширением **только в корне** контекста (в пути нет `/`); иначе шаблон - путь: он исключает файл с этим путём и всё внутри каталога с этим именем (конечный `/` в шаблоне не важен).
+
+    **Правило кеша.** Исключённые файлы отбрасываются из списка изменений. Первая сборка не использует кеш: все инструкции `REBUILT`. Дальше инструкция `REBUILT`, если:
+
+    1. её текст изменён командой `EDIT` перед этой сборкой, или
+    2. инструкция в стадии стоит после уже пересобранной (цепочка стадии «грязная»), или
+    3. это `COPY`/`ADD` с источником из контекста, и изменённый (неисключённый) файл равен источнику или лежит внутри него (источник `.` или `./` - любой файл), или
+    4. это `COPY --from=<стадия> ...` и в этой сборке в указанной стадии пересобралась хотя бы одна инструкция. Стадия задаётся именем (`FROM ... AS имя`, регистр не важен) или номером с нуля.
+
+    Иначе `CACHED`. Каждая инструкция `FROM` начинает новую стадию с чистой цепочкой (сама `FROM` пересобирается по правилам 1 и первой сборки). Источники в `COPY` - слова между флагами `--...` и последним словом (назначением); подстановочных знаков в источниках нет.
+
+    **Вывод для каждой сборки:**
+
+    ```
+    build <номер>
+    context=<неисключённые изменённые файлы через запятую в порядке ввода или ->
+    <n> <REBUILT|CACHED> <текст инструкции>
+    ...
+    rebuilt=<число пересобранных>/<всего инструкций> layers=<сколько пересобранных из них RUN, COPY или ADD>
+    ```
+
+    **Пример.** Для `FROM python:3.12-slim`, `COPY requirements.txt /app/`, `RUN pip install -r requirements.txt`, `COPY . /app` вторая сборка `BUILD app.py` пересоберёт только `COPY . /app`: `rebuilt=1/4 layers=1`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Читайте ввод до строки '---' как список инструкций; затем обрабатывайте команды: IGNORE накапливает шаблоны, EDIT меняет instr[n-1] и запоминает номер, BUILD печатает отчёт. После BUILD очистите множество правок и пометьте, что кеш уже есть."
+    - "Пока идёте по инструкциям, храните флаг dirty (после первой пересобранной инструкции стадии все следующие тоже REBUILT) и словарь «стадия -> пересобиралось ли что-то». FROM обнуляет dirty и заводит новую стадию; имя из FROM ... AS имя запоминайте в нижнем регистре."
+    - "COPY/ADD: разберите слова, пропуская флаги --...; значение --from= - стадия. Без --from: источники - все слова кроме последнего; файл попадает под источник, если f == s.rstrip('/') или f.startswith(s.rstrip('/') + '/'), а '.' и './' задевают любой файл. С --from: REBUILT, если в той стадии уже что-то пересобралось."
+    - "Исключение файла: шаблон '**/*.ext' -> path.endswith('.ext'); шаблон '*.ext' -> '/' not in path и endswith('.ext'); иначе p.rstrip('/') совпадает с путём или является его каталогом-префиксом (path.startswith(p + '/')). Не принимайте за префикс 'node_modules_like' для 'node_modules'."
+  tests:
+    - id: "sample"
+      title: "Порядок инструкций важен для кеша"
+      stdin: |
+        FROM python:3.12-slim
+        WORKDIR /app
+        COPY requirements.txt /app/
+        RUN pip install -r requirements.txt
+        COPY . /app
+        CMD ["python", "app.py"]
+        ---
+        BUILD
+        BUILD app.py
+        BUILD requirements.txt
+        BUILD
+      expected: |
+        build 1
+        context=-
+        1 REBUILT FROM python:3.12-slim
+        2 REBUILT WORKDIR /app
+        3 REBUILT COPY requirements.txt /app/
+        4 REBUILT RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=6/6 layers=3
+        build 2
+        context=app.py
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=2/6 layers=1
+        build 3
+        context=requirements.txt
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 REBUILT COPY requirements.txt /app/
+        4 REBUILT RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=4/6 layers=3
+        build 4
+        context=-
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 CACHED COPY . /app
+        6 CACHED CMD ["python", "app.py"]
+        rebuilt=0/6 layers=0
+      compare: "trim"
+      hint: "Первая сборка всё собирает. Изменение app.py задевает только COPY . /app (и CMD после него); requirements.txt задевает оба COPY и RUN между ними."
+    - id: "dockerignore"
+      title: "Файлы из .dockerignore не инвалидируют COPY"
+      stdin: |
+        FROM python:3.12-slim
+        WORKDIR /app
+        COPY requirements.txt /app/
+        RUN pip install -r requirements.txt
+        COPY . /app
+        CMD ["python", "app.py"]
+        ---
+        IGNORE .git/ *.md **/*.log
+        BUILD
+        BUILD README.md docs/notes.log .git/HEAD
+        BUILD notes.md src/app.py
+      expected: |
+        build 1
+        context=-
+        1 REBUILT FROM python:3.12-slim
+        2 REBUILT WORKDIR /app
+        3 REBUILT COPY requirements.txt /app/
+        4 REBUILT RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=6/6 layers=3
+        build 2
+        context=-
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 CACHED COPY . /app
+        6 CACHED CMD ["python", "app.py"]
+        rebuilt=0/6 layers=0
+        build 3
+        context=src/app.py
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=2/6 layers=1
+      compare: "trim"
+      hint: "README.md в корне исключён шаблоном *.md, docs/notes.log - шаблоном **/*.log, .git/HEAD - каталогом .git/: контекст пуст, всё CACHED. notes.md тоже исключён, src/app.py - нет."
+    - id: "edit-instruction"
+      title: "Изменение текста инструкции сбрасывает цепочку"
+      stdin: |
+        FROM python:3.12-slim
+        WORKDIR /app
+        COPY requirements.txt /app/
+        RUN pip install -r requirements.txt
+        COPY . /app
+        CMD ["python", "app.py"]
+        ---
+        BUILD
+        EDIT 4 RUN pip install --no-cache-dir -r requirements.txt
+        BUILD
+        BUILD
+      expected: |
+        build 1
+        context=-
+        1 REBUILT FROM python:3.12-slim
+        2 REBUILT WORKDIR /app
+        3 REBUILT COPY requirements.txt /app/
+        4 REBUILT RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=6/6 layers=3
+        build 2
+        context=-
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 REBUILT RUN pip install --no-cache-dir -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=3/6 layers=2
+        build 3
+        context=-
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install --no-cache-dir -r requirements.txt
+        5 CACHED COPY . /app
+        6 CACHED CMD ["python", "app.py"]
+        rebuilt=0/6 layers=0
+      compare: "trim"
+      hint: "Изменённая инструкция 4 и всё после неё пересобираются; инструкции до неё остаются в кеше. Следующая сборка без правок целиком из кеша."
+    - id: "multi-stage"
+      title: "Многоступенчатая сборка и COPY --from"
+      stdin: |
+        FROM golang:1.23 AS build
+        WORKDIR /src
+        COPY go.mod go.sum ./
+        RUN go mod download
+        COPY . .
+        RUN go build -o /out/app ./cmd/app
+        FROM debian:bookworm-slim
+        COPY --from=build /out/app /usr/local/bin/app
+        USER 10001
+        CMD ["app"]
+        ---
+        BUILD
+        BUILD cmd/app/main.go
+        BUILD go.mod
+        BUILD go.sum cmd/app/main.go
+      expected: |
+        build 1
+        context=-
+        1 REBUILT FROM golang:1.23 AS build
+        2 REBUILT WORKDIR /src
+        3 REBUILT COPY go.mod go.sum ./
+        4 REBUILT RUN go mod download
+        5 REBUILT COPY . .
+        6 REBUILT RUN go build -o /out/app ./cmd/app
+        7 REBUILT FROM debian:bookworm-slim
+        8 REBUILT COPY --from=build /out/app /usr/local/bin/app
+        9 REBUILT USER 10001
+        10 REBUILT CMD ["app"]
+        rebuilt=10/10 layers=5
+        build 2
+        context=cmd/app/main.go
+        1 CACHED FROM golang:1.23 AS build
+        2 CACHED WORKDIR /src
+        3 CACHED COPY go.mod go.sum ./
+        4 CACHED RUN go mod download
+        5 REBUILT COPY . .
+        6 REBUILT RUN go build -o /out/app ./cmd/app
+        7 CACHED FROM debian:bookworm-slim
+        8 REBUILT COPY --from=build /out/app /usr/local/bin/app
+        9 REBUILT USER 10001
+        10 REBUILT CMD ["app"]
+        rebuilt=5/10 layers=3
+        build 3
+        context=go.mod
+        1 CACHED FROM golang:1.23 AS build
+        2 CACHED WORKDIR /src
+        3 REBUILT COPY go.mod go.sum ./
+        4 REBUILT RUN go mod download
+        5 REBUILT COPY . .
+        6 REBUILT RUN go build -o /out/app ./cmd/app
+        7 CACHED FROM debian:bookworm-slim
+        8 REBUILT COPY --from=build /out/app /usr/local/bin/app
+        9 REBUILT USER 10001
+        10 REBUILT CMD ["app"]
+        rebuilt=7/10 layers=5
+        build 4
+        context=go.sum,cmd/app/main.go
+        1 CACHED FROM golang:1.23 AS build
+        2 CACHED WORKDIR /src
+        3 REBUILT COPY go.mod go.sum ./
+        4 REBUILT RUN go mod download
+        5 REBUILT COPY . .
+        6 REBUILT RUN go build -o /out/app ./cmd/app
+        7 CACHED FROM debian:bookworm-slim
+        8 REBUILT COPY --from=build /out/app /usr/local/bin/app
+        9 REBUILT USER 10001
+        10 REBUILT CMD ["app"]
+        rebuilt=7/10 layers=5
+      compare: "trim"
+      hidden: true
+      hint: "Правка исходников пересобирает стадию build с шага COPY . . и затем COPY --from=build; FROM второй стадии остаётся в кеше."
+    - id: "ignore-forms"
+      title: "Три формы шаблонов"
+      stdin: |
+        FROM python:3.12-slim
+        WORKDIR /app
+        COPY requirements.txt /app/
+        RUN pip install -r requirements.txt
+        COPY . /app
+        CMD ["python", "app.py"]
+        ---
+        IGNORE node_modules *.md **/*.pyc tmp/
+        BUILD
+        BUILD node_modules/x/y.js docs/guide.md src/a.pyc tmp/cache.bin
+        BUILD docs/guide.md notes.md src/a.py
+        BUILD src/node_modules_like.txt
+      expected: |
+        build 1
+        context=-
+        1 REBUILT FROM python:3.12-slim
+        2 REBUILT WORKDIR /app
+        3 REBUILT COPY requirements.txt /app/
+        4 REBUILT RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=6/6 layers=3
+        build 2
+        context=docs/guide.md
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=2/6 layers=1
+        build 3
+        context=docs/guide.md,src/a.py
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=2/6 layers=1
+        build 4
+        context=src/node_modules_like.txt
+        1 CACHED FROM python:3.12-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY requirements.txt /app/
+        4 CACHED RUN pip install -r requirements.txt
+        5 REBUILT COPY . /app
+        6 REBUILT CMD ["python", "app.py"]
+        rebuilt=2/6 layers=1
+      compare: "trim"
+      hidden: true
+      hint: "*.md исключает только файлы в корне (docs/guide.md не исключён); шаблон node_modules исключает каталог и всё внутри, но не файл src/node_modules_like.txt."
+    - id: "copy-subdir"
+      title: "COPY отдельного каталога и точечных файлов"
+      stdin: |
+        FROM node:22-slim
+        WORKDIR /app
+        COPY package.json package-lock.json /app/
+        RUN npm ci
+        COPY src /app/src
+        COPY public /app/public
+        RUN npm run build
+        ---
+        BUILD
+        BUILD public/logo.svg
+        BUILD src/index.js
+        BUILD package-lock.json
+        BUILD srcfoo/index.js README.md
+      expected: |
+        build 1
+        context=-
+        1 REBUILT FROM node:22-slim
+        2 REBUILT WORKDIR /app
+        3 REBUILT COPY package.json package-lock.json /app/
+        4 REBUILT RUN npm ci
+        5 REBUILT COPY src /app/src
+        6 REBUILT COPY public /app/public
+        7 REBUILT RUN npm run build
+        rebuilt=7/7 layers=5
+        build 2
+        context=public/logo.svg
+        1 CACHED FROM node:22-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY package.json package-lock.json /app/
+        4 CACHED RUN npm ci
+        5 CACHED COPY src /app/src
+        6 REBUILT COPY public /app/public
+        7 REBUILT RUN npm run build
+        rebuilt=2/7 layers=2
+        build 3
+        context=src/index.js
+        1 CACHED FROM node:22-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY package.json package-lock.json /app/
+        4 CACHED RUN npm ci
+        5 REBUILT COPY src /app/src
+        6 REBUILT COPY public /app/public
+        7 REBUILT RUN npm run build
+        rebuilt=3/7 layers=3
+        build 4
+        context=package-lock.json
+        1 CACHED FROM node:22-slim
+        2 CACHED WORKDIR /app
+        3 REBUILT COPY package.json package-lock.json /app/
+        4 REBUILT RUN npm ci
+        5 REBUILT COPY src /app/src
+        6 REBUILT COPY public /app/public
+        7 REBUILT RUN npm run build
+        rebuilt=5/7 layers=5
+        build 5
+        context=srcfoo/index.js,README.md
+        1 CACHED FROM node:22-slim
+        2 CACHED WORKDIR /app
+        3 CACHED COPY package.json package-lock.json /app/
+        4 CACHED RUN npm ci
+        5 CACHED COPY src /app/src
+        6 CACHED COPY public /app/public
+        7 CACHED RUN npm run build
+        rebuilt=0/7 layers=0
+      compare: "trim"
+      hidden: true
+      hint: "Источник src совпадает с путями src/... и самим src, но не с srcfoo/...; RUN npm run build после COPY пересобирается всегда вместе с ними."

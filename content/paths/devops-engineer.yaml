@@ -1,0 +1,10 @@
+id: devops-engineer
+title: DevOps-инженер (основы)
+description: "Путь к основам DevOps. Сначала «Основы Python», затем «Основы DevOps»: метрики DORA и CI/CD, семантическое версионирование, конвейеры как графы, слои и кеш контейнеров, конфигурация и секреты, canary и blue-green выпуски, SLO и бюджет ошибок, повторы и размыкатель цепи. Всё моделируется на Python без запуска настоящих Docker и Kubernetes; оркестрация и инфраструктура как код пока не входят."
+goal: general
+targets: [devops-fundamentals]
+stages:
+  - title: Python core
+    courses: [python-fundamentals]
+  - title: Основы DevOps
+    courses: [devops-fundamentals]

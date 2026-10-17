@@ -1,0 +1,249 @@
+id: "devops.fundamentals.deployment-strategies"
+title: "Стратегии развёртывания: rolling, blue-green, canary и откат"
+goal: "Сравнивать стратегии выпуска (пересоздание, rolling, blue-green, canary), понимать их компромиссы по риску, стоимости и скорости отката и моделировать канареечный выпуск с автоматическим решением о продвижении или откате."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "devops.fundamentals.configuration-and-secrets"
+related:
+  - "system-design.fundamentals.load-balancing-and-consistent-hashing"
+  - "system-design.fundamentals.consistency-and-idempotency"
+next:
+  - "devops.fundamentals.observability-and-slos"
+seeAlso:
+  - "Флаги функций (feature flags) как отделение развёртывания от включения функции"
+  - "Совместимость схем баз данных при выпуске (expand/contract миграции)"
+  - "Автоматический канареечный анализ статистическими тестами, а не пороговыми правилами"
+objectives:
+  - "Описать стратегии развёртывания: пересоздание (recreate), rolling update, blue-green и canary."
+  - "Сравнить их по риску для пользователей, времени простоя, требуемым ресурсам и скорости отката."
+  - "Объяснить, зачем нужны проверки готовности и ограничение скорости в rolling update."
+  - "Сформулировать канареечное правило: сравнивать долю ошибок канарейки с базовой версией и с абсолютным порогом при достаточном объёме данных."
+  - "Реализовать контроллер канареечного выпуска с решениями HOLD, PROMOTE, ROLLBACK и COMPLETE."
+masteryCriteria:
+  - "Вы объясняете, что blue-green даёт мгновенный откат ценой удвоенных ресурсов, а canary ограничивает охват ошибки долей трафика."
+  - "Вы не принимаете решение о канарейке по малой выборке: при недостатке запросов ждёте (HOLD)."
+  - "Вы сравниваете канарейку и базовую версию в один и тот же период, а не с вчерашним днём."
+  - "Вы используете точную арифметику долей (Fraction или целые числа) при сравнении порогов."
+  - "Вы знаете, что откат кода не откатывает данные: несовместимые миграции схемы делают откат опасным."
+tags:
+  - "devops"
+  - "deployment"
+  - "rolling-update"
+  - "blue-green"
+  - "canary"
+  - "rollback"
+  - "release"
+facts:
+  - kind: "real-world"
+    text: "Kubernetes по умолчанию выполняет rolling update: поды новой версии создаются постепенно, а старые удаляются по мере их готовности; параметры maxUnavailable и maxSurge ограничивают, сколько подов можно отключить или добавить сверх желаемого числа. Готовность определяется readiness-пробой."
+    sources:
+      - "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment"
+  - kind: "real-world"
+    text: "Blue-green развёртывание держит две идентичные среды: пользователи работают с одной (blue), новая версия выкладывается во вторую (green), затем трафик переключается. Откат - обратное переключение. Мартин Фаулер отмечает, что сложности создают общая база данных и долгие сессии."
+    sources:
+      - "https://martinfowler.com/bliki/BlueGreenDeployment.html"
+  - kind: "real-world"
+    text: "Канареечный выпуск (canary release) направляет новую версию сначала небольшой доле пользователей, чтобы обнаружить проблемы до полного развёртывания; название идёт от канареек в шахтах."
+    sources:
+      - "https://martinfowler.com/bliki/CanaryRelease.html"
+  - kind: "misconception"
+    text: "«Откат всегда безопасен»: возврат старой версии кода не возвращает записанные новой версией данные и не отменяет миграции схемы. Поэтому изменения схемы делают совместимыми с обеими версиями (сначала расширение, потом переход, потом сжатие)."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какая стратегия даёт самый быстрый откат ценой удвоенных ресурсов?"
+      options:
+        - "Recreate"
+        - "Rolling update"
+        - "Blue-green"
+        - "Ручная правка на сервере"
+      answer: 2
+      explanation: "Старая среда остаётся работающей; откат - переключение трафика обратно."
+    - id: "q2"
+      type: "single"
+      prompt: "Что ограничивает охват пользователей при ошибке в новой версии в канареечном выпуске?"
+      options:
+        - "Размер образа"
+        - "Доля трафика, направленная на канарейку"
+        - "Число веток в Git"
+        - "Время сборки"
+      answer: 1
+      explanation: "Пока канарейка получает, например, 5% трафика, ошибка затрагивает не больше 5% запросов."
+    - id: "q3"
+      type: "numeric"
+      prompt: "Канарейка получила 400 запросов, из них 10 с ошибками. Базовая версия: 20000 запросов, 100 ошибок. Допустимо max(1%, 2 x доля базовой версии). Сколько процентов составляет допустимая доля (одно число)?"
+      answer: 1
+      tolerance: 0
+      explanation: "Базовая доля 0.5%, удвоенная 1%; абсолютный порог тоже 1%; максимум 1%. Доля канарейки 2.5% превышает его: откат."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему при малом числе запросов у канарейки решение откладывают (HOLD)?"
+      options:
+        - "Чтобы не нагружать сервер"
+        - "Малая выборка даёт шумную оценку доли ошибок: один сбой выглядит как огромный процент"
+        - "Так требует Kubernetes"
+        - "Это ускоряет выпуск"
+      answer: 1
+      explanation: "Статистически значимое решение требует достаточно данных."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что может сделать откат кода небезопасным? Выберите все верные утверждения."
+      options:
+        - "Новая версия уже записала данные в новом формате"
+        - "Применена несовместимая миграция схемы"
+        - "Старый образ удалён из реестра"
+        - "Прошло меньше часа"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Откат требует и кода, и совместимых данных; время само по себе не мешает."
+exercise:
+  id: "devops.fundamentals.deployment-strategies.exercise"
+  title: "Контроллер канареечного выпуска"
+  prompt: |
+    Напишите в `main.py` контроллер канареечного выпуска. Используйте только стандартную библиотеку; для точного сравнения долей подойдёт `fractions.Fraction` (в заготовке он уже импортирован).
+
+    **Ввод.** Строки конфигурации (в любом порядке) и далее окна наблюдения; пустые строки пропускайте:
+
+    * `STEPS <p1> <p2> ... <pk>` - доли трафика канарейки по шагам в процентах (по возрастанию, последняя обычно 100);
+    * `MIN_REQUESTS <n>` - минимальное число запросов канарейки в окне для принятия решения;
+    * `ABS_FLOOR_PERMILLE <n>` - абсолютный порог доли ошибок в промилле (10 = 1%);
+    * `FACTOR <n>` - целый множитель относительного порога;
+    * окно: четыре целых `<req_base> <err_base> <req_canary> <err_canary>` - запросы и ошибки у базовой версии и у канарейки за одно окно.
+
+    Выпуск начинается на шаге 1 (`p1`). Окна применяются по порядку к **текущему** шагу.
+
+    **Решение для окна** (запросы `req_canary`, ошибки `err_canary`):
+
+    1. `req_canary < MIN_REQUESTS` -> `HOLD` (остаёмся на шаге);
+    2. `base = err_base / req_base` (0, если `req_base = 0`); `allowed = max(ABS_FLOOR_PERMILLE / 1000, FACTOR * base)`; если `err_canary / req_canary > allowed` (строго) -> `ROLLBACK`: выпуск остановлен;
+    3. иначе, если шаг не последний -> `PROMOTE` на следующий шаг, а на последнем -> `COMPLETE`.
+
+    После `ROLLBACK` или `COMPLETE` оставшиеся окна не используются.
+
+    **Вывод.** Для каждого использованного окна строка `window <номер с 1> step=<процент текущего шага> <РЕШЕНИЕ>`; при `PROMOTE` в конце добавляется ` next=<процент следующего шага>`. Затем итог:
+
+    ```
+    result=<IN_PROGRESS|COMPLETE|ROLLED_BACK> weight=<процент трафика канарейки в конце> unused_windows=<число неиспользованных окон>
+    ```
+
+    `weight`: `0` после отката, последний шаг после `COMPLETE`, иначе текущий шаг.
+
+    **Пример.** `STEPS 5 25`, `MIN_REQUESTS 100`, `ABS_FLOOR_PERMILLE 10`, `FACTOR 2` и окна `1000 5 200 1`, `1000 5 200 6` дают `window 1 step=5 PROMOTE next=25`, `window 2 step=25 ROLLBACK` (3% > max(1%, 1%)) и `result=ROLLED_BACK weight=0 unused_windows=0`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Разберите вход: STEPS даёт список процентов, три числовые настройки - в словарь, остальные непустые строки - окна из четырёх int. Состояние: индекс шага idx и статус IN_PROGRESS."
+    - "Для окна: если req_canary < MIN_REQUESTS - печатайте HOLD и переходите к следующему окну. Иначе base = Fraction(err_base, req_base) при req_base > 0, иначе Fraction(0); allowed = max(Fraction(floor, 1000), FACTOR * base); сравнивайте Fraction(err_canary, req_canary) > allowed."
+    - "ROLLBACK ставит статус ROLLED_BACK; на последнем шаге успешное окно даёт COMPLETE, иначе idx += 1 и PROMOTE next=steps[idx]. Печатайте процент ТЕКУЩЕГО шага до продвижения. Как только статус не IN_PROGRESS - прекращайте обработку."
+    - "Итоговая строка: weight = 0 для ROLLED_BACK, steps[-1] для COMPLETE, иначе steps[idx]. unused_windows - число окон, к которым цикл не дошёл (если все окна использованы, то 0); считайте номер последнего использованного окна, включая HOLD."
+  tests:
+    - id: "sample"
+      title: "Успешная канарейка проходит все шаги"
+      stdin: |
+        STEPS 5 25 50 100
+        MIN_REQUESTS 200
+        ABS_FLOOR_PERMILLE 10
+        FACTOR 2
+        10000 20 500 2
+        10000 20 2500 10
+        10000 20 5000 12
+        10000 20 10000 25
+      expected: |
+        window 1 step=5 PROMOTE next=25
+        window 2 step=25 PROMOTE next=50
+        window 3 step=50 PROMOTE next=100
+        window 4 step=100 COMPLETE
+        result=COMPLETE weight=100 unused_windows=0
+      compare: "trim"
+      hint: "Частота у канарейки не превышает max(1%, 2 x частота базовой версии = 0.4%) = 1%, поэтому каждое окно продвигает на следующий шаг; на 100% - COMPLETE."
+    - id: "rollback"
+      title: "Откат при высокой доле ошибок"
+      stdin: |
+        STEPS 5 25 50 100
+        MIN_REQUESTS 200
+        ABS_FLOOR_PERMILLE 10
+        FACTOR 2
+        10000 20 500 2
+        10000 20 2500 100
+        10000 20 5000 5
+      expected: |
+        window 1 step=5 PROMOTE next=25
+        window 2 step=25 ROLLBACK
+        result=ROLLED_BACK weight=0 unused_windows=1
+      compare: "trim"
+      hint: "Во втором окне 100/2500 = 4% > 1%: ROLLBACK, дальнейшие окна не используются, вес возвращается к 0."
+    - id: "hold-then-promote"
+      title: "Мало запросов: ждём, а не решаем"
+      stdin: |
+        STEPS 5 25 50 100
+        MIN_REQUESTS 200
+        ABS_FLOOR_PERMILLE 10
+        FACTOR 2
+        10000 20 100 50
+        10000 20 199 0
+        10000 20 200 2
+      expected: |
+        window 1 step=5 HOLD
+        window 2 step=5 HOLD
+        window 3 step=5 PROMOTE next=25
+        result=IN_PROGRESS weight=25 unused_windows=0
+      compare: "trim"
+      hint: "Менее 200 запросов у канарейки - HOLD, даже если ошибок много (50 из 100): данных недостаточно для вывода. Ровно 200 уже достаточно."
+    - id: "relative-threshold"
+      title: "Относительный порог выше абсолютного"
+      stdin: |
+        STEPS 10 100
+        MIN_REQUESTS 100
+        ABS_FLOOR_PERMILLE 10
+        FACTOR 3
+        10000 500 1000 140
+        10000 500 1000 151
+      expected: |
+        window 1 step=10 PROMOTE next=100
+        window 2 step=100 ROLLBACK
+        result=ROLLED_BACK weight=0 unused_windows=0
+      compare: "trim"
+      hidden: true
+      hint: "Базовая доля 5%, допустимо max(1%, 3 x 5% = 15%) = 15%: 140/1000 = 14% проходит, 151/1000 = 15.1% - откат."
+    - id: "baseline-clean"
+      title: "Чистая базовая версия: действует абсолютный порог"
+      stdin: |
+        STEPS 5 25 50 100
+        MIN_REQUESTS 200
+        ABS_FLOOR_PERMILLE 10
+        FACTOR 2
+        5000 0 300 3
+        5000 0 300 4
+        5000 0 0 0
+      expected: |
+        window 1 step=5 PROMOTE next=25
+        window 2 step=25 ROLLBACK
+        result=ROLLED_BACK weight=0 unused_windows=1
+      compare: "trim"
+      hidden: true
+      hint: "При нулевой базовой ошибке допустимо 1%: 3/300 = 1% проходит (порог нестрогий), 4/300 > 1% - откат; последнее окно не используется."
+    - id: "in-progress"
+      title: "Данные закончились на середине"
+      stdin: |
+        STEPS 5 25 50 100
+        MIN_REQUESTS 200
+        ABS_FLOOR_PERMILLE 10
+        FACTOR 2
+        10000 20 1000 5
+        10000 20 1000 6
+        10000 20 50 0
+      expected: |
+        window 1 step=5 PROMOTE next=25
+        window 2 step=25 PROMOTE next=50
+        window 3 step=50 HOLD
+        result=IN_PROGRESS weight=50 unused_windows=0
+      compare: "trim"
+      hidden: true
+      hint: "Два шага пройдены (дошли до 50%), третье окно содержит мало запросов - HOLD; результат IN_PROGRESS с весом 50."

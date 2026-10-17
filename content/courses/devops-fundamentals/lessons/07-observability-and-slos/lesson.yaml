@@ -1,0 +1,470 @@
+id: "devops.fundamentals.observability-and-slos"
+title: "Наблюдаемость: логи, метрики, трассировка, SLI, SLO и бюджет ошибок"
+goal: "Различать три сигнала наблюдаемости, считать перцентили задержки и доступность по структурным логам, формулировать SLI и SLO, вычислять остаток бюджета ошибок и описывать алерты с задержкой for."
+difficulty: "hard"
+estimatedMinutes: 120
+prerequisites:
+  - "devops.fundamentals.deployment-strategies"
+related:
+  - "devops.fundamentals.deployment-strategies"
+  - "system-design.fundamentals.requirements-and-estimation"
+  - "python.stdlib.json-csv-struct"
+next:
+  - "devops.fundamentals.reliability-and-circuit-breakers"
+seeAlso:
+  - "Гистограммы Prometheus и квантили: приближения внутри корзин (в курсе используется точный nearest-rank на сырых данных)"
+  - "Распределённая трассировка: контекст распространения, выборка (sampling), OpenTelemetry"
+  - "Алертинг по скорости сжигания бюджета (burn rate) с несколькими окнами"
+objectives:
+  - "Различать логи, метрики и трассировки и объяснять, на какие вопросы отвечает каждый сигнал."
+  - "Определить SLI, SLO и бюджет ошибок и связать их: бюджет = 1 - SLO."
+  - "Вычислить перцентили задержки методом nearest-rank и объяснить, почему среднее скрывает хвосты распределения."
+  - "Посчитать доступность и остаток бюджета ошибок по журналу запросов."
+  - "Описать алерт со временем ожидания for и состояниями inactive, pending, firing и реализовать вычислитель правила."
+masteryCriteria:
+  - "Вы отличаете хорошее событие от плохого для SLI доступности (ответы 5xx плохие, 4xx - ошибка клиента, а не сервиса)."
+  - "Вы считаете перцентиль по правилу nearest-rank: ранг = ceil(p x n / 100), значение - элемент отсортированного списка с этим рангом."
+  - "Вы понимаете, что SLO 99.9% на 1000 запросов допускает 1 плохой запрос, и умеете вычислить остаток бюджета, в том числе отрицательный."
+  - "Вы объясняете, зачем нужен for: он не даёт алерту срабатывать на кратковременный всплеск и разделяет шум и проблему."
+  - "Вы устойчивы к плохим данным: некорректные записи журнала считаются и пропускаются, а не роняют отчёт."
+tags:
+  - "devops"
+  - "observability"
+  - "logs"
+  - "metrics"
+  - "traces"
+  - "sli"
+  - "slo"
+  - "error-budget"
+  - "percentiles"
+  - "alerting"
+  - "prometheus"
+facts:
+  - kind: "real-world"
+    text: "Книга Google SRE определяет SLI (service level indicator) как количественную меру аспекта уровня обслуживания (задержка, доля ошибок, пропускная способность), SLO - как целевое значение или диапазон значений SLI, а бюджет ошибок - как допустимую долю плохих событий, равную единице минус SLO."
+    sources:
+      - "https://sre.google/sre-book/service-level-objectives/"
+  - kind: "real-world"
+    text: "В Prometheus правило оповещения с полем for переводит алерт в состояние pending, когда выражение впервые истинно, и в firing, когда оно остаётся истинным не менее заданного времени. Если выражение становится ложным в состоянии pending, алерт возвращается в inactive."
+    sources:
+      - "https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/"
+  - kind: "misconception"
+    text: "Средняя задержка скрывает хвост: если 99 запросов выполняются за 10 мс, а один за 5 секунд, среднее около 60 мс, но пользователь, попавший в хвост, ждёт 5 секунд. Поэтому SLO по задержке формулируют перцентилями (p95, p99)."
+    sources:
+      - "https://sre.google/sre-book/monitoring-distributed-systems/"
+  - kind: "internals"
+    text: "Метод nearest-rank для перцентиля: упорядочить значения по возрастанию и взять элемент с рангом ceil(p/100 x n). Результат всегда является одним из наблюдённых значений; другие методы (линейная интерполяция) дают промежуточные значения."
+    sources:
+      - "https://en.wikipedia.org/wiki/Percentile#The_nearest-rank_method"
+  - kind: "real-world"
+    text: "Документация OpenTelemetry выделяет три основных сигнала телеметрии: трассировки, метрики и логи. Метрики агрегируют числа во времени, логи - записи событий, трассировки показывают путь одного запроса через сервисы."
+    sources:
+      - "https://opentelemetry.io/docs/concepts/signals/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой сигнал лучше всего показывает путь одного запроса через несколько сервисов?"
+      options:
+        - "Метрики"
+        - "Трассировки"
+        - "Только логи сервера"
+        - "Загрузка процессора"
+      answer: 1
+      explanation: "Трассировка связывает операции одного запроса в разных сервисах."
+    - id: "q2"
+      type: "numeric"
+      prompt: "SLO доступности 99.9% за месяц. Сколько плохих запросов допускает бюджет ошибок на 2 000 000 запросов (одно число)?"
+      answer: 2000
+      tolerance: 0
+      explanation: "Бюджет 0.1% от 2 000 000 = 2000."
+    - id: "q3"
+      type: "numeric"
+      prompt: "Отсортированные задержки: 5 7 9 11 13 15 17 19 21 23 (n = 10). Чему равен p90 по nearest-rank?"
+      answer: 21
+      tolerance: 0
+      explanation: "Ранг ceil(0.9 x 10) = 9, девятый элемент - 21."
+    - id: "q4"
+      type: "single"
+      prompt: "Что делает ключ for: 5m в правиле оповещения?"
+      options:
+        - "Задаёт период опроса"
+        - "Требует, чтобы условие оставалось истинным 5 минут до срабатывания (firing)"
+        - "Отключает алерт на 5 минут после срабатывания"
+        - "Удаляет метрики старше 5 минут"
+      answer: 1
+      explanation: "До истечения времени алерт находится в состоянии pending."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что верно про среднюю задержку и перцентили? Выберите все верные утверждения."
+      options:
+        - "Среднее может скрывать редкие очень долгие запросы"
+        - "p99 описывает задержку, которую 99% запросов не превышают"
+        - "Средние можно усреднять по сервисам, получая корректный p99"
+        - "Для пользователей важен хвост распределения"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Перцентили нельзя усреднять между сервисами: p99 общего набора не равен среднему из p99."
+exercise:
+  id: "devops.fundamentals.observability-and-slos.exercise"
+  title: "Отчёт по журналу: перцентили, доступность и бюджет ошибок"
+  prompt: |
+    Напишите в `main.py` анализатор структурного журнала. Используйте только стандартную библиотеку. В заготовке есть функция `fixed(value, places)` для округления `Fraction` half-up.
+
+    **Ввод.** Первая строка: `SLO <процент>`, например `SLO 99.9` (десятичная запись, разбирайте через `Fraction`). Далее строки журнала - JSON-объекты, например `{"ts": 3, "route": "/b", "status": 500, "latency_ms": 250}`. Пустые строки пропускайте.
+
+    **Корректная запись** - JSON-объект, в котором `status` и `latency_ms` - **целые** числа JSON (не строки, не дробные, не `true`/`false`), `100 <= status <= 599`, `latency_ms >= 0`. Всё остальное (не JSON, не объект, нет поля, неверный тип или диапазон) считается `malformed` и не участвует в расчётах.
+
+    **Определения:**
+
+    * хорошее событие - `status < 500`; плохое - `status >= 500`;
+    * перцентили задержки `p50`, `p95`, `p99` по **nearest-rank**: значения по возрастанию, `rank = ceil(p * n / 100)`, перцентиль - значение с рангом `rank` (нумерация с 1; если ранг получился меньше 1, возьмите 1);
+    * доступность = хорошие / все корректные, в процентах, три знака;
+    * `budget_requests = n * (1 - SLO/100)` (точная дробь), два знака; `consumed = плохие / budget_requests * 100`, два знака (`inf`, если бюджет равен нулю, а плохие есть; `0.00`, если бюджет равен нулю и плохих нет); `remaining = budget_requests - плохие`, два знака, может быть отрицательным.
+
+    **Вывод:**
+
+    ```
+    requests=<n корректных> malformed=<m>
+    latency_ms p50=<..> p95=<..> p99=<..>
+    availability=<..>%
+    slo=<процент из ввода>% budget_requests=<..> bad=<..> consumed=<..>% remaining=<..>
+    status=<OK|BUDGET_EXHAUSTED>
+    ```
+
+    `status=OK`, если плохих не больше `budget_requests`, иначе `BUDGET_EXHAUSTED`. Если корректных записей нет, напечатайте только первую строку и `status=NO_DATA`.
+
+    **Пример.** Для `SLO 99` и десяти корректных записей, среди которых одна с `status 500`, выводится `bad=1`, `budget_requests=0.10`, `consumed=1000.00%`, `remaining=-0.90` и `status=BUDGET_EXHAUSTED`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Для каждой непустой строки после первой: json.loads в try/except ValueError (сюда попадают и обрывки, и мусор). Затем проверьте isinstance(rec, dict) и для status и latency_ms: isinstance(v, int) and not isinstance(v, bool)."
+    - "Перцентиль: отсортируйте задержки, rank = -(-p * n // 100) (целочисленный ceil), берите lat[max(rank, 1) - 1]. Для n = 1 все три перцентиля равны единственному значению."
+    - "Точные доли: slo = Fraction('99.9') / 100; budget = n * (1 - slo); availability = Fraction(good, n) * 100. Выводите через fixed(..., 3) и fixed(..., 2); никаких float и round. Для budget == 0 обработайте consumed отдельно."
+    - "Не забудьте: status=OK при bad <= budget, иначе BUDGET_EXHAUSTED; remaining = budget - bad может быть отрицательным (fixed сохраняет минус). Если n == 0 после фильтра, печатайте первую строку и 'status=NO_DATA' и завершайтесь."
+  tests:
+    - id: "sample"
+      title: "Отчёт по небольшому журналу"
+      stdin: |
+        SLO 99
+        {"ts": 1, "route": "/a", "status": 200, "latency_ms": 12}
+        {"ts": 2, "route": "/a", "status": 200, "latency_ms": 18}
+        {"ts": 3, "route": "/b", "status": 500, "latency_ms": 250}
+        {"ts": 4, "route": "/a", "status": 201, "latency_ms": 15}
+        {"ts": 5, "route": "/a", "status": 404, "latency_ms": 9}
+        {"ts": 6, "route": "/b", "status": 200, "latency_ms": 31}
+        {"ts": 7, "route": "/a", "status": 200, "latency_ms": 22}
+        {"ts": 8, "route": "/b", "status": 200, "latency_ms": 40}
+        {"ts": 9, "route": "/a", "status": 200, "latency_ms": 14}
+        {"ts": 10, "route": "/a", "status": 200, "latency_ms": 11}
+      expected: |
+        requests=10 malformed=0
+        latency_ms p50=15 p95=250 p99=250
+        availability=90.000%
+        slo=99% budget_requests=0.10 bad=1 consumed=1000.00% remaining=-0.90
+        status=BUDGET_EXHAUSTED
+      compare: "trim"
+      hint: "Статус 404 - не ошибка сервера (хорошее событие); плохой только 500. nearest-rank: rank = ceil(p * n / 100), для p95 и n = 10 это 10-е значение."
+    - id: "malformed"
+      title: "Битые строки не ломают отчёт"
+      stdin: |
+        SLO 99.9
+        {"status": 200, "latency_ms": 10}
+        not json at all
+        {"status": "200", "latency_ms": 10}
+        {"status": 200, "latency_ms": 10.5}
+        {"status": true, "latency_ms": 10}
+        {"status": 200}
+        [1, 2, 3]
+        {"status": 700, "latency_ms": 5}
+        {"status": 200, "latency_ms": -3}
+        {"status": 503, "latency_ms": 900}
+        {"status": 200, "latency_ms": 20}
+      expected: |
+        requests=3 malformed=8
+        latency_ms p50=20 p95=900 p99=900
+        availability=66.667%
+        slo=99.9% budget_requests=0.00 bad=1 consumed=33333.33% remaining=-1.00
+        status=BUDGET_EXHAUSTED
+      compare: "trim"
+      hint: "Корректны только объекты с целыми status 100-599 и latency_ms >= 0; true - это bool, а не число."
+    - id: "exhausted"
+      title: "Бюджет ошибок исчерпан"
+      stdin: |
+        SLO 99.5
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 5}
+        {"status": 502, "latency_ms": 100}
+        {"status": 200, "latency_ms": 7}
+      expected: |
+        requests=40 malformed=0
+        latency_ms p50=5 p95=5 p99=100
+        availability=97.500%
+        slo=99.5% budget_requests=0.20 bad=1 consumed=500.00% remaining=-0.80
+        status=BUDGET_EXHAUSTED
+      compare: "trim"
+      hint: "n = 40, допустимо 40 x 0.5% = 0.2 плохих запроса; плохой один, значит бюджет исчерпан: consumed=500.00%, remaining=-0.80."
+    - id: "nearest-rank-edges"
+      title: "Края nearest-rank: ceil и малая выборка"
+      stdin: |
+        SLO 99
+        {"status": 200, "latency_ms": 7}
+      expected: |
+        requests=1 malformed=0
+        latency_ms p50=7 p95=7 p99=7
+        availability=100.000%
+        slo=99% budget_requests=0.01 bad=0 consumed=0.00% remaining=0.01
+        status=OK
+      compare: "trim"
+      hidden: true
+      hint: "При n = 1 все перцентили равны единственному значению; ранг не может быть меньше 1."
+    - id: "percentile-ranks"
+      title: "Ранги на 20 значениях"
+      stdin: |
+        SLO 90
+        {"status": 200, "latency_ms": 100}
+        {"status": 200, "latency_ms": 90}
+        {"status": 200, "latency_ms": 80}
+        {"status": 200, "latency_ms": 70}
+        {"status": 200, "latency_ms": 60}
+        {"status": 200, "latency_ms": 50}
+        {"status": 200, "latency_ms": 40}
+        {"status": 200, "latency_ms": 30}
+        {"status": 200, "latency_ms": 20}
+        {"status": 200, "latency_ms": 10}
+        {"status": 200, "latency_ms": 5}
+        {"status": 200, "latency_ms": 15}
+        {"status": 200, "latency_ms": 25}
+        {"status": 200, "latency_ms": 35}
+        {"status": 200, "latency_ms": 45}
+        {"status": 200, "latency_ms": 55}
+        {"status": 200, "latency_ms": 65}
+        {"status": 200, "latency_ms": 75}
+        {"status": 200, "latency_ms": 85}
+        {"status": 200, "latency_ms": 95}
+      expected: |
+        requests=20 malformed=0
+        latency_ms p50=50 p95=95 p99=100
+        availability=100.000%
+        slo=90% budget_requests=2.00 bad=0 consumed=0.00% remaining=2.00
+        status=OK
+      compare: "trim"
+      hidden: true
+      hint: "Отсортировано 5..100: p50 -> ранг ceil(0.5 x 20) = 10 -> значение 50; p95 -> ранг 19 -> 95; p99 -> ceil(19.8) = 20 -> 100."
+    - id: "no-data"
+      title: "Нет корректных записей"
+      stdin: |
+        SLO 99.9
+        garbage
+        {"status": 99, "latency_ms": 1}
+      expected: |
+        requests=0 malformed=2
+        status=NO_DATA
+      compare: "trim"
+      hidden: true
+      hint: "При нулевом числе корректных запросов печатаются только две строки."
+    - id: "round-half-up"
+      title: "Округление half-up и SLO 100"
+      stdin: |
+        SLO 100
+        {"status": 200, "latency_ms": 1}
+        {"status": 200, "latency_ms": 1}
+        {"status": 200, "latency_ms": 1}
+        {"status": 200, "latency_ms": 1}
+        {"status": 200, "latency_ms": 1}
+        {"status": 200, "latency_ms": 1}
+        {"status": 200, "latency_ms": 1}
+        {"status": 500, "latency_ms": 3}
+      expected: |
+        requests=8 malformed=0
+        latency_ms p50=1 p95=3 p99=3
+        availability=87.500%
+        slo=100% budget_requests=0.00 bad=1 consumed=inf% remaining=-1.00
+        status=BUDGET_EXHAUSTED
+      compare: "trim"
+      hidden: true
+      hint: "SLO 100% означает нулевой бюджет: при ошибках consumed=inf; доступность 7/8 = 87.5%."
+challenge:
+  id: "devops.fundamentals.observability-and-slos.challenge"
+  title: "Вычислитель правила оповещения с for (pending -> firing)"
+  prompt: |
+    Реализуйте в `main.py` вычислитель правила оповещения в духе Prometheus и покажите, как задержка `for` отделяет шум от инцидента. Используйте только стандартную библиотеку.
+
+    **Ввод.** Первая строка правила: `RULE <имя> <оператор> <порог> FOR <секунды>`; оператор из `>`, `>=`, `<`, `<=`; порог и секунды - целые. Далее образцы `<t> <ряд> <значение>` (целые `t` и значение, `ряд` - имя, например `web-1`). Образцы с одним `t` образуют одну **проверку** (evaluation); если один ряд встречается в проверке несколько раз, побеждает последний. Проверки обрабатываются по возрастанию `t`.
+
+    **Состояния** каждого ряда: `inactive` (начальное), `pending`, `firing`. На каждой проверке для **каждого ряда, известного к этому моменту** (в порядке по алфавиту): условие истинно, если у ряда в этой проверке есть значение и оно удовлетворяет `значение <оператор> порог`; отсутствие значения - ложно.
+
+    * Условие истинно, ряд `inactive`: переход `inactive->pending`, запоминается `since = t`.
+    * Затем (в той же проверке), если ряд `pending` и `t - since >= FOR`: переход `pending->firing`. Так при `FOR 0` в один момент происходят оба перехода.
+    * Условие ложно, ряд не `inactive`: переход `pending->inactive` или `firing->inactive`.
+    * Иначе перехода нет.
+
+    **Вывод.** На каждый переход строка `<t> <ряд> <из>-><в>` в порядке проверок и рядов. В конце две строки: `firing: <ряды по алфавиту через запятую или ->` и `pending: <то же>` (состояние после последней проверки).
+
+    **Пример.** `RULE HighLatency > 500 FOR 120` и образцы `0 web-1 100`, `60 web-1 600`, `120 web-1 700`, `180 web-1 650`, `240 web-1 400` дают переходы `60 web-1 inactive->pending`, `180 web-1 pending->firing`, `240 web-1 firing->inactive`, а затем `firing: -` и `pending: -`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  hints:
+    - "Сгруппируйте образцы по t: ticks[t][ряд] = значение (последнее значение побеждает). Состояние ряда храните в словаре state, момент входа в pending - в since. Известные ряды - все, что хоть раз встречались (ключи state)."
+    - "Для каждого t по возрастанию обходите sorted(set(state) | set(ticks[t])). Условие: s in ticks[t] and cmp(ticks[t][s], threshold) (используйте operator.gt/ge/lt/le)."
+    - "Если условие истинно: при inactive печатайте inactive->pending и запомните since = t; затем (без elif!) при pending и t - since >= hold печатайте pending->firing. Это даёт две строки в один момент при FOR 0."
+    - "Если условие ложно и состояние не inactive - печатайте '<из>->inactive' и сбросьте состояние. В конце соберите отсортированные списки рядов в состояниях firing и pending; пустой список печатайте как '-'."
+  tests:
+    - id: "sample"
+      title: "Pending -> firing -> resolved"
+      stdin: |
+        RULE HighLatency > 500 FOR 120
+        0 web-1 100
+        60 web-1 600
+        120 web-1 700
+        180 web-1 650
+        240 web-1 400
+        300 web-1 100
+      expected: |
+        60 web-1 inactive->pending
+        180 web-1 pending->firing
+        240 web-1 firing->inactive
+        firing: -
+        pending: -
+      compare: "trim"
+      hint: "Условие впервые истинно в 60; в 180 прошло ровно 120 секунд - переход в firing (нестрого). В 240 условие ложно, firing сбрасывается в inactive."
+    - id: "flapping"
+      title: "Условие пропало до истечения for"
+      stdin: |
+        RULE Errors >= 5 FOR 100
+        0 api 5
+        50 api 6
+        90 api 1
+        120 api 7
+        200 api 7
+      expected: |
+        0 api inactive->pending
+        90 api pending->inactive
+        120 api inactive->pending
+        firing: -
+        pending: api
+      compare: "trim"
+      hint: "Первый pending сброшен в 90 без firing; новый pending начался в 120, поэтому firing только в 220 (в данных его нет)."
+    - id: "two-series"
+      title: "Независимые ряды и пропавший ряд"
+      stdin: |
+        RULE Down < 1 FOR 60
+        0 a 0
+        0 b 1
+        60 a 0
+        60 b 0
+        120 a 0
+      expected: |
+        0 a inactive->pending
+        60 a pending->firing
+        60 b inactive->pending
+        120 b pending->inactive
+        firing: a
+        pending: -
+      compare: "trim"
+      hint: "a pending с 0 и firing в 60; b pending с 60. В 120 ряда b нет в данных: условие ложно, b сбрасывается."
+    - id: "for-zero"
+      title: "FOR 0: сразу firing"
+      stdin: |
+        RULE Hot > 90 FOR 0
+        10 x 95
+        20 x 50
+        30 x 99
+      expected: |
+        10 x inactive->pending
+        10 x pending->firing
+        20 x firing->inactive
+        30 x inactive->pending
+        30 x pending->firing
+        firing: x
+        pending: -
+      compare: "trim"
+      hidden: true
+      hint: "При FOR 0 после inactive->pending в тот же момент следует pending->firing (две строки с одним временем)."
+    - id: "late-series"
+      title: "Ряд появляется позже, сброс firing при отсутствии"
+      stdin: |
+        RULE Cold <= 0 FOR 30
+        0 a 5
+        30 a 0
+        60 a 0
+        60 b 0
+        90 b 0
+        120 b 0
+        150 a 0
+      expected: |
+        30 a inactive->pending
+        60 a pending->firing
+        60 b inactive->pending
+        90 a firing->inactive
+        90 b pending->firing
+        150 a inactive->pending
+        150 b firing->inactive
+        firing: -
+        pending: a
+      compare: "trim"
+      hidden: true
+      hint: "b появляется в 60 и становится firing в 90; a пропал в 90 и 120 (inactive), снова появился в 150 (новый pending)."
+    - id: "fractional-ticks"
+      title: "Несколько значений одного ряда в один момент: побеждает последнее"
+      stdin: |
+        RULE X > 10 FOR 10
+        0 s 5
+        0 s 50
+        10 s 50
+        10 s 1
+        20 s 50
+        30 s 60
+      expected: |
+        0 s inactive->pending
+        10 s pending->inactive
+        20 s inactive->pending
+        30 s pending->firing
+        firing: s
+        pending: -
+      compare: "trim"
+      hidden: true
+      hint: "Для (10, s) используется последнее значение 1: условие ложно, pending сбрасывается; дальше новый pending с 20 и firing в 30."

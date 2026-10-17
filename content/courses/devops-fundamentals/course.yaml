@@ -1,0 +1,23 @@
+id: devops-fundamentals
+version: 1.0.0
+title: Основы DevOps
+description: >-
+  Практики поставки и эксплуатации ПО на моделях: DevOps, CI/CD и метрики DORA, ветвление и семантическое версионирование,
+  конвейеры сборки как графы зависимостей, образы и слои контейнеров с инвалидацией кеша, конфигурация и секреты по
+  12-factor, стратегии выпуска (rolling, blue-green, canary), наблюдаемость с SLO и бюджетом ошибок, проверки здоровья,
+  повторы с отступом и размыкатель цепи. Упражнения выполняются на Python стандартной библиотеки и детерминированы: вы
+  пишете модели, а не запускаете настоящие Git, Docker или Kubernetes. Каждый пример теории проверен запуском
+  (Python 3.14). Оркестрация, инфраструктура как код и распределённая трассировка пока не входят.
+languageId: python
+level: 3
+track: devops
+requires: [python-fundamentals]
+lessons:
+  - 01-what-is-devops-and-dora
+  - 02-version-control-and-semver
+  - 03-build-pipelines-as-dags
+  - 04-containers-and-layers
+  - 05-configuration-and-secrets
+  - 06-deployment-strategies
+  - 07-observability-and-slos
+  - 08-reliability-and-circuit-breakers

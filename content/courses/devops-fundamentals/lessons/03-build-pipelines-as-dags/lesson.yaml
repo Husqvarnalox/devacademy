@@ -1,0 +1,248 @@
+id: "devops.fundamentals.build-pipelines-as-dags"
+title: "Конвейеры сборки как графы зависимостей (DAG)"
+goal: "Моделировать конвейер как направленный ациклический граф заданий, вычислять порядок выполнения, параллельные стадии и критический путь, обнаруживать циклы и неизвестные зависимости."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "devops.fundamentals.version-control-and-semver"
+related:
+  - "os.fundamentals.deadlocks"
+  - "os.fundamentals.cpu-scheduling"
+next:
+  - "devops.fundamentals.containers-and-layers"
+seeAlso:
+  - "Инкрементальные сборки и кеширование результатов (Bazel, Gradle): граф с хешами входов"
+  - "Динамические конвейеры, матрицы заданий и условия запуска (if:, rules:) в реальных CI-системах"
+  - "Ограничение числа исполнителей (runners): в упражнении исполнителей бесконечно много"
+objectives:
+  - "Объяснить, почему конвейер описывают как направленный ациклический граф заданий с зависимостями (needs)."
+  - "Построить топологический порядок и разбить задания на стадии, которые можно выполнять параллельно."
+  - "Обнаружить цикл и указание на несуществующее задание до запуска, а не посреди выполнения."
+  - "Вычислить время «стена» (wall time) при неограниченном параллелизме и критический путь."
+  - "Объяснить, что ускорение ограничено критическим путём, а не числом исполнителей."
+masteryCriteria:
+  - "Вы строите стадии как уровни: уровень задания = 1 + максимум уровней его зависимостей."
+  - "Вы выявляете цикл, когда ни одно из оставшихся заданий не готово к запуску, и перечисляете невыполнимые."
+  - "Вы вычисляете критический путь как самую длинную по времени цепочку и выбираете детерминированно при равенстве."
+  - "Вы понимаете, что это модель: реальные CI-системы поддерживают условия, повторы, кеши и ограниченное число исполнителей."
+tags:
+  - "devops"
+  - "ci"
+  - "dag"
+  - "topological-sort"
+  - "pipeline"
+  - "critical-path"
+  - "parallelism"
+facts:
+  - kind: "real-world"
+    text: "В GitHub Actions порядок заданий задаётся ключом needs: задание ждёт успешного завершения перечисленных заданий; без needs задания запускаются параллельно. Циклические зависимости запрещены и обнаруживаются при разборе workflow."
+    sources:
+      - "https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions"
+  - kind: "real-world"
+    text: "В GitLab CI ключ needs строит ориентированный ациклический граф заданий и позволяет начать задание, не дожидаясь завершения всей предыдущей стадии (stage)."
+    sources:
+      - "https://docs.gitlab.com/ci/yaml/#needs"
+  - kind: "internals"
+    text: "Топологическая сортировка существует у графа тогда и только тогда, когда в нём нет циклов. Алгоритм Кана (1962) повторно удаляет вершины без входящих рёбер; если вершины остались, но их нет, то в графе есть цикл."
+    sources:
+      - "https://en.wikipedia.org/wiki/Topological_sorting"
+  - kind: "misconception"
+    text: "Больше исполнителей не всегда ускоряет конвейер: нижняя граница времени - длина критического пути (самой долгой цепочки зависимых заданий). Ускорение сверх неё даёт только разбиение самих заданий или удаление зависимостей."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что означает, что граф зависимостей конвейера «ациклический»?"
+      options:
+        - "В нём нет заданий без зависимостей"
+        - "Из любого задания нельзя вернуться в него же, следуя по зависимостям"
+        - "Все задания выполняются параллельно"
+        - "Граф содержит не более одной стадии"
+      answer: 1
+      explanation: "Если бы цикл был, задания в нём ждали бы друг друга бесконечно."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Задания: A (10 с), B (20 с, needs A), C (5 с, needs A), D (7 с, needs B C). Исполнителей достаточно. Чему равно время всего конвейера в секундах?"
+      answer: 37
+      tolerance: 0
+      explanation: "Критический путь A -> B -> D: 10 + 20 + 7 = 37; C идёт параллельно с B."
+    - id: "q3"
+      type: "single"
+      prompt: "Что делает алгоритм Кана, если на очередном шаге нет ни одной вершины без входящих зависимостей, но вершины остались?"
+      options:
+        - "Берёт любую вершину"
+        - "Сообщает о цикле"
+        - "Начинает заново"
+        - "Удаляет самую длинную цепочку"
+      answer: 1
+      explanation: "Остаток графа, где у каждой вершины есть невыполненная зависимость, содержит цикл."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Что ограничивает ускорение конвейера при добавлении исполнителей? Выберите все верные утверждения."
+      options:
+        - "Длина критического пути"
+        - "Число заданий, которые можно запустить одновременно в одной стадии"
+        - "Размер репозитория"
+        - "Зависимости между заданиями"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Параллелизм ограничен структурой графа: ширина стадий и самая долгая цепочка зависимых заданий."
+    - id: "q5"
+      type: "single"
+      prompt: "Зачем проверять неизвестные зависимости и циклы до запуска конвейера?"
+      options:
+        - "Это ускоряет сборку"
+        - "Чтобы получить понятную ошибку сразу, а не зависание или частично выполненный конвейер"
+        - "Это требование Git"
+        - "Чтобы уменьшить размер артефактов"
+      answer: 1
+      explanation: "Статическая проверка графа дешёвая и даёт диагностику до того, как будут потрачены минуты исполнителей."
+exercise:
+  id: "devops.fundamentals.build-pipelines-as-dags.exercise"
+  title: "Планировщик заданий: стадии, циклы, критический путь"
+  prompt: |
+    Напишите в `main.py` планировщик конвейера. Используйте только стандартную библиотеку; `float` не нужен (в заготовке есть `fixed(num, den, places)` для округления half-up).
+
+    **Ввод.** По строке на задание (пустые строки пропускайте): `<имя> <секунды> [<зависимость>...]`. Длительность - целое >= 1; зависимости (`needs`) перечислены через пробел.
+
+    **Проверки (в таком порядке):**
+
+    1. Повтор имени: строка `ERROR duplicate job: <имя>` для каждого повтора (повторное определение игнорируется).
+    2. Неизвестная зависимость: `ERROR unknown dependency: <задание> needs <зависимость>` в порядке задания во входе и порядке зависимостей. Если были ошибки пунктов 1-2, напечатайте их и **больше ничего**.
+    3. Цикл: `ERROR cycle: <имена невыполнимых заданий по алфавиту через пробел>` (задания, которые не удалось запланировать, включая те, что зависят от цикла), и больше ничего. Зависимость от самого себя - цикл.
+
+    **Вывод при успехе:**
+
+    ```
+    stage 1: <задания стадии 1 по алфавиту>
+    stage 2: ...
+    order: <все задания по стадиям, внутри стадии по алфавиту>
+    stages=<число стадий> max_parallel=<размер самой большой стадии>
+    sequential_s=<сумма длительностей> wall_s=<время при неограниченном параллелизме> speedup=<сумма / wall, два знака>
+    critical_path=<имена через ">" от начала к концу>
+    ```
+
+    **Определения.** Стадия 1 - задания без зависимостей, стадия `k` - те, чьи зависимости все на стадиях `< k`, а хотя бы одна на стадии `k - 1`. `finish(j) = длительность(j) + max(finish(зависимостей))` (для заданий без зависимостей максимум равен 0). `wall_s` - максимум `finish`. Критический путь строится с конца: задание с максимальным `finish` (при равенстве первое по алфавиту), затем среди его зависимостей те, у которых `finish` равен моменту старта задания (`finish - длительность`), при равенстве первое по алфавиту, и так далее до задания без зависимостей.
+
+    **Пример.** Для `lint 30`, `unit 90`, `build 120 lint unit`, `integration 200 build`, `docs 60 lint`, `publish 20 integration docs` стадии: `lint unit` / `build docs` / `integration` / `publish`; `wall_s=430` (unit 90 + build 120 + integration 200 + publish 20), критический путь `unit>build>integration>publish`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Прочитайте задания в словари: dur[name], needs[name] и список имён в порядке ввода. Повтор имени (name уже в dur) - ошибка и пропуск строки. Неизвестные зависимости ищите только после чтения всего ввода."
+    - "Стадии строите по алгоритму Кана: ready = отсортированные задания из remaining, у которых все зависимости уже получили стадию. Если ready пуст, а remaining нет - печатайте ERROR cycle с отсортированным remaining и выходите."
+    - "finish[j] = dur[j] + max(finish[d] for d in needs[j], default=0) считайте по стадиям - зависимости всегда в более ранних стадиях. wall = max(finish.values()), sequential = sum(dur.values())."
+    - "Критический путь: cur = min(j for j in finish if finish[j] == wall); пока у cur есть зависимости: start = finish[cur] - dur[cur]; cur = min(d for d in needs[cur] if finish[d] == start). Добавляйте в список и в конце разверните его."
+  tests:
+    - id: "sample"
+      title: "Типичный конвейер CI"
+      stdin: |
+        lint 30
+        unit 90
+        build 120 lint unit
+        integration 200 build
+        docs 60 lint
+        publish 20 integration docs
+      expected: |
+        stage 1: lint unit
+        stage 2: build docs
+        stage 3: integration
+        stage 4: publish
+        order: lint unit build docs integration publish
+        stages=4 max_parallel=2
+        sequential_s=520 wall_s=430 speedup=1.21
+        critical_path=unit>build>integration>publish
+      compare: "trim"
+      hint: "lint и unit независимы (стадия 1); docs ждёт только lint, поэтому оказывается на одной стадии с build."
+    - id: "single-chain"
+      title: "Цепочка без параллелизма"
+      stdin: |
+        checkout 5
+        compile 60 checkout
+        test 100 compile
+      expected: |
+        stage 1: checkout
+        stage 2: compile
+        stage 3: test
+        order: checkout compile test
+        stages=3 max_parallel=1
+        sequential_s=165 wall_s=165 speedup=1.00
+        critical_path=checkout>compile>test
+      compare: "trim"
+      hint: "Три стадии по одному заданию, ускорение 1.00, критический путь - вся цепочка."
+    - id: "cycle"
+      title: "Цикл зависимостей"
+      stdin: |
+        a 10 c
+        b 10 a
+        c 10 b
+        d 10
+        e 10 d c
+      expected: |
+        ERROR cycle: a b c e
+      compare: "trim"
+      hint: "Задание d не зависит ни от чего и было бы выполнено, поэтому в списке его нет; a, b, c (цикл) и e (зависит от цикла) невыполнимы."
+    - id: "unknown-and-duplicate"
+      title: "Неизвестная зависимость и повтор имени"
+      stdin: |
+        build 10 lint
+        test 10 build compile
+        build 20
+        lint 5
+      expected: |
+        ERROR duplicate job: build
+        ERROR unknown dependency: test needs compile
+      compare: "trim"
+      hint: "Повтор build находится при чтении (третья строка), неизвестные зависимости - после чтения всего ввода; build зависит от lint, который определён ниже, - это не ошибка."
+    - id: "diamond"
+      title: "Ромб и равные ветки: порядок по алфавиту"
+      stdin: |
+        start 1
+        left 10 start
+        right 10 start
+        join 5 left right
+      expected: |
+        stage 1: start
+        stage 2: left right
+        stage 3: join
+        order: start left right join
+        stages=3 max_parallel=2
+        sequential_s=26 wall_s=16 speedup=1.63
+        critical_path=start>left>join
+      compare: "trim"
+      hidden: true
+      hint: "Обе ветки заканчиваются в одно время; из равных зависимостей критического пути берётся первая по алфавиту (left)."
+    - id: "self-cycle"
+      title: "Задание зависит от себя"
+      stdin: |
+        x 5 x
+        y 5
+      expected: |
+        ERROR cycle: x
+      compare: "trim"
+      hidden: true
+      hint: "Самозависимость - тоже цикл: x никогда не станет готовым."
+    - id: "wide"
+      title: "Широкая стадия и округление ускорения"
+      stdin: |
+        fetch 3
+        a 7 fetch
+        b 7 fetch
+        c 7 fetch
+        d 7 fetch
+        report 4 a b c d
+      expected: |
+        stage 1: fetch
+        stage 2: a b c d
+        stage 3: report
+        order: fetch a b c d report
+        stages=3 max_parallel=4
+        sequential_s=35 wall_s=14 speedup=2.50
+        critical_path=fetch>a>report
+      compare: "trim"
+      hidden: true
+      hint: "Сумма 35, критический путь 3+7+4 = 14, ускорение 35/14 = 2.5; max_parallel=4."

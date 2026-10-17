@@ -1,0 +1,313 @@
+id: "devops.fundamentals.configuration-and-secrets"
+title: "Конфигурация и секреты: приоритет источников и редактирование вывода"
+goal: "Отделять конфигурацию от кода по принципам двенадцатифакторного приложения, объединять источники настроек с чётким приоритетом, проверять типы и не допускать утечки секретов в вывод."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "devops.fundamentals.containers-and-layers"
+related:
+  - "security.fundamentals.secrets-and-dependencies"
+  - "devops.fundamentals.containers-and-layers"
+next:
+  - "devops.fundamentals.deployment-strategies"
+seeAlso:
+  - "Хранилища секретов (HashiCorp Vault, облачные менеджеры секретов), ротация и короткоживущие учётные данные"
+  - "Шифрование секретов в репозитории (SOPS, sealed secrets) и динамическая конфигурация"
+  - "Секреты Kubernetes и их ограничения (кодирование Base64 - это не шифрование)"
+objectives:
+  - "Сформулировать принцип «конфигурация в окружении»: всё, что различается между развёртываниями, не зашивается в код."
+  - "Назвать типичный порядок приоритета источников: умолчания, файл, переменные окружения, аргументы командной строки."
+  - "Валидировать и приводить типы при загрузке, чтобы ошибка конфигурации проявлялась при запуске, а не в рабочем запросе."
+  - "Объяснить, чем конфигурация отличается от секрета и почему секреты нельзя печатать в логи и сообщения об ошибках."
+  - "Реализовать загрузчик конфигурации с источниками, проверкой типов и редактированием секретов (включая пароль в URL)."
+masteryCriteria:
+  - "Вы объясняете, почему строка \"false\" в переменной окружения не должна трактоваться как истина, и приводите значения к типам явно."
+  - "Вы отвергаете неизвестные ключи вместо молчаливого игнорирования опечаток."
+  - "Вы помните, где в приоритете находится каждый источник, и можете сказать, откуда пришло значение (диагностика)."
+  - "Вы маскируете секреты в выводе и в ошибках, включая пароль внутри строки подключения."
+  - "Вы знаете, что переменные окружения видны процессам и дампам и не заменяют хранилище секретов."
+tags:
+  - "devops"
+  - "12-factor"
+  - "configuration"
+  - "secrets"
+  - "environment-variables"
+  - "redaction"
+  - "precedence"
+facts:
+  - kind: "real-world"
+    text: "Принцип III «Config» манифеста двенадцатифакторного приложения: конфигурацию, которая меняется между развёртываниями (учётные данные, адреса сервисов), хранят в переменных окружения, а не в коде. Критерий: можно ли открыть код в публичный доступ, не раскрыв ни одного секрета."
+    sources:
+      - "https://12factor.net/config"
+  - kind: "security"
+    text: "Переменные окружения удобны, но не идеальны для секретов: они наследуются дочерними процессами, могут попасть в дампы, отладочные страницы и логи. Руководство OWASP по управлению секретами рекомендует централизованное хранилище, ограничение доступа и ротацию, а не хранение в коде и репозитории."
+    sources:
+      - "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+  - kind: "misconception"
+    text: "Строка \"false\" из окружения - непустая и потому истинна в большинстве языков (в Python bool(\"false\") равно True). Булевы значения из текстовых источников нужно разбирать явно."
+  - kind: "security"
+    text: "Docker рекомендует не передавать секреты через ARG и ENV при сборке образа: значения остаются в истории слоёв. Для сборки есть секретные монтирования, для запуска - внешние механизмы доставки секретов."
+    sources:
+      - "https://docs.docker.com/build/building/best-practices/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что из перечисленного — конфигурация в смысле двенадцатифакторного приложения?"
+      options:
+        - "Структура каталогов проекта"
+        - "Адрес базы данных, различающийся между окружениями"
+        - "Внутренние константы алгоритма"
+        - "Имена функций"
+      answer: 1
+      explanation: "Конфигурация - то, что меняется между развёртываниями; внутренние константы остаются в коде."
+    - id: "q2"
+      type: "single"
+      prompt: "Задано умолчание port=8080, в файле port=9000, в окружении APP_PORT=9090, в аргументах --port=7000. Какое значение будет использовано при типичном приоритете?"
+      options:
+        - "8080"
+        - "9000"
+        - "9090"
+        - "7000"
+      answer: 3
+      explanation: "Приоритет возрастает: умолчания < файл < окружение < аргументы командной строки."
+    - id: "q3"
+      type: "single"
+      prompt: "Что напечатает bool(os.environ['DEBUG']) для DEBUG=false, если не разбирать значение явно?"
+      options:
+        - "False"
+        - "True"
+        - "Ошибку"
+        - "None"
+      answer: 1
+      explanation: "Непустая строка истинна. Булевы значения нужно приводить явно."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Что нужно сделать, чтобы пароль не утёк через логи? Выберите все верные утверждения."
+      options:
+        - "Маскировать значения типа secret при печати конфигурации"
+        - "Маскировать пароль внутри строки подключения postgres://user:pass@host/db"
+        - "Печатать конфигурацию целиком в сообщении об ошибке"
+        - "Не включать значения секретов в тексты ошибок валидации"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Секреты скрывают и как отдельные поля, и внутри составных значений; сообщения об ошибках не должны их содержать."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Сколько источников участвуют в приоритетной цепочке в этом уроке (умолчания, файл, окружение, аргументы)?"
+      answer: 4
+      tolerance: 0
+      explanation: "Четыре источника, от самого слабого к самому сильному."
+exercise:
+  id: "devops.fundamentals.configuration-and-secrets.exercise"
+  title: "Загрузчик конфигурации с приоритетом источников и редактированием секретов"
+  prompt: |
+    Напишите в `main.py` загрузчик конфигурации. Используйте только стандартную библиотеку.
+
+    **Ввод** состоит из секций с заголовками `[defaults]`, `[file]`, `[env]`, `[flags]` (регистр заголовка не важен); пустые строки и строки, начинающиеся с `#`, пропускайте. Секции могут идти в любом порядке, значения секций применяются в приоритете **умолчания < file < env < flags** независимо от порядка секций в тексте.
+
+    * `[defaults]`: `ключ:тип=значение` либо `ключ:тип` (обязательный ключ без умолчания). Типы: `int`, `bool`, `str`, `secret`, `url`. Пробелы вокруг значения обрежьте. Ключи, объявленные здесь, - единственные допустимые.
+    * `[file]`: `ключ=значение`.
+    * `[env]`: `ИМЯ=значение`. Учитываются только имена с префиксом `APP_`: ключ - остаток имени в нижнем регистре (`APP_DB_URL` -> `db_url`); остальные переменные игнорируются.
+    * `[flags]`: `--ключ=значение`; дефисы в имени заменяются на `_` (`--log-level` -> `log_level`). Флаг без `=` допустим только для `bool` и означает `true`.
+
+    **Ошибки** (если они есть, печатается только список ошибок и `errors=<N>`):
+
+    1. неизвестные ключи в порядке чтения (`file`, `env`, `flags` в том порядке, в каком идут строки ввода): `ERROR file: unknown key '<ключ>'`, `ERROR env: unknown key '<ключ>'` (ключ после преобразования), `ERROR flags: unknown key '<ключ>'`; флаг без значения не для `bool`: `ERROR flags: '<ключ>' needs a value`;
+    2. затем по ключам в алфавитном порядке: `ERROR <ключ>: missing required value` (нет ни умолчания, ни значения) и ошибки приведения итогового значения: `ERROR <ключ>: invalid int '<значение>'`, `ERROR <ключ>: invalid bool '<значение>'`.
+
+    **Приведение типов.** `int`: допустимы только знак и цифры (`[+-]?\d+`), печатается как `int(значение)`. `bool`: без учёта регистра `true/1/yes/on` -> `true`, `false/0/no/off` -> `false`. `str`: как есть. `secret`: печатается `***`, если значение непустое, иначе пустая строка. `url`: если в authority (часть между `://` и первым `/`, `?` или `#`) есть userinfo (до **последнего** `@`) с `:`, то пароль (всё после первого `:` userinfo) заменяется на `***`; иначе значение как есть.
+
+    **Успешный вывод.** По строке на ключ в алфавитном порядке: `ключ=значение (источник)`, где источник - `default`, `file`, `env` или `flags`; в конце `keys=<N>`.
+
+    **Пример.** Если `port:int=8080` и `[env] APP_PORT=9090`, а флагов нет, строка вывода `port=9090 (env)`; при `[flags] --port=7000` - `port=7000 (flags)`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Сначала прочитайте весь ввод в список пар (секция, строка). Из [defaults] получите types[ключ] и умолчания: строку делите по первому '=', слева 'ключ:тип', справа значение; если '=' нет, ключ обязательный и значения пока нет."
+    - "Секции могут идти в любом порядке (например, [flags] раньше [file]), поэтому не перезаписывайте значения по ходу чтения: разложите file, env и flags по трём словарям и затем накладывайте их на умолчания слабый -> сильный, запоминая источник. Ошибки неизвестных ключей собирайте в порядке строк ввода."
+    - "Приведение типов делайте для итогового значения: int через re.fullmatch(r'[+-]?\\d+', s), bool через два множества строк. Ошибки собирайте в список, не прерываясь; ключи для проверки обходите по sorted(types)."
+    - "Маскирование URL: scheme, rest = value.split('://', 1); authority - rest до первого из '/?#'; userinfo, at, host = authority.rpartition('@'); если at и ':' in userinfo - замените всё после первого ':' в userinfo на '***'. Секрет: '***' если значение непустое."
+  tests:
+    - id: "sample"
+      title: "Приоритет: умолчания < файл < окружение < флаги"
+      stdin: |
+        [defaults]
+        port:int=8080
+        debug:bool=false
+        log_level:str=info
+        db_url:url
+        api_key:secret=
+        [file]
+        port=9000
+        log_level=debug
+        db_url=postgres://app:filepass@db.internal:5432/app
+        api_key=file-key
+        [env]
+        APP_PORT=9090
+        APP_DEBUG=yes
+        PATH=/usr/bin
+        [flags]
+        --port=7000
+      expected: |
+        api_key=*** (file)
+        db_url=postgres://app:***@db.internal:5432/app (file)
+        debug=true (env)
+        log_level=debug (file)
+        port=7000 (flags)
+        keys=5
+      compare: "trim"
+      hint: "port берётся из флага (7000), debug из окружения (yes -> true), log_level из файла, а пароли скрываются."
+    - id: "defaults-only"
+      title: "Только умолчания и обязательный ключ из окружения"
+      stdin: |
+        [defaults]
+        port:int=8080
+        debug:bool=false
+        log_level:str=info
+        db_url:url
+        api_key:secret=
+        [env]
+        APP_DB_URL=sqlite:///local.db
+      expected: |
+        api_key= (default)
+        db_url=sqlite:///local.db (env)
+        debug=false (default)
+        log_level=info (default)
+        port=8080 (default)
+        keys=5
+      compare: "trim"
+      hint: "api_key имеет пустое умолчание: пустой секрет печатается пустым, а не ***; sqlite:///local.db без userinfo не меняется."
+    - id: "errors"
+      title: "Ошибки: неизвестные ключи, тип, пропуск обязательного"
+      stdin: |
+        [defaults]
+        port:int=8080
+        debug:bool=false
+        log_level:str=info
+        db_url:url
+        api_key:secret=
+        [file]
+        prot=1
+        port=eighty
+        [env]
+        APP_VERBOSE=1
+        APP_DEBUG=maybe
+        [flags]
+        --nope=1
+        --port
+      expected: |
+        ERROR file: unknown key 'prot'
+        ERROR env: unknown key 'verbose'
+        ERROR flags: unknown key 'nope'
+        ERROR flags: 'port' needs a value
+        ERROR db_url: missing required value
+        ERROR debug: invalid bool 'maybe'
+        ERROR port: invalid int 'eighty'
+        errors=7
+      compare: "trim"
+      hint: "Сначала ошибки неизвестных ключей и флагов в порядке чтения, затем ошибки значений по ключам в алфавитном порядке; db_url обязателен и не задан."
+    - id: "bare-bool-flag"
+      title: "Булев флаг без значения и дефисы в именах"
+      stdin: |
+        [defaults]
+        port:int=8080
+        debug:bool=false
+        log_level:str=info
+        db_url:url
+        api_key:secret=
+        [file]
+        db_url=mysql://root@localhost/app
+        [flags]
+        --debug
+        --log-level=warn
+      expected: |
+        api_key= (default)
+        db_url=mysql://root@localhost/app (file)
+        debug=true (flags)
+        log_level=warn (flags)
+        port=8080 (default)
+        keys=5
+      compare: "trim"
+      hidden: true
+      hint: "--debug без значения означает true; --log-level -> ключ log_level. У URL без пароля (root@localhost) ничего не маскируется."
+    - id: "section-order"
+      title: "Секции в произвольном порядке"
+      stdin: |
+        [flags]
+        --port=1
+        [env]
+        APP_PORT=2
+        APP_LOG_LEVEL=warn
+        [file]
+        port=3
+        log_level=error
+        [defaults]
+        port:int=8080
+        log_level:str=info
+        db_url:url=postgres://u:p@h/db
+      expected: |
+        db_url=postgres://u:***@h/db (default)
+        log_level=warn (env)
+        port=1 (flags)
+        keys=3
+      compare: "trim"
+      hidden: true
+      hint: "Приоритет определяется источником, а не порядком секций: port из флагов, log_level из окружения, db_url из умолчания (с маской пароля)."
+    - id: "url-forms"
+      title: "Маскирование пароля в URL"
+      stdin: |
+        [defaults]
+        primary:url
+        replica:url
+        cache:url
+        broker:url
+        [file]
+        primary=postgres://admin:p%40ss:word@db:5432/main?sslmode=require
+        replica=postgres://reader@db-replica/main
+        cache=redis://:secretonly@cache:6379/0
+        broker=amqp://guest:guest@mq.internal:5672/vhost#frag
+      expected: |
+        broker=amqp://guest:***@mq.internal:5672/vhost#frag (file)
+        cache=redis://:***@cache:6379/0 (file)
+        primary=postgres://admin:***@db:5432/main?sslmode=require (file)
+        replica=postgres://reader@db-replica/main (file)
+        keys=4
+      compare: "trim"
+      hidden: true
+      hint: "Пароль - всё после первого ':' в userinfo (userinfo - часть до последнего '@' в authority); у redis пустое имя пользователя, но пароль есть."
+    - id: "types-and-ints"
+      title: "Нормализация чисел и булевых значений"
+      stdin: |
+        [defaults]
+        workers:int=4
+        timeout:int=-1
+        retries:int=3
+        tls:bool=1
+        cache:bool=OFF
+        token:secret=initial
+        name:str=  spaced value
+        [file]
+        workers=+8
+        retries=007
+        [env]
+        APP_TLS=No
+        APP_CACHE=TRUE
+        APP_TOKEN=
+      expected: |
+        cache=true (env)
+        name=spaced value (default)
+        retries=7 (file)
+        timeout=-1 (default)
+        tls=false (env)
+        token= (env)
+        workers=8 (file)
+        keys=7
+      compare: "trim"
+      hidden: true
+      hint: "Целые печатаются нормализованными (+8 -> 8, 007 -> 7), булевы - true/false в нижнем регистре; пустой секрет остаётся пустым."

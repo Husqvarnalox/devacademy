@@ -1,0 +1,269 @@
+id: "devops.fundamentals.reliability-and-circuit-breakers"
+title: "Надёжность: проверки здоровья, повторы с отступом и размыкатель цепи"
+goal: "Объяснить роль liveness, readiness и startup-проверок, рассчитывать повторы с экспоненциальным отступом и jitter и реализовывать состояния размыкателя цепи closed, open и half_open."
+difficulty: "hard"
+estimatedMinutes: 110
+prerequisites:
+  - "devops.fundamentals.observability-and-slos"
+related:
+  - "devops.fundamentals.observability-and-slos"
+  - "system-design.fundamentals.consistency-and-idempotency"
+next: []
+seeAlso:
+  - "Шаблоны bulkhead и load shedding для защиты от каскадных отказов"
+  - "Постмортемы без поиска виноватых и действия по результатам инцидента"
+  - "Хаос-инжиниринг: намеренное внесение сбоев для проверки устойчивости"
+objectives:
+  - "Различать liveness, readiness и startup-проверки и объяснять, что делает платформа при провале каждой."
+  - "Рассчитывать задержки повторов с экспоненциальным отступом, верхней границей и jitter."
+  - "Объяснить, почему повторы без отступа и без ограничений усиливают сбой, и когда повторять небезопасно."
+  - "Описать состояния closed, open и half_open и условия переходов размыкателя цепи."
+  - "Реализовать детерминированную модель размыкателя по последовательности исходов вызовов."
+  - "Перечислить стадии работы с инцидентом: обнаружение, смягчение, восстановление, разбор."
+masteryCriteria:
+  - "Вы объясняете, почему провал liveness приводит к перезапуску контейнера, а провал readiness только убирает экземпляр из балансировки."
+  - "Вы считаете задержку повтора по формуле min(cap, base x 2^attempt) и понимаете роль jitter: разнести повторы клиентов во времени."
+  - "Вы знаете, что повторять можно только идемпотентные операции и что у повторов должен быть лимит попыток и общий дедлайн."
+  - "Вы реализуете размыкатель: счётчик сбоев подряд, таймаут открытия, ограниченное число пробных вызовов в half_open."
+  - "Вы отличаете смягчение последствий (откат, отключение функции) от устранения причины."
+tags:
+  - "devops"
+  - "reliability"
+  - "health-checks"
+  - "retries"
+  - "backoff"
+  - "jitter"
+  - "circuit-breaker"
+  - "incident-response"
+facts:
+  - kind: "real-world"
+    text: "Kubernetes различает три вида проб: liveness (при провале kubelet перезапускает контейнер), readiness (при провале экземпляр исключается из эндпоинтов сервиса, но не перезапускается) и startup (пока не прошла, остальные пробы не выполняются)."
+    sources:
+      - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+  - kind: "real-world"
+    text: "Статья AWS Architecture Blog о экспоненциальном отступе и jitter показывает, что добавление случайной составляющей к задержке повтора разносит повторные запросы клиентов во времени и сокращает общую нагрузку и время завершения по сравнению с отступом без jitter."
+    sources:
+      - "https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/"
+  - kind: "real-world"
+    text: "Паттерн Circuit Breaker, описанный Мартином Фаулером, оборачивает вызов защищённой операции: после порога сбоев размыкатель размыкается, и вызовы немедленно завершаются ошибкой без обращения к зависимости; по истечении времени ожидания допускается пробный вызов."
+    sources:
+      - "https://martinfowler.com/bliki/CircuitBreaker.html"
+  - kind: "misconception"
+    text: "Повторы не всегда помогают: при перегрузке сервера клиенты, которые повторяют запросы без отступа и ограничений, увеличивают нагрузку и могут превратить частичный сбой в каскадный отказ. Книга Google SRE рекомендует ограничивать число повторов и использовать экспоненциальный отступ с jitter."
+    sources:
+      - "https://sre.google/sre-book/addressing-cascading-failures/"
+  - kind: "real-world"
+    text: "Книга Google SRE описывает управление инцидентами: чёткие роли (командир инцидента, оперативная работа, коммуникации), централизованный журнал действий и приоритет скорейшего смягчения последствий перед поиском первопричины."
+    sources:
+      - "https://sre.google/sre-book/managing-incidents/"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт в Kubernetes при провале readiness-пробы контейнера?"
+      options:
+        - "Контейнер перезапустится"
+        - "Под будет удалён навсегда"
+        - "Экземпляр перестанет получать трафик сервиса, но продолжит работать"
+        - "Развёртывание откатится автоматически"
+      answer: 2
+      explanation: "Перезапуск связан с liveness; readiness управляет только маршрутизацией трафика."
+    - id: "q2"
+      type: "numeric"
+      prompt: "base = 100 мс, cap = 1000 мс, отступ min(cap, base x 2^attempt), attempt считается с 0. Чему равна задержка (мс) для attempt = 5 без jitter?"
+      answer: 1000
+      tolerance: 0
+      explanation: "100 x 32 = 3200, ограничено cap = 1000."
+    - id: "q3"
+      type: "single"
+      prompt: "Для чего в алгоритм повторов добавляют jitter?"
+      options:
+        - "Чтобы повторы клиентов не происходили одновременно"
+        - "Чтобы сделать задержки строго одинаковыми"
+        - "Чтобы отключить лимит попыток"
+        - "Чтобы ускорить первый запрос"
+      answer: 0
+      explanation: "Без случайности клиенты с одинаковым расписанием повторяют запросы пачками."
+    - id: "q4"
+      type: "single"
+      prompt: "Размыкатель находится в состоянии open, таймаут истёк. Каким будет следующее состояние перед пробным вызовом?"
+      options:
+        - "closed"
+        - "half_open"
+        - "failed"
+        - "pending"
+      answer: 1
+      explanation: "Из open по истечении таймаута размыкатель переходит в half_open и допускает пробы."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Какие операции безопасно автоматически повторять? Выберите все верные."
+      options:
+        - "Чтение записи по идентификатору"
+        - "Списание денег без ключа идемпотентности"
+        - "PUT с полным состоянием ресурса"
+        - "Создание заказа без ключа идемпотентности"
+      answer:
+        - 0
+        - 2
+      explanation: "Повторять безопасно идемпотентные операции; остальные могут выполниться дважды."
+exercise:
+  id: "devops.fundamentals.reliability-and-circuit-breakers.exercise"
+  title: "Размыкатель цепи: closed, open, half_open"
+  prompt: |
+    Смоделируйте размыкатель цепи в `main.py`. Используйте только стандартную библиотеку. Реальных вызовов нет: исход каждого вызова задан во входных данных.
+
+    **Ввод.** Первая строка: `BREAKER <порог> <таймаут> <пробы>` - три целых положительных числа. Далее строки `<t> <исход>`: момент `t` (целое, не убывает) и исход вызова `ok` или `fail`, **если вызов будет выполнен**.
+
+    **Правила.** Начальное состояние `closed`.
+
+    1. Перед обработкой события: если состояние `open` и `t - opened_at >= таймаут`, оно становится `half_open`, счётчик успешных проб = 0.
+    2. Если состояние `open` - вызов **отклонён**: исход игнорируется, вызов не считается выполненным. Состояние не меняется.
+    3. Иначе вызов **выполнен**. В `closed`: `ok` обнуляет счётчик сбоев подряд; `fail` увеличивает его, при достижении `порога` состояние `open`, `opened_at = t`, счётчик открытий +1. В `half_open`: `ok` увеличивает счётчик проб, при достижении `пробы` состояние `closed` (счётчик сбоев = 0); `fail` сразу делает состояние `open`, `opened_at = t`, счётчик открытий +1.
+
+    **Вывод.** По строке на событие: `<t> rejected state=open` для отклонённого вызова или `<t> <исход> state=<состояние после события>` для выполненного. Затем итог: `calls=<выполнено> rejected=<отклонено> opens=<число открытий>`.
+
+    **Пример.** `BREAKER 2 10 1` и события `0 fail`, `1 fail`, `5 ok`, `11 ok` дают строки `0 fail state=closed`, `1 fail state=open`, `5 rejected state=open`, `11 ok state=closed` и итог `calls=3 rejected=1 opens=1`.
+  entryFile: "main.py"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  hints:
+    - "Храните state, failures (сбои подряд), successes (успешные пробы), opened_at и три итоговых счётчика. Разбирайте строки как int(t) и строку исхода."
+    - "Первым шагом каждого события проверьте перелёт open -> half_open: state == 'open' and t - opened_at >= timeout (нестрого). Только после этого решайте, отклонять ли вызов."
+    - "Если state всё ещё 'open': rejected += 1, печатайте '<t> rejected state=open' и continue. Остальные события увеличивают calls и печатаются как '<t> <исход> state=<состояние ПОСЛЕ события>'."
+    - "В closed успех обнуляет failures, сбой увеличивает его и при failures >= threshold открывает размыкатель. В half_open успех увеличивает successes и при successes >= probes закрывает (failures = 0), а любой сбой открывает снова с opened_at = t; в обоих случаях opens += 1."
+  tests:
+    - id: "sample"
+      title: "Открытие, отказ и восстановление"
+      stdin: |
+        BREAKER 3 30 2
+        0 ok
+        1 fail
+        2 fail
+        3 fail
+        4 ok
+        20 ok
+        33 ok
+        34 ok
+        35 ok
+      expected: |
+        0 ok state=closed
+        1 fail state=closed
+        2 fail state=closed
+        3 fail state=open
+        4 rejected state=open
+        20 rejected state=open
+        33 ok state=half_open
+        34 ok state=closed
+        35 ok state=closed
+        calls=7 rejected=2 opens=1
+      compare: "trim"
+      hint: "Три сбоя подряд (1-3) открывают размыкатель в 3; до 33 вызовы отклоняются; в 33 он half_open, две успешные пробы закрывают его."
+    - id: "reset-on-success"
+      title: "Успех сбрасывает счётчик подряд идущих сбоев"
+      stdin: |
+        BREAKER 3 10 1
+        1 fail
+        2 fail
+        3 ok
+        4 fail
+        5 fail
+        6 ok
+      expected: |
+        1 fail state=closed
+        2 fail state=closed
+        3 ok state=closed
+        4 fail state=closed
+        5 fail state=closed
+        6 ok state=closed
+        calls=6 rejected=0 opens=0
+      compare: "trim"
+      hint: "Считаются только сбои подряд: ok в closed обнуляет счётчик, поэтому размыкатель не открывается."
+    - id: "probe-fails"
+      title: "Сбой пробы снова открывает размыкатель"
+      stdin: |
+        BREAKER 2 10 2
+        0 fail
+        1 fail
+        5 ok
+        11 fail
+        15 ok
+        20 ok
+        21 ok
+        22 ok
+      expected: |
+        0 fail state=closed
+        1 fail state=open
+        5 rejected state=open
+        11 fail state=open
+        15 rejected state=open
+        20 rejected state=open
+        21 ok state=half_open
+        22 ok state=closed
+        calls=5 rejected=3 opens=2
+      compare: "trim"
+      hint: "В 11 прошло 10 секунд с открытия (1): half_open; проба провалилась - open с новым временем открытия 11, следующая проба возможна с 21."
+    - id: "exact-timeout"
+      title: "Граница таймаута включительна"
+      stdin: |
+        BREAKER 1 5 1
+        0 fail
+        4 ok
+        5 ok
+      expected: |
+        0 fail state=open
+        4 rejected state=open
+        5 ok state=closed
+        calls=2 rejected=1 opens=1
+      compare: "trim"
+      hidden: true
+      hint: "Условие перехода: t - opened_at >= timeout. В 4 прошло 4 секунды - отказ; в 5 - ровно 5, значит проба разрешена."
+    - id: "multi-probe-reset"
+      title: "Частичный успех проб не переносится после сбоя"
+      stdin: |
+        BREAKER 2 10 3
+        0 fail
+        0 fail
+        10 ok
+        11 ok
+        12 fail
+        22 ok
+        23 ok
+        24 ok
+        25 fail
+      expected: |
+        0 fail state=closed
+        0 fail state=open
+        10 ok state=half_open
+        11 ok state=half_open
+        12 fail state=open
+        22 ok state=half_open
+        23 ok state=half_open
+        24 ok state=closed
+        25 fail state=closed
+        calls=9 rejected=0 opens=2
+      compare: "trim"
+      hidden: true
+      hint: "Успешные пробы обнуляются при входе в half_open; после сбоя в 12 нужно снова набрать три успеха подряд."
+    - id: "only-rejections"
+      title: "Всё время закрыто или только отказы"
+      stdin: |
+        BREAKER 2 100 1
+        1 fail
+        2 fail
+        3 ok
+        4 fail
+        50 ok
+        99 fail
+      expected: |
+        1 fail state=closed
+        2 fail state=open
+        3 rejected state=open
+        4 rejected state=open
+        50 rejected state=open
+        99 rejected state=open
+        calls=2 rejected=4 opens=1
+      compare: "trim"
+      hidden: true
+      hint: "Пока t - opened_at < 100, любые вызовы отклоняются независимо от исхода; такие вызовы не считаются в calls."
