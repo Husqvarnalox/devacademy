@@ -15,9 +15,13 @@ PYENV_ARG = $(if $(wildcard $(PYENV)),--python-env $(PYENV),)
 # tools/content-packages/node/<set>/package-lock.json (the app installs a set only when the learner asks for it).
 NODEENV  ?= .node-content
 NODEENV_ARG = $(if $(wildcard $(NODEENV)/*/node_modules),--node-env $(NODEENV),)
+# Go content environments: one module cache (pkg/mod) per package set under $(GOENV)/<set>/, pinned by
+# tools/content-packages/go/<set>/go.mod + go.sum (the app downloads a set only when the learner asks for it).
+GOENV    ?= .go-content
+GOENV_ARG = $(if $(wildcard $(GOENV)/*/pkg/mod/cache/download),--go-env $(GOENV),)
 
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
-        python-env node-env runtimes publish package checksums version notices clean
+        python-env node-env go-env runtimes publish package checksums version notices clean
 
 help:
 	@echo "setup             restore packages and report detected language runtimes"
@@ -31,6 +35,7 @@ help:
 	@echo "validate-content  validate content + run reference solutions and samples"
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
 	@echo "node-env          npm ci EVERY tools/content-packages/node set into $(NODEENV)/<set>/ (react, typescript, express; DOWNLOADS from npm)"
+	@echo "go-env            go mod download EVERY tools/content-packages/go set into $(GOENV)/<set>/pkg/mod (gomlx; DOWNLOADS from proxy.golang.org)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
 	@echo "package           installer(s) for RID=$(RID) on this OS into artifacts/package (.app+.dmg on macOS, AppImage+.deb on Linux)"
@@ -68,9 +73,10 @@ format:
 	dotnet format whitespace $(SLN)
 
 validate-content:
-	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG)
+	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG) $(GOENV_ARG)
 	@if [ -z "$(PYENV_ARG)" ]; then echo "note: no $(PYENV); exercises that need Python packages were skipped (run: make python-env)"; fi
 	@if [ -z "$(NODEENV_ARG)" ]; then echo "note: no $(NODEENV); exercises that need npm packages were skipped (run: make node-env)"; fi
+	@if [ -z "$(GOENV_ARG)" ]; then echo "note: no $(GOENV); exercises that need Go modules were skipped (run: make go-env)"; fi
 
 python-env:
 	@echo "NOTE: this downloads packages from PyPI into $(PYENV) (nothing is installed globally)."
@@ -85,6 +91,14 @@ node-env:
 	  rm -f $(NODEENV)/package.json $(NODEENV)/package-lock.json; \
 	  mkdir -p $(NODEENV)/$$id && cp $$d/package.json $$d/package-lock.json $(NODEENV)/$$id/ && \
 	  (cd $(NODEENV)/$$id && npm ci --ignore-scripts --no-audit --no-fund) || exit 1; \
+	done
+
+go-env:
+	@echo "NOTE: this downloads Go modules from proxy.golang.org into $(GOENV) (nothing is installed globally; the module cache is private to each set)."
+	for d in tools/content-packages/go/*/; do \
+	  id=$$(basename $$d); \
+	  mkdir -p $(GOENV)/$$id && cp $$d/go.mod $$d/go.sum $(GOENV)/$$id/ && \
+	  (cd $(GOENV)/$$id && GOMODCACHE=$$PWD/pkg/mod GOPATH=$$PWD/gopath GOFLAGS=-mod=mod GOPROXY=https://proxy.golang.org GOTOOLCHAIN=local go mod download) || exit 1; \
 	done
 
 runtimes:

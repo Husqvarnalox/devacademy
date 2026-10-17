@@ -1,6 +1,7 @@
 using DevAcademy.AI;
 using DevAcademy.AI.Http;
 using DevAcademy.Application.Evaluation;
+using DevAcademy.Application.Go;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
 using DevAcademy.Application.Python;
@@ -64,10 +65,14 @@ public static class Bootstrapper
         services.AddSingleton(sp => CreateNodeEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
         services.AddSingleton<INodeEnvironmentResolver>(sp => sp.GetRequiredService<NodeEnvironmentService>());
 
+        // Go content environment (module cache of a package set, e.g. GoMLX): read-only at grading time, downloaded only on an explicit action.
+        services.AddSingleton(sp => CreateGoEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
+        services.AddSingleton<IGoEnvironmentResolver>(sp => sp.GetRequiredService<GoEnvironmentService>());
+
         services.AddSingleton<CatalogService>();
         services.AddSingleton<LearningPathService>();
-        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>()));
-        services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>()));
+        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>()));
+        services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>()));
         services.AddSingleton<ProgressService>();
         services.AddSingleton<HintService>();
         services.AddSingleton<ProblemService>();
@@ -119,6 +124,16 @@ public static class Bootstrapper
             : NodeEnvironmentService.HasInstalledSet(paths.NodeContentDir) ? paths.NodeContentDir
             : NodeEnvironmentService.FindRepositoryEnvironment() ?? paths.NodeContentDir;
         return new NodeEnvironmentService(tools, env, packages);
+    }
+
+    /// <summary>Same rule as the node environment: <c>DEVACADEMY_GO_ENV</c>, else the app data directory once a set is installed there, else a checkout's <c>.go-content</c>, else the app data directory.</summary>
+    private static GoEnvironmentService CreateGoEnvironment(IToolRunner tools, AppPaths paths, ContentPackageIndex packages)
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("DEVACADEMY_GO_ENV");
+        var env = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv
+            : GoEnvironmentService.HasInstalledSet(paths.GoContentDir) ? paths.GoContentDir
+            : GoEnvironmentService.FindRepositoryEnvironment() ?? paths.GoContentDir;
+        return new GoEnvironmentService(tools, env, packages);
     }
 
     private static ProviderRegistry CreateRegistry(AiHttp http, ISettingsRepository settings)

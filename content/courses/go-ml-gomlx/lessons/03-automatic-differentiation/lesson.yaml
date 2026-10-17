@@ -1,0 +1,180 @@
+id: "go.ml.gomlx.automatic-differentiation"
+title: "Автоматическое дифференцирование"
+goal: "Получать производные формулы графа через graph.Gradient и проверять их конечными разностями."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "go.ml.gomlx.computation-graphs"
+  - "ml.foundations.linear-regression"
+objectives:
+  - "Объяснить смысл производной и градиента и их роль в обучении."
+  - "Вызывать graph.Gradient для скалярной потери и интерпретировать форму результата."
+  - "Объяснить, почему обратное дифференцирование эффективно для моделей с многими параметрами."
+  - "Проверять градиент конечными разностями и выбирать тип данных и шаг."
+  - "Использовать StopGradient для константных частей формулы."
+masteryCriteria:
+  - "Вы получаете производные формулы с двумя переменными через Gradient и сверяете их с ручными формулами."
+  - "Вы знаете, что Gradient требует скалярного выхода, и сворачиваете потерю до числа."
+  - "Вы проверяете градиент центральной разностью в float64 и сравниваете с допуском."
+  - "Вы отличаете автоматическое, символьное и численное дифференцирование."
+related:
+  - "go.ml.gomlx.computation-graphs"
+  - "ml.foundations.linear-regression"
+next:
+  - "go.ml.gomlx.linear-regression-gradient-descent"
+tags:
+  - "go"
+  - "gomlx"
+  - "autodiff"
+  - "gradient"
+facts:
+  - kind: "historical"
+    text: "Алгоритм обратного распространения ошибки, который является обратным режимом автоматического дифференцирования для нейронных сетей, получил широкую известность после статьи Румельхарта, Хинтона и Уильямса 1986 года."
+    sources:
+      - "https://en.wikipedia.org/wiki/Backpropagation"
+  - kind: "internals"
+    text: "graph.Gradient в GoMLX требует скалярного выхода: в документации сказано, что для нескалярного выхода это была бы матрица Якоби, которая пока не реализована."
+    sources:
+      - "https://pkg.go.dev/github.com/gomlx/gomlx/core/graph"
+  - kind: "performance"
+    text: "В обратном режиме стоимость вычисления градиента скалярной функции ограничена константным множителем от стоимости вычисления самой функции и не зависит от числа параметров. Поэтому он применяется для моделей с миллионами параметров."
+    sources:
+      - "https://en.wikipedia.org/wiki/Automatic_differentiation"
+  - kind: "misconception"
+    text: "«Автоматическое дифференцирование - то же самое, что численное» - нет: численное дифференцирование приближает производную конечной разностью и страдает от ошибок округления, а автоматическое применяет правила дифференцирования к каждой операции и даёт точный результат в пределах арифметики с плавающей точкой."
+    sources:
+      - "https://en.wikipedia.org/wiki/Automatic_differentiation"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: "Чему равна производная функции x^2 в точке x = 5?"
+      answer: 10
+      tolerance: 0
+      explanation: "Производная равна 2x, в точке 5 это 10."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой должна быть форма выхода, для которого вызывается graph.Gradient?"
+      options:
+        - "Любой"
+        - "Скаляр (без осей)"
+        - "Вектор"
+        - "Матрица"
+      answer: 1
+      explanation: "Для нескалярных выходов нужна матрица Якоби, её в v0.28.8 нет."
+    - id: "q3"
+      type: "single"
+      prompt: "Какую форму имеет градиент потери по параметру формы [3]?"
+      options:
+        - "Скаляр"
+        - "[3]"
+        - "[3, 3]"
+        - "[1]"
+      answer: 1
+      explanation: "Градиент по параметру имеет ту же форму, что и параметр."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Gradient возвращает узлы графа, а не числа."
+        - "Конечные разности точнее автоматического дифференцирования."
+        - "Конечными разностями проверяют правильность градиента."
+        - "StopGradient не пропускает градиент через узел."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Автоматическое дифференцирование точнее и дешевле для многих параметров; конечные разности используют как тест."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется правило, по которому собирается производная сложной функции? (два слова)"
+      answer:
+        - "правило цепочки"
+        - "цепное правило"
+        - "chain rule"
+      explanation: "Правило цепочки: d f(g(x)) = f'(g(x)) g'(x)."
+exercise:
+  id: "go.ml.gomlx.automatic-differentiation.exercise"
+  title: "Градиент f(x, y) = sigmoid(x*y) + x^2"
+  prompt: |
+    Функция `f(x, y) = sigmoid(x * y) + x^2` уже записана в заготовке. Нужно построить граф, который возвращает **значение функции и обе частные производные** `df/dx` и `df/dy`, используя `graph.Gradient`. Производные вручную писать не нужно.
+
+    Реализуйте `valueAndGradient` так, чтобы она возвращала `[f, df/dx, df/dy]`. Заготовка сейчас возвращает нули вместо производных.
+
+    Программа читает из stdin пары чисел `x y` (по одной паре в строке, пар может быть несколько) и для каждой печатает одну строку:
+
+    ```
+    f = <значение> grad = <df/dx> <df/dy> numeric = <df/dx> <df/dy> ok = <true|false>
+    ```
+
+    Часть `numeric` - производные, вычисленные центральной разностью с шагом `1e-5` в `float64`; `ok` равно `true`, если автоматический и численный градиенты совпадают с точностью `1e-4`. Все числа печатаются с четырьмя знаками.
+
+    **Пример.** Ввод `1 1` даёт
+
+    ```
+    f = 1.7311 grad = 2.1966 0.1966 numeric = 2.1966 0.1966 ok = true
+    ```
+
+    Файлы `go.mod` и `go.sum` менять не нужно.
+  evaluation: "io"
+  languageId: "go"
+  entryFile: "main.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    go: ">=1.26.5"
+    goModules:
+      - "github.com/gomlx/gomlx"
+      - "github.com/gomlx/compute"
+  hints:
+    - "graph.Gradient(output, x, y) возвращает срез узлов - производные output по каждому из перечисленных аргументов, в том же порядке. output должен быть скаляром; здесь x и y скаляры."
+    - "Формулу f(x, y) повторно строить не нужно: она уже вызывается в valueAndGradient и сохранена в out."
+    - "Вызов: grads := graph.Gradient(out, x, y). Тогда grads[0] - df/dx, grads[1] - df/dy."
+    - "Верните []*graph.Node{out, grads[0], grads[1]} вместо заглушек graph.ZerosLike(x) и graph.ZerosLike(y)."
+  tests:
+    - id: "one"
+      title: "Точка (1, 1)"
+      stdin: "1 1\n"
+      expected: "f = 1.7311 grad = 2.1966 0.1966 numeric = 2.1966 0.1966 ok = true\n"
+      compare: "numeric"
+      tolerance: 0.0005
+      hint: "Градиент f по x равен y*sigmoid'(xy) + 2x, по y равен x*sigmoid'(xy)."
+    - id: "negative"
+      title: "Отрицательные координаты"
+      stdin: "-1 0.5\n"
+      expected: "f = 1.3775 grad = -1.8825 -0.2350 numeric = -1.8825 -0.2350 ok = true\n"
+      compare: "numeric"
+      tolerance: 0.0005
+      hint: "Gradient(out, x, y) возвращает срез градиентов в порядке аргументов."
+    - id: "several"
+      title: "Несколько точек подряд"
+      stdin: "0.5 -1\n2 0.25\n"
+      expected: "f = 0.6275 grad = 0.7650 0.1175 numeric = 0.7650 0.1175 ok = true\nf = 4.6225 grad = 4.0588 0.4700 numeric = 4.0588 0.4700 ok = true\n"
+      compare: "numeric"
+      tolerance: 0.0005
+      hint: "Каждая строка ввода обрабатывается отдельно."
+    - id: "origin"
+      title: "Начало координат (скрытый)"
+      stdin: "0 0\n"
+      expected: "f = 0.5000 grad = 0.0000 0.0000 numeric = 0.0000 0.0000 ok = true\n"
+      compare: "numeric"
+      tolerance: 0.0005
+      hidden: true
+      hint: "В нуле sigmoid(0) = 0.5, а оба градиента равны нулю."
+    - id: "large"
+      title: "Большие значения (скрытый)"
+      stdin: "3 -2\n"
+      expected: "f = 9.0025 grad = 5.9951 0.0074 numeric = 5.9951 0.0074 ok = true\n"
+      compare: "numeric"
+      tolerance: 0.0005
+      hidden: true
+      hint: "Считайте градиент автодифференцированием, а не вручную."
+    - id: "many"
+      title: "Много точек (скрытый)"
+      stdin: "1 -1\n-2 2\n0.1 0.1\n1.5 1.5\n"
+      expected: "f = 1.2689 grad = 1.8034 0.1966 numeric = 1.8034 0.1966 ok = true\nf = 4.0180 grad = -3.9647 -0.0353 numeric = -3.9647 -0.0353 ok = true\nf = 0.5125 grad = 0.2250 0.0250 numeric = 0.2250 0.0250 ok = true\nf = 3.1547 grad = 3.1294 0.1294 numeric = 3.1294 0.1294 ok = true\n"
+      compare: "numeric"
+      tolerance: 0.0005
+      hidden: true
+      hint: "Проверка конечными разностями ok должна быть true."

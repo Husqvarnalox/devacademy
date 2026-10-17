@@ -11,13 +11,18 @@ public enum AcceleratorNeed { None, Optional, Required }
 /// (<c>numpy&gt;=2</c>); plain syntax checks live in <see cref="PythonPackageSpec"/> / <see cref="PythonSpecifierSet"/>.
 /// Node.js (javascript exercises): a Node version specifier (same clause syntax, <c>&gt;=22</c>) and npm package names that must be
 /// installed in the node content environment (<c>vitest</c>, <c>@testing-library/react</c>).
+/// Go (go exercises): a Go version specifier (<c>&gt;=1.26.5</c>) and module paths that must be in the Go module cache of a package set
+/// (<c>github.com/gomlx/gomlx</c>).
 /// </summary>
-public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages, string? Node = null, IReadOnlyList<string>? NpmPackages = null)
+public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages, string? Node = null, IReadOnlyList<string>? NpmPackages = null,
+    string? Go = null, IReadOnlyList<string>? GoModules = null)
 {
     public IReadOnlyList<string> Npm => NpmPackages ?? [];
+    public IReadOnlyList<string> Modules => GoModules ?? [];
+    public bool HasGo => !string.IsNullOrWhiteSpace(Go) || Modules.Count > 0;
     public bool HasPython => !string.IsNullOrWhiteSpace(Python) || Packages.Count > 0;
     public bool HasNode => !string.IsNullOrWhiteSpace(Node) || Npm.Count > 0;
-    public bool IsEmpty => !HasPython && !HasNode;
+    public bool IsEmpty => !HasPython && !HasNode && !HasGo;
 }
 
 /// <summary>An npm package name as it appears in <c>requires.npmPackages</c>: a lower-case (optionally scoped) registry name, no versions, URLs or paths.</summary>
@@ -278,4 +283,13 @@ public sealed partial class PythonPackageSpec
         spec = new PythonPackageSpec(t, m.Groups["name"].Value, extras, versions);
         return true;
     }
+}
+
+/// <summary>A Go module path as it appears in <c>requires.goModules</c>: a host name with a dot, then path elements; no versions or URLs.</summary>
+public static partial class GoModulePath
+{
+    [GeneratedRegex(@"^[a-z0-9][a-z0-9.-]*\.[a-z0-9.-]+(?:/[A-Za-z0-9._~-]+)+$", RegexOptions.CultureInvariant)]
+    private static partial Regex Pattern();
+
+    public static bool IsValid(string? path) => path is { Length: > 0 and <= 200 } && Pattern().IsMatch(path);
 }

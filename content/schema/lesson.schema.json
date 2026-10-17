@@ -80,7 +80,7 @@
     "requires": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Environment requirements. python/packages (Python exercises): checked with importlib.metadata in the learner's active Python environment (never imported). node/npmPackages (javascript exercises): checked against the node content environment (`make node-env`, Settings -> Runtimes). Missing ones block the run with install instructions. Offline stdlib-only exercises declare nothing.",
+      "description": "Environment requirements. python/packages (Python exercises): checked with importlib.metadata in the learner's active Python environment (never imported). node/npmPackages (javascript exercises): checked against the node content environment (`make node-env`, Settings -> Runtimes). go/goModules (go exercises): checked against the Go module cache of a go package set (`make go-env`, Settings -> Runtimes). Missing ones block the run with install instructions. Offline stdlib-only exercises declare nothing.",
       "properties": {
         "python": { "type": "string", "description": "Interpreter version specifier, e.g. \">=3.11\".", "examples": [">=3.11", ">=3.10,<3.14"] },
         "packages": {
@@ -90,7 +90,12 @@
         "node": { "type": "string", "description": "Node.js version specifier (comma-separated comparison clauses).", "examples": [">=22"] },
         "npmPackages": {
           "type": "array",
-          "items": { "type": "string", "description": "Plain npm package name (scoped allowed); the installed version is pinned by tools/node-content/package-lock.json.", "examples": ["vitest", "@testing-library/react"] }
+          "items": { "type": "string", "description": "Plain npm package name (scoped allowed); the installed version is pinned by the package set's package-lock.json (tools/content-packages/node/<set>).", "examples": ["vitest", "@testing-library/react"] }
+        },
+        "go": { "type": "string", "description": "Go toolchain version specifier (go exercises), checked against the installed `go`.", "examples": [">=1.26.5"] },
+        "goModules": {
+          "type": "array",
+          "items": { "type": "string", "description": "Go module path (no version); one go package set (tools/content-packages/go/<set>/go.mod + go.sum) must provide all of them. The exercise ships its own go.mod and go.sum with the same pins.", "examples": ["github.com/gomlx/gomlx"] }
         }
       }
     },

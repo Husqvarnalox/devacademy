@@ -1,0 +1,193 @@
+id: "go.ml.gomlx.tensors-and-backend"
+title: "Тензоры, бэкенд и первый граф"
+goal: "Понимать, как GoMLX отделяет описание вычисления (граф из узлов) от его выполнения (бэкенд над тензорами), и уметь запустить собственный граф на чистом Go-бэкенде."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "go.fundamentals.maps-and-slices-deep-dive"
+  - "go.fundamentals.packages-modules-testing"
+  - "ml.foundations.what-is-ml"
+objectives:
+  - "Объяснить роли тензора, графа и бэкенда и отличить построение графа от его выполнения."
+  - "Создавать тензоры из срезов Go через tensors.FromValue и читать форму, тип и содержимое."
+  - "Создавать бэкенд go и объяснить, зачем нужен пустой импорт gobackend."
+  - "Построить граф через graph.MustNewExec, выполнить его и получить результат через Value()."
+  - "Назвать компромисс между чистым Go-бэкендом и XLA и ограничения версии v0.28.8."
+masteryCriteria:
+  - "Вы пишете функцию графа для многочленной формулы, выполняете её на векторе и проверяете результат вручную."
+  - "Вы объясняете, почему сложение Float32 и Float64 в графе не работает без ConvertDType."
+  - "Вы знаете, что функция графа вызывается при построении, а не при каждом запуске."
+  - "Вы называете причины, по которым этот курс использует чистый Go-бэкенд, и его цену."
+related:
+  - "go.fundamentals.packages-modules-testing"
+  - "ml.numpy.linear-regression"
+next:
+  - "go.ml.gomlx.computation-graphs"
+tags:
+  - "go"
+  - "gomlx"
+  - "tensors"
+  - "ml"
+facts:
+  - kind: "real-world"
+    text: "GoMLX позиционируется как набор библиотек для машинного обучения и математики, «PyTorch/JAX/TensorFlow для Go». В курсе используется версия GoMLX v0.28.8 вместе с модулем github.com/gomlx/compute v0.1.6."
+    sources:
+      - "https://github.com/gomlx/gomlx"
+      - "https://github.com/gomlx/compute"
+  - kind: "internals"
+    text: "Бэкенд go реализован на чистом Go (пакет github.com/gomlx/compute/gobackend) без зависимостей на C/C++. По описанию проекта он переносим (в том числе в WASM), но медленнее бэкенда XLA, и SIMD-ускорение пока есть только для умножения матриц."
+    sources:
+      - "https://github.com/gomlx/gomlx"
+      - "https://github.com/gomlx/compute"
+  - kind: "internals"
+    text: "Бэкенд XLA основан на OpenXLA, использует CGO и C++-библиотеку и поддерживает GPU и TPU. В этом курсе он не используется."
+    sources:
+      - "https://github.com/gomlx/compute"
+      - "https://openxla.org/xla"
+  - kind: "real-world"
+    text: "По правилам версий модулей Go версия v0.x не гарантирует стабильность API. GoMLX имеет версию v0.28.8, поэтому названия и сигнатуры могут меняться в следующих версиях; курс закрепляет точные версии в go.mod."
+    sources:
+      - "https://go.dev/doc/modules/version-numbers"
+  - kind: "misconception"
+    text: "«Функция графа выполняется при каждом вызове Exec» - нет: она вызывается при построении графа для новой комбинации форм и типов входов, а дальше выполняется скомпилированный граф."
+    sources:
+      - "https://pkg.go.dev/github.com/gomlx/gomlx/core/graph"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что возвращает graph.Square(x) внутри функции графа?"
+      options:
+        - "Квадрат числа x"
+        - "Новый узел графа: значение появится после выполнения графа"
+        - "Готовый тензор"
+        - "Ошибку, если x не число"
+      answer: 1
+      explanation: "Внутри функции графа вы описываете вычисление. Значения появляются только после MustExec."
+    - id: "q2"
+      type: "single"
+      prompt: "Зачем в программе нужен пустой импорт _ \"github.com/gomlx/compute/gobackend\"?"
+      options:
+        - "Он экспортирует функцию Square"
+        - "Он регистрирует бэкенд go, чтобы compute.NewWithConfig(\"go\") его нашёл"
+        - "Он включает GPU"
+        - "Он ускоряет компиляцию"
+      answer: 1
+      explanation: "Пакет бэкенда при инициализации регистрирует себя. Без импорта имя go неизвестно."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "Бэкенд go написан на чистом Go и не требует cgo."
+        - "Бэкенд XLA использует CGO и поддерживает GPU."
+        - "Value() возвращает копию данных тензора в срезах Go."
+        - "Float32 и Float64 можно складывать в графе без преобразования."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Типы в графе строгие: нужен graph.ConvertDType."
+    - id: "q4"
+      type: "short"
+      prompt: "Какая функция создаёт тензор из значения Go (например, из среза)? Напишите имя с пакетом."
+      answer:
+        - "tensors.FromValue"
+        - "FromValue"
+      explanation: "tensors.FromValue определяет форму по вложенности срезов, а тип - по типу элементов."
+    - id: "q5"
+      type: "numeric"
+      prompt: "Сколько элементов содержит тензор формы (Float32)[2, 3]?"
+      answer: 6
+      tolerance: 0
+      explanation: "Размер равен произведению размеров осей: 2 * 3 = 6."
+exercise:
+  id: "go.ml.gomlx.tensors-and-backend.exercise"
+  title: "Многочлен как граф"
+  prompt: |
+    В заготовке `main.go` программа читает из stdin вещественные числа (сколько угодно, разделённые пробелами или переводами строк), строит граф GoMLX и выводит результат. Функция `poly` пока возвращает `x` без изменений.
+
+    Реализуйте `poly`: граф для многочлена `y = 3x^2 - 2x + 1`, применённый **ко всему тензору сразу** (без цикла по элементам). Используйте `graph.Square`, `graph.MulScalar`, `graph.Sub` и `graph.AddScalar`.
+
+    Остальное уже написано: бэкенд `go`, выполнение через `graph.MustNewExec` и печать. Программа выводит:
+
+    ```
+    shape: <форма входного тензора>
+    y[0] = <значение с тремя знаками>
+    ...
+    sum = <сумма всех y>
+    ```
+
+    **Пример.** Ввод `0 1 2 3` даёт
+
+    ```
+    shape: (Float32)[4]
+    y[0] = 1.000
+    y[1] = 2.000
+    y[2] = 9.000
+    y[3] = 22.000
+    sum = 34.000
+    ```
+
+    Файлы `go.mod` и `go.sum` менять не нужно: зависимости (GoMLX `v0.28.8`) предоставляет окружение курса, сеть во время запуска не используется.
+  evaluation: "io"
+  languageId: "go"
+  entryFile: "main.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    go: ">=1.26.5"
+    goModules:
+      - "github.com/gomlx/gomlx"
+      - "github.com/gomlx/compute"
+  hints:
+    - "Функция графа не считает числа, а описывает формулу: каждая функция graph.* возвращает новый узел. Составьте формулу из частей: 3x^2, 2x, а затем объедините их."
+    - "Квадрат: graph.Square(x). Умножение узла на константу Go: graph.MulScalar(узел, 3). Разность двух узлов: graph.Sub(a, b)."
+    - "Добавить константу ко всему тензору: graph.AddScalar(узел, 1). Операции поэлементные, поэтому цикл по элементам не нужен."
+    - "Скелет: quadratic := graph.MulScalar(graph.Square(x), 3); linear := graph.MulScalar(x, 2); return graph.AddScalar(graph.Sub(quadratic, linear), 1)."
+  tests:
+    - id: "single"
+      title: "Один элемент"
+      stdin: "1.5\n"
+      expected: "shape: (Float32)[1]\ny[0] = 4.750\nsum = 4.750\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hint: "Результат должен быть y = 3x^2 - 2x + 1 для каждого элемента."
+    - id: "range"
+      title: "Несколько элементов"
+      stdin: "0 1 2 3\n"
+      expected: "shape: (Float32)[4]\ny[0] = 1.000\ny[1] = 2.000\ny[2] = 9.000\ny[3] = 22.000\nsum = 34.000\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hint: "Печатайте форму входного тензора, затем y и сумму."
+    - id: "negative"
+      title: "Отрицательные значения"
+      stdin: "-1 0.5\n"
+      expected: "shape: (Float32)[2]\ny[0] = 6.000\ny[1] = 0.750\nsum = 6.750\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hint: "Парабола: 3x^2 даёт положительный вклад и для отрицательных x."
+    - id: "vector"
+      title: "Вектор из пяти элементов (скрытый)"
+      stdin: "-2 -1 0 1 2\n"
+      expected: "shape: (Float32)[5]\ny[0] = 17.000\ny[1] = 6.000\ny[2] = 1.000\ny[3] = 2.000\ny[4] = 9.000\nsum = 35.000\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hidden: true
+      hint: "Строите ровно одну формулу на весь тензор, а не цикл по элементам."
+    - id: "fractions"
+      title: "Дробные значения (скрытый)"
+      stdin: "0.25 0.5 0.75\n"
+      expected: "shape: (Float32)[3]\ny[0] = 0.688\ny[1] = 0.750\ny[2] = 1.188\nsum = 2.625\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hidden: true
+      hint: "Константы AddScalar и MulScalar применяются к каждому элементу."
+    - id: "large"
+      title: "Большие значения (скрытый)"
+      stdin: "10 20 30 40 50 60\n"
+      expected: "shape: (Float32)[6]\ny[0] = 281.000\ny[1] = 1161.000\ny[2] = 2641.000\ny[3] = 4721.000\ny[4] = 7401.000\ny[5] = 10681.000\nsum = 26886.000\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hidden: true
+      hint: "Сумма считается в графе через ReduceAllSum."

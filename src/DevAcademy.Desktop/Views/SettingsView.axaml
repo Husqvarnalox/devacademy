@@ -67,6 +67,7 @@
           <views:LanguageServersView Name="LanguageServersSection" DataContext="{Binding LanguageServers}" />
           <views:PythonEnvironmentsView Name="PythonSection" DataContext="{Binding Python}" />
           <views:NodeEnvironmentView Name="NodeSection" DataContext="{Binding Node}" />
+          <views:GoEnvironmentView Name="GoSection" DataContext="{Binding Go}" />
           <views:MlAccelerationView Name="MlSection" DataContext="{Binding Ml}" />
         </StackPanel>
       </ScrollViewer>

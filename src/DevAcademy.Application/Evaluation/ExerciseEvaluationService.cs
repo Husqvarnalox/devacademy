@@ -1,3 +1,4 @@
+using DevAcademy.Application.Go;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Python;
 using DevAcademy.Domain;
@@ -11,13 +12,17 @@ public sealed class ExerciseEvaluationService
     private readonly Dictionary<EvaluationKind, IExerciseEvaluator> _evaluators;
     private readonly IExerciseEnvironmentResolver? _environment;
     private readonly INodeEnvironmentResolver? _node;
+    private readonly IGoEnvironmentResolver? _go;
 
-    public ExerciseEvaluationService(ICodeRunner runner, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null)
-        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node) { }
+    public ExerciseEvaluationService(ICodeRunner runner, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null,
+        IGoEnvironmentResolver? go = null)
+        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node, go) { }
 
-    public ExerciseEvaluationService(IEnumerable<IExerciseEvaluator> evaluators, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null)
+    public ExerciseEvaluationService(IEnumerable<IExerciseEvaluator> evaluators, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null,
+        IGoEnvironmentResolver? go = null)
     {
         _node = node;
+        _go = go;
         _evaluators = evaluators.ToDictionary(e => e.Kind);
         _environment = environment;
     }
@@ -50,6 +55,17 @@ public sealed class ExerciseEvaluationService
                 return EvaluationReport.Failure(Verdict.RuntimeMissing, nodePlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
             nodeEnv = nodePlan.Node;
         }
-        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv).ConfigureAwait(false);
+        GoRunSelection? goEnv = null;
+        if (exercise.HasGoRequirements && (_go is not null || exercise.NeedsGoEnvironment))
+        {
+            // Without a Go service (CLI without --go-env) a version-only requirement is not checked; the build itself shows an old Go.
+            if (_go is null)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, "Для упражнения нужны модули Go курса, но окружение не подключено (make go-env).", isolation) with { LanguageId = exercise.LanguageId };
+            GoRunPlan goPlan = await _go.ResolveAsync(exercise, ct).ConfigureAwait(false);
+            if (goPlan.IsBlocked)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, goPlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
+            goEnv = goPlan.Go;
+        }
+        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv, goEnv).ConfigureAwait(false);
     }
 }

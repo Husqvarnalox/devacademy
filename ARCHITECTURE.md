@@ -276,12 +276,14 @@ Settings instructions, never a wrong answer. A `required` accelerator that is un
 with an explanation; `optional` only shows a note.
 
 **Package sets.** Packages are installed per library, not wholesale: `tools/content-packages/index.json` (shipped as `content-packages/` next to the
-executable) lists sets (node `react`, `typescript`, `express`; python `numpy`, `pandas`, `fastapi`, `django`). `ContentPackageIndex` (Domain,
+executable) lists sets (node `react`, `typescript`, `express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`). `ContentPackageIndex` (Domain,
 pure) resolves the exercise's required packages to the smallest single set of the right language that covers them; the ContentValidator
 rejects an exercise no set covers. Node sets live in `<data dir>/node-content/<set>/` (`npm ci --ignore-scripts --no-audit --no-fund` in that
 directory only; a run mounts just that set's `node_modules` read-only). A Python set is its pinned requirements file installed through the
 normal plan/consent flow into the ACTIVE managed environment (never auto-created). `ExerciseRunPlan`/`NodeRunPlan` carry `InstallSet` so the lesson
 can offer «Установить пакеты: …»; the dialog lists packages with versions, the exact command and the network notice. Nothing is installed implicitly.
+A Go set is the same idea for Go modules: `GoEnvironmentService` (`go mod download` into `<data dir>/go-content/<set>/pkg/mod`), `GoRunPlan` carries `InstallSet`, and
+`PackageSetInstallFlow` serves Python, Node and Go alike; Settings has a Go section (`GoEnvironmentViewModel`) with Install/Remove per set.
 
 **Run isolation.** A selected env replaces the auto-detected interpreter. The env directory is passed as
 `ReadOnlyPaths`: the macOS profile ends with `(deny file-write* (subpath env))` (last rule wins), bwrap uses

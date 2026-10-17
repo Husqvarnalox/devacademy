@@ -348,6 +348,35 @@ Framework courses pin their package in `tools/python-dev-requirements.txt` (for 
 `fastapi` for the FastAPI course). Django exercises need no server or manage.py: the learner file calls `settings.configure(...)`
 and `django.setup()` (SQLite `:memory:`, the app is an `AppConfig` subclass defined in the same file, tables are created with
 `connection.schema_editor().create_model`) and the harness drives views through `django.test.Client`.
+## Go modules for Go exercises (GoMLX)
+
+```yaml
+requires: { go: ">=1.26.5", goModules: [github.com/gomlx/gomlx, github.com/gomlx/compute] }   # go exercises only
+```
+
+`goModules` are module paths (no versions: versions come from the set). The module list must be covered by ONE `go` set in `tools/content-packages/index.json`
+(`go/<id>/go.mod` + `go.sum`, same smallest-covering-set rule as the other languages). The exercise's own `starter/` and `solution/` carry a `go.mod` and `go.sum`
+with the **same pins as the set**: the build runs offline (`GOPROXY=off`, `GOSUMDB=off`, `GOFLAGS=-mod=mod`, `GOTOOLCHAIN=local`, `CGO_ENABLED=0`) against the
+set's read-only module cache, so a missing or different version fails to build. Create them from the set (`cp tools/content-packages/go/<id>/go.{mod,sum}`) and
+change only the `module` line; the `go` directive must be `1.26.5` or lower. `requires.go` is an optional lower bound (`>=1.26.5`); a version-only requirement is
+checked against the detected `go` even without a module cache.
+
+`make go-env` runs `go mod download` for EVERY go set into the gitignored `.go-content/<set>/pkg/mod` (DOWNLOADS from proxy.golang.org; about 82 MB of
+archives for `gomlx`; nothing is global). `make validate-content` passes `--go-env .go-content` when that directory exists; without it, the Go-module exercises and
+theory samples are skipped with a warning. CI has no `go-env` step (no verified `setup-go` configuration), so CI skips them as well; run
+`make go-env && make validate-content` locally before changing such a course. In the app a blocked lesson offers «Установить пакеты: <набор>», Settings has a Go
+section with Install/Remove per set, and each install shows the modules, the exact command (`go mod download`) and that it needs the network.
+
+Authoring rules learned from `go-ml-gomlx`:
+
+* Theory samples (` ```go run `) of a lesson whose exercise has `goModules` are built beside the exercise **solution's** `go.mod` and `go.sum`, so they may import the
+  same modules and must not need others. A sample is `package main` and is compared with `output` after trimming; keep floats short (`%.3f`) because `float32`
+  can differ in the last digits between CPUs.
+* Exercises with floating-point output use `compare: numeric` with a `tolerance` (non-numeric tokens still match exactly, so print `w = 2.000` rather than `w=2.000`).
+  Derive the expected output from a real run of the solution, avoid values near a rounding boundary, and keep the run well under the 5 s default limit.
+* Pre-1.0 libraries: pin exact versions, say so in `framework.deprecated`/`migrationNotes`, and describe tradeoffs honestly (the pure-Go GoMLX backend is slower
+  than XLA; the course teaches principles, not performance).
+
 ## npm packages for JavaScript exercises (React, Vitest, Testing Library)
 
 ```yaml
@@ -384,12 +413,13 @@ confirmation.
 ### Package sets (`tools/content-packages/`)
 
 A learner's machine downloads only the packages of the library being studied, so packages are grouped into per-course **sets**.
-`index.json` is an array of `{ id, title (Russian), language: python|node, description, packages }` (`id` matches `^[a-z0-9][a-z0-9-]{0,40}$`).
+`index.json` is an array of `{ id, title (Russian), language: python|node|go, description, packages }` (`id` matches `^[a-z0-9][a-z0-9-]{0,40}$`).
 Node sets are `node/<id>/{package.json,package-lock.json}` (lock generated with `npm install --package-lock-only --ignore-scripts`; shared
-versions must be identical across sets); Python sets are `python/<id>.txt` with pinned requirements. Current sets: node `react`, `typescript`,
-`express`; python `numpy`, `pandas`, `fastapi`, `django`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
+versions must be identical across sets); Python sets are `python/<id>.txt` with pinned requirements; Go sets are `go/<id>/{go.mod,go.sum}` (`packages` lists
+the top-level module paths). Current sets: node `react`, `typescript`,
+`express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
 
-An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node) must be
+An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node; `requires.goModules` for Go) must be
 covered by ONE set of the right language: the smallest covering set wins, ties go to index order. The validator reports an error for an
 exercise no set covers, so when adding a course that needs a new package, add it to an existing set (or create a set) in the same change.
 If the index cannot be found the validator only warns.

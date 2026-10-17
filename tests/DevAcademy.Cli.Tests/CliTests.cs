@@ -31,7 +31,18 @@ public class ArgumentParsingTests
         Assert.Null(CliMain.Parse(["--run-solutions"], out _)!.NodeEnv);
     }
 
+    [Fact]
+    public void Parses_go_env()
+    {
+        var o = CliMain.Parse(["--run-solutions", "--go-env", ".go-content"], out var error);
+        Assert.Null(error);
+        Assert.Equal(".go-content", o!.GoEnv);
+        Assert.Null(CliMain.Parse(["--run-solutions"], out _)!.GoEnv);
+    }
+
     [Theory]
+    [InlineData("--go-env")]
+    [InlineData("--go-env", "--run-solutions")]
     [InlineData("--node-env")]
     [InlineData("--node-env", "--run-solutions")]
     [InlineData("--python-env")]
@@ -160,6 +171,22 @@ public class ValidateWithRequirementsTests : IDisposable
         var (code, _, err) = await Run("validate-content", "--content", Content, "--node-env", _root);
         Assert.Equal(2, code);
         Assert.Contains("--run-solutions", err);
+    }
+
+    [Fact]
+    public async Task Go_env_without_run_solutions_is_a_usage_error()
+    {
+        var (code, _, err) = await Run("validate-content", "--content", Content, "--go-env", _root);
+        Assert.Equal(2, code);
+        Assert.Contains("--run-solutions", err);
+    }
+
+    [Fact]
+    public async Task Go_env_without_a_module_cache_points_to_make_go_env()
+    {
+        var (code, _, err) = await Run("validate-content", "--content", Content, "--run-solutions", "--go-env", Path.Combine(_root, "nope"));
+        Assert.Equal(2, code);
+        Assert.Contains("make go-env", err);
     }
 
     [Fact]

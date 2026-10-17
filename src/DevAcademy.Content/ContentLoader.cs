@@ -349,7 +349,9 @@ public static class ContentLoader
             r is null ? null : new ExerciseRequirements(string.IsNullOrWhiteSpace(r.Python) ? null : r.Python.Trim(),
                 (r.Packages ?? []).Select(p => p.Trim()).ToList(),
                 string.IsNullOrWhiteSpace(r.Node) ? null : r.Node.Trim(),
-                (r.NpmPackages ?? []).Select(p => p.Trim()).ToList());
+                (r.NpmPackages ?? []).Select(p => p.Trim()).ToList(),
+                string.IsNullOrWhiteSpace(r.Go) ? null : r.Go.Trim(),
+                (r.GoModules ?? []).Select(p => p.Trim()).ToList());
 
         private Exercise? ParseExerciseCore(ExerciseDto e, string lessonDir, string path, string courseLanguage)
         {

@@ -1,0 +1,179 @@
+id: "go.ml.gomlx.logistic-regression"
+title: "Логистическая регрессия: потеря и точность"
+goal: "Обучить классификатор с бинарной кросс-энтропией через логиты и посчитать точность в графе."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "go.ml.gomlx.linear-regression-gradient-descent"
+  - "ml.foundations.classification-metrics"
+objectives:
+  - "Объяснить, как логит и сигмоид превращаются в вероятность и решение."
+  - "Записать бинарную кросс-энтропию через логиты в устойчивой форме с softplus."
+  - "Вычислить точность в графе через сравнение и усреднение."
+  - "Объяснить, почему на разделимых данных веса растут, а на перекрывающихся точность ограничена."
+masteryCriteria:
+  - "Вы реализуете потерю mean(softplus(z) - y*z) и объясняете, чем она лучше Log(Sigmoid(z))."
+  - "Вы получаете начальную потерю ln 2 при нулевых весах и используете её как проверку."
+  - "Вы отличаете MSE от кросс-энтропии для классификации и называете недостаток MSE."
+  - "Вы не ожидаете 100% точности на перекрывающихся классах."
+related:
+  - "ml.numpy.logistic-regression"
+  - "ml.foundations.classification-metrics"
+next:
+  - "go.ml.gomlx.tiny-mlp"
+tags:
+  - "go"
+  - "gomlx"
+  - "classification"
+  - "cross-entropy"
+facts:
+  - kind: "internals"
+    text: "Бинарная кросс-энтропия через логиты записывается как softplus(z) - y*z, где softplus(z) = log(1 + e^z). Эта форма не содержит log(sigmoid(z)) и поэтому не даёт бесконечностей при больших по модулю логитах. В GoMLX есть функция graph.Softplus."
+    sources:
+      - "https://pkg.go.dev/github.com/gomlx/gomlx/core/graph#Softplus"
+      - "https://en.wikipedia.org/wiki/Cross-entropy"
+  - kind: "misconception"
+    text: "«Логистическая регрессия - это регрессия» - по названию да, но модель решает задачу классификации: она оценивает вероятность класса."
+    sources:
+      - "https://en.wikipedia.org/wiki/Logistic_regression"
+  - kind: "real-world"
+    text: "Бинарная кросс-энтропия равна среднему отрицательному логарифму правдоподобия модели Бернулли, поэтому её минимизация - оценка максимального правдоподобия."
+    sources:
+      - "https://en.wikipedia.org/wiki/Cross-entropy"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: "Чему равна бинарная кросс-энтропия при нулевых весах (все вероятности 0.5)? Округлите до трёх знаков."
+      answer: 0.693
+      tolerance: 0.001
+      explanation: "Потеря равна ln 2 = 0.6931."
+    - id: "q2"
+      type: "single"
+      prompt: "Какая запись потери для одной точки с меткой y и логитом z устойчива?"
+      options:
+        - "-y * log(sigmoid(z))"
+        - "softplus(z) - y*z"
+        - "(sigmoid(z) - y)^2"
+        - "log(z)"
+      answer: 1
+      explanation: "softplus(z) - y*z равно бинарной кросс-энтропии и не требует log(0)."
+    - id: "q3"
+      type: "single"
+      prompt: "При каком условии модель предсказывает класс 1?"
+      options:
+        - "z < 0"
+        - "z > 0"
+        - "z = 1"
+        - "sigmoid(z) < 0.5"
+      answer: 1
+      explanation: "sigmoid(z) > 0.5 тогда и только тогда, когда z > 0."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения верны?"
+      options:
+        - "На линейно разделимых данных веса при обучении растут без предела."
+        - "На перекрывающихся классах линейная модель всегда достигает 100% точности."
+        - "Точность на обучающей выборке не измеряет обобщение."
+        - "MSE на сигмоиде - рекомендуемая потеря для классификации."
+      answer:
+        - 0
+        - 2
+      explanation: "Градиент MSE на сигмоиде затухает на уверенных ошибках, и кросс-энтропия предпочтительна."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция, переводящая логит в вероятность?"
+      answer:
+        - "сигмоид"
+        - "sigmoid"
+        - "сигмоида"
+      explanation: "sigmoid(z) = 1 / (1 + e^-z)."
+exercise:
+  id: "go.ml.gomlx.logistic-regression.exercise"
+  title: "Бинарная кросс-энтропия через логиты"
+  prompt: |
+    Программа обучает логистическую регрессию на фиксированном наборе из 100 точек двух перекрывающихся классов (генератор с зерном `42`, поэтому данные одинаковы при каждом запуске). Модель: логит `z = x · w + b`, класс 1 при `z > 0`.
+
+    Ввод: скорость обучения `lr` и число эпох `epochs` через пробел.
+
+    В заготовке есть данные, шаг обучения, оценка точности и печать. Функция `bceLoss(z, y)` вместо кросс-энтропии считает **среднеквадратичную ошибку вероятности** `sigmoid(z)`, из-за чего обучение идёт хуже. Замените её на среднюю **бинарную кросс-энтропию, записанную через логиты** в устойчивой форме `mean(softplus(z) - y * z)`.
+
+    Программа печатает:
+
+    ```
+    initial loss = <потеря первой эпохи, 3 знака>
+    loss = <итоговая потеря> accuracy = <точность>
+    w = <w0> <w1> b = <b>
+    ```
+
+    **Пример.** Ввод `0.5 100` даёт
+
+    ```
+    initial loss = 0.693
+    loss = 0.179 accuracy = 0.920
+    w = 1.803 2.196 b = -0.046
+    ```
+
+    Файлы `go.mod` и `go.sum` менять не нужно.
+  evaluation: "io"
+  languageId: "go"
+  entryFile: "main.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    go: ">=1.26.5"
+    goModules:
+      - "github.com/gomlx/gomlx"
+      - "github.com/gomlx/compute"
+  hints:
+    - "Бинарная кросс-энтропия для логита z и метки y (0 или 1): softplus(z) - y*z. Эта запись равна -(y log p + (1 - y) log(1 - p)) при p = sigmoid(z), но устойчива к большим |z|."
+    - "В GoMLX есть graph.Softplus(z). Произведение y*z - graph.Mul(y, z), разность - graph.Sub."
+    - "Потеря должна быть скаляром: усредните по всем точкам через graph.ReduceAllMean."
+    - "Замените тело bceLoss на: return graph.ReduceAllMean(graph.Sub(graph.Softplus(z), graph.Mul(y, z))). Начальная потеря при нулевых весах должна получиться 0.693 (ln 2)."
+  tests:
+    - id: "basic"
+      title: "Базовое обучение"
+      stdin: "0.5 100\n"
+      expected: "initial loss = 0.693\nloss = 0.179 accuracy = 0.920\nw = 1.803 2.196 b = -0.046\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hint: "Потеря - бинарная кросс-энтропия по логитам: mean(softplus(z) - y*z)."
+    - id: "slow"
+      title: "Малая скорость"
+      stdin: "0.1 200\n"
+      expected: "initial loss = 0.693\nloss = 0.192 accuracy = 0.920\nw = 1.384 1.745 b = -0.047\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hint: "Точность - доля точек, у которых z > 0 совпадает с меткой."
+    - id: "fast"
+      title: "Большая скорость"
+      stdin: "1.0 300\n"
+      expected: "initial loss = 0.693\nloss = 0.175 accuracy = 0.920\nw = 2.315 2.658 b = -0.010\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hint: "Градиент по w и b берёт Gradient от потери."
+    - id: "one"
+      title: "Один шаг (скрытый)"
+      stdin: "0.5 1\n"
+      expected: "initial loss = 0.693\nloss = 0.505 accuracy = 0.920\nw = 0.217 0.255 b = 0.000\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hidden: true
+      hint: "Начальная потеря при нулевых весах равна ln 2 = 0.693."
+    - id: "few"
+      title: "Несколько шагов (скрытый)"
+      stdin: "0.2 50\n"
+      expected: "initial loss = 0.693\nloss = 0.214 accuracy = 0.920\nw = 1.098 1.386 b = -0.032\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hidden: true
+      hint: "Обновляйте w и b одним и тем же шагом lr * grad."
+    - id: "long"
+      title: "Долгое обучение (скрытый)"
+      stdin: "0.5 600\n"
+      expected: "initial loss = 0.693\nloss = 0.175 accuracy = 0.920\nw = 2.314 2.657 b = -0.010\n"
+      compare: "numeric"
+      tolerance: 0.002
+      hidden: true
+      hint: "Веса растут, а потеря продолжает убывать."

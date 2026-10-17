@@ -102,4 +102,45 @@ public class ContentPackageIndexTests
         }
         finally { Directory.Delete(dir, true); }
     }
+
+    private static ContentPackageSet Go(string id, params string[] modules) => new(id, id, PackageSetLanguage.Go, "", modules);
+
+    [Fact]
+    public void GoSetsResolveByModulePathAndStayApartFromOtherLanguages()
+    {
+        var index = Index(Go("gomlx", "github.com/gomlx/gomlx", "github.com/gomlx/compute"), Node("react", "github.com/gomlx/gomlx"));
+        Assert.Equal("gomlx", index.Resolve(PackageSetLanguage.Go, ["github.com/gomlx/compute"]).Set!.Id);
+        Assert.Null(index.Resolve(PackageSetLanguage.Go, ["github.com/other/mod"]).Set);
+        Assert.True(ContentPackageIndex.TryParse(
+            """[ { "id": "gomlx", "title": "t", "language": "go", "packages": ["github.com/gomlx/gomlx"] } ]""", null, out var parsed, out _));
+        Assert.Equal(PackageSetLanguage.Go, parsed.Sets[0].Language);
+    }
+
+    [Fact]
+    public void RequiredGoModulesComeFromRequires()
+    {
+        var exercise = Make.Exercise() with { Requires = new ExerciseRequirements(null, [], Go: ">=1.26.5", GoModules: ["a.io/x", "a.io/x", "a.io/y"]) };
+        Assert.Equal(["a.io/x", "a.io/y"], ContentPackageIndex.RequiredGoModules(exercise));
+        Assert.True(exercise.NeedsGoEnvironment);
+        var versionOnly = Make.Exercise() with { Requires = new ExerciseRequirements(null, [], Go: ">=1.26.5") };
+        Assert.True(versionOnly.HasGoRequirements);
+        Assert.False(versionOnly.NeedsGoEnvironment);
+        Assert.Empty(ContentPackageIndex.RequiredGoModules(Make.Exercise()));
+    }
+
+    [Fact]
+    public void GoPinsAreReadFromGoModWithoutIndirectRequirements()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "devacademy-gopins-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "go", "gomlx"));
+            File.WriteAllText(Path.Combine(dir, "go", "gomlx", "go.mod"),
+                "module m\n\ngo 1.26.5\n\nrequire (\n\tgithub.com/gomlx/compute v0.1.6\n\tgithub.com/gomlx/gomlx v0.28.8\n)\n\nrequire (\n\tgithub.com/pkg/errors v0.9.1 // indirect\n)\n");
+            var set = Go("gomlx", "github.com/gomlx/gomlx", "github.com/gomlx/compute");
+            var index = new ContentPackageIndex([set], dir);
+            Assert.Equal([new PinnedPackage("github.com/gomlx/compute", "v0.1.6"), new PinnedPackage("github.com/gomlx/gomlx", "v0.28.8")], index.ReadPins(set));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
 }

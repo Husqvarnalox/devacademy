@@ -96,6 +96,9 @@ internal sealed class RequiresDto
     /// <summary>javascript exercises: Node.js version specifier (">=22") and npm package names of the node content environment.</summary>
     public string? Node { get; set; }
     public List<string>? NpmPackages { get; set; }
+    /// <summary>go exercises: Go version specifier (">=1.26.5") and module paths that a go package set must provide.</summary>
+    public string? Go { get; set; }
+    public List<string>? GoModules { get; set; }
 }
 
 internal sealed class ComplexityDto

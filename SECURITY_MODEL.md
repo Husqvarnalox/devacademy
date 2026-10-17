@@ -51,9 +51,12 @@ child processes; AI is off until the user configures a provider; telemetry: none
 
 Nothing is installed implicitly: opening a lesson, running or grading code, and opening Settings never download packages. A package set
 (`content-packages/`, pinned manifests shipped with the app) is installed only after a confirmation dialog that lists the packages with versions, the exact
-command (`npm ci --ignore-scripts --no-audit --no-fund` in the set's own directory, or `pip/uv install -r <pinned file>` into the active managed Python
+command (`npm ci --ignore-scripts --no-audit --no-fund` in the set's own directory, `go mod download` in the set's own directory with a private `GOMODCACHE`, or `pip/uv install -r <pinned file>` into the active managed Python
 environment) and states that the network is needed. Lifecycle scripts are disabled, nothing is global, versions come from lock/pinned files, and set ids are
-validated as path-safe. Removal of a set deletes only its directory and is confirmed. At grading time `node_modules` is read-only inside the sandbox.
+validated as path-safe. Removal of a set deletes only its directory and is confirmed. At grading time `node_modules` is read-only inside the sandbox. The same holds for the Go module cache: `go build` runs with `GOPROXY=off`, `GOSUMDB=off` and
+`GOTOOLCHAIN=local` (no downloads and no toolchain switching), the cache is a read-only sandbox path, and `go.sum` hashes from the set (`go mod download` verifies
+them against the module proxy and checksum database at install time) pin the contents. A Go module is arbitrary code that runs at build or run time inside the same
+sandbox as learner code (no network, writes only to the work directory); installing the cache itself runs no module code.
 
 ## 5. Out of scope (today)
 

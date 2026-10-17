@@ -171,6 +171,19 @@ internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, IDebug
     public BuildPlan CreateCommandPlan(string workingDirectory, IReadOnlyList<string> argv, RuntimeStatus status) =>
         new([], new ProcessSpec(status.ExecutablePath!, argv.Skip(1).ToList(), workingDirectory, BuildEnvironment(workingDirectory)));
 
+    /// <summary>
+    /// Environment that points the toolchain at a go package set's module cache: modules resolve only from there (no proxy, no checksum database).
+    /// The cache itself is mounted read-only by the caller; GOCACHE and GOPATH stay in the writable run cache.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, string> ModCacheEnvironment(string modCache) => new Dictionary<string, string>
+    {
+        ["GOMODCACHE"] = modCache,
+        ["GOPROXY"] = "off",
+        ["GOSUMDB"] = "off",
+        ["GOFLAGS"] = "-mod=mod",
+        ["CGO_ENABLED"] = "0",
+    };
+
     private Dictionary<string, string> BuildEnvironment(string workingDirectory)
     {
         string go = Path.Combine(cacheDirectory, "go");

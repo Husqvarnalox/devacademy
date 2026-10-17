@@ -1,5 +1,6 @@
 using DevAcademy.AI;
 using DevAcademy.Application.Evaluation;
+using DevAcademy.Application.Go;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
 using DevAcademy.Application.Python;
@@ -44,6 +45,7 @@ public sealed class AppServices(
     LanguageIntelligenceService language,
     DebugService debug,
     NodeEnvironmentService node,
+    GoEnvironmentService go,
     ContentPackageIndex packageSets)
 {
     public AppPaths Paths { get; } = paths;
@@ -76,6 +78,7 @@ public sealed class AppServices(
     public LanguageIntelligenceService Language { get; } = language;
     public DebugService Debug { get; } = debug;
     public NodeEnvironmentService Node { get; } = node;
+    public GoEnvironmentService Go { get; } = go;
     public ContentPackageIndex PackageSets { get; } = packageSets;
 
     /// <summary>Delay between the last keystroke and the draft being written.</summary>

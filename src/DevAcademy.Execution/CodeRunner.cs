@@ -90,6 +90,19 @@ public sealed class CodeRunner : ICodeRunner
                 notes.Add("A node environment is selected, so the run uses OsSandbox instead of a container.");
             }
         }
+        string? goModCache = null;
+        if (request.Go is { } goEnv)
+        {
+            if (runtime.LanguageId != "go")
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A Go module cache only applies to Go.", IsolationLevel.ProcessLimits);
+            string? goProblem = CheckGoSelection(goEnv, out goModCache);
+            if (goProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, goProblem, IsolationLevel.ProcessLimits);
+            if (requestedLevel == IsolationLevel.Container)
+            {
+                requestedLevel = IsolationLevel.OsSandbox;
+                notes.Add("A Go module cache is selected, so the run uses OsSandbox instead of a container.");
+            }
+        }
         ICommandRuntime? commandRuntime = null;
         if (request.Command is { } argv)
         {
@@ -150,6 +163,18 @@ public sealed class CodeRunner : ICodeRunner
                 // The link target must stay unwritable even if a sandbox allows writes somewhere above it.
                 string[] ro = [.. plan.Run.ReadOnlyPaths ?? [], nodeModules];
                 plan = new BuildPlan(plan.CompileSteps.Select(c => c with { ReadOnlyPaths = ro }).ToList(), plan.Run with { ReadOnlyPaths = ro });
+            }
+            if (goModCache is not null)
+            {
+                // Every step builds offline against the set's module cache, which must stay unwritable even if a sandbox allows writes somewhere above it.
+                IReadOnlyDictionary<string, string> goVars = GoRuntime.ModCacheEnvironment(goModCache);
+                string[] ro = [.. plan.Run.ReadOnlyPaths ?? [], goModCache];
+                ProcessSpec WithCache(ProcessSpec p) => p with
+                {
+                    Environment = (p.Environment ?? new Dictionary<string, string>()).Concat(goVars).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Last().Value),
+                    ReadOnlyPaths = ro,
+                };
+                plan = new BuildPlan(plan.CompileSteps.Select(WithCache).ToList(), WithCache(plan.Run));
             }
             await program.CompileAsync(plan, ct).ConfigureAwait(false);
         }
@@ -215,6 +240,21 @@ public sealed class CodeRunner : ICodeRunner
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
             return "The node environment lies inside a writable sandbox area and cannot be mounted read-only.";
         nodeModules = real;
+        return null;
+    }
+
+    /// <summary>The module cache must exist, hold downloaded modules (<c>cache/download</c>) and not lie inside a writable sandbox area. On success <paramref name="modCache"/> is its real path.</summary>
+    private string? CheckGoSelection(GoRunSelection go, out string? modCache)
+    {
+        modCache = null;
+        string path = Path.GetFullPath(go.ModCachePath);
+        if (!Directory.Exists(Path.Combine(path, "cache", "download")))
+            return $"The Go module cache '{go.ModCachePath}' has no downloaded modules (run `make go-env` or install the course packages in Settings).";
+        string real = MacSandboxExecSandbox.RealPath(path).TrimEnd(Path.DirectorySeparatorChar);
+        string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
+            return "The Go module cache lies inside a writable sandbox area and cannot be mounted read-only.";
+        modCache = real;
         return null;
     }
 

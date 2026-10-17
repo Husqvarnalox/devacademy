@@ -47,5 +47,12 @@
     "language": "python",
     "description": "Django: фреймворк для веб-приложений.",
     "packages": ["Django"]
+  },
+  {
+    "id": "gomlx",
+    "title": "GoMLX (чистый Go)",
+    "language": "go",
+    "description": "GoMLX и compute: графы вычислений, автоматическое дифференцирование и обучение моделей на чистом Go (без cgo и XLA).",
+    "packages": ["github.com/gomlx/gomlx", "github.com/gomlx/compute"]
   }
 ]

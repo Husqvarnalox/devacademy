@@ -388,6 +388,11 @@
   <data name="Sets_ConfirmIntro" xml:space="preserve"><value>Набор «{0}» — будут установлены пакеты:</value></data>
   <data name="Sets_ConfirmCommand" xml:space="preserve"><value>Будет выполнена команда:</value></data>
   <data name="Sets_NetworkNpm" xml:space="preserve"><value>Нужна сеть: пакеты скачиваются из реестра npm. Версии зафиксированы в package-lock.json, скрипты установки не запускаются, глобально ничего не ставится.</value></data>
+  <data name="Sets_NetworkGo" xml:space="preserve"><value>Нужна сеть: модули Go скачиваются с прокси {0}. Версии и контрольные суммы зафиксированы в go.mod и go.sum, модули лежат в каталоге набора (глобально ничего не ставится) и при проверке доступны только для чтения, без сети.</value></data>
+  <data name="Go_Title" xml:space="preserve"><value>Модули Go для курсов</value></data>
+  <data name="Go_Description" xml:space="preserve"><value>Модули Go ставятся наборами: только для той библиотеки, которую вы решили изучать (например, GoMLX). Каждая загрузка — отдельное подтверждённое действие: сначала показывается точная команда, и она требует сети. Набор лежит в своём каталоге (не в общем кэше Go) и при проверке доступен только для чтения, без сети.</value></data>
+  <data name="Go_NoGo" xml:space="preserve"><value>Go не найден: установите Go 1.26.5 или новее.</value></data>
+  <data name="Go_Version" xml:space="preserve"><value>Go {0}.</value></data>
   <data name="Sets_NetworkPypi" xml:space="preserve"><value>Нужна сеть: пакеты скачиваются с PyPI в активное окружение Python «{0}». Глобально ничего не ставится.</value></data>
   <data name="Sets_RemoveTitle" xml:space="preserve"><value>Удалить пакеты: {0}</value></data>
   <data name="Sets_RemoveMessage" xml:space="preserve"><value>Будет удалён каталог набора: {0}. Упражнения этого курса не смогут проверяться, пока набор не установлен снова. Сеть не нужна.</value></data>

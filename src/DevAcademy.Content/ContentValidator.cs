@@ -292,6 +292,8 @@ public static class ContentValidator
             error(path, $"{label}: 'requires.python/packages' and 'accelerator' only apply to Python exercises, but no variant is python");
         if (ex.Requires is { HasNode: true } && !usesJavaScript)
             error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript/typescript exercises, but no variant is javascript or typescript");
+        if (ex.Requires is { HasGo: true } && !ex.AllVariants.Any(v => v.LanguageId == "go"))
+            error(path, $"{label}: 'requires.go/goModules' only apply to go exercises, but no variant is go");
         if (ex.Command is { UsesNodeTool: true } && ex.Requires is not { HasNode: true })
             error(path, $"{label}: command.tool needs requires.npmPackages");
         if (ex.Requires is { } req)
@@ -312,6 +314,17 @@ public static class ContentValidator
                 if (!PythonSpecifierSet.TryParse(node, out var nset, out var nerr)) error(path, $"{label}: requires.node: {nerr}");
                 else if (nset.Clauses.Count == 0) error(path, $"{label}: requires.node is empty");
             }
+            if (req.Go is { } go)
+            {
+                if (!PythonSpecifierSet.TryParse(go, out var gset, out var gerr)) error(path, $"{label}: requires.go: {gerr}");
+                else if (gset.Clauses.Count == 0) error(path, $"{label}: requires.go is empty");
+            }
+            var goSeen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var module in req.Modules)
+            {
+                if (!GoModulePath.IsValid(module)) error(path, $"{label}: requires.goModules: '{module}' is not a plain Go module path (host/path, no versions or URLs)");
+                else if (!goSeen.Add(module)) error(path, $"{label}: requires.goModules lists '{module}' twice");
+            }
             var npmSeen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var pkg in req.Npm)
             {
@@ -328,10 +341,11 @@ public static class ContentValidator
     {
         var python = ContentPackageIndex.RequiredPythonPackages(ex);
         var node = ContentPackageIndex.RequiredNodePackages(ex);
-        if (python.Count == 0 && node.Count == 0) return;
+        var go = ContentPackageIndex.RequiredGoModules(ex);
+        if (python.Count == 0 && node.Count == 0 && go.Count == 0) return;
         if (index() is not { } packages) return;
         var label = $"{kind} '{ex.Id}'";
-        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node) })
+        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node), (PackageSetLanguage.Go, go) })
             if (required.Count > 0 && packages.Resolve(language, required).Error is { } problem)
                 error(path, $"{label}: {problem}");
     }

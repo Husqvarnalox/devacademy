@@ -12,6 +12,7 @@ public class PackageSetValidationTests
         new("numpy", "NumPy", PackageSetLanguage.Python, "", ["numpy"]),
         new("pandas", "pandas", PackageSetLanguage.Python, "", ["numpy", "pandas"]),
         new("fastapi", "FastAPI", PackageSetLanguage.Python, "", ["fastapi", "httpx"]),
+        new("gomlx", "GoMLX", PackageSetLanguage.Go, "", ["github.com/gomlx/gomlx", "github.com/gomlx/compute"]),
     ]);
 
     private static string[] Errors(IEnumerable<ContentDiagnostic> d) =>
@@ -23,6 +24,26 @@ public class PackageSetValidationTests
         using var f = new Fixture();
         f.EditVars(Anchor, Anchor + "  requires: { packages: [\"numpy>=2\", pandas] }\n");
         Assert.Empty(Errors(ContentValidator.Validate(f.Load().Content, Index())));
+    }
+
+    [Fact]
+    public void Go_modules_covered_by_one_go_set_are_fine()
+    {
+        using var f = new Fixture();
+        f.EditVars(Anchor, Anchor + "  requires: { go: \">=1.26.5\", goModules: [github.com/gomlx/gomlx, github.com/gomlx/compute] }\n");
+        // The fixture exercise is Python, so the only complaint is the language, never set coverage.
+        Assert.All(Errors(ContentValidator.Validate(f.Load().Content, Index())), e => Assert.Contains("only apply to go", e));
+    }
+
+    [Fact]
+    public void A_go_module_no_set_offers_is_an_error_and_a_bad_path_is_rejected()
+    {
+        using var f = new Fixture();
+        f.EditVars(Anchor, Anchor + "  requires: { goModules: [github.com/none/such] }\n");
+        Assert.Contains(Errors(ContentValidator.Validate(f.Load().Content, Index())), e => e.Contains("github.com/none/such"));
+        using var g = new Fixture();
+        g.EditVars(Anchor, Anchor + "  requires: { goModules: [\"not a module\"] }\n");
+        Assert.Contains(Errors(ContentValidator.Validate(g.Load().Content, Index())), e => e.Contains("plain Go module path"));
     }
 
     [Fact]
@@ -75,11 +96,14 @@ public class PackageSetValidationTests
         Assert.NotNull(packages);
         Assert.NotEmpty(packages.For(PackageSetLanguage.Node));
         Assert.NotEmpty(packages.For(PackageSetLanguage.Python));
+        Assert.NotEmpty(packages.For(PackageSetLanguage.Go));
         foreach (var set in packages.Sets)
         {
             var pins = packages.ReadPins(set).Select(p => ContentPackageIndex.NormalizeName(set.Language, p.Name)).ToHashSet();
             foreach (var name in set.Packages)
                 Assert.True(pins.Contains(ContentPackageIndex.NormalizeName(set.Language, name)), $"{set.Key}: '{name}' is not pinned by its manifest");
+            if (set.Language == PackageSetLanguage.Go)
+                Assert.True(File.Exists(Path.Combine(packages.SourcePath(set)!, "go.sum")), $"{set.Key}: go.sum is missing");
             if (set.Language == PackageSetLanguage.Node)
                 Assert.True(File.Exists(Path.Combine(packages.SourcePath(set)!, "package-lock.json")), $"{set.Key}: package-lock.json is missing");
         }

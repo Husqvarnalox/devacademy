@@ -200,6 +200,12 @@ public sealed record Exercise(
     /// <summary>True when anything about Node.js must be checked before a run: the node environment or a <c>requires.node</c> version.</summary>
     public bool HasNodeRequirements => NeedsNodeEnvironment || !string.IsNullOrWhiteSpace(Requires?.Node);
 
+    /// <summary>True when grading needs Go modules from a go package set (<c>requires.goModules</c>).</summary>
+    public bool NeedsGoEnvironment => Requires is { Modules.Count: > 0 };
+
+    /// <summary>True when anything about Go must be checked before a run: the module cache or a <c>requires.go</c> version.</summary>
+    public bool HasGoRequirements => NeedsGoEnvironment || !string.IsNullOrWhiteSpace(Requires?.Go);
+
     /// <summary>Explicit variants (non-empty) when the exercise was declared with a <c>variants</c> map.</summary>
     public bool HasExplicitVariants => Variants is { Count: > 0 };
 

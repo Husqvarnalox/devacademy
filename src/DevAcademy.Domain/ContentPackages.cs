@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace DevAcademy.Domain;
 
-public enum PackageSetLanguage { Python, Node }
+public enum PackageSetLanguage { Python, Node, Go }
 
 /// <summary>
 /// A per-course package set: the pinned packages of ONE library (or a small family) that a learner can choose to install. Sets are the unit of
@@ -41,6 +41,10 @@ public sealed partial class ContentPackageIndex
     [GeneratedRegex(@"^[a-z0-9][a-z0-9-]{0,40}$", RegexOptions.CultureInvariant)]
     private static partial Regex IdPattern();
 
+    // `\tgithub.com/gomlx/gomlx v0.28.8` inside a go.mod require block, or `require path version`; indirect requirements are not top-level pins.
+    [GeneratedRegex(@"^\s*(?:require\s+)?([A-Za-z0-9][A-Za-z0-9._~/-]*\.[A-Za-z0-9._~/-]+)\s+(v[0-9][^\s]*)\s*(//.*)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex GoRequirePattern();
+
     [GeneratedRegex(@"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([^\s;#]+)", RegexOptions.CultureInvariant)]
     private static partial Regex PinPattern();
 
@@ -63,6 +67,13 @@ public sealed partial class ContentPackageIndex
     public static string NormalizeName(PackageSetLanguage language, string name) =>
         language == PackageSetLanguage.Python ? PythonPackageSpec.Normalize(name) : name;
 
+    public static string Describe(PackageSetLanguage language) => language switch
+    {
+        PackageSetLanguage.Python => "Python",
+        PackageSetLanguage.Go => "Go",
+        _ => "Node.js",
+    };
+
     // ---------------------------------------------------------------- resolution
 
     /// <summary>The npm packages an exercise needs: <c>requires.npmPackages</c> plus the package of its command tool. Empty = no node set needed.</summary>
@@ -73,6 +84,10 @@ public sealed partial class ContentPackageIndex
         if (exercise.Command?.Tool is { } tool && CommandPolicy.FindNodeTool(exercise.LanguageId, tool)?.Package is { } package) names.Add(package);
         return names.Distinct(StringComparer.Ordinal).ToList();
     }
+
+    /// <summary>The Go module paths an exercise needs (<c>requires.goModules</c>). Empty = no go set needed.</summary>
+    public static IReadOnlyList<string> RequiredGoModules(Exercise exercise) =>
+        (exercise.Requires?.GoModules ?? []).Distinct(StringComparer.Ordinal).ToList();
 
     /// <summary>The PyPI distributions an exercise needs (names only, normalised). Empty = no python set needed.</summary>
     public static IReadOnlyList<string> RequiredPythonPackages(Exercise exercise)
@@ -91,14 +106,18 @@ public sealed partial class ContentPackageIndex
             if (set.Covers(required) && (best is null || set.Packages.Count < best.Packages.Count)) best = set;
         return best is not null
             ? new(best, null)
-            : new(null, $"ни один набор пакетов не покрывает {string.Join(", ", required)} одновременно (наборы {(language == PackageSetLanguage.Python ? "Python" : "Node.js")} в {IndexFile})");
+            : new(null, $"ни один набор пакетов не покрывает {string.Join(", ", required)} одновременно (наборы {Describe(language)} в {IndexFile})");
     }
 
     // ---------------------------------------------------------------- files
 
-    /// <summary>The set's npm directory (package.json + package-lock.json) or Python requirements file; null when the index is in memory.</summary>
-    public string? SourcePath(ContentPackageSet set) => Directory is null ? null
-        : set.Language == PackageSetLanguage.Node ? Path.Combine(Directory, "node", set.Id) : Path.Combine(Directory, "python", set.Id + ".txt");
+    /// <summary>The set's npm directory (package.json + package-lock.json), Go module directory (go.mod + go.sum) or Python requirements file; null when the index is in memory.</summary>
+    public string? SourcePath(ContentPackageSet set) => Directory is null ? null : set.Language switch
+    {
+        PackageSetLanguage.Node => Path.Combine(Directory, "node", set.Id),
+        PackageSetLanguage.Go => Path.Combine(Directory, "go", set.Id),
+        _ => Path.Combine(Directory, "python", set.Id + ".txt"),
+    };
 
     /// <summary>The pinned top-level packages of a set, read from its manifest; empty when unreadable.</summary>
     public IReadOnlyList<PinnedPackage> ReadPins(ContentPackageSet set)
@@ -111,6 +130,12 @@ public sealed partial class ContentPackageIndex
             {
                 foreach (var line in File.ReadLines(path))
                     if (PinPattern().Match(line) is { Success: true } m) pins.Add(new(m.Groups[1].Value, m.Groups[2].Value));
+            }
+            else if (set.Language == PackageSetLanguage.Go)
+            {
+                foreach (var line in File.ReadLines(Path.Combine(path, "go.mod")))
+                    if (GoRequirePattern().Match(line) is { Success: true } m && !m.Groups[3].Value.Contains("indirect", StringComparison.Ordinal))
+                        pins.Add(new(m.Groups[1].Value, m.Groups[2].Value));
             }
             else
             {
@@ -174,8 +199,8 @@ public sealed partial class ContentPackageIndex
                 string? Str(string name) => item.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                 var id = Str("id");
                 if (id is null || !IdPattern().IsMatch(id)) { error = $"set id '{id}' must be lower-case letters, digits and '-'"; return false; }
-                var language = Str("language") switch { "python" => PackageSetLanguage.Python, "node" => PackageSetLanguage.Node, _ => (PackageSetLanguage?)null };
-                if (language is null) { error = $"set '{id}': language must be 'python' or 'node'"; return false; }
+                var language = Str("language") switch { "python" => PackageSetLanguage.Python, "node" => PackageSetLanguage.Node, "go" => PackageSetLanguage.Go, _ => (PackageSetLanguage?)null };
+                if (language is null) { error = $"set '{id}': language must be 'python', 'node' or 'go'"; return false; }
                 if (string.IsNullOrWhiteSpace(Str("title"))) { error = $"set '{id}': title is missing"; return false; }
                 var packages = new List<string>();
                 if (item.TryGetProperty("packages", out var arr) && arr.ValueKind == JsonValueKind.Array)

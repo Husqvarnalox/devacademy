@@ -109,6 +109,15 @@ covering its packages) and mounts only that `node_modules` read-only. Python set
 environment through `PythonEnvironmentService.PlanSetInstallAsync` (the same plan + consent flow). CLI `--node-env <dir>` takes the directory holding the set
 subdirectories (`make node-env`). The runner itself never installs anything.
 
+Go sets (`tools/content-packages/go/<set>/{go.mod,go.sum}`, language `go` in `index.json`) are installed by `GoEnvironmentService` into
+`<data dir>/go-content/<set>/` with `go mod download` (`GOMODCACHE=<root>/<set>/pkg/mod`, `GOFLAGS=-mod=mod`, `GOTOOLCHAIN=local`) run in that set's directory only,
+after the same confirmation (modules with versions, the exact command, that the network is needed). A run whose exercise declares `requires.goModules` (and optionally
+`requires.go: ">=1.26.5"`) gets `ExecutionRequest.Go = GoRunSelection(modcache path)`: `GoRuntime` then builds offline (`GOPROXY=off`, `GOSUMDB=off`, `GOFLAGS=-mod=mod`,
+`GOTOOLCHAIN=local`, `CGO_ENABLED=0`), the module cache is a read-only path of the OS sandbox (the build cache stays in the work directory), and such a run never uses a
+container. `go.mod` and `go.sum` of the exercise are part of its files and must carry the same pins as the set. CLI `--go-env <dir>` takes the directory holding the set
+subdirectories (`make go-env`, default `.go-content`). CI has no `make go-env` step yet (no verified `setup-go` configuration), so `make validate-content` in CI skips
+Go-module exercises and theory samples with a warning.
+
 Not covered by an adapter: any package installation by the runner, virtualenvs, multi-file Cargo/Gradle/Maven/npm projects.
 A learner's `import numpy` works only if the system interpreter already has it (the sandbox does not provide
 packages; the `-s` flag disables user site-packages).
