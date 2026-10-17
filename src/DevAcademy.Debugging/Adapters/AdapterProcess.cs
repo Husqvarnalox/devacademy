@@ -17,6 +17,11 @@ public interface IAdapterProcess : IAsyncDisposable
     void Kill();
     /// <summary>Last part of the adapter's stderr (and its stdout log lines for TCP adapters), for error messages.</summary>
     string LogTail { get; }
+    /// <summary>
+    /// Opens one more DAP connection to the same adapter process (adapters that serve child sessions on their own port, like
+    /// vscode-js-debug). Null when the adapter is reached over stdio only.
+    /// </summary>
+    Task<(Stream From, Stream To)?> OpenAdditionalConnectionAsync(CancellationToken ct) => Task.FromResult<(Stream, Stream)?>(null);
 }
 
 public interface IAdapterLauncher
@@ -79,9 +84,10 @@ public sealed class ProcessAdapterLauncher : IAdapterLauncher
             string host = address[..colon].Trim('[', ']');
             if (!IPAddress.TryParse(host, out var ip) || !IPAddress.IsLoopback(ip))
                 throw new InvalidOperationException($"The debug adapter listens on a non-loopback address ({address}); refusing to connect.");
+            int port = int.Parse(address[(colon + 1)..], System.Globalization.CultureInfo.InvariantCulture);
             var tcp = new TcpClient { NoDelay = true };
-            await tcp.ConnectAsync(ip, int.Parse(address[(colon + 1)..], System.Globalization.CultureInfo.InvariantCulture), ct).ConfigureAwait(false);
-            return new TcpProcess(p, tcp, tail);
+            await tcp.ConnectAsync(ip, port, ct).ConfigureAwait(false);
+            return new TcpProcess(p, tcp, tail, ip, port);
         }
         catch
         {
@@ -123,6 +129,7 @@ public sealed class ProcessAdapterLauncher : IAdapterLauncher
         public virtual Stream ToAdapter => Process.StandardInput.BaseStream;
         public Task Exited { get; } = p.WaitForExitAsync();
         public string LogTail => tail.Text;
+        public virtual Task<(Stream From, Stream To)?> OpenAdditionalConnectionAsync(CancellationToken ct) => Task.FromResult<(Stream, Stream)?>(null);
 
         public void Kill()
         {
@@ -138,12 +145,23 @@ public sealed class ProcessAdapterLauncher : IAdapterLauncher
         }
     }
 
-    private sealed class TcpProcess(Process p, TcpClient tcp, LogTail tail) : StdioProcess(p, tail)
+    private sealed class TcpProcess(Process p, TcpClient tcp, LogTail tail, IPAddress address, int port) : StdioProcess(p, tail)
     {
+        private readonly List<TcpClient> _extra = [];
         public override Stream FromAdapter => tcp.GetStream();
         public override Stream ToAdapter => tcp.GetStream();
+
+        public override async Task<(Stream From, Stream To)?> OpenAdditionalConnectionAsync(CancellationToken ct)
+        {
+            var extra = new TcpClient { NoDelay = true };
+            await extra.ConnectAsync(address, port, ct).ConfigureAwait(false);   // loopback only: the address was checked at launch
+            lock (_extra) _extra.Add(extra);
+            return (extra.GetStream(), extra.GetStream());
+        }
+
         public override async ValueTask DisposeAsync()
         {
+            lock (_extra) foreach (var c in _extra) c.Dispose();
             tcp.Dispose();
             await base.DisposeAsync().ConfigureAwait(false);
         }

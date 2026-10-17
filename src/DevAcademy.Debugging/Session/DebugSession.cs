@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using DevAcademy.Debugging.Adapters;
@@ -30,6 +31,8 @@ public sealed class DebugSession : IAsyncDisposable
     private IAdapterProcess? _process;
     private DapConnection? _conn;
     private DapClient? _client;
+    private DapClient? _root;
+    private readonly List<DapConnection> _children = [];
     private Task? _worker;
     private int? _exitCode;
     private int _terminatedRaised;
@@ -71,8 +74,11 @@ public sealed class DebugSession : IAsyncDisposable
             _client = new DapClient(_conn);
             _conn.Start();
             Wire(_client);   // after Start: Closed is only the read loop once started
+            _root = _client;
+            bool childSessions = _options.Adapter.Kind == AdapterKind.JsDebug;
+            if (childSessions) _conn.ReverseRequestHandler = HandleReverseRequestAsync;
 
-            await _client.InitializeAsync(_options.Adapter.Id, ct).ConfigureAwait(false);
+            await _client.InitializeAsync(_options.Adapter.Id, ct, childSessions).ConfigureAwait(false);
             var launch = _client.LaunchAsync(_options.Launch, ct);
             // Adapters differ: some send `initialized` right after initialize, some after launch. A launch that already answered is also fine.
             var first = await Task.WhenAny(_initialized.Task, launch, _conn.Closed, _process.Exited, Task.Delay(TimeSpan.FromSeconds(30), ct)).ConfigureAwait(false);
@@ -94,11 +100,61 @@ public sealed class DebugSession : IAsyncDisposable
         }
     }
 
+    // ---------------------------------------------------------------- child sessions (vscode-js-debug)
+
+    /// <summary>
+    /// The adapter's launcher session asks the client to start the real debug session: a second connection to the same adapter,
+    /// initialised and attached with the configuration it sends. From then on that session is the one that is stepped and inspected.
+    /// </summary>
+    private Task<ReverseReply> HandleReverseRequestAsync(string command, JsonElement args)
+    {
+        if (command != "startDebugging" || args.ValueKind != JsonValueKind.Object
+            || !args.TryGetProperty("configuration", out var cfg) || JsonNode.Parse(cfg.GetRawText()) is not JsonObject config)
+            return Task.FromResult(ReverseReply.NotSupported(command));
+        bool attach = !(args.TryGetProperty("request", out var rq) && rq.GetString() == "launch");
+        _ = Task.Run(async () =>
+        {
+            try { await StartChildAsync(config, attach).ConfigureAwait(false); }
+            catch (Exception ex) when (ex is DapException or IOException or System.Net.Sockets.SocketException or InvalidOperationException or ObjectDisposedException)
+            {
+                Post(() => { Output?.Invoke(new OutputEventArgs("important", "debugger: " + ex.Message + "\n")); return Task.CompletedTask; });
+                Post(() => RaiseTerminatedAsync("The debug session could not be started: " + ex.Message));
+            }
+        });
+        return Task.FromResult(new ReverseReply(true));
+    }
+
+    private async Task StartChildAsync(JsonObject config, bool attach)
+    {
+        var process = _process ?? throw new InvalidOperationException("The debug adapter is gone.");
+        var (from, to) = await process.OpenAdditionalConnectionAsync(CancellationToken.None).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The debug adapter cannot serve a second session.");
+        var conn = new DapConnection(from, to);
+        var client = new DapClient(conn);
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.Initialized += () => ready.TrySetResult();
+        lock (_gate) _children.Add(conn);
+        conn.Start();
+        Wire(client);
+        _client = client;   // from here on this session is the debuggee's
+        await client.InitializeAsync(_options.Adapter.Id, CancellationToken.None, true).ConfigureAwait(false);
+        var request = attach ? client.AttachAsync(config) : client.LaunchAsync(config);
+        var first = await Task.WhenAny(ready.Task, request, conn.Closed, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
+        if (first == conn.Closed) throw new DapException("The debug session closed during startup.");
+        if (request.IsFaulted) await request.ConfigureAwait(false);
+        foreach (var (path, list) in SnapshotBreakpoints())
+            await SendBreakpointsAsync(path, list, CancellationToken.None).ConfigureAwait(false);
+        if (client.Capabilities.SupportsConfigurationDoneRequest)
+            await client.ConfigurationDoneAsync().ConfigureAwait(false);
+        await request.ConfigureAwait(false);
+    }
+
     private void Wire(DapClient c)
     {
         c.Initialized += () => _initialized.TrySetResult();
         c.Output += o => Post(() => { Output?.Invoke(o); return Task.CompletedTask; });
-        c.Exited += code => _exitCode = code;
+        // netcoredbg reports exitCode 0 whatever the program returned (verified against `return 7`), so its value is not shown rather than shown wrong.
+        c.Exited += code => _exitCode = _options.Adapter.Kind == AdapterKind.NetCoreDbg ? null : code;
         c.Continued += _ => Post(() =>
         {
             if (State == DebugState.Stopped) { SetState(DebugState.Running); Resumed?.Invoke(); }
@@ -153,7 +209,9 @@ public sealed class DebugSession : IAsyncDisposable
         // The debuggee is gone; ask the adapter to leave, then make sure it did.
         _ = Task.Run(async () =>
         {
-            try { if (_client is not null && _conn is { } c && !c.Closed.IsCompleted) await _client.DisconnectAsync(false).ConfigureAwait(false); }
+            try { if (_client is not null && !_client.Connection.Closed.IsCompleted) await _client.DisconnectAsync(false).ConfigureAwait(false); }
+            catch (DapException) { }
+            try { if (_root is not null && _root != _client && !_root.Connection.Closed.IsCompleted) await _root.DisconnectAsync(false).ConfigureAwait(false); }
             catch (DapException) { }
             await Task.Delay(500).ConfigureAwait(false);
             _process?.Kill();
@@ -247,6 +305,11 @@ public sealed class DebugSession : IAsyncDisposable
             catch (DapException) { }
             try { await _client.DisconnectAsync(terminateDebuggee: true).ConfigureAwait(false); }
             catch (DapException) { }
+            if (_root is not null && _root != _client)
+            {
+                try { await _root.DisconnectAsync(terminateDebuggee: true).ConfigureAwait(false); }
+                catch (DapException) { }
+            }
         }
         await RaiseTerminatedAsync(null).ConfigureAwait(false);
         await DisposeAsync().ConfigureAwait(false);
@@ -258,6 +321,9 @@ public sealed class DebugSession : IAsyncDisposable
         _process?.Kill();
         _work.Writer.TryComplete();
         if (_conn is not null) await _conn.DisposeAsync().ConfigureAwait(false);
+        DapConnection[] children;
+        lock (_gate) { children = [.. _children]; _children.Clear(); }
+        foreach (var child in children) await child.DisposeAsync().ConfigureAwait(false);
         if (_process is not null) await _process.DisposeAsync().ConfigureAwait(false);
         if (_worker is not null) await Task.WhenAny(_worker, Task.Delay(2000)).ConfigureAwait(false);
         _conn = null;

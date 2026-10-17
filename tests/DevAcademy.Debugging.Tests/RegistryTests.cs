@@ -12,20 +12,42 @@ public class RegistryTests
     public void Languages_map_to_their_adapter(string language, string id) => Assert.Equal(id, DebugAdapterRegistry.ForLanguage(language)!.Id);
 
     [Theory]
-    [InlineData("javascript")]
-    [InlineData("typescript")]
-    [InlineData("java")]
-    public void Unsupported_languages_have_no_adapter_but_a_planned_note(string language)
+    [InlineData("javascript", "js-debug")]
+    [InlineData("typescript", "js-debug")]
+    [InlineData("java", "java-jdi")]
+    [InlineData("csharp", "netcoredbg")]
+    public void Runtime_languages_map_to_their_adapter(string language, string id) => Assert.Equal(id, DebugAdapterRegistry.ForLanguage(language)!.Id);
+
+    [Fact]
+    public void Languages_without_an_adapter_have_none_and_nothing_is_planned()
     {
-        Assert.Null(DebugAdapterRegistry.ForLanguage(language));
-        Assert.True(DebugAdapterRegistry.Planned.ContainsKey(language));
+        Assert.Null(DebugAdapterRegistry.ForLanguage("kotlin"));
+        Assert.Empty(DebugAdapterRegistry.Planned);
     }
 
     [Fact]
-    public void Js_note_names_vscode_js_debug_and_cdp()
+    public void Js_java_and_csharp_launch_configs_have_the_per_adapter_shape()
     {
-        Assert.Contains("vscode-js-debug", DebugAdapterRegistry.Planned["javascript"]);
-        Assert.Contains("CDP", DebugAdapterRegistry.Planned["javascript"]);
+        var js = LaunchConfigurations.Create(DebugAdapterRegistry.ForLanguage("typescript")!,
+            new DebugLaunch("/usr/bin/node", "/w", ["x"], RunArguments: ["--experimental-strip-types", "/w/main.ts"]));
+        Assert.Equal("pwa-node", (string?)js["type"]);
+        Assert.Equal("/w/main.ts", (string?)js["program"]);
+        Assert.Equal("/usr/bin/node", (string?)js["runtimeExecutable"]);
+        Assert.Equal("--experimental-strip-types", (string?)js["runtimeArgs"]![0]);
+        Assert.False((bool)js["sourceMaps"]!);
+
+        var java = LaunchConfigurations.Create(DebugAdapterRegistry.ForLanguage("java")!,
+            new DebugLaunch("/jdk/bin/java", "/w", [], RunArguments: ["-XX:+UseSerialGC", "-cp", "/w/out", "app.Main"]));
+        Assert.Equal("app.Main", (string?)java["mainClass"]);
+        Assert.Equal("/w/out", (string?)java["classpath"]);
+        Assert.Equal("-XX:+UseSerialGC", (string?)java["vmArgs"]![0]);
+        Assert.Single(java["vmArgs"]!.AsArray());
+
+        var cs = LaunchConfigurations.Create(DebugAdapterRegistry.ForLanguage("csharp")!,
+            new DebugLaunch("/usr/bin/dotnet", "/w", ["a"], RunArguments: ["/w/out/App.dll"]));
+        Assert.Equal("coreclr", (string?)cs["type"]);
+        Assert.Equal("/usr/bin/dotnet", (string?)cs["program"]);
+        Assert.Equal(["/w/out/App.dll", "a"], cs["args"]!.AsArray().Select(n => (string)n!).ToArray());
     }
 
     [Fact]
@@ -142,6 +164,104 @@ public class ResolverTests
         var r = new AdapterResolver(Cache(), new DevAcademy.LanguageServices.Servers.ServerLocator(null, []), Probe(_ => new ProbeResult(0, "")));
         var s = await r.GetStatusAsync(DebugAdapterRegistry.ForLanguage("go")!, new DebugEnvironment(), default);
         Assert.Equal(AdapterState.Unavailable, s.State);
+    }
+
+    private static AdapterResolver WithTools(string cache, params string[] tools)
+    {
+        string bin = Util.TempDir("tools");
+        foreach (string t in tools) File.WriteAllText(Path.Combine(bin, OperatingSystem.IsWindows() ? t + ".exe" : t), "");
+        return new AdapterResolver(cache, new DevAcademy.LanguageServices.Servers.ServerLocator(null, [bin]), Probe(_ => new ProbeResult(0, "")));
+    }
+
+    [Fact]
+    public async Task JsDebug_missing_plans_a_pinned_checksum_verified_install_into_the_cache()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "Windows has no automatic install");
+        string cache = Cache();
+        var s = await WithTools(cache, "node").GetStatusAsync(DebugAdapterRegistry.ForLanguage("javascript")!, new DebugEnvironment(), default);
+        Assert.Equal(AdapterState.NotInstalled, s.State);
+        string d = s.Plan!.Display;
+        Assert.Contains(DebugAdapterDefinition.JsDebugSha256, d);
+        Assert.Contains(DebugAdapterDefinition.JsDebugUrl, d);
+        Assert.Contains(AdapterResolver.JsDebugDirectory(cache), d);
+        Assert.DoesNotContain("latest", d);
+        Assert.True(d.IndexOf("shasum", StringComparison.Ordinal) < d.IndexOf("tar xzf", StringComparison.Ordinal), "the checksum is verified before unpacking");
+    }
+
+    [Fact]
+    public async Task JsDebug_installed_starts_on_loopback_and_announces_its_port()
+    {
+        string cache = Cache();
+        string script = AdapterResolver.JsDebugServerScript(cache);
+        Directory.CreateDirectory(Path.GetDirectoryName(script)!);
+        File.WriteAllText(script, "");
+        var s = await WithTools(cache, "node").GetStatusAsync(DebugAdapterRegistry.ForLanguage("typescript")!, new DebugEnvironment(), default);
+        Assert.True(s.IsReady);
+        Assert.Equal([script, "0", "127.0.0.1"], s.Adapter!.Args);
+        Assert.Equal("127.0.0.1:4711", s.Adapter.Announce!.Match("Debug server listening at 127.0.0.1:4711\n").Groups[1].Value);
+    }
+
+    [Fact]
+    public async Task JsDebug_without_node_is_unavailable()
+    {
+        var s = await WithTools(Cache()).GetStatusAsync(DebugAdapterRegistry.ForLanguage("javascript")!, new DebugEnvironment(), default);
+        Assert.Equal(AdapterState.Unavailable, s.State);
+        Assert.Null(s.Plan);
+    }
+
+    [Fact]
+    public async Task NetCoreDbg_installed_starts_in_vscode_interpreter_mode()
+    {
+        string cache = Cache();
+        string exe = AdapterResolver.NetCoreDbgExecutable(cache);
+        Directory.CreateDirectory(Path.GetDirectoryName(exe)!);
+        File.WriteAllText(exe, "");
+        var s = await WithTools(cache).GetStatusAsync(DebugAdapterRegistry.ForLanguage("csharp")!, new DebugEnvironment(), default);
+        Assert.True(s.IsReady);
+        Assert.Equal(exe, s.Adapter!.Executable);
+        Assert.Equal(["--interpreter=vscode"], s.Adapter.Args);
+        Assert.Null(s.Adapter.Announce);
+    }
+
+    [Fact]
+    public async Task NetCoreDbg_plan_is_pinned_and_verified_before_unpacking_and_only_offered_on_macos_arm64()
+    {
+        string cache = Cache();
+        var s = await WithTools(cache, "dotnet").GetStatusAsync(DebugAdapterRegistry.ForLanguage("csharp")!, new DebugEnvironment(), default);
+        bool tested = OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64;
+        if (!tested)
+        {
+            Assert.Equal(AdapterState.Unavailable, s.State);
+            Assert.Null(s.Plan);
+            Assert.Contains("не проверялось", s.Message);
+            return;
+        }
+        Assert.Equal(AdapterState.NotInstalled, s.State);
+        string d = s.Plan!.Display;
+        Assert.Contains(DebugAdapterDefinition.NetCoreDbgOsxArm64Sha256, d);
+        Assert.Contains("netcoredbg-osx-arm64.zip", d);
+        Assert.Contains(DebugAdapterDefinition.NetCoreDbgVersion, d);
+        Assert.StartsWith(AdapterResolver.AdaptersDirectory(cache), s.Plan.WorkingDirectory);
+        Assert.True(d.IndexOf("shasum", StringComparison.Ordinal) < d.IndexOf("unzip", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NetCoreDbg_without_the_dotnet_sdk_is_unavailable()
+    {
+        var s = await WithTools(Cache()).GetStatusAsync(DebugAdapterRegistry.ForLanguage("csharp")!, new DebugEnvironment(), default);
+        Assert.Equal(AdapterState.Unavailable, s.State);
+    }
+
+    [Fact]
+    public async Task Java_adapter_is_compiled_locally_without_any_download()
+    {
+        var java = DebugAdapterRegistry.ForLanguage("java")!;
+        var r = new AdapterResolver(Cache(), new DevAcademy.LanguageServices.Servers.ServerLocator(null, []), Probe(_ => new ProbeResult(0, "")));
+        var s = await r.GetStatusAsync(java, new DebugEnvironment(), default);
+        if (s.State == AdapterState.Unavailable) { Assert.SkipUnless(false, "no JDK on this machine: " + s.Message); return; }
+        Assert.Equal(AdapterState.NotInstalled, s.State);
+        Assert.Contains("javac", s.Plan!.Executable);
+        Assert.DoesNotContain("http", s.Plan.Display);
     }
 
     [Fact]

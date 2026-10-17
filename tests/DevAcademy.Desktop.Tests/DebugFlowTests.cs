@@ -187,16 +187,15 @@ public class DebugFlowTests : IDisposable
     [Fact]
     public async Task Language_without_an_adapter_says_why_and_never_starts()
     {
-        File.WriteAllText(Path.Combine(_project, "package.json"), "{}");
-        File.WriteAllText(Path.Combine(_project, "main.js"), "console.log(1)\n");
+        File.WriteAllText(Path.Combine(_project, "Main.kt"), "fun main() {}\n");
         var fake = new FakeAdapter();
         var host = NewHost(fake);
         var ws = await OpenAsync(host, _project);
-        await ws.OpenFileAsync(Path.Combine(_project, "main.js"));
+        await ws.OpenFileAsync(Path.Combine(_project, "Main.kt"));
         await ws.Debug.RefreshAsync();
 
         Assert.False(ws.Debug.IsAvailable);
-        Assert.Contains("vscode-js-debug", ws.Debug.AdapterText);
+        Assert.False(string.IsNullOrWhiteSpace(ws.Debug.AdapterText));
         Assert.False(ws.Debug.StartCommand.CanExecute(null));
         await ws.Debug.StartOrContinueCommand.ExecuteAsync(null);
         Assert.Equal(DebugState.NotStarted, ws.Debug.State);

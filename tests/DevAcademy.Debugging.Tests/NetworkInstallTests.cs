@@ -14,6 +14,10 @@ public class NetworkInstallTests
     private static void RequireOptIn() =>
         Assert.SkipUnless(Environment.GetEnvironmentVariable("DEVACADEMY_ALLOW_NETWORK_INSTALL") == "1", "set DEVACADEMY_ALLOW_NETWORK_INSTALL=1 to run");
 
+    /// <summary>A throwaway cache, or the real runner cache when DEVACADEMY_ADAPTER_INSTALL_TO_RUNNER_CACHE=1 (what the in-app install action does).</summary>
+    private static string CacheFor(string root) =>
+        Environment.GetEnvironmentVariable("DEVACADEMY_ADAPTER_INSTALL_TO_RUNNER_CACHE") == "1" ? RealRun.RunnerCache() : Path.Combine(root, "cache");
+
     private static async Task<(int Code, string Output)> RunAsync(string exe, string[] args, string cwd, IDictionary<string, string>? env = null)
     {
         var psi = new ProcessStartInfo(exe) { RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = cwd };
@@ -126,5 +130,57 @@ public class NetworkInstallTests
             Assert.Null(end.Error);
             Assert.True(end.ExitCode is null or 13);
         }
+    }
+
+    [Fact]
+    public async Task JsDebug_installs_with_a_verified_checksum_and_debugs_a_node_program()
+    {
+        RequireOptIn();
+        string root = Util.TempDir("jsdebug");
+        string cache = CacheFor(root);
+        var resolver = new AdapterResolver(cache);
+        var def = DebugAdapterRegistry.ForLanguage("javascript")!;
+        var before = await resolver.GetStatusAsync(def, new DebugEnvironment(), default);
+        Assert.SkipWhen(before.State == AdapterState.Unavailable, before.Message);
+        if (before.State == AdapterState.NotInstalled)
+        {
+            Assert.Contains(DebugAdapterDefinition.JsDebugSha256, before.Plan!.Display);
+            var (ok, output) = await AdapterResolver.ProvisionAsync(before.Plan, () => File.Exists(AdapterResolver.JsDebugServerScript(cache)), default);
+            Assert.True(ok, output);
+        }
+        var after = await resolver.GetStatusAsync(def, new DebugEnvironment(), default);
+        Assert.True(after.IsReady, after.Message);
+
+        string src = Path.Combine(root, "app.js");
+        File.WriteAllText(src, "let total = 0;\nfor (let i = 0; i < 3; i++) {\n  total += i;\n}\nprocess.exit(total + 10);\n");
+        var (s, stops, ended) = await StartAsync(def, after.Adapter!, new DebugLaunch(after.Adapter!.Executable, root, [], RunArguments: [src]), src, 3);   // the adapter runs on the same node
+        await using (s)
+        {
+            Assert.Equal(3, stops[0].Frames[0].Line);
+            Assert.Equal("0", (await AllVariablesAsync(s, stops[0]))["i"]);
+            await s.SetBreakpointsAsync(src, []);
+            await s.ContinueAsync();
+            var end = await Util.UntilAsync(() => { lock (ended) return ended.FirstOrDefault(); }, "exit", 30000);
+            Assert.Null(end.Error);   // vscode-js-debug reports `terminated` only, never the exit code
+        }
+    }
+
+    [Fact]
+    public async Task NetCoreDbg_installs_with_a_verified_checksum()
+    {
+        RequireOptIn();
+        string cache = CacheFor(Util.TempDir("netcoredbg"));
+        var resolver = new AdapterResolver(cache);
+        var def = DebugAdapterRegistry.ForLanguage("csharp")!;
+        var before = await resolver.GetStatusAsync(def, new DebugEnvironment(), default);
+        Assert.SkipWhen(before.State == AdapterState.Unavailable, before.Message);
+        if (before.State == AdapterState.NotInstalled)
+        {
+            Assert.Contains(DebugAdapterDefinition.NetCoreDbgOsxArm64Sha256, before.Plan!.Display);
+            var (ok, output) = await AdapterResolver.ProvisionAsync(before.Plan, () => File.Exists(AdapterResolver.NetCoreDbgExecutable(cache)), default);
+            Assert.True(ok, output);
+        }
+        var after = await resolver.GetStatusAsync(def, new DebugEnvironment(), default);
+        Assert.True(after.IsReady, after.Message);
     }
 }

@@ -80,6 +80,9 @@ public sealed class AdapterResolver
                 AdapterKind.DebugPy => await PythonStatusAsync(def, env, ct).ConfigureAwait(false),
                 AdapterKind.LldbDap => await LldbStatusAsync(def, ct).ConfigureAwait(false),
                 AdapterKind.Delve => DelveStatus(def),
+                AdapterKind.JsDebug => JsDebugStatus(def),
+                AdapterKind.JavaJdi => await JavaStatusAsync(def, ct).ConfigureAwait(false),
+                AdapterKind.NetCoreDbg => NetCoreDbgStatus(def),
                 _ => new AdapterStatus(AdapterState.Unavailable, "Unknown adapter."),
             };
         }
@@ -153,6 +156,142 @@ public sealed class AdapterResolver
         ["install", $"{DebugAdapterDefinition.DelvePackage}@{DebugAdapterDefinition.DelvePinnedVersion}"],
         Path.Combine(AdaptersDirectory(_cacheDirectory), "go", "work"),
         new Dictionary<string, string> { ["GOBIN"] = DelveBinDirectory(_cacheDirectory), ["GOTOOLCHAIN"] = "local", ["GOFLAGS"] = "-mod=mod" });
+
+    // ---------------------------------------------------------------- js-debug
+
+    /// <summary>Where the pinned vscode-js-debug release is unpacked: <c>&lt;cache&gt;/debug-adapters/js-debug/&lt;version&gt;/js-debug/src/dapDebugServer.js</c>.</summary>
+    public static string JsDebugDirectory(string cacheDirectory) =>
+        Path.Combine(AdaptersDirectory(cacheDirectory), "js-debug", DebugAdapterDefinition.JsDebugPinnedVersion);
+
+    public static string JsDebugServerScript(string cacheDirectory) => Path.Combine(JsDebugDirectory(cacheDirectory), "js-debug", "src", "dapDebugServer.js");
+
+    private AdapterStatus JsDebugStatus(DebugAdapterDefinition def)
+    {
+        string? node = _locator.FindExecutable("node", includeCache: false);
+        if (node is null)
+            return new AdapterStatus(AdapterState.Unavailable, "Node.js не найден: он нужен и для запуска программы, и для отладчика (https://nodejs.org/).");
+        string script = JsDebugServerScript(_cacheDirectory);
+        if (File.Exists(script))
+            // Port 0: the server picks a free port and prints "Debug server listening at 127.0.0.1:<port>"; it is bound to loopback only.
+            return AdapterStatus.Ready(new ResolvedAdapter(def, node, [script, "0", "127.0.0.1"], new Dictionary<string, string>(),
+                new Regex(@"listening at\s+(\S+)", RegexOptions.CultureInvariant)));
+        if (OperatingSystem.IsWindows())
+            return new AdapterStatus(AdapterState.Unavailable,
+                $"vscode-js-debug не установлен. Автоматическая установка на Windows не проверялась: распакуйте {DebugAdapterDefinition.JsDebugUrl} (sha256 {DebugAdapterDefinition.JsDebugSha256}) в {JsDebugDirectory(_cacheDirectory)}.");
+        return new AdapterStatus(AdapterState.NotInstalled, $"vscode-js-debug {DebugAdapterDefinition.JsDebugPinnedVersion} не установлен.", Plan: PlanJsDebug());
+    }
+
+    /// <summary>
+    /// Downloads the pinned release tarball with curl, verifies its SHA-256 and only then unpacks it into the runner cache (set -e: a failed
+    /// check leaves nothing behind but the tarball, which is removed). The whole script is shown to the user before it runs.
+    /// </summary>
+    public ProvisionCommand PlanJsDebug()
+    {
+        string dir = JsDebugDirectory(_cacheDirectory);
+        const string Archive = "js-debug-dap.tar.gz";
+        string script = string.Join(" && ",
+            $"mkdir -p {QuoteSh(dir)}",
+            $"cd {QuoteSh(dir)}",
+            $"curl -fsSL -o {Archive} {QuoteSh(DebugAdapterDefinition.JsDebugUrl)}",
+            $"echo '{DebugAdapterDefinition.JsDebugSha256}  {Archive}' | {{ shasum -a 256 -c - || sha256sum -c -; }}",
+            $"tar xzf {Archive}",
+            $"rm -f {Archive}");
+        return new ProvisionCommand("/bin/sh", ["-c", script], AdaptersDirectory(_cacheDirectory), new Dictionary<string, string>());
+    }
+
+    private static string QuoteSh(string s) => "'" + s.Replace("'", "'\\''") + "'";
+
+    // ---------------------------------------------------------------- C# / netcoredbg
+
+    public static string NetCoreDbgDirectory(string cacheDirectory) =>
+        Path.Combine(AdaptersDirectory(cacheDirectory), "netcoredbg", DebugAdapterDefinition.NetCoreDbgVersion);
+
+    public static string NetCoreDbgExecutable(string cacheDirectory) =>
+        Path.Combine(NetCoreDbgDirectory(cacheDirectory), "netcoredbg", OperatingSystem.IsWindows() ? "netcoredbg.exe" : "netcoredbg");
+
+    private AdapterStatus NetCoreDbgStatus(DebugAdapterDefinition def)
+    {
+        string exe = NetCoreDbgExecutable(_cacheDirectory);
+        if (File.Exists(exe))
+            return AdapterStatus.Ready(new ResolvedAdapter(def, exe, ["--interpreter=vscode"], new Dictionary<string, string>()));
+        if (_locator.FindExecutable("dotnet", includeCache: false) is null)
+            return new AdapterStatus(AdapterState.Unavailable, "Не найден .NET SDK: он нужен и для сборки программы, и для отладчика (https://dotnet.microsoft.com/download).");
+        if (OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
+            return new AdapterStatus(AdapterState.NotInstalled, $"netcoredbg {DebugAdapterDefinition.NetCoreDbgVersion} не установлен.", Plan: PlanNetCoreDbg());
+        return new AdapterStatus(AdapterState.Unavailable,
+            "Автоматическая установка netcoredbg проверена только на macOS arm64. На этой платформе скачайте релиз с https://github.com/Samsung/netcoredbg/releases "
+            + $"(Linux x64/arm64 и Windows x64 есть в {DebugAdapterDefinition.NetCoreDbgVersion}; macOS x64 — в 3.1.3-1062) и распакуйте его в {NetCoreDbgDirectory(_cacheDirectory)} так, чтобы появился {NetCoreDbgExecutable(_cacheDirectory)}. Это не проверялось.");
+    }
+
+    /// <summary>Downloads the pinned zip with curl, verifies its SHA-256 and only then unpacks it into the runner cache. Shown to the user before it runs.</summary>
+    public ProvisionCommand PlanNetCoreDbg()
+    {
+        string dir = NetCoreDbgDirectory(_cacheDirectory);
+        const string Archive = "netcoredbg.zip";
+        string script = string.Join(" && ",
+            $"mkdir -p {QuoteSh(dir)}",
+            $"cd {QuoteSh(dir)}",
+            $"curl -fsSL -o {Archive} {QuoteSh(DebugAdapterDefinition.NetCoreDbgOsxArm64Url)}",
+            $"echo '{DebugAdapterDefinition.NetCoreDbgOsxArm64Sha256}  {Archive}' | shasum -a 256 -c -",
+            $"unzip -q -o {Archive}",
+            $"rm -f {Archive}");
+        return new ProvisionCommand("/bin/sh", ["-c", script], AdaptersDirectory(_cacheDirectory), new Dictionary<string, string>());
+    }
+
+    // ---------------------------------------------------------------- java / JDI
+
+    private const string JavaAdapterClass = "DevAcademyJdiAdapter";
+
+    private static readonly Lazy<string> JavaSource = new(() =>
+    {
+        using var s = typeof(AdapterResolver).Assembly.GetManifestResourceStream("DevAcademyJdiAdapter.java")
+            ?? throw new InvalidOperationException("The embedded Java adapter source is missing.");
+        using var r = new StreamReader(s, Encoding.UTF8);
+        return r.ReadToEnd();
+    });
+
+    /// <summary>Directory of the compiled adapter; named after a hash of its source, so a new app version compiles its own copy.</summary>
+    public static string JavaAdapterDirectory(string cacheDirectory)
+    {
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(JavaSource.Value)))[..12].ToLowerInvariant();
+        return Path.Combine(AdaptersDirectory(cacheDirectory), "java", hash);
+    }
+
+    public static string JavaAdapterClasses(string cacheDirectory) => Path.Combine(JavaAdapterDirectory(cacheDirectory), "classes");
+
+    private async Task<AdapterStatus> JavaStatusAsync(DebugAdapterDefinition def, CancellationToken ct)
+    {
+        string? javac = _locator.FindExecutable("javac", includeCache: false), java = null;
+        if (javac is not null)
+        {
+            // The adapter must run on the JDK that compiled the program: the java next to javac.
+            string sibling = Path.Combine(Path.GetDirectoryName(javac)!, OperatingSystem.IsWindows() ? "java.exe" : "java");
+            java = File.Exists(sibling) ? sibling : _locator.FindExecutable("java", includeCache: false);
+        }
+        // /usr/bin/java and /usr/bin/javac are shims on macOS that fail without a JDK.
+        if (javac is null || java is null || (await _probe(javac, ["-version"], ct).ConfigureAwait(false)).ExitCode != 0)
+            return new AdapterStatus(AdapterState.Unavailable, $"JDK не найден. {def.InstallHint}");
+        string classes = JavaAdapterClasses(_cacheDirectory);
+        if (File.Exists(Path.Combine(classes, JavaAdapterClass + ".class")))
+            return AdapterStatus.Ready(new ResolvedAdapter(def, java, ["-cp", classes, JavaAdapterClass], new Dictionary<string, string>()));
+        var modules = await _probe(java, ["--list-modules"], ct).ConfigureAwait(false);
+        if (modules.ExitCode != 0 || !modules.Output.Contains("jdk.jdi", StringComparison.Ordinal))
+            return new AdapterStatus(AdapterState.Unavailable, "В установленной Java нет модуля jdk.jdi (нужна полная JDK, не JRE): без него отладчик Java не собрать.");
+        return new AdapterStatus(AdapterState.NotInstalled, "Отладчик Java ещё не собран.", Plan: PlanJava(javac));
+    }
+
+    /// <summary>
+    /// <c>javac -d classes DevAcademyJdiAdapter.java</c> in the runner cache: the adapter's source ships inside the app and is written next to
+    /// its output, then compiled with the learner's own JDK. Nothing is downloaded.
+    /// </summary>
+    public ProvisionCommand PlanJava(string javac)
+    {
+        string dir = JavaAdapterDirectory(_cacheDirectory);
+        string source = Path.Combine(dir, "src", JavaAdapterClass + ".java");
+        Directory.CreateDirectory(Path.GetDirectoryName(source)!);
+        File.WriteAllText(source, JavaSource.Value, new UTF8Encoding(false));
+        return new ProvisionCommand(javac, ["-nowarn", "-encoding", "UTF-8", "-d", JavaAdapterClasses(_cacheDirectory), source], dir, new Dictionary<string, string>());
+    }
 
     // ---------------------------------------------------------------- helpers
 

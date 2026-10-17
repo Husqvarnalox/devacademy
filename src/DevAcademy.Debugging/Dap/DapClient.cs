@@ -63,7 +63,8 @@ public sealed class DapClient
     private static string? Str(JsonElement body, string name) =>
         body.ValueKind == JsonValueKind.Object && body.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    public async Task<Capabilities> InitializeAsync(string adapterId, CancellationToken ct = default)
+    /// <param name="supportsStartDebugging">The client opens child sessions on the adapter's <c>startDebugging</c> requests (vscode-js-debug needs it).</param>
+    public async Task<Capabilities> InitializeAsync(string adapterId, CancellationToken ct = default, bool supportsStartDebugging = false)
     {
         var body = await _conn.RequestAsync("initialize", new
         {
@@ -76,7 +77,7 @@ public sealed class DapClient
             supportsVariableType = true,
             supportsVariablePaging = false,
             supportsRunInTerminalRequest = false,
-            supportsStartDebuggingRequest = false,
+            supportsStartDebuggingRequest = supportsStartDebugging,
             supportsProgressReporting = false,
             locale = "en-US",
         }, ct, DefaultTimeout).ConfigureAwait(false);
@@ -87,6 +88,10 @@ public sealed class DapClient
     /// <summary>Sends launch; many adapters answer only after configurationDone, so the caller awaits the task later.</summary>
     public Task<JsonElement?> LaunchAsync(JsonObject configuration, CancellationToken ct = default) =>
         _conn.RequestAsync("launch", configuration, ct, TimeSpan.FromMinutes(2));
+
+    /// <summary>Sends attach (a child session started by the adapter's own <c>startDebugging</c> request).</summary>
+    public Task<JsonElement?> AttachAsync(JsonObject configuration, CancellationToken ct = default) =>
+        _conn.RequestAsync("attach", configuration, ct, TimeSpan.FromMinutes(2));
 
     public Task ConfigurationDoneAsync(CancellationToken ct = default) => _conn.RequestAsync("configurationDone", null, ct, DefaultTimeout);
 

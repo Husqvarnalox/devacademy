@@ -1,7 +1,11 @@
 namespace DevAcademy.Execution;
 
-/// <summary>Result of building a program for debugging. <see cref="Executable"/> is null when the build failed.</summary>
-public sealed record DebugBuildResult(bool Success, string Output, string? Executable, string WorkingDirectory);
+/// <summary>
+/// Result of building a program for debugging. <see cref="Executable"/> is null when the build failed. Native languages produce a binary
+/// (<see cref="RunArguments"/> null); runtime languages return the runtime as <see cref="Executable"/> and the rest of the run command
+/// (<c>node main.js</c>, <c>java -cp out Main</c>) in <see cref="RunArguments"/>.
+/// </summary>
+public sealed record DebugBuildResult(bool Success, string Output, string? Executable, string WorkingDirectory, IReadOnlyList<string>? RunArguments = null);
 
 /// <summary>
 /// Builds already-written source files with debug info and without optimisation, ready for a DAP adapter.
@@ -46,6 +50,6 @@ internal sealed class DebugBuilder(IReadOnlyList<ILanguageRuntime> runtimes) : I
             if (o.ExitCode != 0 || o.TimedOut)
                 return new DebugBuildResult(false, output.Length > 0 ? output.ToString() : "The compiler failed.", null, directory);
         }
-        return new DebugBuildResult(true, output.ToString(), plan.Run.FileName, directory);
+        return new DebugBuildResult(true, output.ToString(), plan.Run.FileName, directory, runtime is INativeDebugBuild ? null : plan.Run.Args);
     }
 }

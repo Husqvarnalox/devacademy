@@ -68,7 +68,7 @@ internal sealed class LessonDebugHost(ExerciseSessionViewModel session, AppServi
             services.Debug.CleanupRunDirectory(dir);
             return new DebugPreparation(null, Loc.T("Dbg_BuildFailed") + "\n" + built.Output, null, paths);
         }
-        return new DebugPreparation(new DebugLaunch(built.Executable, dir, []), null, dir, paths);
+        return new DebugPreparation(new DebugLaunch(built.Executable, dir, [], RunArguments: built.RunArguments), null, dir, paths);
     }
 
     public Task RevealAsync(string key, int line)

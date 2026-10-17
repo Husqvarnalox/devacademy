@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- The Java debug adapter (JDI) is compiled on first use with the learner's own javac, from this embedded source. -->
+    <EmbeddedResource Include="..\..\tools\debug-adapters\java\DevAcademyJdiAdapter.java" LogicalName="DevAcademyJdiAdapter.java" />
     <ProjectReference Include="..\DevAcademy.LanguageServices\DevAcademy.LanguageServices.csproj" />
     <InternalsVisibleTo Include="DevAcademy.Debugging.Tests" />
   </ItemGroup>

@@ -42,7 +42,7 @@ internal sealed class PythonRuntime : IContainerizableRuntime
         new Dictionary<string, string> { ["PYTHONDONTWRITEBYTECODE"] = "1", ["PYTHONIOENCODING"] = "utf-8" });
 }
 
-internal sealed class JavaScriptRuntime : IContainerizableRuntime, ICommandRuntime
+internal sealed class JavaScriptRuntime : IContainerizableRuntime, ICommandRuntime, IDebugBuildRuntime
 {
     public string LanguageId => "javascript";
     public string DisplayName => "JavaScript (Node.js)";
@@ -61,6 +61,10 @@ internal sealed class JavaScriptRuntime : IContainerizableRuntime, ICommandRunti
     public BuildPlan CreateCommandPlan(string workingDirectory, IReadOnlyList<string> argv, RuntimeStatus status) =>
         new([], new ProcessSpec(status.ExecutablePath!, argv.Skip(1).ToList(), workingDirectory,
             new Dictionary<string, string> { ["NO_COLOR"] = "1" }));
+
+    /// <summary>Nothing to build: node runs the entry file, given by absolute path so the debugger's breakpoints match the editor's files.</summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null) =>
+        new([], new ProcessSpec(status.ExecutablePath!, [Path.GetFullPath(entryFile, sourceDirectory ?? workingDirectory)], workingDirectory));
 }
 
 internal static class NodeProbe
@@ -77,7 +81,7 @@ internal static class NodeProbe
     }
 }
 
-internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntime, ICommandRuntime
+internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntime, ICommandRuntime, IDebugBuildRuntime
 {
     private const string TscHint = "Install the TypeScript compiler for type-checking: npm install -g typescript (https://www.typescriptlang.org/download).";
 
@@ -125,12 +129,24 @@ internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntim
         new([], new ProcessSpec(status.ExecutablePath!, argv.Skip(1).ToList(), workingDirectory,
             new Dictionary<string, string> { ["NO_COLOR"] = "1" }));
 
+    /// <summary>
+    /// Node runs the .ts file through type stripping, which blanks the types instead of moving code, so lines and columns stay those of the
+    /// source and breakpoints need no source map. No type-check step: a program with type errors is still debuggable.
+    /// </summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null) =>
+        new([], new ProcessSpec(status.ExecutablePath!, [.. StripTypesFlags(status), Path.GetFullPath(entryFile, sourceDirectory ?? workingDirectory)], workingDirectory));
+
+    private static List<string> StripTypesFlags(RuntimeStatus status)
+    {
+        var flags = new List<string>();
+        if (Version.Parse(status.Version!) < new Version(23, 6)) flags.Add("--experimental-strip-types");
+        flags.Add("--disable-warning=ExperimentalWarning");
+        return flags;
+    }
+
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
-        Version nv = Version.Parse(status.Version!);
-        var args = new List<string>();
-        if (nv < new Version(23, 6)) args.Add("--experimental-strip-types");
-        args.Add("--disable-warning=ExperimentalWarning");
+        var args = StripTypesFlags(status);
         args.Add(entryFile);
 
         var steps = new List<ProcessSpec>();
@@ -149,7 +165,7 @@ internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntim
     }
 }
 
-internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, IDebugBuildRuntime
+internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, INativeDebugBuild
 {
     public string LanguageId => "go";
     public string DisplayName => "Go";
@@ -221,7 +237,7 @@ internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, IDebug
     }
 }
 
-internal sealed class JavaRuntime : ILanguageRuntime
+internal sealed class JavaRuntime : ILanguageRuntime, IDebugBuildRuntime
 {
     public string LanguageId => "java";
     public string DisplayName => "Java";
@@ -251,6 +267,19 @@ internal sealed class JavaRuntime : ILanguageRuntime
             new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", "-cp", "out", mainClass], workingDirectory));
     }
 
+    /// <summary>javac -g (line numbers, local variable names) into <c>out</c> with absolute source paths; the run command is the one the JDI adapter launches.</summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
+    {
+        string src = sourceDirectory ?? workingDirectory;
+        var args = new List<string> { "-g", "-encoding", "UTF-8", "-d", "out" };
+        args.AddRange(ToolLocator.FilesWithExtensions(src, ".java").Select(f => Path.GetFullPath(f, src)));
+        string java = Path.Combine(Path.GetDirectoryName(status.ExecutablePath!)!, OperatingSystem.IsWindows() ? "java.exe" : "java");
+        string mainClass = Path.ChangeExtension(entryFile, null)!.Replace('\\', '.').Replace('/', '.');
+        return new BuildPlan(
+            [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
+            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", "-cp", Path.Combine(workingDirectory, "out"), mainClass], workingDirectory));
+    }
+
     /// <summary>Heap cap of a run with a jar folder: the JVM would otherwise grow towards a quarter of the machine's memory, past the run's memory limit.</summary>
     internal const string LibraryHeap = "-Xmx256m";
 
@@ -273,7 +302,7 @@ internal sealed class JavaRuntime : ILanguageRuntime
     }
 }
 
-internal sealed class CppRuntime : ILanguageRuntime, IDebugBuildRuntime
+internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
 {
     public string LanguageId => "cpp";
     public string DisplayName => "C++";
@@ -312,7 +341,7 @@ internal sealed class CppRuntime : ILanguageRuntime, IDebugBuildRuntime
     }
 }
 
-internal sealed class RustRuntime : ILanguageRuntime, IDebugBuildRuntime
+internal sealed class RustRuntime : ILanguageRuntime, INativeDebugBuild
 {
     public string LanguageId => "rust";
     public string DisplayName => "Rust";
@@ -356,7 +385,7 @@ internal sealed class RustRuntime : ILanguageRuntime, IDebugBuildRuntime
     }
 }
 
-internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime
+internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, IDebugBuildRuntime
 {
     public string LanguageId => "csharp";
     public string DisplayName => "C# (.NET file-based app or project)";
@@ -398,6 +427,39 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, ["build", entryFile, .. flags], workingDirectory, env)],
             new ProcessSpec(status.ExecutablePath!, [Path.Combine("out", name + ".dll")], workingDirectory, env));
+    }
+
+    /// <summary>Debug build (portable pdb, no optimisation) into <c>out</c> of the working directory; the run command is <c>dotnet &lt;absolute dll&gt;</c>.</summary>
+    public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
+    {
+        string src = sourceDirectory ?? workingDirectory;
+        string home = Path.Combine(cacheDirectory, "dotnet");
+        var env = new Dictionary<string, string>
+        {
+            ["DOTNET_CLI_HOME"] = Path.Combine(home, "cli"),
+            ["NUGET_PACKAGES"] = Path.Combine(home, "nuget"),
+            ["DOTNET_NOLOGO"] = "1",
+            ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+            ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
+            ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
+            ["MSBUILDDISABLENODEREUSE"] = "1",
+        };
+        string outDir = Path.Combine(workingDirectory, "out");
+        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true"];
+        string target; string assembly;
+        if (FindProject(src) is { } project)
+        {
+            target = Path.Combine(src, project);
+            assembly = AssemblyName(src, project);
+        }
+        else
+        {
+            target = Path.GetFullPath(entryFile, src);
+            assembly = Path.GetFileNameWithoutExtension(entryFile);
+        }
+        return new BuildPlan(
+            [new ProcessSpec(status.ExecutablePath!, ["build", target, .. flags], workingDirectory, env)],
+            new ProcessSpec(status.ExecutablePath!, [Path.Combine(outDir, assembly + ".dll")], workingDirectory, env));
     }
 
     /// <summary>The only project file in the root of the working directory (relative name), or null when there is none or several (then the entry file is built as a file-based app).</summary>

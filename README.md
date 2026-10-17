@@ -17,7 +17,7 @@ Early-stage. It builds and runs; the content is small.
 | Grading (stdout comparison or test harness), hints, quizzes, reviews, progress in SQLite | implemented |
 | AI tutor: OpenAI, Anthropic, Gemini, OpenRouter, OpenAI-compatible | implemented, tested with fake HTTP only; no live API verified |
 | Curriculum | Python Fundamentals (10 lessons) and short intro courses for JavaScript, TypeScript, Node.js, C#, PHP (2 lessons each); `content/catalog.yaml` is the source of truth. Everything else is **Planned** and shown as such |
-| JS/TS debugging (vscode-js-debug), notebooks, Python environment manager (in progress), ML runtime manager, auto-update | not implemented |
+| notebooks, Python environment manager (in progress), ML runtime manager, auto-update | not implemented |
 
 Roadmap with per-item status: [ROADMAP.md](ROADMAP.md). Platform matrix: [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md).
 

@@ -69,7 +69,7 @@ internal sealed class ProjectDebugHost(ProjectWorkspaceViewModel workspace, Debu
             service.CleanupRunDirectory(runDir);
             return new DebugPreparation(null, Loc.T("Dbg_BuildFailed") + "\n" + built.Output, null, paths);
         }
-        return new DebugPreparation(new DebugLaunch(built.Executable, workspace.Root, []), null, runDir, paths);
+        return new DebugPreparation(new DebugLaunch(built.Executable, workspace.Root, [], RunArguments: built.RunArguments), null, runDir, paths);
     }
 
     private string? DefaultEntry(string lang)
@@ -79,6 +79,10 @@ internal sealed class ProjectDebugHost(ProjectWorkspaceViewModel workspace, Debu
             "go" => ["main.go", "cmd/main.go"],
             "rust" => ["src/main.rs", "main.rs"],
             "cpp" => ["main.cpp", "src/main.cpp"],
+            "javascript" => ["main.js", "index.js", "src/main.js"],
+            "typescript" => ["main.ts", "src/main.ts"],
+            "java" => ["Main.java"],
+            "csharp" => ["Program.cs"],
             _ => [],
         };
         return candidates.FirstOrDefault(c => File.Exists(Path.Combine(workspace.Root, c)));

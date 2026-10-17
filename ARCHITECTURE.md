@@ -403,7 +403,19 @@ The app contains no parser or completion engine; `DevAcademy.LanguageServices` (
   PATH elsewhere); go = `dlv dap` over TCP (`--listen=127.0.0.1:0`, port parsed from stdout). Provisioning is never implicit: debugpy is
   `pip install debugpy` into that env only (venv probe + `PIP_REQUIRE_VIRTUALENV=1`, never the system interpreter); Delve is
   `go install github.com/go-delve/delve/cmd/dlv@<pinned>` into the runner-cache GOBIN. The UI shows the exact command and asks first.
-* Debug builds: `IDebugBuildRuntime` gives cpp `-g -O0`, rust `-g -C opt-level=0`, go `-gcflags=all=-N -l`; the normal run plan is unchanged.
+  javascript/typescript = vscode-js-debug v1.140.0 (`node dapDebugServer.js 0 127.0.0.1`, TCP on loopback; the release tarball is
+  downloaded by a shown `curl` script, **sha256-verified before unpacking**, into `<runner cache>/debug-adapters/js-debug/<version>`). It is a
+  multi-session adapter: the root session answers `launch` with a `startDebugging` reverse request and `DebugSession` opens a second
+  connection to the same port for the real debuggee session (`AdapterProcess.OpenAdditionalConnectionAsync`). java = `java-jdi`, a ~800-line
+  JDI DAP adapter whose **source ships in the app** (`tools/debug-adapters/java`, embedded resource) and is compiled locally with the user's
+  `javac` into the runner cache on first use (no download; needs a JDK 17+ with the `jdk.jdi` module); it spawns the debuggee with a
+  loopback-only JDWP socket. csharp = netcoredbg 3.2.0-1092 (Samsung, MIT, `--interpreter=vscode` over stdio), zip sha256-verified, **installed
+  automatically on macOS arm64 only** (the one platform tested; other platforms get a manual instruction, labelled untested). Microsoft's vsdbg
+  is not used (licence).
+* Debug builds: `IDebugBuildRuntime` gives cpp `-g -O0`, rust `-g -C opt-level=0`, go `-gcflags=all=-N -l`, java `javac -g`, csharp
+  `dotnet build -c Debug -p:Optimize=false` (portable pdb; file-based app or the single project); javascript/typescript need no build (TypeScript
+  runs through Node type stripping, which keeps line numbers, so no source maps). Native builds return a binary; the others return the runtime plus
+  the rest of the run command in `DebugBuildResult.RunArguments`. The normal run plan is unchanged.
   `DebugBuilder` builds into a throw-away directory.
 * **Sandbox policy**: debug runs are NOT sandboxed (the debugger needs ptrace/attach and the program runs with the user's rights). The panel
   says "отладка запускает программу без песочницы". Debugging is available in project workspaces and lesson Practice "Run"; it is never used
@@ -414,9 +426,14 @@ The app contains no parser or completion engine; `DevAcademy.LanguageServices` (
   Call Stack, Variables (lazy tree), Watch, Debug Console with REPL, adapter status/install). Breakpoints persist per file in
   `ProjectSession.Breakpoints` (projects) and in the settings key `debug.breakpoints.<exercise>.<lang>` (lessons).
 * Verified here (macOS arm64): lldb-dap on C++ (breakpoint in a loop, variables, step, exit code), debugpy in a temp venv, dlv in a temp
-  GOBIN. Explicit-only tests: `DEVACADEMY_ALLOW_NETWORK_INSTALL=1` for debugpy/dlv installs.
-* Known limits: JavaScript/TypeScript need vscode-js-debug (node's inspector is CDP, not DAP) — planned; Java (java-debug) and C#
-  (netcoredbg) planned. No debuggee stdin. Delve sends no `exited` event (no exit code). Go debugging builds flat source files only (no
+  GOBIN, and end-to-end tests (breakpoint, locals, step, continue, evaluate, run to the end) against the real vscode-js-debug (JavaScript and
+  TypeScript, Node 22), the JDI adapter (step in/out/over, deferred breakpoint, uncaught exception, packages) and netcoredbg (file-based C# app);
+  they skip with a reason when the adapter is not installed. Explicit-only tests: `DEVACADEMY_ALLOW_NETWORK_INSTALL=1` for the debugpy/dlv/js-debug/
+  netcoredbg installs (`DEVACADEMY_ADAPTER_INSTALL_TO_RUNNER_CACHE=1` installs into the real cache so the integration tests run).
+* Known limits: No debuggee stdin. Delve, vscode-js-debug send no `exited` event and netcoredbg always reports exit code 0, so no exit code is
+  shown for go, javascript, typescript and csharp. The Java adapter is small: no hot code replace, no conditional or logpoint breakpoints, watch
+  expressions are variable paths (`a.b[0]`, `.length`), not arbitrary expressions. C#: Linux/Windows/macOS x64 are not tested and not
+  auto-installed; project builds write `obj/` next to the sources. Go debugging builds flat source files only (no
   sub-packages). macOS shows developer-tools permission prompts for lldb. Windows/Linux unverified.
 
 ## 20. Not implemented today

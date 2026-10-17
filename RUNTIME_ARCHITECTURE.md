@@ -138,6 +138,13 @@ Not covered by an adapter: any package installation by the runner, virtualenvs, 
 A learner's `import numpy` works only if the system interpreter already has it (the sandbox does not provide
 packages; the `-s` flag disables user site-packages).
 
+### Debug builds
+
+`IDebugBuildRuntime` (not sandboxed, see ARCHITECTURE debugging) adds a debug plan per language: cpp/rust/go native binaries; java `javac -g -d out`; csharp `dotnet build -c Debug -p:Optimize=false -o out`
+(run `dotnet out/<assembly>.dll`); javascript `node <entry>`; typescript `node --experimental-strip-types <entry>` for Node before 23.6 (no tsc, line numbers preserved). Non-native plans return the
+runtime and the rest of the command as `DebugBuildResult.RunArguments`. Adapters: debugpy, lldb-dap, Delve, vscode-js-debug (downloaded, sha256-pinned), a JDI adapter compiled locally from source in
+`tools/debug-adapters/java`, and netcoredbg (downloaded, sha256-pinned; automatic install on macOS arm64 only).
+
 ## 5. Result model
 
 `ExecutionStatus`: Success, CompileError, RuntimeError, Timeout, MemoryLimitExceeded, OutputLimitExceeded,

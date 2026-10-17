@@ -69,6 +69,13 @@ caps each download at the locked size, and renames a `.jar.part` file into place
 nothing is downloaded without the confirmation dialog (jars, total size, source host, network notice). At grading time `<set>/lib` is a read-only sandbox path used as `-cp lib/*`, the run never
 uses a container, and the jars (arbitrary code) run inside the same sandbox as learner code (no network, writes only to the work directory). Spring exercises start the context without Tomcat.
 
+### Debug adapters
+
+Debuggers are not sandboxed (see ARCHITECTURE section on debugging), and adapters are installed only after the debug panel shows the exact command and the user confirms.
+Everything goes into `<runner cache>/debug-adapters/` at a pinned version, never system-wide. vscode-js-debug (GitHub release tarball) and netcoredbg (GitHub release zip,
+macOS arm64 only) are verified against a pinned SHA-256 before they are unpacked; a mismatch aborts the script. The Java adapter is not downloaded: its source ships with the
+app and is compiled locally with `javac`. Adapters listen on loopback only (`AdapterProcess` rejects any other address; the JDWP socket is bound to 127.0.0.1).
+
 ## 5. Out of scope (today)
 
 Protection against a malicious local administrator; kernel/hypervisor escapes; supply-chain
