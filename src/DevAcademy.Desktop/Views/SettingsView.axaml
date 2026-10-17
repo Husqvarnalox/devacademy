@@ -69,6 +69,7 @@
           <views:NodeEnvironmentView Name="NodeSection" DataContext="{Binding Node}" />
           <views:GoEnvironmentView Name="GoSection" DataContext="{Binding Go}" />
           <views:NuGetEnvironmentView Name="NuGetSection" DataContext="{Binding NuGet}" />
+          <views:MavenEnvironmentView Name="MavenSection" DataContext="{Binding Maven}" />
           <views:MlAccelerationView Name="MlSection" DataContext="{Binding Ml}" />
         </StackPanel>
       </ScrollViewer>

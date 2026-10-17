@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace DevAcademy.Domain;
 
-public enum PackageSetLanguage { Python, Node, Go, NuGet }
+public enum PackageSetLanguage { Python, Node, Go, NuGet, Maven }
 
 /// <summary>
 /// A per-course package set: the pinned packages of ONE library (or a small family) that a learner can choose to install. Sets are the unit of
@@ -73,6 +73,7 @@ public sealed partial class ContentPackageIndex
         {
             PackageSetLanguage.Python => PythonPackageSpec.Normalize(name),
             PackageSetLanguage.NuGet => name.ToLowerInvariant(), // NuGet package ids are case-insensitive
+            // Maven coordinates (group:artifact) are case-sensitive on Maven Central.
             _ => name,
         };
 
@@ -81,6 +82,7 @@ public sealed partial class ContentPackageIndex
         PackageSetLanguage.Python => "Python",
         PackageSetLanguage.Go => "Go",
         PackageSetLanguage.NuGet => ".NET (NuGet)",
+        PackageSetLanguage.Maven => "Java (Maven)",
         _ => "Node.js",
     };
 
@@ -102,6 +104,10 @@ public sealed partial class ContentPackageIndex
     /// <summary>The NuGet package ids an exercise needs (<c>requires.nugetPackages</c>). Empty = no nuget set needed.</summary>
     public static IReadOnlyList<string> RequiredNuGetPackages(Exercise exercise) =>
         (exercise.Requires?.NugetPackages ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>The Maven artifacts (<c>group:artifact</c>) an exercise needs (<c>requires.mavenArtifacts</c>). Empty = no maven set needed.</summary>
+    public static IReadOnlyList<string> RequiredMavenArtifacts(Exercise exercise) =>
+        (exercise.Requires?.MavenArtifacts ?? []).Distinct(StringComparer.Ordinal).ToList();
 
     /// <summary>The PyPI distributions an exercise needs (names only, normalised). Empty = no python set needed.</summary>
     public static IReadOnlyList<string> RequiredPythonPackages(Exercise exercise)
@@ -125,12 +131,13 @@ public sealed partial class ContentPackageIndex
 
     // ---------------------------------------------------------------- files
 
-    /// <summary>The set's npm directory (package.json + package-lock.json), Go module directory (go.mod + go.sum), NuGet restore directory (restore.csproj) or Python requirements file; null when the index is in memory.</summary>
+    /// <summary>The set's npm directory (package.json + package-lock.json), Go module directory (go.mod + go.sum), NuGet restore directory (restore.csproj), Maven set directory (lock.json) or Python requirements file; null when the index is in memory.</summary>
     public string? SourcePath(ContentPackageSet set) => Directory is null ? null : set.Language switch
     {
         PackageSetLanguage.Node => Path.Combine(Directory, "node", set.Id),
         PackageSetLanguage.Go => Path.Combine(Directory, "go", set.Id),
         PackageSetLanguage.NuGet => Path.Combine(Directory, "nuget", set.Id),
+        PackageSetLanguage.Maven => Path.Combine(Directory, "maven", set.Id),
         _ => Path.Combine(Directory, "python", set.Id + ".txt"),
     };
 
@@ -151,6 +158,13 @@ public sealed partial class ContentPackageIndex
                 foreach (var line in File.ReadLines(Path.Combine(path, "go.mod")))
                     if (GoRequirePattern().Match(line) is { Success: true } m && !m.Groups[3].Value.Contains("indirect", StringComparison.Ordinal))
                         pins.Add(new(m.Groups[1].Value, m.Groups[2].Value));
+            }
+            else if (set.Language == PackageSetLanguage.Maven)
+            {
+                // The artifacts a set offers (not every transitive jar), each with its locked version.
+                if (MavenLock.TryParse(File.ReadAllText(Path.Combine(path, MavenLock.FileName)), out var lockFile, out _))
+                    foreach (var jar in lockFile.Jars.Where(j => set.Packages.Contains(j.Coordinates, StringComparer.Ordinal)))
+                        pins.Add(new(jar.Coordinates, jar.Version));
             }
             else if (set.Language == PackageSetLanguage.NuGet)
             {
@@ -219,8 +233,8 @@ public sealed partial class ContentPackageIndex
                 string? Str(string name) => item.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                 var id = Str("id");
                 if (id is null || !IdPattern().IsMatch(id)) { error = $"set id '{id}' must be lower-case letters, digits and '-'"; return false; }
-                var language = Str("language") switch { "python" => PackageSetLanguage.Python, "node" => PackageSetLanguage.Node, "go" => PackageSetLanguage.Go, "nuget" => PackageSetLanguage.NuGet, _ => (PackageSetLanguage?)null };
-                if (language is null) { error = $"set '{id}': language must be 'python', 'node', 'go' or 'nuget'"; return false; }
+                var language = Str("language") switch { "python" => PackageSetLanguage.Python, "node" => PackageSetLanguage.Node, "go" => PackageSetLanguage.Go, "nuget" => PackageSetLanguage.NuGet, "maven" => PackageSetLanguage.Maven, _ => (PackageSetLanguage?)null };
+                if (language is null) { error = $"set '{id}': language must be 'python', 'node', 'go', 'nuget' or 'maven'"; return false; }
                 if (string.IsNullOrWhiteSpace(Str("title"))) { error = $"set '{id}': title is missing"; return false; }
                 var packages = new List<string>();
                 if (item.TryGetProperty("packages", out var arr) && arr.ValueKind == JsonValueKind.Array)

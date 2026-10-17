@@ -68,5 +68,23 @@
     "language": "nuget",
     "description": "Microsoft.AspNetCore.TestHost: запросы к приложению ASP.NET Core в памяти (TestServer и HttpClient), без сетевого порта.",
     "packages": ["Microsoft.AspNetCore.TestHost"]
+  },
+  {
+    "id": "spring-boot-web-test",
+    "title": "Spring Boot: веб и MockMvc",
+    "language": "maven",
+    "description": "Spring Boot 4 (Spring MVC, автоконфигурация), валидация Hibernate Validator, Jackson и spring-test с MockMvc: запросы к приложению в памяти, Tomcat и порт не нужны.",
+    "packages": [
+      "org.springframework.boot:spring-boot-starter-webmvc",
+      "org.springframework.boot:spring-boot-starter-validation",
+      "org.springframework.boot:spring-boot-autoconfigure",
+      "org.springframework:spring-webmvc",
+      "org.springframework:spring-test",
+      "org.hibernate.validator:hibernate-validator",
+      "tools.jackson.core:jackson-databind",
+      "com.jayway.jsonpath:json-path",
+      "org.hamcrest:hamcrest",
+      "jakarta.servlet:jakarta.servlet-api"
+    ]
   }
 ]

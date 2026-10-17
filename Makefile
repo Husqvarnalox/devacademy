@@ -24,8 +24,13 @@ GOENV_ARG = $(if $(wildcard $(GOENV)/*/pkg/mod/cache/download),--go-env $(GOENV)
 NUGETENV  ?= .nuget-content
 NUGETENV_ARG = $(if $(wildcard $(NUGETENV)/*/packages/*),--nuget-env $(NUGETENV),)
 
+# Maven content environments: the jars of each package set under $(MAVENENV)/<set>/lib, listed and pinned (sha256) by
+# tools/content-packages/maven/<set>/lock.json. No Maven is needed: the CLI downloads and verifies them like the app does.
+MAVENENV  ?= .maven-content
+MAVENENV_ARG = $(if $(wildcard $(MAVENENV)/*/lib/*.jar),--maven-env $(MAVENENV),)
+
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
-        python-env node-env go-env nuget-env runtimes publish package checksums version notices clean
+        python-env node-env go-env nuget-env maven-env runtimes publish package checksums version notices clean
 
 help:
 	@echo "setup             restore packages and report detected language runtimes"
@@ -40,6 +45,7 @@ help:
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
 	@echo "node-env          npm ci EVERY tools/content-packages/node set into $(NODEENV)/<set>/ (react, typescript, express; DOWNLOADS from npm)"
 	@echo "go-env            go mod download EVERY tools/content-packages/go set into $(GOENV)/<set>/pkg/mod (gomlx; DOWNLOADS from proxy.golang.org)"
+	@echo "maven-env         download EVERY tools/content-packages/maven set into $(MAVENENV)/<set>/lib (spring-boot-web-test; DOWNLOADS from repo1.maven.org, sha256-verified)"
 	@echo "nuget-env         dotnet restore EVERY tools/content-packages/nuget set into $(NUGETENV)/<set>/packages (aspnetcore-testing; DOWNLOADS from api.nuget.org)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
@@ -78,11 +84,12 @@ format:
 	dotnet format whitespace $(SLN)
 
 validate-content:
-	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG) $(GOENV_ARG) $(NUGETENV_ARG)
+	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG) $(GOENV_ARG) $(NUGETENV_ARG) $(MAVENENV_ARG)
 	@if [ -z "$(PYENV_ARG)" ]; then echo "note: no $(PYENV); exercises that need Python packages were skipped (run: make python-env)"; fi
 	@if [ -z "$(NODEENV_ARG)" ]; then echo "note: no $(NODEENV); exercises that need npm packages were skipped (run: make node-env)"; fi
 	@if [ -z "$(GOENV_ARG)" ]; then echo "note: no $(GOENV); exercises that need Go modules were skipped (run: make go-env)"; fi
 	@if [ -z "$(NUGETENV_ARG)" ]; then echo "note: no $(NUGETENV); exercises that need NuGet packages were skipped (run: make nuget-env)"; fi
+	@if [ -z "$(MAVENENV_ARG)" ]; then echo "note: no $(MAVENENV); exercises that need Maven libraries were skipped (run: make maven-env)"; fi
 
 python-env:
 	@echo "NOTE: this downloads packages from PyPI into $(PYENV) (nothing is installed globally)."
@@ -115,6 +122,10 @@ nuget-env:
 	  (cd $(NUGETENV)/$$id && DOTNET_CLI_HOME=$$PWD/cli NUGET_HTTP_CACHE_PATH=$$PWD/http-cache DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1 \
 	    dotnet restore restore.csproj --packages $$PWD/packages --source https://api.nuget.org/v3/index.json) || exit 1; \
 	done
+
+maven-env:
+	@echo "NOTE: this downloads jars from repo1.maven.org (Maven Central) into $(MAVENENV) (nothing is installed globally; each set has its own lib folder)."
+	dotnet run --project $(CLI) -- maven-env --maven-env $(MAVENENV)
 
 runtimes:
 	dotnet run --project $(CLI) -- runtimes

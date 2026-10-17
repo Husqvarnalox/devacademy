@@ -398,6 +398,21 @@ read-only packages folder: `NUGET_PACKAGES=<set>/packages` and `-p:RestoreSource
 uses a container. The install is `dotnet restore restore.csproj --packages <data>/nuget-content/<set>/packages --source https://api.nuget.org/v3/index.json` after the learner confirms
 (packages with versions, the exact command, the network notice); nothing is downloaded implicitly.
 
+## Java and Maven artifacts (Spring Boot)
+
+```yaml
+requires: { mavenArtifacts: [org.springframework.boot:spring-boot, org.springframework:spring-webmvc], memoryMb: 512 }   # java exercises only
+```
+
+`mavenArtifacts` are `group:artifact` coordinates (no versions). They must be covered by ONE `maven` set in `tools/content-packages/index.json` (`maven/<id>/{pom.xml,lock.json}`, language `maven`;
+same smallest-covering-set rule). `lock.json` lists every jar of the resolved runtime classpath with `sha256` and `size`; regenerate it with `python3 tools/content-packages/maven/generate-lock.py <id>`
+(needs Maven, developers only). The learner's machine needs no Maven: after confirmation the app downloads exactly the locked jars from repo1.maven.org into `<data>/maven-content/<set>/lib` and
+verifies every sha256. Runs use `-cp lib/*` with a read-only `lib` and no container. `make maven-env` downloads EVERY maven set into the gitignored `.maven-content/<set>/lib`; `make validate-content`
+passes `--maven-env .maven-content` when it exists, otherwise Maven exercises and theory samples are skipped with a warning.
+
+Authoring rules for Spring Boot courses (`spring-boot-fundamentals`): the sandbox denies sockets, so the context starts without Tomcat (`GenericWebApplicationContext` over `MockServletContext`) and
+`MockMvc` is driven by a fixed `demo/Main.java` that reads requests from stdin (an exception that escapes a request prints `500 - <ExceptionClass>`; a context that fails to start prints `startup failed: <ExceptionClass>: <root cause message>` to stderr and exits 1); exercises live in package `demo`, theory samples are one default-package `Main.java`. Code is compiled with `-parameters`.
+
 `make nuget-env` runs that restore for EVERY nuget set into the gitignored `.nuget-content/<set>/packages` (DOWNLOADS from api.nuget.org). `make validate-content` passes
 `--nuget-env .nuget-content` when that directory exists; without it, NuGet exercises and theory samples are skipped with a warning (as `--go-env` does for Go).
 
@@ -449,9 +464,9 @@ A learner's machine downloads only the packages of the library being studied, so
 Node sets are `node/<id>/{package.json,package-lock.json}` (lock generated with `npm install --package-lock-only --ignore-scripts`; shared
 versions must be identical across sets); Python sets are `python/<id>.txt` with pinned requirements; Go sets are `go/<id>/{go.mod,go.sum}` (`packages` lists
 the top-level module paths). Current sets: node `react`, `typescript`,
-`express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`; nuget `aspnetcore-testing`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
+`express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`; nuget `aspnetcore-testing`; maven `spring-boot-web-test`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
 
-An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node; `requires.goModules` for Go; `requires.nugetPackages` for C#) must be
+An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node; `requires.goModules` for Go; `requires.nugetPackages` for C#; `requires.mavenArtifacts` for Java) must be
 covered by ONE set of the right language: the smallest covering set wins, ties go to index order. The validator reports an error for an
 exercise no set covers, so when adding a course that needs a new package, add it to an existing set (or create a set) in the same change.
 If the index cannot be found the validator only warns.

@@ -353,7 +353,8 @@ public static class ContentLoader
                 string.IsNullOrWhiteSpace(r.Go) ? null : r.Go.Trim(),
                 (r.GoModules ?? []).Select(p => p.Trim()).ToList(),
                 r.MemoryMb,
-                (r.NugetPackages ?? []).Select(p => p.Trim()).ToList());
+                (r.NugetPackages ?? []).Select(p => p.Trim()).ToList(),
+                (r.MavenArtifacts ?? []).Select(p => p.Trim()).ToList());
 
         private Exercise? ParseExerciseCore(ExerciseDto e, string lessonDir, string path, string courseLanguage)
         {

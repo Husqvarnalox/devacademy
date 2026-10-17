@@ -1,0 +1,259 @@
+id: "java.spring.crud-service"
+title: "Небольшой CRUD-сервис"
+goal: "Собрать REST-сервис из контроллера, сервиса и репозитория: правильные коды ответов и Location, DTO вместо сущностей, проверка входных данных, страницы и сортировка вручную, потокобезопасное хранилище и условные запросы с ETag."
+difficulty: "hard"
+estimatedMinutes: 90
+prerequisites:
+  - "java.spring.testing-with-mockmvc"
+related:
+  - "csharp.aspnetcore.testing-crud-service"
+  - "express.fundamentals.rest-api"
+objectives:
+  - "Разделять приложение на контроллер, сервис и репозиторий и объяснять, за что отвечает каждый слой."
+  - "Реализовать CRUD по REST-соглашениям: 201 и Location, замена через PUT, 204 и 404 при удалении."
+  - "Разбирать page, size и sort вручную с проверкой границ и стабильным порядком, возвращать страницу с общим числом."
+  - "Объяснять идемпотентность методов и делать хранилище безопасным для параллельных запросов."
+masteryCriteria:
+  - "Вы выбираете для каждой операции CRUD верный код ответа и заголовки и знаете, когда ответ 404, 400 или 409."
+  - "Вы отделяете DTO запроса и ответа от внутренней сущности и повторно используете правила проверки в POST и PUT."
+  - "Вы объясняете, почему HashMap и long++ небезопасны в бине-одиночке и чем их заменить."
+tags:
+  - "java"
+  - "spring-boot"
+  - "spring-mvc"
+  - "rest"
+  - "crud"
+facts:
+  - kind: "internals"
+    text: "Аннотации @Service и @Repository, как и @RestController, делают класс бином, который Spring находит сканированием и создаёт один раз; зависимости передаются через конструктор. Один экземпляр репозитория обслуживает запросы со всех потоков, поэтому его состояние должно быть потокобезопасным: ConcurrentHashMap для данных, AtomicLong для идентификаторов."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/core/beans/classpath-scanning.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller.html"
+  - kind: "internals"
+    text: "При создании ресурса принято отвечать 201 Created с заголовком Location, а ResponseEntity.created(uri) выставляет оба. Проверка тела: аннотации Jakarta Bean Validation на полях записи и @Valid перед @RequestBody; нарушение приводит к MethodArgumentNotValidException и коду 400 до вызова метода контроллера."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/responseentity.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html"
+  - kind: "misconception"
+    text: "«Идемпотентный DELETE должен всегда возвращать одинаковый код». Идемпотентность по RFC 9110 относится к состоянию сервера: после первого и после повторного DELETE ресурса одинаково нет, но первый ответ 204, а повторный законно 404. POST не идемпотентен: повтор создаёт второй ресурс."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9110.html"
+  - kind: "real-world"
+    text: "Условные запросы экономят трафик и защищают от потерянного обновления: GET с If-None-Match, совпавшим с текущим ETag, получает 304 без тела, а PUT с If-Match, не совпавшим с текущим ETag, получает 412. В Spring MVC обе проверки выполняет WebRequest.checkNotModified(etag), метку при этом задаёт приложение."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-caching.html"
+      - "https://www.rfc-editor.org/rfc/rfc9110.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой ответ правильно сообщает об успешном создании ресурса через POST /products?"
+      options:
+        - "200 с телом"
+        - "201 с заголовком Location и созданным ресурсом"
+        - "204 без тела"
+        - "202 без заголовков"
+      answer: 1
+      explanation: "Создание подтверждают кодом 201 и заголовком Location с адресом нового ресурса."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие методы HTTP идемпотентны?"
+      options:
+        - "PUT"
+        - "DELETE"
+        - "GET"
+        - "POST"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "PUT, DELETE и GET повторяются без дополнительного эффекта на состояние. POST создаёт новый ресурс при каждом вызове."
+    - id: "q3"
+      type: "single"
+      prompt: "Зачем отдавать клиенту DTO, а не внутреннюю сущность?"
+      options:
+        - "Так быстрее работает Jackson"
+        - "Чтобы внутренние поля (себестоимость, служебные данные) не попадали в ответ и клиент не мог задать id"
+        - "Spring MVC не умеет сериализовать классы без record"
+        - "DTO обязательны для @Valid"
+      answer: 1
+      explanation: "DTO явно ограничивают то, что видит и присылает клиент; сущность может содержать внутренние поля."
+    - id: "q4"
+      type: "single"
+      prompt: "Что произойдёт при параллельных запросах, если репозиторий-одиночка хранит данные в HashMap и считает id через long++?"
+      options:
+        - "Ничего: бин создаётся на каждый запрос"
+        - "Возможны потерянные записи и повторяющиеся id: нужны ConcurrentHashMap и AtomicLong"
+        - "Spring сам синхронизирует все методы"
+        - "Будет ошибка при старте"
+      answer: 1
+      explanation: "Бин-одиночка обслуживает все потоки, поэтому изменяемое состояние должно быть потокобезопасным."
+    - id: "q5"
+      type: "single"
+      prompt: "Клиент отправил PUT /products/1 с заголовком If-Match: \"old\", а текущий ETag ресурса другой. Что должен ответить сервер?"
+      options:
+        - "200 и применить изменение"
+        - "304 Not Modified"
+        - "412 Precondition Failed без изменения ресурса"
+        - "404"
+      answer: 2
+      explanation: "Не совпавший If-Match означает, что ресурс изменили после того, как клиент его прочитал: ответ 412, ресурс остаётся прежним."
+exercise:
+  id: "java.spring.crud-service.exercise"
+  title: "Каталог товаров: CRUD"
+  prompt: |
+    Доработайте сервис товаров: слои `ProductController` и `ProductService` лежат в `demo/`, репозиторий (`ProductRepository` и `InMemoryProductRepository`), модель и сопоставление исключений с ProblemDetail (`App.java`, `Errors.java`) уже готовы и менять их не нужно. Нужны все пометки TODO в `ProductService.java` и `ProductController.java`. Проверка поднимает Spring Boot без веб-сервера и подаёт запросы через MockMvc: одна строка ввода - один запрос, `demo/Main.java` печатает код состояния, тип содержимого, тело и заголовки `Location` и `ETag` (если они есть).
+
+    Начальные данные: `1 Tea 250`, `2 Coffee 400`, `3 Cocoa 300`, `4 Juice 150`, `5 Water 100` (`id name price`). Тело `POST` и `PUT` - `{"name": ..., "price": ...}`: непустое имя и положительная цена (`@Valid`).
+
+    Маршруты:
+
+    1. `GET /products?page=0&size=10&sort=id,asc` - страница: `{"items":[...],"page":0,"size":10,"total":5}`. Значения по умолчанию указаны. `sort` - поле (`id`, `name`, `price`) и необязательное направление (`asc` по умолчанию или `desc`); при равных значениях порядок определяет `id` по возрастанию. Страница за концом данных - не ошибка: `items` пуст, `total` верный. Ошибки (`BadQueryException`, ответ 400 уже настроен): `page` меньше 0, `size` не от 1 до 100, неизвестное поле, направление не `asc` и не `desc`.
+    2. `GET /products/{id}` - товар или 404 (готово).
+    3. `POST /products` - создаёт товар (id назначает репозиторий), отвечает 201, `Location: /products/<id>` и телом-товаром.
+    4. `PUT /products/{id}` - заменяет товар целиком, 200 и новое состояние; если товара нет, 404 (`ProductNotFoundException`). Неверное тело даёт 400 раньше, чем 404.
+    5. `DELETE /products/{id}` - 204 без тела; если товара нет, 404.
+
+    **Пример ввода**
+
+    ```
+    GET /products?size=2&sort=price,desc
+    POST /products | b:{"name":"Milk","price":120}
+    DELETE /products/9
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"items":[{"id":2,"name":"Coffee","price":400},{"id":3,"name":"Cocoa","price":300}],"page":0,"size":2,"total":5}
+    201 application/json {"id":6,"name":"Milk","price":120}
+      Location: /products/6
+    404 application/problem+json {"detail":"Product 9 does not exist","instance":"/products/9","status":404,"title":"Product not found","type":"https://example.com/problems/product-not-found"}
+    ```
+
+    **Что дано.** Работает только `GET /products/{id}`; остальные маршруты отсутствуют или бросают `UnsupportedOperationException`. Файл `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test"]
+  hints:
+    - "Список: @GetMapping в контроллере с тремя параметрами @RequestParam(defaultValue = ...) page, size, sort; вся логика - в service.list, контроллер только передаёт значения."
+    - "Сортировка: разделите sort по запятой; поле выбирает Comparator (Comparator.comparingLong(Product::id) и так далее), desc - order.reversed(), а в конце order.thenComparingLong(Product::id). Страницу вырежьте через subList; смещение page * size считайте в long и ограничьте размером списка."
+    - "Создание: repository.save(new Product(0, input.name(), input.price())); в контроллере ResponseEntity.created(URI.create(\"/products/\" + product.id())).body(product). Параметр тела - @Valid @RequestBody ProductInput input."
+    - "PUT: сначала get(id) (бросит ProductNotFoundException), затем repository.save(new Product(id, ...)). DELETE: if (!repository.deleteById(id)) throw new ProductNotFoundException(id); контроллер возвращает ResponseEntity.noContent().build()."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "GET /products?size=2&sort=price,desc\nPOST /products | b:{\"name\":\"Milk\",\"price\":120}\nGET /products/6\nDELETE /products/9\n"
+      expected: "200 application/json {\"items\":[{\"id\":2,\"name\":\"Coffee\",\"price\":400},{\"id\":3,\"name\":\"Cocoa\",\"price\":300}],\"page\":0,\"size\":2,\"total\":5}\n201 application/json {\"id\":6,\"name\":\"Milk\",\"price\":120}\n  Location: /products/6\n200 application/json {\"id\":6,\"name\":\"Milk\",\"price\":120}\n404 application/problem+json {\"detail\":\"Product 9 does not exist\",\"instance\":\"/products/9\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n"
+      hint: "Список по цене от дорогого, создание (id 6, Location), чтение созданного и 404 для несуществующего."
+    - id: "paging"
+      title: "Страницы и сортировка"
+      stdin: "GET /products\nGET /products?page=1&size=2\nGET /products?sort=name&size=3\nGET /products?sort=price,asc&page=1&size=3\n"
+      expected: "200 application/json {\"items\":[{\"id\":1,\"name\":\"Tea\",\"price\":250},{\"id\":2,\"name\":\"Coffee\",\"price\":400},{\"id\":3,\"name\":\"Cocoa\",\"price\":300},{\"id\":4,\"name\":\"Juice\",\"price\":150},{\"id\":5,\"name\":\"Water\",\"price\":100}],\"page\":0,\"size\":10,\"total\":5}\n200 application/json {\"items\":[{\"id\":3,\"name\":\"Cocoa\",\"price\":300},{\"id\":4,\"name\":\"Juice\",\"price\":150}],\"page\":1,\"size\":2,\"total\":5}\n200 application/json {\"items\":[{\"id\":3,\"name\":\"Cocoa\",\"price\":300},{\"id\":2,\"name\":\"Coffee\",\"price\":400},{\"id\":4,\"name\":\"Juice\",\"price\":150}],\"page\":0,\"size\":3,\"total\":5}\n200 application/json {\"items\":[{\"id\":3,\"name\":\"Cocoa\",\"price\":300},{\"id\":2,\"name\":\"Coffee\",\"price\":400}],\"page\":1,\"size\":3,\"total\":5}\n"
+      hint: "Страница 1 при size=2 - товары 3 и 4; по имени: Cocoa, Coffee, Juice."
+    - id: "replace-delete"
+      title: "Замена и удаление"
+      stdin: "PUT /products/1 | b:{\"name\":\"Green tea\",\"price\":300}\nGET /products/1\nDELETE /products/2\nGET /products/2\nDELETE /products/2\n"
+      expected: "200 application/json {\"id\":1,\"name\":\"Green tea\",\"price\":300}\n200 application/json {\"id\":1,\"name\":\"Green tea\",\"price\":300}\n204 -\n404 application/problem+json {\"detail\":\"Product 2 does not exist\",\"instance\":\"/products/2\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n404 application/problem+json {\"detail\":\"Product 2 does not exist\",\"instance\":\"/products/2\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n"
+      hint: "PUT возвращает новое состояние, DELETE - 204, затем GET и повторный DELETE дают 404."
+    - id: "validation"
+      title: "Проверка тела (скрытый)"
+      stdin: "POST /products | b:{\"name\":\"\",\"price\":10}\nPOST /products | b:{\"name\":\"Free\",\"price\":0}\nPOST /products | b:{broken\nPUT /products/99 | b:{\"name\":\" \",\"price\":5}\nPUT /products/1 | b:{\"name\":\"Tea\",\"price\":-3}\nGET /products?size=100\n"
+      expected: "400 application/problem+json {\"detail\":\"Invalid request content.\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad Request\"}\n400 application/problem+json {\"detail\":\"Invalid request content.\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad Request\"}\n400 application/problem+json {\"detail\":\"Failed to read request\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad Request\"}\n400 application/problem+json {\"detail\":\"Invalid request content.\",\"instance\":\"/products/99\",\"status\":400,\"title\":\"Bad Request\"}\n400 application/problem+json {\"detail\":\"Invalid request content.\",\"instance\":\"/products/1\",\"status\":400,\"title\":\"Bad Request\"}\n200 application/json {\"items\":[{\"id\":1,\"name\":\"Tea\",\"price\":250},{\"id\":2,\"name\":\"Coffee\",\"price\":400},{\"id\":3,\"name\":\"Cocoa\",\"price\":300},{\"id\":4,\"name\":\"Juice\",\"price\":150},{\"id\":5,\"name\":\"Water\",\"price\":100}],\"page\":0,\"size\":100,\"total\":5}\n"
+      hidden: true
+      hint: "Неверное тело - 400 для POST и PUT (раньше, чем 404), ничего не создаётся: в конце всё ещё 5 товаров."
+    - id: "bad-query"
+      title: "Плохие параметры списка (скрытый)"
+      stdin: "GET /products?sort=color\nGET /products?size=0\nGET /products?size=101\nGET /products?page=-1\nGET /products?sort=price,up\nGET /products?page=9\nGET /products?sort=name,desc&size=2\n"
+      expected: "400 application/problem+json {\"detail\":\"Unknown sort field: color\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad query\"}\n400 application/problem+json {\"detail\":\"size must be between 1 and 100\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad query\"}\n400 application/problem+json {\"detail\":\"size must be between 1 and 100\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad query\"}\n400 application/problem+json {\"detail\":\"page must be >= 0\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad query\"}\n400 application/problem+json {\"detail\":\"Sort direction must be asc or desc\",\"instance\":\"/products\",\"status\":400,\"title\":\"Bad query\"}\n200 application/json {\"items\":[],\"page\":9,\"size\":10,\"total\":5}\n200 application/json {\"items\":[{\"id\":5,\"name\":\"Water\",\"price\":100},{\"id\":1,\"name\":\"Tea\",\"price\":250}],\"page\":0,\"size\":2,\"total\":5}\n"
+      hidden: true
+      hint: "size от 1 до 100, page не меньше 0, поле id|name|price, направление asc|desc; страница за концом данных - пустой список с total 5."
+    - id: "not-found-ids"
+      title: "Не найдено и новые id (скрытый)"
+      stdin: "GET /products/99\nPUT /products/99 | b:{\"name\":\"X\",\"price\":1}\nGET /products/abc\nDELETE /products/5\nPOST /products | b:{\"name\":\"A\",\"price\":1}\nPOST /products | b:{\"name\":\"B\",\"price\":2}\nGET /products?sort=id,desc&size=3\n"
+      expected: "404 application/problem+json {\"detail\":\"Product 99 does not exist\",\"instance\":\"/products/99\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n404 application/problem+json {\"detail\":\"Product 99 does not exist\",\"instance\":\"/products/99\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n400 application/problem+json {\"detail\":\"Failed to convert 'id' with value: 'abc'\",\"instance\":\"/products/abc\",\"status\":400,\"title\":\"Bad Request\"}\n204 -\n201 application/json {\"id\":6,\"name\":\"A\",\"price\":1}\n  Location: /products/6\n201 application/json {\"id\":7,\"name\":\"B\",\"price\":2}\n  Location: /products/7\n200 application/json {\"items\":[{\"id\":7,\"name\":\"B\",\"price\":2},{\"id\":6,\"name\":\"A\",\"price\":1},{\"id\":4,\"name\":\"Juice\",\"price\":150}],\"page\":0,\"size\":3,\"total\":6}\n"
+      hidden: true
+      hint: "Id не переиспользуются: после удаления товара 5 новые товары получают 6 и 7."
+challenge:
+  id: "java.spring.crud-service.challenge"
+  title: "Условный GET и If-Match"
+  prompt: |
+    Добавьте к сервису товаров **условные запросы**: кэширование через `ETag` и защиту от потерянного обновления. Решение - в `demo/ProductController.java` (остальные файлы готовы; сервис, репозиторий и сопоставление ошибок можно не трогать). Данные те же, что в основной задаче.
+
+    Алгоритм метки: **первые 16 символов шестнадцатеричной записи SHA-256 (строчные цифры) от байтов UTF-8 JSON-текста товара**, в двойных кавычках. JSON-текст - ровно то, что сериализатор печатает в тело ответа: `{"id":1,"name":"Tea","price":250}` даёт `"1f960670d1dc8fe7"`.
+
+    Нужно:
+
+    1. `GET /products/{id}`: 200, тело как раньше и заголовок `ETag`. Если заголовок `If-None-Match` содержит текущую метку (значений может быть несколько через запятую; префикс `W/` игнорируется), ответ **304 без тела** с тем же `ETag`. Несуществующий товар - 404 (готово), без `ETag`.
+    2. `PUT /products/{id}`: сначала, как и раньше, неверное тело даёт 400, а несуществующий товар - 404 (даже при `If-Match`). Если задан `If-Match`, в нём нет текущей метки и он не `*`, ответ **412 без тела**, а товар остаётся прежним. Иначе товар заменяется (при отсутствии `If-Match` тоже), ответ 200 с телом и `ETag` **нового** состояния.
+
+    **Пример ввода**
+
+    ```
+    GET /products/1
+    GET /products/1 | h:If-None-Match="1f960670d1dc8fe7"
+    PUT /products/1 | h:If-Match="stale" | b:{"name":"Tea","price":260}
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"id":1,"name":"Tea","price":250}
+      ETag: "1f960670d1dc8fe7"
+    304 -
+      ETag: "1f960670d1dc8fe7"
+    412 -
+    ```
+
+    **Что дано.** Основной CRUD работает, но `ETag` нигде не выставляется, а `If-None-Match` и `If-Match` игнорируются. Файл `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test"]
+  hints:
+    - "Метку считайте функцией etag(Product): MessageDigest.getInstance(\"SHA-256\").digest(json.writeValueAsString(product).getBytes(StandardCharsets.UTF_8)), затем HexFormat.of().formatHex(digest).substring(0, 16) и двойные кавычки. Сериализатор JsonMapper (tools.jackson.databind.json.JsonMapper) получите конструктором контроллера."
+    - "Проверку заголовков делает WebRequest.checkNotModified(etag): добавьте параметр WebRequest request в метод. Если вызов вернул true, ответ (304 или 412) уже подготовлен - верните из метода null."
+    - "GET: вычислите метку, if (request.checkNotModified(tag)) return null; иначе ResponseEntity.ok().eTag(tag).body(product). Сигнатура метода становится ResponseEntity<Product>."
+    - "PUT: сначала service.get(id) (404 для несуществующего), затем request.checkNotModified(etag текущего товара): при несовпадающем If-Match метод вернёт true и подготовит 412, верните null. Иначе замените товар и верните ResponseEntity.ok().eTag(etag нового товара).body(новый)."
+  tests:
+    - id: "etag-get"
+      title: "ETag в ответе"
+      stdin: "GET /products/1\nGET /products/2\nGET /products/99\n"
+      expected: "200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":250}\n  ETag: \"1f960670d1dc8fe7\"\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":400}\n  ETag: \"01885fc8868fd4af\"\n404 application/problem+json {\"detail\":\"Product 99 does not exist\",\"instance\":\"/products/99\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n"
+      hint: "У успешного GET есть заголовок ETag; у 404 его нет."
+    - id: "not-modified"
+      title: "304 по If-None-Match"
+      stdin: "GET /products/1 | h:If-None-Match=\"1f960670d1dc8fe7\"\nGET /products/1 | h:If-None-Match=\"other\"\n"
+      expected: "304 -\n  ETag: \"1f960670d1dc8fe7\"\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":250}\n  ETag: \"1f960670d1dc8fe7\"\n"
+      hint: "Совпавшая метка - 304 без тела, но с ETag; другая метка - обычный 200."
+    - id: "if-match"
+      title: "412 и успешная замена"
+      stdin: "PUT /products/1 | h:If-Match=\"stale\" | b:{\"name\":\"Tea\",\"price\":260}\nGET /products/1\nPUT /products/1 | h:If-Match=\"1f960670d1dc8fe7\" | b:{\"name\":\"Tea\",\"price\":260}\nGET /products/1\n"
+      expected: "412 -\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":250}\n  ETag: \"1f960670d1dc8fe7\"\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":260}\n  ETag: \"ecd4f15431c7e0f7\"\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":260}\n  ETag: \"ecd4f15431c7e0f7\"\n"
+      hint: "Устаревшая метка - 412 и товар не меняется; верная - 200 с новым ETag."
+    - id: "tag-list"
+      title: "Список меток и W/ (скрытый)"
+      stdin: "GET /products/2 | h:If-None-Match=\"aaa\", W/\"01885fc8868fd4af\"\nGET /products/2 | h:If-None-Match=\"aaa\", \"bbb\"\nGET /products/2 | h:If-None-Match=W/\"zzz\"\n"
+      expected: "304 -\n  ETag: \"01885fc8868fd4af\"\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":400}\n  ETag: \"01885fc8868fd4af\"\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":400}\n  ETag: \"01885fc8868fd4af\"\n"
+      hidden: true
+      hint: "If-None-Match - список через запятую, префикс W/ не мешает сравнению; без совпадений - 200."
+    - id: "put-variants"
+      title: "PUT без If-Match и со звёздочкой (скрытый)"
+      stdin: "PUT /products/2 | b:{\"name\":\"Coffee\",\"price\":410}\nPUT /products/2 | h:If-Match=* | b:{\"name\":\"Coffee\",\"price\":420}\nPUT /products/2 | h:If-Match=\"01885fc8868fd4af\" | b:{\"name\":\"Coffee\",\"price\":430}\nGET /products/2\n"
+      expected: "200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":410}\n  ETag: \"0e4da7498eac3780\"\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":420}\n  ETag: \"cf5ba08630bb40f0\"\n412 -\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":420}\n  ETag: \"cf5ba08630bb40f0\"\n"
+      hidden: true
+      hint: "Без If-Match и с * замена выполняется; после неё старая метка уже устарела (412)."
+    - id: "precedence"
+      title: "Порядок проверок (скрытый)"
+      stdin: "PUT /products/99 | h:If-Match=\"x\" | b:{\"name\":\"X\",\"price\":1}\nPUT /products/1 | h:If-Match=\"x\" | b:{\"name\":\"\",\"price\":1}\nGET /products/99 | h:If-None-Match=\"x\"\nPUT /products/1 | h:If-Match=\"x\" | b:{\"name\":\"Tea\",\"price\":251}\nGET /products/1\nGET /products/3\n"
+      expected: "404 application/problem+json {\"detail\":\"Product 99 does not exist\",\"instance\":\"/products/99\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n400 application/problem+json {\"detail\":\"Invalid request content.\",\"instance\":\"/products/1\",\"status\":400,\"title\":\"Bad Request\"}\n404 application/problem+json {\"detail\":\"Product 99 does not exist\",\"instance\":\"/products/99\",\"status\":404,\"title\":\"Product not found\",\"type\":\"https://example.com/problems/product-not-found\"}\n412 -\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":250}\n  ETag: \"1f960670d1dc8fe7\"\n200 application/json {\"id\":3,\"name\":\"Cocoa\",\"price\":300}\n  ETag: \"5623e78e448e08bc\"\n"
+      hidden: true
+      hint: "404 и 400 проверяются раньше If-Match; после отклонённого PUT товар не изменился, метки других товаров стабильны."

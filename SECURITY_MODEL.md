@@ -64,6 +64,11 @@ packages folder is a read-only sandbox path (`NUGET_PACKAGES`), restore is offli
 (including MSBuild `build/*.props|targets` that execute during `dotnet build`); it runs inside the same sandbox as learner code (no network, writes only to the work directory), and installing performs no
 package scripts (PackageReference restore has none). Listening sockets are denied, so ASP.NET Core exercises run under `TestServer` in memory.
 
+Maven sets differ in that no build tool runs at install time: `MavenEnvironmentService` downloads exactly the jars listed in the committed `lock.json` over HTTPS from `repo1.maven.org` with `HttpClient`,
+caps each download at the locked size, and renames a `.jar.part` file into place only after its sha256 matches (a mismatch fails the install and deletes the file). Nothing is resolved at run time and
+nothing is downloaded without the confirmation dialog (jars, total size, source host, network notice). At grading time `<set>/lib` is a read-only sandbox path used as `-cp lib/*`, the run never
+uses a container, and the jars (arbitrary code) run inside the same sandbox as learner code (no network, writes only to the work directory). Spring exercises start the context without Tomcat.
+
 ## 5. Out of scope (today)
 
 Protection against a malicious local administrator; kernel/hypervisor escapes; supply-chain

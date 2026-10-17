@@ -294,8 +294,8 @@ public static class ContentValidator
         {
             if (mem < ExerciseRequirements.MinMemoryMb || mem > ExerciseRequirements.MaxMemoryMb)
                 error(path, $"{label}: requires.memoryMb must be {ExerciseRequirements.MinMemoryMb}-{ExerciseRequirements.MaxMemoryMb}, got {mem}");
-            if (!usesPython)
-                error(path, $"{label}: 'requires.memoryMb' is supported only for Python exercises");
+            if (!usesPython && !ex.AllVariants.Any(v => v.LanguageId == "java"))
+                error(path, $"{label}: 'requires.memoryMb' is supported only for Python and Java exercises");
         }
         if (ex.Requires is { HasNode: true } && !usesJavaScript)
             error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript/typescript exercises, but no variant is javascript or typescript");
@@ -308,6 +308,8 @@ public static class ContentValidator
                 foreach (var (kind, files) in new[] { ("starter", variant.Starter), ("solution", variant.Solution) })
                     if (files.Count(f => !f.Path.Contains('/') && f.Path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)) != 1)
                         error(path, $"{label}: requires.nugetPackages needs exactly one .csproj in the root of the {kind} (the project that references the packages)");
+        if (ex.Requires is { HasMaven: true } && !ex.AllVariants.Any(v => v.LanguageId == "java"))
+            error(path, $"{label}: 'requires.mavenArtifacts' only apply to java exercises, but no variant is java");
         if (ex.Command is { UsesNodeTool: true } && ex.Requires is not { HasNode: true })
             error(path, $"{label}: command.tool needs requires.npmPackages");
         if (ex.Requires is { } req)
@@ -345,6 +347,12 @@ public static class ContentValidator
                 if (!NuGetPackageId.IsValid(package)) error(path, $"{label}: requires.nugetPackages: '{package}' is not a plain NuGet package id (no versions or URLs)");
                 else if (!nugetSeen.Add(package)) error(path, $"{label}: requires.nugetPackages lists '{package}' twice");
             }
+            var mavenSeen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var artifact in req.Maven)
+            {
+                if (!MavenCoordinates.IsValid(artifact)) error(path, $"{label}: requires.mavenArtifacts: '{artifact}' is not plain Maven coordinates (groupId:artifactId, no version or URL)");
+                else if (!mavenSeen.Add(artifact)) error(path, $"{label}: requires.mavenArtifacts lists '{artifact}' twice");
+            }
             var npmSeen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var pkg in req.Npm)
             {
@@ -363,10 +371,11 @@ public static class ContentValidator
         var node = ContentPackageIndex.RequiredNodePackages(ex);
         var go = ContentPackageIndex.RequiredGoModules(ex);
         var nuget = ContentPackageIndex.RequiredNuGetPackages(ex);
-        if (python.Count == 0 && node.Count == 0 && go.Count == 0 && nuget.Count == 0) return;
+        var maven = ContentPackageIndex.RequiredMavenArtifacts(ex);
+        if (python.Count == 0 && node.Count == 0 && go.Count == 0 && nuget.Count == 0 && maven.Count == 0) return;
         if (index() is not { } packages) return;
         var label = $"{kind} '{ex.Id}'";
-        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node), (PackageSetLanguage.Go, go), (PackageSetLanguage.NuGet, nuget) })
+        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node), (PackageSetLanguage.Go, go), (PackageSetLanguage.NuGet, nuget), (PackageSetLanguage.Maven, maven) })
             if (required.Count > 0 && packages.Resolve(language, required).Error is { } problem)
                 error(path, $"{label}: {problem}");
     }

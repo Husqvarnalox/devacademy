@@ -17,7 +17,7 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
     public EvaluationKind Kind => EvaluationKind.Command;
 
     public async Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null, NuGetRunSelection? nuget = null)
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null, NuGetRunSelection? nuget = null, MavenRunSelection? maven = null)
     {
         if (exercise.Command is not { } spec)
             return EvaluationReport.Failure(Verdict.Error, $"Content error: exercise '{exercise.Id}' has no command", isolation);
@@ -30,7 +30,7 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
         var reserved = tests.Select(t => t.Path).Concat(spec.ReportFile is null ? [] : [spec.ReportFile]).ToHashSet(StringComparer.Ordinal);
         var files = EvaluatorSupport.ToSource(learnerFiles.Where(f => !reserved.Contains(f.Path)).Concat(tests));
 
-        var request = new ExecutionRequest(exercise.LanguageId, files, exercise.EntryFile, isolation, null, argv, node, go, nuget);
+        var request = new ExecutionRequest(exercise.LanguageId, files, exercise.EntryFile, isolation, null, argv, node, go, nuget, maven);
         await using var program = await runner.PrepareAsync(request, ct);
         if (program.PreparationFailure is { } failure) return EvaluatorSupport.FromPreparationFailure(failure);
 

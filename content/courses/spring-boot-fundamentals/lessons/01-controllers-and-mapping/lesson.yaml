@@ -1,0 +1,177 @@
+id: "java.spring.controllers-and-mapping"
+title: "Контроллеры и маршрутизация"
+goal: "Описывать HTTP API через контроллеры Spring MVC: выбирать метод по HTTP-методу и шаблону пути, понимать привязку параметров и возвращать ответы с нужными кодами состояния."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "java.fundamentals.classes-records-enums"
+related:
+  - "csharp.aspnetcore.minimal-apis-routing"
+  - "express.fundamentals.architecture"
+next:
+  - "java.spring.request-bodies-validation"
+objectives:
+  - "Собирать приложение из класса с @SpringBootApplication и контроллеров с @RestController и объяснять, что делает автоконфигурация."
+  - "Составлять шаблоны путей с переменными и регулярными выражениями и предсказывать 200, 404 и 405."
+  - "Определять, откуда берётся значение параметра метода (путь, строка запроса, заголовок, тело) и когда результатом будет 400."
+  - "Возвращать ответы через значения, записи и ResponseEntity."
+masteryCriteria:
+  - "Вы отличаете 404 из-за регулярного выражения в шаблоне, 400 из-за непреобразуемого значения и 405 из-за неверного метода."
+  - "Вы называете аннотацию-источник каждого параметра метода и знаете, что обязательный параметр без значения даёт 400."
+  - "Вы возвращаете 201 с заголовком Location при создании ресурса и 404 вместо пустого ответа."
+tags:
+  - "java"
+  - "spring-boot"
+  - "spring-mvc"
+  - "routing"
+facts:
+  - kind: "internals"
+    text: "Контроллер Spring MVC - бин с @Controller или @RestController; методы с @RequestMapping и производными (@GetMapping, @PostMapping и другими) сопоставляются с запросом по методу HTTP и шаблону пути, а аргументы метода привязываются к элементам запроса. @RestController означает @Controller плюс @ResponseBody: возвращаемое значение записывается в тело ответа."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html"
+  - kind: "internals"
+    text: "Переменные пути объявляются в шаблоне фигурными скобками, после двоеточия может стоять регулярное выражение ({id:\\d+}), а {*path} захватывает остаток пути. Если запрос не совпал ни с одним шаблоном, ответ 404; если путь есть, а метод HTTP не поддерживается, 405."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-requestmapping.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/arguments.html"
+  - kind: "misconception"
+    text: "«Необязательный параметр запроса можно просто не передавать». Параметр @RequestParam по умолчанию обязателен: без значения (и без defaultValue) Spring отвечает 400. Строка, которую нельзя преобразовать в тип параметра (abc вместо int), тоже даёт 400, а не 404."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/requestparam.html"
+  - kind: "real-world"
+    text: "ResponseEntity даёт полный контроль над ответом: код состояния, заголовки и тело. ResponseEntity.created(uri) выставляет 201 и заголовок Location, notFound().build() - 404 без тела."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/responseentity.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой ответ получит GET /orders/abc, если зарегистрирован @GetMapping(\"/orders/{id}\") с параметром @PathVariable int id?"
+      options:
+        - "400 Bad Request"
+        - "404 Not Found"
+        - "500 Internal Server Error"
+        - "200 с id равным 0"
+      answer: 0
+      explanation: "Шаблон совпал, но значение abc нельзя преобразовать в int: Spring отвечает 400. Чтобы получить 404, нужно регулярное выражение в шаблоне: {id:\\d+}."
+    - id: "q2"
+      type: "single"
+      prompt: "Для пути есть только @GetMapping. Что вернёт DELETE на этот путь?"
+      options:
+        - "404"
+        - "405"
+        - "400"
+        - "204"
+      answer: 1
+      explanation: "Путь существует, но метод не зарегистрирован: 405 Method Not Allowed."
+    - id: "q3"
+      type: "single"
+      prompt: "Метод int sum(@RequestParam int a, @RequestParam int b) вызван запросом ?a=2. Что произойдёт?"
+      options:
+        - "Вернётся 2: b станет 0"
+        - "Вернётся 400, метод не вызывается"
+        - "Вернётся 404"
+        - "Метод получит b равным null"
+      answer: 1
+      explanation: "@RequestParam обязателен по умолчанию; без значения Spring отвечает 400, и метод не вызывается."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Откуда Spring MVC берёт значения аргументов метода контроллера?"
+      options:
+        - "@PathVariable - из переменной пути"
+        - "@RequestParam - из строки запроса"
+        - "@RequestBody - из тела запроса"
+        - "@RequestHeader - из конфигурационного файла"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Заголовки читает @RequestHeader, а не конфигурация; остальные три аннотации названы верно."
+    - id: "q5"
+      type: "single"
+      prompt: "Какой результат правильно сообщит клиенту о создании ресурса?"
+      options:
+        - "ResponseEntity.ok(book)"
+        - "ResponseEntity.created(URI.create(\"/books/\" + id)).body(book)"
+        - "ResponseEntity.noContent().build()"
+        - "return null"
+      answer: 1
+      explanation: "created возвращает 201 и заголовок Location с адресом нового ресурса."
+exercise:
+  id: "java.spring.controllers-and-mapping.exercise"
+  title: "Каталог книг"
+  prompt: |
+    Доработайте файл `demo/App.java`: контроллер `BookController` регистрирует маршруты каталога книг (список `books` уже создан). Проверка поднимает Spring Boot без веб-сервера и подаёт запросы прямо в приложение через MockMvc: порт не открывается. Одна строка ввода - один запрос, `demo/Main.java` печатает код состояния, тип содержимого и тело (и заголовок `Location`, если он есть).
+
+    Нужны маршруты:
+
+    1. `GET /ping` - текст `pong` (уже есть).
+    2. `GET /books` - JSON-список книг; необязательный параметр запроса `author` оставляет только книги этого автора, **без учёта регистра**.
+    3. `GET /books/{id}` - книга в JSON или 404, если книги с таким id нет. Шаблон ограничьте цифрами: `{id:\\d+}`, тогда `/books/abc` не совпадёт с маршрутом и получит 404.
+    4. `POST /books` с телом `{"title": ..., "author": ...}` - создаёт книгу с id **на единицу больше максимального**, отвечает 201 с заголовком `Location: /books/<id>` и самой книгой.
+
+    Остальное делает фреймворк: `DELETE /books/1` получит 405.
+
+    **Пример ввода**
+
+    ```
+    GET /books/2
+    GET /books/99
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"id":2,"title":"Emma","author":"Austen"}
+    404 -
+    ```
+
+    **Что дано.** Решение собирается, но `/books` игнорирует фильтр, а маршрутов `GET /books/{id}` и `POST /books` нет. Файл `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test"]
+  hints:
+    - "Параметр строки запроса - аргумент метода с @RequestParam: list(@RequestParam(required = false) String author). Если author равен null, верните весь список."
+    - "Сравнивайте авторов через String.equalsIgnoreCase."
+    - "Для маршрута с цифрами напишите @GetMapping(\"/books/{id:\\d+}\") и параметр @PathVariable int id; ответ - ResponseEntity.ok(book) или ResponseEntity.notFound().build()."
+    - "POST: параметр @RequestBody NewBook input берётся из JSON-тела. Новый id - максимальный id плюс один; ответ - ResponseEntity.created(URI.create(\"/books/\" + id)).body(book)."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "GET /ping\nGET /books\nGET /books/2\n"
+      expected: "200 text/plain pong\n200 application/json [{\"id\":1,\"title\":\"Dune\",\"author\":\"Herbert\"},{\"id\":2,\"title\":\"Emma\",\"author\":\"Austen\"},{\"id\":3,\"title\":\"Persuasion\",\"author\":\"Austen\"}]\n200 application/json {\"id\":2,\"title\":\"Emma\",\"author\":\"Austen\"}\n"
+      hint: "Три ответа: pong, весь список и книга с id 2."
+    - id: "filter"
+      title: "Фильтр по автору"
+      stdin: "GET /books?author=austen\nGET /books?author=HERBERT\n"
+      expected: "200 application/json [{\"id\":2,\"title\":\"Emma\",\"author\":\"Austen\"},{\"id\":3,\"title\":\"Persuasion\",\"author\":\"Austen\"}]\n200 application/json [{\"id\":1,\"title\":\"Dune\",\"author\":\"Herbert\"}]\n"
+      hint: "Сравнение без учёта регистра: austen находит две книги Austen, HERBERT - Dune."
+    - id: "create"
+      title: "Создание книги"
+      stdin: "POST /books | b:{\"title\":\"Ulysses\",\"author\":\"Joyce\"}\nGET /books/4\n"
+      expected: "201 application/json {\"id\":4,\"title\":\"Ulysses\",\"author\":\"Joyce\"}\n  Location: /books/4\n200 application/json {\"id\":4,\"title\":\"Ulysses\",\"author\":\"Joyce\"}\n"
+      hint: "Новый id - максимальный плюс один (4); ответ 201 с заголовком Location, затем книга доступна по этому адресу."
+    - id: "missing"
+      title: "Нет такой книги или маршрута (скрытый)"
+      stdin: "GET /books/1\nGET /books/abc\nGET /books/99\nGET /nope\n"
+      expected: "200 application/json {\"id\":1,\"title\":\"Dune\",\"author\":\"Herbert\"}\n404 -\n404 -\n404 -\n"
+      hidden: true
+      hint: "{id:\\d+} не совпадает с abc (404 от маршрутизации); id 99 совпадает, но книги нет - ResponseEntity.notFound()."
+    - id: "methods"
+      title: "Не тот метод (скрытый)"
+      stdin: "DELETE /books/1\nPOST /ping\n"
+      expected: "405 -\n405 -\n"
+      hidden: true
+      hint: "Путь существует, но такой метод не зарегистрирован: Spring сам отвечает 405."
+    - id: "nomatch"
+      title: "Пустой фильтр и два новых id (скрытый)"
+      stdin: "GET /books?author=nobody\nPOST /books | b:{\"title\":\"A\",\"author\":\"X\"}\nPOST /books | b:{\"title\":\"B\",\"author\":\"X\"}\nGET /books?author=x\n"
+      expected: "200 application/json []\n201 application/json {\"id\":4,\"title\":\"A\",\"author\":\"X\"}\n  Location: /books/4\n201 application/json {\"id\":5,\"title\":\"B\",\"author\":\"X\"}\n  Location: /books/5\n200 application/json [{\"id\":4,\"title\":\"A\",\"author\":\"X\"},{\"id\":5,\"title\":\"B\",\"author\":\"X\"}]\n"
+      hidden: true
+      hint: "Фильтр без совпадений даёт [], а новые id растут: 4, затем 5."

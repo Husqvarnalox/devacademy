@@ -116,6 +116,19 @@ public sealed class CodeRunner : ICodeRunner
                 notes.Add("A NuGet packages folder is selected, so the run uses OsSandbox instead of a container.");
             }
         }
+        string? mavenLib = null;
+        if (request.Maven is { } mavenEnv)
+        {
+            if (runtime is not JavaRuntime)
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A Maven jar folder only applies to Java.", IsolationLevel.ProcessLimits);
+            string? mavenProblem = CheckMavenSelection(mavenEnv, out mavenLib);
+            if (mavenProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, mavenProblem, IsolationLevel.ProcessLimits);
+            if (requestedLevel == IsolationLevel.Container)
+            {
+                requestedLevel = IsolationLevel.OsSandbox;
+                notes.Add("A Maven jar folder is selected, so the run uses OsSandbox instead of a container.");
+            }
+        }
         ICommandRuntime? commandRuntime = null;
         if (request.Command is { } argv)
         {
@@ -168,7 +181,9 @@ public sealed class CodeRunner : ICodeRunner
             }
             else
             {
-                plan = runtime.CreatePlan(workDir, entry, status);
+                plan = mavenLib is not null && runtime is JavaRuntime javaRuntime
+                    ? javaRuntime.CreateLibraryPlan(workDir, entry, status, mavenLib)
+                    : runtime.CreatePlan(workDir, entry, status);
                 if (readOnly is not null) plan = plan with { Run = plan.Run with { ReadOnlyPaths = readOnly } };
             }
             if (nodeModules is not null)
@@ -295,6 +310,21 @@ public sealed class CodeRunner : ICodeRunner
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
             return "The NuGet packages folder lies inside a writable sandbox area and cannot be mounted read-only.";
         packages = real;
+        return null;
+    }
+
+    /// <summary>The jar folder must exist, hold at least one jar and not lie inside a writable sandbox area. On success <paramref name="lib"/> is its real path.</summary>
+    private string? CheckMavenSelection(MavenRunSelection maven, out string? lib)
+    {
+        lib = null;
+        string path = Path.GetFullPath(maven.LibPath);
+        if (!Directory.Exists(path) || !Directory.EnumerateFiles(path, "*.jar").Any())
+            return $"The Maven jar folder '{maven.LibPath}' has no jars (run `make maven-env` or install the course libraries in Settings).";
+        string real = MacSandboxExecSandbox.RealPath(path).TrimEnd(Path.DirectorySeparatorChar);
+        string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
+            return "The Maven jar folder lies inside a writable sandbox area and cannot be mounted read-only.";
+        lib = real;
         return null;
     }
 

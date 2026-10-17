@@ -430,6 +430,17 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
             catch (Exception ex) when (ex is not OperationCanceledException) { EnvironmentNotice = null; }
             return;
         }
+        if (Exercise is not null && LanguageId == "java" && Exercise.ForVariant(LanguageId).NeedsMavenEnvironment)
+        {
+            try
+            {
+                var plan = await _s.Maven.ResolveAsync(Exercise.ForVariant(LanguageId), CancellationToken.None);
+                EnvironmentNotice = plan.BlockedMessage;
+                InstallSet = plan.InstallSet;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException) { EnvironmentNotice = null; }
+            return;
+        }
         if (Exercise is not null && LanguageId == "csharp" && Exercise.ForVariant(LanguageId).NeedsNuGetEnvironment)
         {
             try

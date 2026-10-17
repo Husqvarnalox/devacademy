@@ -1,5 +1,6 @@
 using System.Text;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.Maven;
 using DevAcademy.Application.NuGet;
 using DevAcademy.Desktop.Composition;
 using DevAcademy.Desktop.Localization;
@@ -52,6 +53,14 @@ public sealed class PackageSetInstallFlow(AppServices s)
                 network = Loc.F("Sets_NetworkNuGet", NuGetEnvironmentService.Source);
                 run = async token => { var r = await s.NuGet.InstallAsync(plan, onLine, token); return (r.Ok, r.Cancelled, r.Error); };
             }
+            else if (set.Language == PackageSetLanguage.Maven)
+            {
+                var (plan, error) = s.Maven.PlanInstall(set);
+                if (plan is null) return new(PackageInstallOutcome.Failed, error);
+                commandLine = Loc.F("Sets_MavenCommand", plan.JarCount, FormatMegabytes(plan.TotalBytes), plan.Host, plan.LibPath);
+                network = Loc.F("Sets_NetworkMaven", plan.Host);
+                run = async token => { var r = await s.Maven.InstallAsync(plan, onLine, token); return (r.Ok, r.Cancelled, r.Error); };
+            }
             else
             {
                 var (plan, _, error) = await s.Python.PlanSetInstallAsync(set, ct);
@@ -66,11 +75,11 @@ public sealed class PackageSetInstallFlow(AppServices s)
             var pins = s.PackageSets.ReadPins(set);
             foreach (var pin in pins) text.AppendLine($"• {pin.Name} {pin.Version}");
             if (pins.Count == 0) foreach (var name in set.Packages) text.AppendLine("• " + name);
-            text.AppendLine().AppendLine(Loc.T("Sets_ConfirmCommand")).AppendLine().AppendLine(commandLine).AppendLine().Append(network);
+            text.AppendLine().AppendLine(Loc.T(set.Language == PackageSetLanguage.Maven ? "Sets_ConfirmDownload" : "Sets_ConfirmCommand")).AppendLine().AppendLine(commandLine).AppendLine().Append(network);
             if (!await s.Dialogs.ConfirmAsync(Loc.F("Sets_ConfirmTitle", set.Title), text.ToString(), Loc.T("Py_ConfirmButton")))
                 return new(PackageInstallOutcome.Declined, Loc.T("Py_InstallDeclined"));
 
-            onLine("$ " + commandLine);
+            if (set.Language != PackageSetLanguage.Maven) onLine("$ " + commandLine);
             var result = await run(ct);
             return result.Ok ? new(PackageInstallOutcome.Installed)
                 : result.Cancelled ? new(PackageInstallOutcome.Cancelled, Loc.T("Py_InstallCancelled"))
@@ -85,4 +94,6 @@ public sealed class PackageSetInstallFlow(AppServices s)
             return new(PackageInstallOutcome.Failed, Loc.F("Py_Error", ex.Message));
         }
     }
+
+    private static string FormatMegabytes(long bytes) => (bytes / 1024.0 / 1024.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 }

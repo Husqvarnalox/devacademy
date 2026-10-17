@@ -14,9 +14,11 @@ public enum AcceleratorNeed { None, Optional, Required }
 /// Go (go exercises): a Go version specifier (<c>&gt;=1.26.5</c>) and module paths that must be in the Go module cache of a package set
 /// (<c>github.com/gomlx/gomlx</c>).
 /// .NET (csharp exercises): NuGet package ids that must be in the packages folder of a nuget package set (<c>Microsoft.AspNetCore.TestHost</c>).
+/// Java (java exercises): Maven coordinates (<c>group:artifact</c>) that must be among the jars of a maven package set (<c>org.springframework:spring-test</c>).
 /// </summary>
 public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages, string? Node = null, IReadOnlyList<string>? NpmPackages = null,
-    string? Go = null, IReadOnlyList<string>? GoModules = null, int? MemoryMb = null, IReadOnlyList<string>? NugetPackages = null)
+    string? Go = null, IReadOnlyList<string>? GoModules = null, int? MemoryMb = null, IReadOnlyList<string>? NugetPackages = null,
+    IReadOnlyList<string>? MavenArtifacts = null)
 {
     /// <summary>Bounds of <c>requires.memoryMb</c>: the default run limit is 256 MB; heavy libraries (PyTorch) may ask for more, never more than the maximum.</summary>
     public const int MinMemoryMb = 256;
@@ -26,10 +28,12 @@ public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> 
     public IReadOnlyList<string> Modules => GoModules ?? [];
     public IReadOnlyList<string> NuGet => NugetPackages ?? [];
     public bool HasNuGet => NuGet.Count > 0;
+    public IReadOnlyList<string> Maven => MavenArtifacts ?? [];
+    public bool HasMaven => Maven.Count > 0;
     public bool HasGo => !string.IsNullOrWhiteSpace(Go) || Modules.Count > 0;
     public bool HasPython => !string.IsNullOrWhiteSpace(Python) || Packages.Count > 0;
     public bool HasNode => !string.IsNullOrWhiteSpace(Node) || Npm.Count > 0;
-    public bool IsEmpty => !HasPython && !HasNode && !HasGo && !HasNuGet;
+    public bool IsEmpty => !HasPython && !HasNode && !HasGo && !HasNuGet && !HasMaven;
 }
 
 /// <summary>An npm package name as it appears in <c>requires.npmPackages</c>: a lower-case (optionally scoped) registry name, no versions, URLs or paths.</summary>
@@ -308,4 +312,13 @@ public static partial class NuGetPackageId
     private static partial Regex Pattern();
 
     public static bool IsValid(string? id) => id is { Length: > 0 and <= 100 } && Pattern().IsMatch(id);
+}
+
+/// <summary>A Maven coordinate as it appears in <c>requires.mavenArtifacts</c>: <c>groupId:artifactId</c>, no version, classifier or URL.</summary>
+public static partial class MavenCoordinates
+{
+    [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9_.-]*:[A-Za-z0-9][A-Za-z0-9_.-]*$", RegexOptions.CultureInvariant)]
+    private static partial Regex Pattern();
+
+    public static bool IsValid(string? coordinates) => coordinates is { Length: > 0 and <= 200 } && Pattern().IsMatch(coordinates);
 }

@@ -1,0 +1,182 @@
+id: "java.spring.testing-with-mockmvc"
+title: "Тестирование через MockMvc"
+goal: "Проверять веб-слой Spring без сети и сервера: строить запросы MockMvc, формулировать ожидания к статусу, заголовкам и JSON-телу и понимать, чем standaloneSetup отличается от webAppContextSetup."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "java.spring.error-handling-problem-detail"
+related:
+  - "csharp.aspnetcore.testing-crud-service"
+  - "express.fundamentals.testing"
+next:
+  - "java.spring.crud-service"
+objectives:
+  - "Объяснять, что такое MockMvc: DispatcherServlet в памяти без сети и порта, и чем он отличается от настоящего сервера."
+  - "Выбирать между standaloneSetup и webAppContextSetup и подключать фильтры через addFilters."
+  - "Строить запросы (get, post, param, header, contentType, content) и писать ожидания к статусу, заголовкам и телу ответа."
+  - "Находить ошибки в приложении тестом: проверка должна проходить на правильной реализации и падать на неправильной."
+masteryCriteria:
+  - "Вы описываете, какие части приложения участвуют в MockMvc-тесте, а какие нет (сеть, сервер, фильтры без addFilters)."
+  - "Вы пишете проверки статуса, Content-Type, заголовка Location и полей JSON и отличаете ожидание от проверки, которая никогда не падает."
+  - "Вы знаете, что неудачное ожидание MockMvc - это AssertionError, и умеете получить сырой ответ через andReturn()."
+tags:
+  - "java"
+  - "spring-boot"
+  - "spring-mvc"
+  - "testing"
+  - "mockmvc"
+facts:
+  - kind: "internals"
+    text: "MockMvc прогоняет запрос через настоящие DispatcherServlet и цепочку Spring MVC в одном процессе: сети, порта и контейнера сервлетов нет. Это не интеграционный тест с сервером: поведение, зависящее от самого сервера (страницы ошибок контейнера, TLS, реальные потоки), в MockMvc не проверяется."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/testing/mockmvc.html"
+      - "https://docs.spring.io/spring-framework/reference/testing/mockmvc/setup-options.html"
+  - kind: "internals"
+    text: "standaloneSetup(controller) создаёт минимальную конфигурацию MVC только для переданных контроллеров, без контекста приложения; webAppContextSetup(context) берёт настоящий контекст с вашими бинами, советами и конфигурацией. Фильтры сервлетов в MockMvc не применяются сами: их нужно передать через addFilters (Spring Boot с @AutoConfigureMockMvc делает это за вас для бинов-фильтров)."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/testing/mockmvc/setup-options.html"
+      - "https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html"
+  - kind: "misconception"
+    text: "«Если тест зелёный, поведение проверено». Тест без ожиданий (или с ожиданием, которое выполняется на любом ответе) проходит всегда. Проверяйте тест на заведомо неправильной реализации: хорошая проверка падает, когда меняют код ответа, убирают поле JSON или подменяют Content-Type."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/testing/mockmvc/hamcrest/expectations.html"
+  - kind: "real-world"
+    text: "Методы jsonPath(...).value(...), status().is(...), content().string(...) и header().string(...) перегружены версиями с Matcher из Hamcrest, поэтому Hamcrest должен быть в classpath при компиляции теста. В обычном проекте его приносит spring-boot-starter-test; в наборе библиотек этого курса он указан явно (вместе с JsonPath)."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/testing/mockmvc/hamcrest/expectations.html"
+      - "https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что делает MockMvc с запросом?"
+      options:
+        - "Отправляет его по сети на запущенный Tomcat"
+        - "Передаёт в DispatcherServlet в том же процессе, без сети и порта"
+        - "Только проверяет сигнатуры контроллеров"
+        - "Запускает отдельный процесс JVM"
+      answer: 1
+      explanation: "MockMvc вызывает настоящий DispatcherServlet напрямую; сервера и сети нет."
+    - id: "q2"
+      type: "single"
+      prompt: "Чем webAppContextSetup отличается от standaloneSetup?"
+      options:
+        - "webAppContextSetup использует реальный контекст приложения с вашими бинами и советами, standaloneSetup - только переданные контроллеры"
+        - "Ничем, это синонимы"
+        - "standaloneSetup запускает сервер"
+        - "webAppContextSetup работает только с REST"
+      answer: 0
+      explanation: "standaloneSetup строит минимальную конфигурацию для указанных контроллеров; webAppContextSetup берёт готовый контекст."
+    - id: "q3"
+      type: "single"
+      prompt: "Ваш фильтр сервлета добавляет заголовок ко всем ответам. MockMvc построен через webAppContextSetup(context).build(). Будет ли заголовок в ответах?"
+      options:
+        - "Да, фильтры применяются всегда"
+        - "Нет, фильтр нужно передать через addFilters(...)"
+        - "Только для GET"
+        - "Только в режиме print()"
+      answer: 1
+      explanation: "MockMvc не вызывает фильтры сам; их регистрируют через addFilters (в Spring Boot с @AutoConfigureMockMvc это делается автоматически для бинов-фильтров)."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения о ResultActions верны?"
+      options:
+        - "andExpect при несовпадении бросает AssertionError"
+        - "andReturn возвращает MvcResult с сырым ответом"
+        - "andExpectAll выполняет все ожидания и сообщает обо всех несовпадениях"
+        - "andDo(print()) - надёжный способ проверить тело ответа в тесте"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "print() лишь выводит данные в System.out для отладки и ничего не проверяет."
+    - id: "q5"
+      type: "single"
+      prompt: "Как проверить, что тест действительно ловит ошибки?"
+      options:
+        - "Запустить его один раз на правильном коде"
+        - "Запустить на правильной и на заведомо неправильной реализации: на первой он проходит, на второй падает"
+        - "Добавить try/catch вокруг ожиданий"
+        - "Заменить ожидания на andDo(print())"
+      answer: 1
+      explanation: "Тест, который не может упасть, ничего не проверяет; сравнение с неправильными реализациями (мутациями) выявляет такие тесты."
+exercise:
+  id: "java.spring.testing-with-mockmvc.exercise"
+  title: "Проверки, которые ловят ошибки"
+  prompt: |
+    Приложение `demo/App.java` - маленький каталог товаров; менять его не нужно. Оно запускается в нескольких **вариантах** (свойство `app.variant`): правильном `good` и в нескольких заведомо неправильных. Ваша задача - написать проверки в `demo/Checks.java`: метод `Checks.run(MockMvc mvc)` отправляет запросы через MockMvc и бросает `AssertionError`, если поведение приложения отличается от спецификации (любое неудавшееся `andExpect(...)` делает это само). Для правильного варианта метод не должен ничего бросать.
+
+    `demo/Main.java` читает со стандартного ввода названия вариантов (по одному в строке), для каждого поднимает приложение без веб-сервера, вызывает `Checks.run(mvc)` и печатает `<вариант>: PASS`, если исключения не было, или `<вариант>: FAIL`, если было `AssertionError`. Хорошие проверки дают `good: PASS` и `FAIL` для каждого неправильного варианта. Варианты: `good`, `bug-status`, `bug-field`, `bug-type`, `bug-validation`, `bug-notfound`.
+
+    **Спецификация правильного приложения** (в начале в каталоге два товара):
+
+    1. `GET /products` - 200, JSON-массив из двух товаров: `{"id":1,"name":"Tea","price":250}` и `{"id":2,"name":"Coffee","price":400}`.
+    2. `GET /products/1` - 200, `Content-Type` совместим с `application/json`, тело `{"id":1,"name":"Tea","price":250}`.
+    3. `GET /products/99` - 404.
+    4. `POST /products` с телом `{"name":"Cocoa","price":300}` (`Content-Type: application/json`) - 201, заголовок `Location: /products/3`, тело - созданный товар `{"id":3,"name":"Cocoa","price":300}`.
+    5. `POST /products` с пустым `name` или с `price` не больше нуля - 400.
+
+    Пользуйтесь стандартными ожиданиями `MockMvcResultMatchers`: `status().isOk()`, `header().string(...)`, `content().contentTypeCompatibleWith(...)`, `jsonPath("$.name").value("Tea")` (статические импорты уже есть в заготовке). Ответ на каждый запрос лучше проверять целиком: вариантов с ошибкой в разных местах несколько.
+
+    **Пример ввода**
+
+    ```
+    good
+    bug-status
+    ```
+
+    **Вывод** (для правильных проверок)
+
+    ```
+    good: PASS
+    bug-status: FAIL
+    ```
+
+    **Что дано.** `Checks.run` пуст, поэтому для всех вариантов печатается `PASS`. Файлы `App.java` и `Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test", "com.jayway.jsonpath:json-path", "org.hamcrest:hamcrest"]
+  hints:
+    - "Начните с описания: для каждого пункта спецификации один вызов mvc.perform(...) с цепочкой .andExpect(...). Например: mvc.perform(get(\"/products/99\")).andExpect(status().isNotFound());"
+    - "Каждый неправильный вариант ломает ровно один пункт: статус ответа на POST, поле в теле GET /products/1, его Content-Type, валидацию в POST и код для несуществующего товара. Если проверка пропускает вариант, значит, вы не проверяете этот пункт."
+    - "Content-Type: content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON); поля тела: jsonPath(\"$.price\").value(250); заголовок: header().string(\"Location\", \"/products/3\"). Для POST используйте post(\"/products\").contentType(MediaType.APPLICATION_JSON).content(\"{...}\")."
+    - "Проверьте создание целиком: status().isCreated(), заголовок Location, поля id/name/price в теле; затем два некорректных POST (пустое name и price равный 0) должны давать status().isBadRequest(). Для правильного варианта ни одна проверка не должна падать - сверяйтесь с числами из условия."
+  tests:
+    - id: "good"
+      title: "Правильный вариант"
+      stdin: "good\n"
+      expected: "good: PASS\n"
+      hint: "Проверки не должны падать на правильном варианте: сверьтесь с числами в спецификации."
+    - id: "status-field"
+      title: "Код ответа и поле JSON"
+      stdin: "bug-status\nbug-field\n"
+      expected: "bug-status: FAIL\nbug-field: FAIL\n"
+      hint: "bug-status отдаёт 200 вместо 201 при создании, bug-field не возвращает price в GET /products/1."
+    - id: "type-good"
+      title: "Content-Type"
+      stdin: "good\nbug-type\n"
+      expected: "good: PASS\nbug-type: FAIL\n"
+      hint: "bug-type отдаёт тот же JSON, но с Content-Type text/plain: проверьте тип ответа GET /products/1."
+    - id: "validation-notfound"
+      title: "Валидация и 404 (скрытый)"
+      stdin: "bug-validation\nbug-notfound\n"
+      expected: "bug-validation: FAIL\nbug-notfound: FAIL\n"
+      hidden: true
+      hint: "bug-validation принимает пустое имя или нулевую цену, bug-notfound отвечает 200 на неизвестный id."
+    - id: "mixed"
+      title: "Сочетание вариантов (скрытый)"
+      stdin: "bug-notfound\ngood\nbug-status\nbug-validation\n"
+      expected: "bug-notfound: FAIL\ngood: PASS\nbug-status: FAIL\nbug-validation: FAIL\n"
+      hidden: true
+      hint: "Одни и те же проверки должны проходить на good и падать на каждой ошибке; состояние между вариантами не сохраняется."
+    - id: "all-bugs"
+      title: "Все ошибки подряд (скрытый)"
+      stdin: "bug-field\nbug-type\nbug-notfound\n"
+      expected: "bug-field: FAIL\nbug-type: FAIL\nbug-notfound: FAIL\n"
+      hidden: true
+      hint: "Каждая из трёх ошибок затрагивает GET: проверьте тело, Content-Type и код для /products/99."

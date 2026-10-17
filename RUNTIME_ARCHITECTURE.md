@@ -118,6 +118,13 @@ files hold exactly one root `.csproj`, otherwise the entry file as a file-based 
 run 0.15-0.2 s / about 90 MB RSS, so the default limits suffice. CLI `--nuget-env <dir>` takes the directory holding the set subdirectories (`make nuget-env`, default `.nuget-content`);
 CI has no `make nuget-env` step yet, so `make validate-content` in CI skips NuGet exercises and theory samples with a warning.
 
+Maven sets (`tools/content-packages/maven/<set>/{pom.xml,lock.json}`, language `maven` in `index.json`) are installed by `MavenEnvironmentService` into `<data dir>/maven-content/<set>/lib` after the same
+confirmation: the app downloads the locked jars from repo1.maven.org and verifies each sha256 (no Maven on the learner's machine; `generate-lock.py` regenerates `lock.json` from the `pom.xml` with a
+developer's Maven). A run whose exercise declares `requires.mavenArtifacts` gets `ExecutionRequest.Maven`: `JavaRuntime` compiles with `javac -parameters -cp lib/*` and runs with `-cp lib/*` plus
+`-XX:+UseSerialGC -Xss16m -Xmx256m`, `lib` is a read-only sandbox path and no container is used. Measured for `spring-boot-web-test` (46 jars, 19.3 MB, Tomcat-free MockMvc): a context start and
+run about 0.65 s, RSS 263-275 MB, so exercises declare `requires.memoryMb: 512`. CLI `--maven-env <dir>` takes the directory holding the set subdirectories (`make maven-env`, default `.maven-content`);
+`make validate-content` skips Maven exercises and samples with a warning when it is absent.
+
 Go sets (`tools/content-packages/go/<set>/{go.mod,go.sum}`, language `go` in `index.json`) are installed by `GoEnvironmentService` into
 `<data dir>/go-content/<set>/` with `go mod download` (`GOMODCACHE=<root>/<set>/pkg/mod`, `GOFLAGS=-mod=mod`, `GOTOOLCHAIN=local`) run in that set's directory only,
 after the same confirmation (modules with versions, the exact command, that the network is needed). A run whose exercise declares `requires.goModules` (and optionally

@@ -101,7 +101,9 @@ internal sealed class RequiresDto
     public List<string>? GoModules { get; set; }
     /// <summary>csharp exercises: NuGet package ids that a nuget package set must provide.</summary>
     public List<string>? NugetPackages { get; set; }
-    /// <summary>Per-exercise memory limit of a run in MB (256-1024; default 256) for libraries whose import alone is close to the default, e.g. PyTorch.</summary>
+    /// <summary>java exercises: Maven coordinates (<c>group:artifact</c>) that a maven package set must provide.</summary>
+    public List<string>? MavenArtifacts { get; set; }
+    /// <summary>Per-exercise memory limit of a run in MB (256-1024; default 256) for libraries whose import alone is close to the default, e.g. PyTorch or a Spring Boot context (Java).</summary>
     public int? MemoryMb { get; set; }
 }
 

@@ -1,0 +1,202 @@
+id: "java.spring.request-bodies-validation"
+title: "Тела запросов и валидация"
+goal: "Принимать JSON-тела запросов в виде записей, описывать правила данных ограничениями Bean Validation и предсказывать ответ при неверном теле: 400, 415 и ошибки полей."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "java.spring.controllers-and-mapping"
+related:
+  - "csharp.aspnetcore.model-binding-validation"
+  - "express.fundamentals.validation-security"
+next:
+  - "java.spring.beans-dependency-injection"
+objectives:
+  - "Принимать JSON через @RequestBody и записи и объяснять, как имена полей записи связаны с именами свойств JSON."
+  - "Описывать правила ограничениями jakarta.validation (@NotBlank, @NotNull, @Size, @Min, @Max, @Email, @Pattern) и включать их через @Valid, в том числе для вложенных объектов и элементов коллекций."
+  - "Различать ответы на нечитаемое тело (400), неподдерживаемый тип содержимого (415) и нарушенное ограничение (400) по исключению, которое их вызвало."
+  - "Превращать ошибки валидации в предсказуемый JSON «поле - сообщение» через @RestControllerAdvice."
+masteryCriteria:
+  - "Вы называете исключение и код ответа для оборванного JSON, текстового тела и нарушенного ограничения."
+  - "Вы знаете, что ограничения пропускают null и что без @Valid проверки нет вообще."
+  - "Вы пишете обработчик ошибок валидации, ответ которого не зависит ни от языка JVM, ни от порядка нарушений."
+tags:
+  - "java"
+  - "spring-boot"
+  - "validation"
+  - "jackson"
+  - "json"
+facts:
+  - kind: "internals"
+    text: "@RequestBody передаёт тело запроса конвертеру сообщений, который по заголовку Content-Type выбирает формат; для application/json это Jackson 3. Имена компонентов записи становятся именами JSON-полей. Если Content-Type не поддерживается, ответ 415, если тело не разобрать - 400."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-methods/requestbody.html"
+      - "https://docs.spring.io/spring-boot/reference/features/json.html"
+  - kind: "internals"
+    text: "Аннотация @Valid (или @Validated) на аргументе @RequestBody запускает Bean Validation; при нарушении метод контроллера не вызывается и бросается MethodArgumentNotValidException. Ограничения на простых аргументах (@RequestParam, @PathVariable) проверяются встроенной проверкой методов и дают HandlerMethodValidationException."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html"
+      - "https://docs.spring.io/spring-framework/reference/core/validation/beanvalidation.html"
+  - kind: "misconception"
+    text: "«@Size(min = 3) или @Email делают поле обязательным». Нет: null считается допустимым значением почти для всех ограничений, а отсутствующее поле JSON становится null. Обязательность задают @NotNull, @NotBlank или @NotEmpty. Ограничения внутри вложенной записи вообще не проверяются, пока поле не помечено @Valid."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/core/validation/beanvalidation.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-validation.html"
+  - kind: "real-world"
+    text: "Spring Boot по умолчанию отвечает на ошибки разбора и валидации пустым телом и кодом 400, а неизвестные свойства JSON молча игнорирует. В реальных API ошибки превращают в единый формат через @RestControllerAdvice или включают стандартный ProblemDetail (RFC 9457)."
+    sources:
+      - "https://docs.spring.io/spring-boot/reference/features/json.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Контроллер принимает @Valid @RequestBody Person, а клиент прислал оборванный JSON {\"name\":\"Ann\". Что произойдёт?"
+      options:
+        - "Ответ 400, метод контроллера не вызывается"
+        - "Ответ 415"
+        - "Метод вызывается с name равным null"
+        - "Ответ 500"
+      answer: 0
+      explanation: "Тело не разобрать: HttpMessageNotReadableException даёт 400 до вызова метода и до проверки ограничений."
+    - id: "q2"
+      type: "single"
+      prompt: "Запись record Signup(@Size(min = 3) String name) принимается с @Valid. Что вернёт POST с телом {}?"
+      options:
+        - "400: имя слишком короткое"
+        - "Метод вызывается, name равен null"
+        - "400: поле обязательно"
+        - "415"
+      answer: 1
+      explanation: "Ограничение @Size пропускает null: отсутствующее поле становится null. Чтобы потребовать значение, нужен ещё @NotBlank или @NotNull."
+    - id: "q3"
+      type: "single"
+      prompt: "Запись Order содержит поле Address address, у Address есть @NotBlank String city. Ограничение на city не срабатывает. В чём причина?"
+      options:
+        - "Нужен @Size на city"
+        - "Поле address не помечено @Valid"
+        - "Вложенные записи не поддерживаются"
+        - "Нужно указать @Validated на параметре метода"
+      answer: 1
+      explanation: "Проверка вложенного объекта включается только аннотацией @Valid на поле или компоненте записи."
+    - id: "q4"
+      type: "single"
+      prompt: "Клиент отправил POST с заголовком Content-Type: text/plain на метод с @RequestBody Person. Какой ответ?"
+      options:
+        - "400"
+        - "415"
+        - "200"
+        - "404"
+      answer: 1
+      explanation: "Для text/plain нет конвертера в Person: HttpMediaTypeNotSupportedException и код 415."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Какие утверждения о стандартной настройке Spring Boot верны?"
+      options:
+        - "Неизвестные свойства JSON игнорируются"
+        - "Нарушение ограничения под @Valid даёт 400"
+        - "Текст сообщения по умолчанию не зависит от языка JVM"
+        - "Без @Valid ограничения на записи не проверяются"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Текст стандартных сообщений берётся из ресурсов и зависит от языка JVM, поэтому его лучше задавать через message. Остальные три утверждения верны."
+exercise:
+  id: "java.spring.request-bodies-validation.exercise"
+  title: "Регистрация пользователей"
+  prompt: |
+    Доработайте файл `demo/App.java`: контроллер `UserController` регистрирует пользователей. Проверка поднимает Spring Boot без веб-сервера и подаёт запросы через MockMvc: порт не открывается. Одна строка ввода - один запрос; тело запроса записывается после `| b:`. `demo/Main.java` печатает код состояния, тип содержимого, тело и заголовок `Location`, если он есть.
+
+    Нужно сделать три вещи.
+
+    **1. Ограничения записи `SignupRequest`** (тексты сообщений - ровно такие):
+
+    | поле | правила | сообщение |
+    |---|---|---|
+    | `username` | не пустой и не из пробелов | `username is required` |
+    | `username` | подходит под `[a-z0-9]{3,12}` | `username must be 3-12 lowercase letters or digits` |
+    | `email` | не пустой и не из пробелов | `email is required` |
+    | `email` | формат e-mail (`@Email`) | `email is invalid` |
+    | `age` | не `null` (тип `Integer`) | `age is required` |
+    | `age` | не меньше 18 | `age must be at least 18` |
+    | `age` | не больше 120 | `age must be at most 120` |
+    | `country` | необязательное; если есть - две заглавные буквы `[A-Z]{2}` | `country must be two capital letters` |
+    | `address` | необязательное; если есть - проверяется вложенная запись | |
+    | `address.city` | не пустой и не из пробелов | `city is required` |
+
+    **2. Включить проверку** в `POST /users` и **проверку параметра** `minAge` в `GET /users` (не меньше 0, сообщение `minAge must not be negative`; нарушение даёт 400 без тела).
+
+    **3. Обработчик ошибок** `ValidationErrors`: на `MethodArgumentNotValidException` он отвечает 400 и JSON `{"errors": {"<поле>": "<сообщение>"}}`. Поля идут по алфавиту (`TreeMap`), имя вложенного поля - с путём (`address.city`). Если у поля нарушено несколько ограничений, оставьте сообщение, которое **идёт первым по алфавиту** (порядок нарушений в Spring не определён).
+
+    Остальное уже работает: успешная регистрация отвечает 201 с `Location: /users/<id>`, повторный `username` даёт 409, `GET /users/{id}` отдаёт пользователя или 404. Нечитаемое тело (оборванный JSON, строка вместо числа) Spring отклоняет сам: 400 без тела.
+
+    **Пример ввода**
+
+    ```
+    POST /users | b:{"username":"ann","email":"ann@example.com","age":30}
+    POST /users | b:{"username":"x","email":"nope","age":15}
+    ```
+
+    **Вывод**
+
+    ```
+    201 application/json {"id":1,"username":"ann","email":"ann@example.com","age":30,"country":null}
+      Location: /users/1
+    400 application/json {"errors":{"age":"age must be at least 18","email":"email is invalid","username":"username must be 3-12 lowercase letters or digits"}}
+    ```
+
+    **Что дано.** Решение собирается, но записи без ограничений, `@Valid` нет, а обработчик возвращает пустой список ошибок. Файл `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework.boot:spring-boot-starter-validation", "org.springframework:spring-test"]
+  hints:
+    - "Ограничения пишутся прямо перед компонентом записи: @NotBlank(message = \"username is required\") @Pattern(regexp = \"[a-z0-9]{3,12}\", message = \"...\") String username. Для age возьмите @NotNull, @Min и @Max на поле Integer."
+    - "Проверка включается аннотацией @Valid перед @RequestBody в signup. Вложенная запись address проверяется, только если сам компонент помечен @Valid. Для minAge поставьте @Min(value = 0, message = ...) перед параметром: @Valid здесь не нужен."
+    - "В обработчике перебирайте e.getBindingResult().getFieldErrors(): error.getField() - имя поля (включая address.city), error.getDefaultMessage() - сообщение."
+    - "errors.merge(error.getField(), error.getDefaultMessage(), (a, b) -> a.compareTo(b) <= 0 ? a : b) складывает сообщения в TreeMap и при повторе поля оставляет первое по алфавиту."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "POST /users | b:{\"username\":\"ann\",\"email\":\"ann@example.com\",\"age\":30}\nPOST /users | b:{\"username\":\"x\",\"email\":\"nope\",\"age\":15}\nGET /users/1\n"
+      expected: "201 application/json {\"id\":1,\"username\":\"ann\",\"email\":\"ann@example.com\",\"age\":30,\"country\":null}\n  Location: /users/1\n400 application/json {\"errors\":{\"age\":\"age must be at least 18\",\"email\":\"email is invalid\",\"username\":\"username must be 3-12 lowercase letters or digits\"}}\n200 application/json {\"id\":1,\"username\":\"ann\",\"email\":\"ann@example.com\",\"age\":30,\"country\":null}\n"
+      hint: "Первый запрос создаёт пользователя (201 и Location), второй нарушает три ограничения, третий показывает созданного пользователя."
+    - id: "required"
+      title: "Обязательные поля"
+      stdin: "POST /users | b:{}\nPOST /users | b:{\"username\":\"bob\"}\n"
+      expected: "400 application/json {\"errors\":{\"age\":\"age is required\",\"email\":\"email is required\",\"username\":\"username is required\"}}\n400 application/json {\"errors\":{\"age\":\"age is required\",\"email\":\"email is required\"}}\n"
+      hint: "Пустой объект: username, email и age отсутствуют, у каждого свой текст is required."
+    - id: "range"
+      title: "Границы возраста"
+      stdin: "POST /users | b:{\"username\":\"kid\",\"email\":\"k@x.io\",\"age\":17}\nPOST /users | b:{\"username\":\"old\",\"email\":\"o@x.io\",\"age\":121}\nPOST /users | b:{\"username\":\"edge\",\"email\":\"e@x.io\",\"age\":18}\nPOST /users | b:{\"username\":\"edge2\",\"email\":\"e2@x.io\",\"age\":120}\n"
+      expected: "400 application/json {\"errors\":{\"age\":\"age must be at least 18\"}}\n400 application/json {\"errors\":{\"age\":\"age must be at most 120\"}}\n201 application/json {\"id\":1,\"username\":\"edge\",\"email\":\"e@x.io\",\"age\":18,\"country\":null}\n  Location: /users/1\n201 application/json {\"id\":2,\"username\":\"edge2\",\"email\":\"e2@x.io\",\"age\":120,\"country\":null}\n  Location: /users/2\n"
+      hint: "18 и 120 допустимы, 17 и 121 - нет."
+    - id: "nested"
+      title: "Вложенный адрес и страна (скрытый)"
+      stdin: "POST /users | b:{\"username\":\"zed\",\"email\":\"z@x.io\",\"age\":40,\"country\":\"usa\",\"address\":{\"city\":\" \"}}\nPOST /users | b:{\"username\":\"zed\",\"email\":\"z@x.io\",\"age\":40,\"country\":\"US\",\"address\":{\"city\":\"Berlin\"}}\n"
+      expected: "400 application/json {\"errors\":{\"address.city\":\"city is required\",\"country\":\"country must be two capital letters\"}}\n201 application/json {\"id\":1,\"username\":\"zed\",\"email\":\"z@x.io\",\"age\":40,\"country\":\"US\"}\n  Location: /users/1\n"
+      hidden: true
+      hint: "address.city проверяется только с @Valid на компоненте address; country необязательна, но если есть - [A-Z]{2}."
+    - id: "overlap"
+      title: "Несколько нарушений у одного поля (скрытый)"
+      stdin: "POST /users | b:{\"username\":\"   \",\"email\":\" \",\"age\":5}\nPOST /users | b:{\"username\":\"Ann_\",\"email\":\"ann.example.com\",\"age\":30}\n"
+      expected: "400 application/json {\"errors\":{\"age\":\"age must be at least 18\",\"email\":\"email is invalid\",\"username\":\"username is required\"}}\n400 application/json {\"errors\":{\"email\":\"email is invalid\",\"username\":\"username must be 3-12 lowercase letters or digits\"}}\n"
+      hidden: true
+      hint: "Пробелы нарушают оба ограничения поля: берётся сообщение, первое по алфавиту (is required раньше must be)."
+    - id: "badbody"
+      title: "Нечитаемое тело (скрытый)"
+      stdin: "POST /users | b:{broken\nPOST /users | b:{\"username\":\"bob\",\"email\":\"b@x.io\",\"age\":\"old\"}\nPOST /users | b:[]\n"
+      expected: "400 -\n400 -\n400 -\n"
+      hidden: true
+      hint: "Это не нарушение ограничений, а ошибка разбора: Spring сам отвечает 400 без тела."
+    - id: "rules"
+      title: "Конфликт, поиск и параметры (скрытый)"
+      stdin: "POST /users | b:{\"username\":\"ann\",\"email\":\"ann@example.com\",\"age\":30}\nPOST /users | b:{\"username\":\"ann\",\"email\":\"other@example.com\",\"age\":50}\nPOST /users | b:{\"username\":\"bob\",\"email\":\"bob@example.com\",\"age\":50}\nGET /users?minAge=40\nGET /users?minAge=-1\nGET /users?minAge=x\nGET /users/99\nGET /users/abc\nDELETE /users\n"
+      expected: "201 application/json {\"id\":1,\"username\":\"ann\",\"email\":\"ann@example.com\",\"age\":30,\"country\":null}\n  Location: /users/1\n409 application/json {\"error\":\"username is taken\"}\n201 application/json {\"id\":2,\"username\":\"bob\",\"email\":\"bob@example.com\",\"age\":50,\"country\":null}\n  Location: /users/2\n200 application/json [{\"id\":2,\"username\":\"bob\",\"email\":\"bob@example.com\",\"age\":50,\"country\":null}]\n400 -\n400 -\n404 -\n404 -\n405 -\n"
+      hidden: true
+      hint: "Повторный username даёт 409; minAge=-1 нарушает @Min (400 без тела), minAge=x не число (400); неизвестный id - 404; DELETE - 405."

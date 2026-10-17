@@ -1,0 +1,198 @@
+id: "java.spring.configuration-properties"
+title: "Конфигурационные свойства и профили"
+goal: "Выносить настройки из кода: читать их через @Value и типобезопасные @ConfigurationProperties, понимать источники и приоритет, проверять значения при запуске и выбирать бины по профилю."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "java.spring.beans-dependency-injection"
+related:
+  - "csharp.aspnetcore.configuration-options"
+next:
+  - "java.spring.error-handling-problem-detail"
+objectives:
+  - "Читать одиночные значения через @Value с запасным значением и группы настроек через @ConfigurationProperties на записи."
+  - "Задавать значения по умолчанию через @DefaultValue и привязывать Duration, DataSize, списки и карты."
+  - "Объяснять источники конфигурации и их приоритет и гибкую привязку имён (app.max-items, app.maxItems)."
+  - "Проверять свойства через @Validated и понимать, что неверная конфигурация останавливает запуск."
+  - "Включать бины по профилю (@Profile, spring.profiles.active) и по значению свойства (@ConditionalOnProperty)."
+masteryCriteria:
+  - "Вы предсказываете итоговое значение свойства по набору источников, включая аргумент командной строки."
+  - "Вы знаете, чем отличается отсутствующий ключ для примитива, строки, списка и карты в записи свойств."
+  - "Вы выбираете реализацию бина по профилю и включаете функцию флагом, не меняя код."
+tags:
+  - "java"
+  - "spring-boot"
+  - "configuration"
+  - "profiles"
+  - "configuration-properties"
+facts:
+  - kind: "internals"
+    text: "@ConfigurationProperties привязывает свойства с общим префиксом к классу или записи: имена сопоставляются по правилам гибкой привязки (app.max-items, app.maxItems, APP_MAX_ITEMS - одно и то же свойство maxItems), строки преобразуются в Duration, DataSize, списки и карты. Привязку включают @ConfigurationPropertiesScan или @EnableConfigurationProperties."
+    sources:
+      - "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+  - kind: "internals"
+    text: "Источники конфигурации Spring Boot упорядочены по приоритету: значения по умолчанию, файлы application.properties и application.yaml, профильные файлы, переменные окружения, аргументы командной строки; более сильный источник перекрывает более слабый. Профиль включается свойством spring.profiles.active и выбирает бины через @Profile."
+    sources:
+      - "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+      - "https://docs.spring.io/spring-boot/reference/features/profiles.html"
+  - kind: "misconception"
+    text: "«Если ключа нет, список в записи свойств будет пустым». Нет: без @DefaultValue отсутствующая коллекция или карта равна null, а пустую коллекцию даёт @DefaultValue без значения. Неизвестный ключ при этом не ошибка, и опечатка в имени свойства молча оставляет запасное значение."
+    sources:
+      - "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+  - kind: "real-world"
+    text: "Неверная конфигурация должна останавливать запуск: @Validated на классе свойств и ограничения jakarta.validation проверяют значения при привязке, и приложение не стартует с мусорным портом или пустым адресом. В контейнерах настройки обычно передают переменными окружения, а профиль выбирает окружение."
+    sources:
+      - "https://docs.spring.io/spring-boot/reference/features/external-config.html"
+      - "https://docs.spring.io/spring-boot/reference/features/profiles.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "multiple"
+      prompt: "Какие ключи привязываются к компоненту maxItems записи со свойствами с префиксом app?"
+      options:
+        - "app.max-items"
+        - "app.maxItems"
+        - "app.max_items"
+        - "app.max.items"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Гибкая привязка понимает kebab-case, camelCase и подчёркивания; app.max.items - это вложенный объект max с полем items, он не подходит."
+    - id: "q2"
+      type: "single"
+      prompt: "В записи AppProperties есть компонент List<String> tags без @DefaultValue. Ключ app.tags нигде не задан. Чему равен tags()?"
+      options:
+        - "null"
+        - "Пустому списку"
+        - "Списку из одного пустого элемента"
+        - "Запуск падает с ошибкой"
+      answer: 0
+      explanation: "Без ключа и без @DefaultValue коллекция равна null. Пустую коллекцию даёт @DefaultValue без значения."
+    - id: "q3"
+      type: "single"
+      prompt: "В application.properties записано app.greeting=A, приложение запущено с аргументом --app.greeting=B. Что вернёт properties.greeting()?"
+      options:
+        - "B"
+        - "A"
+        - "AB"
+        - "Запуск упадёт из-за конфликта"
+      answer: 0
+      explanation: "Аргумент командной строки сильнее файла конфигурации: побеждает B."
+    - id: "q4"
+      type: "single"
+      prompt: "Класс свойств помечен @Validated, а значение app.port=70000 нарушает @Max(65535). Что произойдёт при запуске?"
+      options:
+        - "Контекст не запустится с ошибкой привязки"
+        - "Приложение запустится, а ошибка появится при первом обращении"
+        - "Значение молча заменится максимальным"
+        - "Значение будет null"
+      answer: 0
+      explanation: "Проверка выполняется при привязке свойств, и неверная конфигурация останавливает запуск."
+    - id: "q5"
+      type: "single"
+      prompt: "Бин помечен @Profile(\"!dev\"). Приложение запущено без активных профилей. Будет ли бин создан?"
+      options:
+        - "Да, \"не dev\" включает все остальные случаи, в том числе отсутствие профилей"
+        - "Нет, бин создаётся только при явно включённом профиле"
+        - "Нет, нужен профиль default"
+        - "Да, но только после вызова refresh()"
+      answer: 0
+      explanation: "Условие @Profile(\"!dev\") истинно, когда профиль dev не активен, и без профилей тоже."
+exercise:
+  id: "java.spring.configuration-properties.exercise"
+  title: "Приложение с настройками"
+  prompt: |
+    В `demo/App.java` лежит небольшое приложение, поведение которого определяют **свойства**. Проверка поднимает Spring Boot без веб-сервера и подаёт запросы через MockMvc: порт не открывается. Одна строка ввода - один запрос; строки `@prop ключ=значение` и `@profile имя` в начале ввода передаются приложению как аргументы командной строки (`--ключ=значение`, `--spring.profiles.active=имя`), как если бы вы запустили его с этими аргументами. `demo/Main.java` печатает код состояния, тип содержимого и тело.
+
+    Свойства с префиксом `app`:
+
+    | ключ | компонент записи `AppProperties` | по умолчанию |
+    |---|---|---|
+    | `app.greeting` | `greeting` | `Hello` |
+    | `app.max-items` | `maxItems` | `5` |
+    | `app.timeout` | `timeout` (`Duration`) | `30s` |
+    | `app.max-upload` | `maxUpload` (`DataSize`) | `1MB` |
+    | `app.tags` | `tags` (`List<String>`) | пустой список |
+    | `app.labels.*` | `labels` (`Map<String, String>`) | пустая карта |
+    | `app.beta-enabled` | `betaEnabled` | `false` |
+    | `app.footer` | значение `@Value` | `(none)` |
+
+    Нужно сделать три вещи (подробности в комментариях `TODO`):
+
+    1. **Привязать свойства к записи** `AppProperties`: `@ConfigurationProperties(prefix = "app")`, значения по умолчанию через `@DefaultValue`, включить сканирование (`@ConfigurationPropertiesScan` на `App`) и убрать ручной бин `Manual`.
+    2. **Подпись `/footer`** брать из `app.footer` через `@Value` с запасным значением `(none)`.
+    3. **Бины по профилю:** `ConsoleMailer` существует только в профиле `dev`, `SmtpMailer` - во всех остальных.
+
+    Остальное уже работает: `GET /config` показывает все настройки (`timeout` в секундах, `maxUpload` в байтах), `GET /greet/{name}` отвечает `<greeting>, <name>!`, `GET /items?count=N` отдаёт первые `min(N, maxItems)` номеров, `GET /beta` отвечает 404, пока `betaEnabled` ложно, `GET /mailer` называет активный `Mailer`, `GET /profiles` перечисляет активные профили.
+
+    **Пример ввода**
+
+    ```
+    @prop app.greeting=Hi
+    @prop app.max-items=2
+    GET /greet/Ann
+    GET /items?count=9
+    ```
+
+    **Вывод**
+
+    ```
+    200 text/plain Hi, Ann!
+    200 application/json {"requested":9,"returned":2,"items":[1,2]}
+    ```
+
+    **Что дано.** Решение собирается, но настройки заданы жёстко (ключи `app.*` игнорируются), `/footer` всегда отвечает `(none)`, а `SmtpMailer` работает и в профиле `dev`. Файл `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test"]
+  hints:
+    - "TODO 1: над записью поставьте @ConfigurationProperties(prefix = \"app\"), над классом App - @ConfigurationPropertiesScan. Класс Manual с ручным @Bean удалите: два бина одного типа сломают запуск."
+    - "Значения по умолчанию: @DefaultValue(\"Hello\") String greeting, @DefaultValue(\"5\") int maxItems, @DefaultValue(\"30s\") Duration timeout, @DefaultValue(\"1MB\") DataSize maxUpload. Для List и Map без значения - просто @DefaultValue (иначе они будут null)."
+    - "TODO 2: параметр конструктора ConfigController: @Value(\"${app.footer:(none)}\") String footer; поле-константу с (none) замените присваиванием в конструкторе."
+    - "TODO 3: ConsoleMailer - @Component и @Profile(\"dev\"); SmtpMailer - @Component и @Profile(\"!dev\")."
+  tests:
+    - id: "defaults"
+      title: "Значения по умолчанию"
+      stdin: "GET /config\nGET /greet/Ann\nGET /items?count=9\nGET /beta\nGET /mailer\nGET /profiles\nGET /footer\n"
+      expected: "200 application/json {\"greeting\":\"Hello\",\"maxItems\":5,\"timeoutSeconds\":30,\"maxUploadBytes\":1048576,\"tags\":[],\"labels\":{},\"betaEnabled\":false}\n200 text/plain Hello, Ann!\n200 application/json {\"requested\":9,\"returned\":5,\"items\":[1,2,3,4,5]}\n404 -\n200 text/plain smtp\n200 application/json []\n200 text/plain (none)\n"
+      hint: "Без @prop всё берётся из @DefaultValue: Hello, 5, 30s, 1MB, пустые список и карта."
+    - id: "override"
+      title: "Пример из условия"
+      stdin: "@prop app.greeting=Hi\n@prop app.max-items=2\nGET /greet/Ann\nGET /items?count=9\nGET /items?count=1\n"
+      expected: "200 text/plain Hi, Ann!\n200 application/json {\"requested\":9,\"returned\":2,\"items\":[1,2]}\n200 application/json {\"requested\":1,\"returned\":1,\"items\":[1]}\n"
+      hint: "Аргумент командной строки перекрывает значение по умолчанию; maxItems ограничивает выдачу."
+    - id: "types"
+      title: "Duration, DataSize, список и карта"
+      stdin: "@prop app.timeout=2m\n@prop app.max-upload=5MB\n@prop app.tags=a,b,c\n@prop app.labels.team=core\n@prop app.labels.env=prod\nGET /config\n"
+      expected: "200 application/json {\"greeting\":\"Hello\",\"maxItems\":5,\"timeoutSeconds\":120,\"maxUploadBytes\":5242880,\"tags\":[\"a\",\"b\",\"c\"],\"labels\":{\"env\":\"prod\",\"team\":\"core\"},\"betaEnabled\":false}\n"
+      hint: "2m - 120 секунд, 5MB - 5242880 байт; список - через запятую, ключи карты - после app.labels."
+    - id: "profile"
+      title: "Профиль dev (скрытый)"
+      stdin: "@profile dev\nGET /mailer\nGET /profiles\n"
+      expected: "200 text/plain console\n200 application/json [\"dev\"]\n"
+      hidden: true
+      hint: "В профиле dev должен быть бином ConsoleMailer, SmtpMailer - нет."
+    - id: "flag"
+      title: "Флаг и @Value (скрытый)"
+      stdin: "@prop app.beta-enabled=true\n@prop app.footer=bye\nGET /beta\nGET /footer\nGET /mailer\n"
+      expected: "200 text/plain beta on\n200 text/plain bye\n200 text/plain smtp\n"
+      hidden: true
+      hint: "app.beta-enabled привязывается к betaEnabled; footer берётся из app.footer; без профиля работает smtp."
+    - id: "relaxed"
+      title: "Гибкая привязка (скрытый)"
+      stdin: "@prop app.maxItems=3\n@prop app.max_upload=2KB\n@prop app.tags[0]=x\n@prop app.tags[1]=y\nGET /config\nGET /items?count=4\n"
+      expected: "200 application/json {\"greeting\":\"Hello\",\"maxItems\":3,\"timeoutSeconds\":30,\"maxUploadBytes\":2048,\"tags\":[\"x\",\"y\"],\"labels\":{},\"betaEnabled\":false}\n200 application/json {\"requested\":4,\"returned\":3,\"items\":[1,2,3]}\n"
+      hidden: true
+      hint: "app.maxItems и app.max_upload - другие записи тех же ключей; список можно задать индексами."
+    - id: "errors"
+      title: "Ошибки запросов (скрытый)"
+      stdin: "@prop app.max-items=0\nGET /items?count=3\nGET /items\nGET /items?count=x\nGET /nope\nPOST /config\n"
+      expected: "200 application/json {\"requested\":3,\"returned\":0,\"items\":[]}\n400 -\n400 -\n404 -\n405 -\n"
+      hidden: true
+      hint: "maxItems=0 даёт пустой список; нет count - 400; count=x - 400; нет маршрута - 404; POST на /config - 405."

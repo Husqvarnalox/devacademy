@@ -1,0 +1,184 @@
+id: "java.spring.error-handling-problem-detail"
+title: "Обработка ошибок и ProblemDetail"
+goal: "Превращать исключения приложения в предсказуемые ответы об ошибках: писать @RestControllerAdvice, возвращать ProblemDetail (RFC 9457), выбирать коды 404/409/422 и не раскрывать клиенту внутренние сообщения."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "java.spring.configuration-properties"
+related:
+  - "csharp.aspnetcore.error-handling-problem-details"
+  - "express.fundamentals.error-handling"
+next:
+  - "java.spring.testing-with-mockmvc"
+objectives:
+  - "Обрабатывать исключения методами с @ExceptionHandler в контроллере и в @RestControllerAdvice и объяснять, какой обработчик победит."
+  - "Строить ответ ProblemDetail: type, title, status, detail, instance и свои поля через setProperty; знать медиатип application/problem+json."
+  - "Использовать ResponseEntityExceptionHandler, чтобы ошибки самого фреймворка (400, 404, 405, 415) тоже получали тело ProblemDetail."
+  - "Сопоставлять доменные исключения кодам 404, 409 и 422 и не показывать клиенту сообщения исключений и трассировки."
+masteryCriteria:
+  - "Вы предсказываете, какой из нескольких обработчиков получит исключение: локальный в контроллере, самый конкретный в совете или общий."
+  - "Вы знаете, что без настройки тела ошибок фреймворка пустые, и умеете включить ProblemDetail свойством или базовым классом."
+  - "Вы возвращаете для неожиданной ошибки фиксированный текст со статусом 500, а подробности оставляете в журнале сервера."
+tags:
+  - "java"
+  - "spring-boot"
+  - "spring-mvc"
+  - "error-handling"
+  - "problem-detail"
+facts:
+  - kind: "internals"
+    text: "Метод с @ExceptionHandler внутри контроллера обрабатывает исключения только этого контроллера; метод в классе с @ControllerAdvice или @RestControllerAdvice - исключения всех контроллеров. Локальный обработчик проверяется раньше совета, а среди подходящих обработчиков выигрывает тот, чей тип исключения ближе к брошенному."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-advice.html"
+  - kind: "internals"
+    text: "ProblemDetail - контейнер для ответа об ошибке по RFC 9457 с полями type, title, status, detail и instance; дополнительные поля добавляются через setProperty. Ответ получает медиатип application/problem+json. Базовый класс ResponseEntityExceptionHandler превращает в ProblemDetail исключения самого Spring MVC (405, 415, 400 и другие), а ResponseStatusException и ErrorResponseException несут статус и тело сами."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html"
+      - "https://www.rfc-editor.org/rfc/rfc9457"
+  - kind: "misconception"
+    text: "«Spring сам вернёт JSON с описанием ошибки». По умолчанию свойство spring.mvc.problemdetails.enabled выключено: в MockMvc ответы 404, 405, 415 и 400 при битом JSON приходят с пустым телом, а необработанное исключение контроллера вообще вылетает из MockMvc (настоящий сервер ответил бы 500). Тело ProblemDetail появляется после включения свойства или после объявления совета на базе ResponseEntityExceptionHandler."
+    sources:
+      - "https://docs.spring.io/spring-boot/reference/web/servlet.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html"
+  - kind: "real-world"
+    text: "@ResponseStatus на классе исключения даёт код ответа, но работает как запасной вариант: если совет перехватил исключение (даже общим обработчиком RuntimeException), аннотация уже не применяется. Сообщение исключения может содержать адреса, SQL и пароли, поэтому для неожиданных ошибок клиенту отдают фиксированный текст, а подробности пишут в журнал."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-servlet/exceptionhandlers.html"
+      - "https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Приложение Spring Boot 4.1 без дополнительных настроек получило через MockMvc запрос на несуществующий путь. Каким будет тело ответа 404?"
+      options:
+        - "Пустым: свойство spring.mvc.problemdetails.enabled по умолчанию выключено"
+        - "JSON ProblemDetail с полем type"
+        - "HTML-страница со стеком вызовов"
+        - "Текст No static resource"
+      answer: 0
+      explanation: "Тела ошибок фреймворка включаются свойством spring.mvc.problemdetails.enabled=true или советом на базе ResponseEntityExceptionHandler; по умолчанию они пустые."
+    - id: "q2"
+      type: "single"
+      prompt: "В @RestControllerAdvice есть @ExceptionHandler(Exception.class) и @ExceptionHandler(AccountNotFoundException.class). Какой метод получит AccountNotFoundException?"
+      options:
+        - "Тот, что объявлен первым в файле"
+        - "Метод для Exception: он общий"
+        - "Метод для AccountNotFoundException: он ближе к типу исключения"
+        - "Оба по очереди"
+      answer: 2
+      explanation: "Из подходящих обработчиков выбирается тот, у которого тип исключения ближе к фактическому; порядок в файле не важен."
+    - id: "q3"
+      type: "single"
+      prompt: "В контроллере есть @ExceptionHandler(NotFound.class), в совете - тоже. Бросили NotFound в методе этого контроллера. Кто отвечает?"
+      options:
+        - "Обработчик совета"
+        - "Обработчик контроллера"
+        - "Ошибка о неоднозначности"
+        - "Оба, ответы склеятся"
+      answer: 1
+      explanation: "Обработчики самого контроллера проверяются раньше, чем советы: локальный выигрывает даже у более конкретного обработчика в совете."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие поля входят в стандартную часть документа problem details по RFC 9457?"
+      options:
+        - "type"
+        - "status"
+        - "instance"
+        - "stackTrace"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "В RFC 9457 стандартны type, title, status, detail и instance. Трассировка стека в ответ не входит и клиенту её показывать нельзя."
+    - id: "q5"
+      type: "single"
+      prompt: "Почему для неожиданного исключения в ответ кладут фиксированный текст, а не e.getMessage()?"
+      options:
+        - "Так быстрее работает сериализация"
+        - "Сообщение может раскрыть внутренние данные: адреса, SQL, пароли"
+        - "Spring запрещает читать сообщение исключения"
+        - "Клиенты не умеют читать строки"
+      answer: 1
+      explanation: "Сообщение исключения предназначено для разработчика; клиент получает общий текст, а подробности остаются в журнале сервера."
+exercise:
+  id: "java.spring.error-handling-problem-detail.exercise"
+  title: "Счета: ошибки как ProblemDetail"
+  prompt: |
+    Сервис счетов уже написан (`demo/App.java`, менять его не нужно): контроллер бросает доменные исключения. Ваша задача - файл `demo/Errors.java`: совет `@RestControllerAdvice`, который превращает исключения в ответы **ProblemDetail**. Проверка поднимает Spring Boot без веб-сервера и подаёт запросы через MockMvc: одна строка ввода - один запрос, `demo/Main.java` печатает код состояния, медиатип и тело.
+
+    Данные: счёт 1 (Ann, баланс 100, открыт) и счёт 2 (Bob, баланс 20, закрыт). Маршруты: `GET /accounts/{id}`, `POST /accounts/{id}/withdraw?amount=N` (списывает сумму), `GET /accounts/{id}/statement` (всегда падает с внутренней ошибкой).
+
+    Нужные ответы (медиатип везде `application/problem+json`; `instance` Spring подставляет сам - это путь запроса):
+
+    | Исключение | status | type | title | detail | свои поля |
+    |---|---|---|---|---|---|
+    | `AccountNotFoundException` | 404 | `https://example.com/problems/account-not-found` | `Account not found` | `Account <id> does not exist` | - |
+    | `AccountClosedException` | 409 | `https://example.com/problems/account-closed` | `Account closed` | `Account <id> is closed` | - |
+    | `InsufficientFundsException` | 422 | `https://example.com/problems/insufficient-funds` | `Insufficient funds` | `Balance <balance> is less than requested <requested>` | `balance`, `requested` (числа) |
+    | любое другое `Exception` | 500 | не задавать | стандартный | `Unexpected error` | - |
+
+    Сообщение настоящего исключения (оно содержит пароль базы) в ответ попадать **не должно**. Кроме того, ошибки самого фреймворка (`405`, `404` для неизвестного пути, `400` при неверном параметре) должны тоже приходить в виде ProblemDetail с их стандартными title и detail: для этого совет наследует `ResponseEntityExceptionHandler`. Тот же базовый класс обрабатывает `ResponseStatusException` для `amount <= 0`.
+
+    **Пример ввода**
+
+    ```
+    GET /accounts/9
+    POST /accounts/1/withdraw?amount=500
+    ```
+
+    **Вывод**
+
+    ```
+    404 application/problem+json {"detail":"Account 9 does not exist","instance":"/accounts/9","status":404,"title":"Account not found","type":"https://example.com/problems/account-not-found"}
+    422 application/problem+json {"detail":"Balance 100 is less than requested 500","instance":"/accounts/1/withdraw","status":422,"title":"Insufficient funds","type":"https://example.com/problems/insufficient-funds","balance":100,"requested":500}
+    ```
+
+    Порядок полей в JSON задаёт Jackson, а не ваш код. **Что дано.** `Errors.java` пуст, поэтому исключения вылетают наружу и Main печатает `500 - ИмяКлассаИсключения` (например, `500 - IllegalStateException`). Файлы `demo/App.java` и `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test"]
+  hints:
+    - "Класс совета объявляется как @RestControllerAdvice class Errors extends ResponseEntityExceptionHandler; для каждого исключения нужен метод с @ExceptionHandler(ТипИсключения.class), который возвращает ProblemDetail."
+    - "ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, \"Account \" + e.id() + \" does not exist\") задаёт status и detail; затем problem.setType(URI.create(\"...\")) и problem.setTitle(\"...\"). Код 422 - HttpStatus.UNPROCESSABLE_CONTENT."
+    - "Свои поля добавляются так: problem.setProperty(\"balance\", e.balance()). Поле instance задавать не нужно - Spring подставит путь запроса сам."
+    - "Для неожиданных ошибок объявите отдельный метод @ExceptionHandler(Exception.class) и верните ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, \"Unexpected error\"), не обращаясь к e.getMessage(). Более конкретные обработчики и методы базового класса остаются приоритетнее."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "GET /accounts/1\nGET /accounts/9\nPOST /accounts/1/withdraw?amount=30\nGET /accounts/1\n"
+      expected: "200 application/json {\"id\":1,\"owner\":\"Ann\",\"balance\":100,\"closed\":false}\n404 application/problem+json {\"detail\":\"Account 9 does not exist\",\"instance\":\"/accounts/9\",\"status\":404,\"title\":\"Account not found\",\"type\":\"https://example.com/problems/account-not-found\"}\n200 application/json {\"id\":1,\"owner\":\"Ann\",\"balance\":70,\"closed\":false}\n200 application/json {\"id\":1,\"owner\":\"Ann\",\"balance\":70,\"closed\":false}\n"
+      hint: "Счёт найден, неизвестный счёт даёт ProblemDetail 404, успешное списание меняет баланс до 70."
+    - id: "conflict"
+      title: "409 и 422"
+      stdin: "POST /accounts/2/withdraw?amount=5\nPOST /accounts/1/withdraw?amount=500\n"
+      expected: "409 application/problem+json {\"detail\":\"Account 2 is closed\",\"instance\":\"/accounts/2/withdraw\",\"status\":409,\"title\":\"Account closed\",\"type\":\"https://example.com/problems/account-closed\"}\n422 application/problem+json {\"detail\":\"Balance 100 is less than requested 500\",\"instance\":\"/accounts/1/withdraw\",\"status\":422,\"title\":\"Insufficient funds\",\"type\":\"https://example.com/problems/insufficient-funds\",\"balance\":100,\"requested\":500}\n"
+      hint: "Закрытый счёт - 409 (account-closed), нехватка средств - 422 с полями balance и requested."
+    - id: "fixed500"
+      title: "Внутренняя ошибка"
+      stdin: "GET /accounts/1/statement\n"
+      expected: "500 application/problem+json {\"detail\":\"Unexpected error\",\"instance\":\"/accounts/1/statement\",\"status\":500,\"title\":\"Internal Server Error\"}\n"
+      hint: "Для неожиданного исключения нужен фиксированный detail Unexpected error без сообщения исключения."
+    - id: "framework"
+      title: "Ошибки фреймворка (скрытый)"
+      stdin: "POST /accounts/1/withdraw\nPOST /accounts/1/withdraw?amount=abc\nPOST /accounts/1/withdraw?amount=-5\nDELETE /accounts/1\nGET /nope\nGET /accounts/abc\n"
+      expected: "400 application/problem+json {\"detail\":\"Required parameter 'amount' is not present.\",\"instance\":\"/accounts/1/withdraw\",\"status\":400,\"title\":\"Bad Request\"}\n400 application/problem+json {\"detail\":\"Failed to convert 'amount' with value: 'abc'\",\"instance\":\"/accounts/1/withdraw\",\"status\":400,\"title\":\"Bad Request\"}\n400 application/problem+json {\"detail\":\"Amount must be positive\",\"instance\":\"/accounts/1/withdraw\",\"status\":400,\"title\":\"Bad Request\"}\n405 application/problem+json {\"detail\":\"Method 'DELETE' is not supported.\",\"instance\":\"/accounts/1\",\"status\":405,\"title\":\"Method Not Allowed\"}\n404 application/problem+json {\"detail\":\"No static resource nope.\",\"instance\":\"/nope\",\"status\":404,\"title\":\"Not Found\"}\n400 application/problem+json {\"detail\":\"Failed to convert 'id' with value: 'abc'\",\"instance\":\"/accounts/abc\",\"status\":400,\"title\":\"Bad Request\"}\n"
+      hidden: true
+      hint: "Совет должен наследовать ResponseEntityExceptionHandler: тогда 400, 404 и 405 тоже получают тело ProblemDetail."
+    - id: "leak"
+      title: "Сообщение не утекает (скрытый)"
+      stdin: "GET /accounts/1/statement\nGET /accounts/2/statement\nGET /accounts/9\n"
+      expected: "500 application/problem+json {\"detail\":\"Unexpected error\",\"instance\":\"/accounts/1/statement\",\"status\":500,\"title\":\"Internal Server Error\"}\n500 application/problem+json {\"detail\":\"Unexpected error\",\"instance\":\"/accounts/2/statement\",\"status\":500,\"title\":\"Internal Server Error\"}\n404 application/problem+json {\"detail\":\"Account 9 does not exist\",\"instance\":\"/accounts/9\",\"status\":404,\"title\":\"Account not found\",\"type\":\"https://example.com/problems/account-not-found\"}\n"
+      hidden: true
+      hint: "В 500 только Unexpected error; обработчик общего Exception не должен перехватывать исключения, для которых есть более конкретный."
+    - id: "sequence"
+      title: "Баланс до нуля (скрытый)"
+      stdin: "POST /accounts/1/withdraw?amount=100\nPOST /accounts/1/withdraw?amount=1\nGET /accounts/2\nGET /accounts/-1\nPOST /accounts/9/withdraw?amount=1\n"
+      expected: "200 application/json {\"id\":1,\"owner\":\"Ann\",\"balance\":0,\"closed\":false}\n422 application/problem+json {\"detail\":\"Balance 0 is less than requested 1\",\"instance\":\"/accounts/1/withdraw\",\"status\":422,\"title\":\"Insufficient funds\",\"type\":\"https://example.com/problems/insufficient-funds\",\"balance\":0,\"requested\":1}\n200 application/json {\"id\":2,\"owner\":\"Bob\",\"balance\":20,\"closed\":true}\n404 application/problem+json {\"detail\":\"Account -1 does not exist\",\"instance\":\"/accounts/-1\",\"status\":404,\"title\":\"Account not found\",\"type\":\"https://example.com/problems/account-not-found\"}\n404 application/problem+json {\"detail\":\"Account 9 does not exist\",\"instance\":\"/accounts/9/withdraw\",\"status\":404,\"title\":\"Account not found\",\"type\":\"https://example.com/problems/account-not-found\"}\n"
+      hidden: true
+      hint: "Списание ровно всей суммы допустимо (200); следующее - 422 с balance 0 и requested 1; несуществующий счёт при списании - 404."

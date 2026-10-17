@@ -288,6 +288,10 @@ A NuGet set is the same idea for C# (`NuGetEnvironmentService`: `dotnet restore`
 `PackageSetInstallFlow` serves it too, and Settings has a NuGet section (`NuGetEnvironmentViewModel`). `CSharpRuntime` also supports **project mode**: exactly one root `.csproj` among the exercise files is
 built as a project and its assembly run, which is how multi-file ASP.NET Core exercises (a fixed TestServer driver plus the learner's files) are graded.
 
+A Maven set is the same idea for Java (`MavenEnvironmentService`: jars from the committed `lock.json` downloaded from repo1.maven.org and verified by sha256 into `<data dir>/maven-content/<set>/lib`),
+`MavenRunSelection` rides on `ExecutionRequest.Maven`, `JavaRuntime` then compiles and runs with `-cp lib/*` (library mode), `PackageSetInstallFlow` serves it too, and Settings has a Maven section
+(`MavenEnvironmentViewModel`).
+
 **Run isolation.** A selected env replaces the auto-detected interpreter. The env directory is passed as
 `ReadOnlyPaths`: the macOS profile ends with `(deny file-write* (subpath env))` (last rule wins), bwrap uses
 `--ro-bind`. Container isolation is downgraded to OsSandbox (with a note) because the env is a host path.

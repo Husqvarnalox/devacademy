@@ -250,6 +250,27 @@ internal sealed class JavaRuntime : ILanguageRuntime
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
             new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", "-cp", "out", mainClass], workingDirectory));
     }
+
+    /// <summary>Heap cap of a run with a jar folder: the JVM would otherwise grow towards a quarter of the machine's memory, past the run's memory limit.</summary>
+    internal const string LibraryHeap = "-Xmx256m";
+
+    /// <summary>
+    /// The plan with a maven package set's jar folder on the class path (<c>lib/*</c> is expanded by the tools themselves, no shell is involved).
+    /// <c>-parameters</c> keeps parameter names for reflection, as Spring Boot's build plugins do, so <c>@PathVariable</c> needs no explicit name.
+    /// The folder is read-only for every step.
+    /// </summary>
+    public BuildPlan CreateLibraryPlan(string workingDirectory, string entryFile, RuntimeStatus status, string libPath)
+    {
+        string wildcard = Path.Combine(libPath, "*");
+        string[] readOnly = [libPath];
+        string java = Path.Combine(Path.GetDirectoryName(status.ExecutablePath!)!, OperatingSystem.IsWindows() ? "java.exe" : "java");
+        string mainClass = Path.ChangeExtension(entryFile, null)!.Replace('\\', '.').Replace('/', '.');
+        var args = new List<string> { "-encoding", "UTF-8", "-parameters", "-d", "out", "-cp", wildcard };
+        args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".java"));
+        return new BuildPlan(
+            [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, ReadOnlyPaths: readOnly)],
+            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", LibraryHeap, "-cp", "out" + Path.PathSeparator + wildcard, mainClass], workingDirectory, ReadOnlyPaths: readOnly));
+    }
 }
 
 internal sealed class CppRuntime : ILanguageRuntime, IDebugBuildRuntime

@@ -93,7 +93,7 @@
           "items": { "type": "string", "description": "Plain npm package name (scoped allowed); the installed version is pinned by the package set's package-lock.json (tools/content-packages/node/<set>).", "examples": ["vitest", "@testing-library/react"] }
         },
         "go": { "type": "string", "description": "Go toolchain version specifier (go exercises), checked against the installed `go`.", "examples": [">=1.26.5"] },
-        "memoryMb": { "type": "integer", "minimum": 256, "maximum": 1024, "default": 256, "description": "Memory limit (MB) of one run of the exercise (Run button, grading, theory samples checked by validate-content). Default 256. Only for libraries whose import alone is close to the default (PyTorch); does not change the network or write restrictions." },
+        "memoryMb": { "type": "integer", "minimum": 256, "maximum": 1024, "default": 256, "description": "Memory limit (MB) of one run of the exercise (Run button, grading, theory samples checked by validate-content). Default 256. Only for Python and Java, for libraries whose import alone is close to the default (PyTorch, a Spring Boot context); does not change the network or write restrictions." },
         "goModules": {
           "type": "array",
           "items": { "type": "string", "description": "Go module path (no version); one go package set (tools/content-packages/go/<set>/go.mod + go.sum) must provide all of them. The exercise ships its own go.mod and go.sum with the same pins.", "examples": ["github.com/gomlx/gomlx"] }
@@ -101,6 +101,10 @@
         "nugetPackages": {
           "type": "array",
           "items": { "type": "string", "description": "NuGet package id (no version); one nuget package set (tools/content-packages/nuget/<set>/restore.csproj) must provide all of them. The C# exercise ships exactly one root .csproj that references the same pinned versions; builds are offline against the set's packages folder.", "examples": ["Microsoft.AspNetCore.TestHost"] }
+        },
+        "mavenArtifacts": {
+          "type": "array",
+          "items": { "type": "string", "description": "Maven coordinates groupId:artifactId (no version); one maven package set (tools/content-packages/maven/<set>/lock.json) must provide all of them. The Java exercise compiles and runs against the set's jars (class path lib/*, read-only, no Maven, no network); javac gets -parameters. Set requires.memoryMb to 512 for a Spring Boot context.", "examples": ["org.springframework:spring-test"] }
         }
       }
     },

@@ -175,6 +175,12 @@ public sealed record GoRunSelection(string ModCachePath);
 /// </summary>
 public sealed record NuGetRunSelection(string PackagesPath);
 
+/// <summary>
+/// The jar folder of a maven package set for a run: every jar the set's <c>lock.json</c> lists, downloaded and sha256-verified by an explicit install.
+/// <c>javac</c> and <c>java</c> put <c>LibPath/*</c> on the class path and the OS sandbox may read but never write it. No Maven runs.
+/// </summary>
+public sealed record MavenRunSelection(string LibPath);
+
 public sealed record ExecutionRequest(
     string LanguageId,
     IReadOnlyList<SourceFile> Files,
@@ -192,7 +198,9 @@ public sealed record ExecutionRequest(
     /// <summary>Only honoured for language "go": builds against the module cache of a go package set, offline and read-only. Such a run never uses a container.</summary>
     GoRunSelection? Go = null,
     /// <summary>Only honoured for language "csharp": restores and builds against the packages folder of a nuget package set, offline and read-only. Such a run never uses a container.</summary>
-    NuGetRunSelection? NuGet = null);
+    NuGetRunSelection? NuGet = null,
+    /// <summary>Only honoured for language "java": compiles and runs against the jars of a maven package set, read-only. Such a run never uses a container.</summary>
+    MavenRunSelection? Maven = null);
 
 /// <summary>Entry point of the engine. Enforces a global concurrency limit and always cleans up working directories.</summary>
 public interface ICodeRunner

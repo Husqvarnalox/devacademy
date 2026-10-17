@@ -1,6 +1,7 @@
 using DevAcademy.AI;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.Maven;
 using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
@@ -48,6 +49,7 @@ public sealed class AppServices(
     NodeEnvironmentService node,
     GoEnvironmentService go,
     NuGetEnvironmentService nuget,
+    MavenEnvironmentService maven,
     ContentPackageIndex packageSets)
 {
     public AppPaths Paths { get; } = paths;
@@ -82,6 +84,7 @@ public sealed class AppServices(
     public NodeEnvironmentService Node { get; } = node;
     public GoEnvironmentService Go { get; } = go;
     public NuGetEnvironmentService NuGet { get; } = nuget;
+    public MavenEnvironmentService Maven { get; } = maven;
     public ContentPackageIndex PackageSets { get; } = packageSets;
 
     /// <summary>Delay between the last keystroke and the draft being written.</summary>

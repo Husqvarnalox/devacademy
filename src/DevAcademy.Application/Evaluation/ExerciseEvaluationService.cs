@@ -1,4 +1,5 @@
 using DevAcademy.Application.Go;
+using DevAcademy.Application.Maven;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Python;
@@ -15,17 +16,19 @@ public sealed class ExerciseEvaluationService
     private readonly INodeEnvironmentResolver? _node;
     private readonly IGoEnvironmentResolver? _go;
     private readonly INuGetEnvironmentResolver? _nuget;
+    private readonly IMavenEnvironmentResolver? _maven;
 
     public ExerciseEvaluationService(ICodeRunner runner, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null,
-        IGoEnvironmentResolver? go = null, INuGetEnvironmentResolver? nuget = null)
-        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node, go, nuget) { }
+        IGoEnvironmentResolver? go = null, INuGetEnvironmentResolver? nuget = null, IMavenEnvironmentResolver? maven = null)
+        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node, go, nuget, maven) { }
 
     public ExerciseEvaluationService(IEnumerable<IExerciseEvaluator> evaluators, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null,
-        IGoEnvironmentResolver? go = null, INuGetEnvironmentResolver? nuget = null)
+        IGoEnvironmentResolver? go = null, INuGetEnvironmentResolver? nuget = null, IMavenEnvironmentResolver? maven = null)
     {
         _node = node;
         _go = go;
         _nuget = nuget;
+        _maven = maven;
         _evaluators = evaluators.ToDictionary(e => e.Kind);
         _environment = environment;
     }
@@ -79,6 +82,16 @@ public sealed class ExerciseEvaluationService
                 return EvaluationReport.Failure(Verdict.RuntimeMissing, nugetPlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
             nugetEnv = nugetPlan.NuGet;
         }
-        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv, goEnv, nugetEnv).ConfigureAwait(false);
+        MavenRunSelection? mavenEnv = null;
+        if (exercise.NeedsMavenEnvironment)
+        {
+            if (_maven is null)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, "Для упражнения нужны библиотеки Java (Maven) курса, но окружение не подключено (make maven-env).", isolation) with { LanguageId = exercise.LanguageId };
+            MavenRunPlan mavenPlan = await _maven.ResolveAsync(exercise, ct).ConfigureAwait(false);
+            if (mavenPlan.IsBlocked)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, mavenPlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
+            mavenEnv = mavenPlan.Maven;
+        }
+        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv, goEnv, nugetEnv, mavenEnv).ConfigureAwait(false);
     }
 }

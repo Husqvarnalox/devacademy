@@ -1,6 +1,7 @@
 using DevAcademy.Application;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.Maven;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Python;
@@ -15,7 +16,8 @@ internal static class Cli
 {
     private const string Usage = """
         usage:
-          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>] [--node-env <dir>] [--go-env <dir>] [--nuget-env <dir>]]
+          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>] [--node-env <dir>] [--go-env <dir>] [--nuget-env <dir>] [--maven-env <dir>]]
+          devacademy maven-env --maven-env <dir> [--set <id>]
           devacademy python-env-check --python-env <venv dir> [--content <dir>]
           devacademy list [--content <dir>]
           devacademy runtimes
@@ -27,6 +29,11 @@ internal static class Cli
         if (args[0] == "runtimes") return args.Length == 1 ? await RuntimesAsync() : 2;
         var options = Parse(args.Skip(1).ToArray(), out var parseError);
         if (options is null) { Console.Error.WriteLine(parseError); Console.Error.WriteLine(Usage); return 2; }
+        if (args[0] == "maven-env")
+            return options.MavenEnv is not null && !options.RunSolutions && options.PythonEnv is null && options.NodeEnv is null && options.GoEnv is null && options.NuGetEnv is null && options.ContentDir is null
+                ? await MavenEnvAsync(options.MavenEnv, options.Set)
+                : UsageError("error: maven-env needs --maven-env <dir> (and optionally --set <id>)");
+        if (options.Set is not null) return UsageError("error: --set only applies to maven-env");
 
         var root = options.ContentDir ?? FileContentRepository.FindContentRoot();
         if (root is null || !File.Exists(Path.Combine(root, "catalog.yaml")))
@@ -37,8 +44,8 @@ internal static class Cli
 
         switch (args[0])
         {
-            case "validate-content" when (options.PythonEnv is not null || options.NodeEnv is not null || options.GoEnv is not null || options.NuGetEnv is not null) && !options.RunSolutions:
-                Console.Error.WriteLine("error: --python-env, --node-env, --go-env and --nuget-env only apply together with --run-solutions");
+            case "validate-content" when (options.PythonEnv is not null || options.NodeEnv is not null || options.GoEnv is not null || options.NuGetEnv is not null || options.MavenEnv is not null) && !options.RunSolutions:
+                Console.Error.WriteLine("error: --python-env, --node-env, --go-env, --nuget-env and --maven-env only apply together with --run-solutions");
                 return 2;
             case "validate-content":
                 {
@@ -97,7 +104,23 @@ internal static class Cli
                         }
                         nuget = new NuGetEnvironmentService(new SystemToolRunner(), full, packages);
                     }
-                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node, go, nuget);
+                    MavenEnvironmentService? maven = null;
+                    if (options.MavenEnv is not null)
+                    {
+                        var full = Path.GetFullPath(options.MavenEnv);
+                        if (!MavenEnvironmentService.HasInstalledSet(full))
+                        {
+                            Console.Error.WriteLine($"error: Maven environment '{options.MavenEnv}' has no installed package sets (a lib folder with jars per set subdirectory; run `make maven-env`)");
+                            return 2;
+                        }
+                        if (ContentPackageIndex.TryLoadDefault() is not { } packages)
+                        {
+                            Console.Error.WriteLine("error: tools/content-packages/index.json (the package sets) was not found next to the CLI or in a parent directory");
+                            return 2;
+                        }
+                        maven = new MavenEnvironmentService(new HttpClient(), full, packages);
+                    }
+                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node, go, nuget, maven);
                 }
             case "python-env-check" when options.PythonEnv is not null && !options.RunSolutions:
                 {
@@ -108,7 +131,7 @@ internal static class Cli
             case "python-env-check":
                 Console.Error.WriteLine("error: python-env-check needs --python-env <venv dir> (and takes no --run-solutions)");
                 return 2;
-            case "list" when !options.RunSolutions && options.PythonEnv is null && options.NodeEnv is null && options.GoEnv is null && options.NuGetEnv is null: return List(root);
+            case "list" when !options.RunSolutions && options.PythonEnv is null && options.NodeEnv is null && options.GoEnv is null && options.NuGetEnv is null && options.MavenEnv is null: return List(root);
             default: Console.Error.WriteLine(Usage); return 2;
         }
     }
@@ -126,11 +149,11 @@ internal static class Cli
         return 0;
     }
 
-    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null, string? GoEnv = null, string? NuGetEnv = null);
+    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null, string? GoEnv = null, string? NuGetEnv = null, string? MavenEnv = null, string? Set = null);
 
     internal static Options? Parse(string[] rest, out string? error)
     {
-        string? dir = null, env = null, nodeEnv = null, goEnv = null, nugetEnv = null;
+        string? dir = null, env = null, nodeEnv = null, goEnv = null, nugetEnv = null, mavenEnv = null, setId = null;
         var run = false;
         error = null;
         for (var i = 0; i < rest.Length; i++)
@@ -142,11 +165,13 @@ internal static class Cli
                 case "--node-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): nodeEnv = rest[++i]; break;
                 case "--go-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): goEnv = rest[++i]; break;
                 case "--nuget-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): nugetEnv = rest[++i]; break;
+                case "--maven-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): mavenEnv = rest[++i]; break;
+                case "--set" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): setId = rest[++i]; break;
                 case "--run-solutions": run = true; break;
                 default: error = $"error: unknown or incomplete argument '{rest[i]}'"; return null;
             }
         }
-        return new Options(dir, run, env, nodeEnv, goEnv, nugetEnv);
+        return new Options(dir, run, env, nodeEnv, goEnv, nugetEnv, mavenEnv, setId);
     }
 
     /// <summary>Finds the interpreter of a venv directory (bin/python or Scripts/python.exe) and checks that it answers.</summary>
@@ -219,11 +244,11 @@ internal static class Cli
         return 0;
     }
 
-    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null, GoEnvironmentService? go = null, NuGetEnvironmentService? nuget = null)
+    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null, GoEnvironmentService? go = null, NuGetEnvironmentService? nuget = null, MavenEnvironmentService? maven = null)
     {
         var result = ContentLoader.Load(root);
         var diagnostics = result.Diagnostics.ToList();
-        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node, go, nuget));
+        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node, go, nuget, maven));
         else if (runSolutions) Console.WriteLine("skipping --run-solutions: fix content errors first");
 
         foreach (var d in diagnostics.OrderBy(d => d.Path, StringComparer.Ordinal).ThenBy(d => d.Severity))
@@ -242,12 +267,12 @@ internal static class Cli
         return string.Join(" and ", parts);
     }
 
-    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget)
+    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget, MavenEnvironmentService? maven)
     {
         var diagnostics = new List<ContentDiagnostic>();
         var runner = ExecutionEngine.CreateDefault();
         var resolver = manager is not null && python is not null ? new ExternalEnvironmentResolver(manager, python) : null;
-        var service = new ExerciseEvaluationService(runner, resolver, node, go, nuget);
+        var service = new ExerciseEvaluationService(runner, resolver, node, go, nuget, maven);
         var missing = new HashSet<string>(StringComparer.Ordinal);
 
         void Add(DiagnosticSeverity s, Lesson l, string msg) => diagnostics.Add(new ContentDiagnostic(s, l.SourcePath, msg));
@@ -283,6 +308,12 @@ internal static class Cli
                         Add(DiagnosticSeverity.Warning, lesson, $"{tag}: needs NuGet packages ({string.Join(", ", ex.Requires?.NuGet ?? [])}); pass --nuget-env <dir> (make nuget-env): solution and starter were not run");
                         continue;
                     }
+                    var needsMaven = ex.NeedsMavenEnvironment;
+                    if (needsMaven && maven is null)
+                    {
+                        Add(DiagnosticSeverity.Warning, lesson, $"{tag}: needs Maven libraries ({string.Join(", ", ex.Requires?.Maven ?? [])}); pass --maven-env <dir> (make maven-env): solution and starter were not run");
+                        continue;
+                    }
                     if (needsEnv && resolver is null)
                     {
                         Add(DiagnosticSeverity.Warning, lesson, $"{tag}: requires {DescribeRequirements(ex.Requires!)}; pass --python-env <venv dir> (make python-env): solution and starter were not run");
@@ -311,6 +342,11 @@ internal static class Cli
                         Add(DiagnosticSeverity.Error, lesson, $"{tag}: the Go environment cannot run it: {First(solution.Message ?? "")}");
                         continue;
                     }
+                    if (solution.Status == Verdict.RuntimeMissing && needsMaven)
+                    {
+                        Add(DiagnosticSeverity.Error, lesson, $"{tag}: the Maven environment cannot run it: {First(solution.Message ?? "")}");
+                        continue;
+                    }
                     if (solution.Status == Verdict.RuntimeMissing && needsNuGet)
                     {
                         Add(DiagnosticSeverity.Error, lesson, $"{tag}: the NuGet environment cannot run it: {First(solution.Message ?? "")}");
@@ -330,6 +366,7 @@ internal static class Cli
             var lessonRequires = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.HasRequirements)?.Requires;
             var warnedSamples = false;
             var nodeExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNodeEnvironment);
+            var mavenExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsMavenEnvironment);
             var nugetExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNuGetEnvironment);
             var goExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsGoEnvironment);
             foreach (var sample in lesson.Theory.Samples.Where(s => s.ExpectedOutput is not null))
@@ -392,14 +429,28 @@ internal static class Cli
                     sampleNuGet = nugetPlan.NuGet;
                     sampleFiles.AddRange(nugetExercise.Solution.Where(f => !f.Path.Contains('/') && f.Path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).Select(f => new SourceFile(f.Path, f.Content)));
                 }
+                // A Java sample that uses a maven package set is a single self-contained Main.java compiled against the set's jars, as the lesson's exercise is.
+                MavenRunSelection? sampleMaven = null;
+                if (sample.LanguageId == "java" && mavenExercise is not null)
+                {
+                    if (maven is null)
+                    {
+                        if (!warnedSamples) Add(DiagnosticSeverity.Warning, lesson, "code samples (java) use Maven libraries; pass --maven-env <dir> (make maven-env): they were not run");
+                        warnedSamples = true;
+                        continue;
+                    }
+                    var mavenPlan = await maven.ResolveAsync(mavenExercise, CancellationToken.None);
+                    if (mavenPlan.BlockedMessage is not null) { Add(DiagnosticSeverity.Error, lesson, $"code sample (java): {First(mavenPlan.BlockedMessage)}"); continue; }
+                    sampleMaven = mavenPlan.Maven;
+                }
                 sampleFiles.Add(new SourceFile(file, sample.Code));
                 var run = await runner.RunOnceAsync(
-                    new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet),
+                    new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet, sampleMaven),
                     null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                 if (run.Status == ExecutionStatus.Timeout)
                 {
                     run = await runner.RunOnceAsync(
-                        new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet),
+                        new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet, sampleMaven),
                         null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                     if (run.IsSuccess) Add(DiagnosticSeverity.Warning, lesson, $"code sample ({sample.LanguageId}) timed out and passed only on retry (machine under load?)");
                 }
@@ -411,6 +462,43 @@ internal static class Cli
             }
         }
         return diagnostics;
+    }
+
+    private static int UsageError(string message)
+    {
+        Console.Error.WriteLine(message);
+        Console.Error.WriteLine(Usage);
+        return 2;
+    }
+
+    /// <summary>
+    /// <c>make maven-env</c>: downloads every Maven package set (or the one named by <paramref name="onlySet"/>) into <paramref name="directory"/>/&lt;set&gt;/lib, exactly as the app does
+    /// after the learner confirms: only the jars of the committed lock.json, each verified by sha256. This is the only command that uses the network.
+    /// </summary>
+    internal static async Task<int> MavenEnvAsync(string directory, string? onlySet, HttpMessageHandler? handler = null)
+    {
+        if (ContentPackageIndex.TryLoadDefault() is not { } packages)
+        {
+            Console.Error.WriteLine("error: tools/content-packages/index.json (the package sets) was not found next to the CLI or in a parent directory");
+            return 2;
+        }
+        var sets = packages.For(PackageSetLanguage.Maven).Where(s => onlySet is null || s.Id == onlySet).ToList();
+        if (sets.Count == 0)
+        {
+            Console.Error.WriteLine(onlySet is null ? "error: the index has no Maven package sets" : $"error: no Maven package set '{onlySet}'");
+            return 2;
+        }
+        using var http = handler is null ? new HttpClient { Timeout = TimeSpan.FromMinutes(10) } : new HttpClient(handler, disposeHandler: false);
+        var service = new MavenEnvironmentService(http, directory, packages);
+        foreach (var set in sets)
+        {
+            var (plan, error) = service.PlanInstall(set);
+            if (plan is null) { Console.Error.WriteLine("error: " + error); return 1; }
+            Console.WriteLine($"{set.Id}: {plan.JarCount} jars, {plan.TotalBytes / 1024.0 / 1024.0:0.0} MB from {plan.Host} into {plan.LibPath}");
+            var result = await service.InstallAsync(plan, line => Console.WriteLine("  " + line), CancellationToken.None);
+            if (!result.Ok) { Console.Error.WriteLine("error: " + (result.Error ?? "cancelled")); return 1; }
+        }
+        return 0;
     }
 
     /// <summary>The evaluators report a run over its wall limit as "Time limit exceeded" (IoEvaluator, CommandEvaluator).</summary>

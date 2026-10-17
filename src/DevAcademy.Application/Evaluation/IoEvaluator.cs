@@ -9,9 +9,9 @@ public sealed class IoEvaluator(ICodeRunner runner) : IExerciseEvaluator
     public EvaluationKind Kind => EvaluationKind.Io;
 
     public async Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null, NuGetRunSelection? nuget = null)
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null, NuGetRunSelection? nuget = null, MavenRunSelection? maven = null)
     {
-        var request = new ExecutionRequest(exercise.LanguageId, EvaluatorSupport.ToSource(learnerFiles), exercise.EntryFile, isolation, python, Go: go, NuGet: nuget);
+        var request = new ExecutionRequest(exercise.LanguageId, EvaluatorSupport.ToSource(learnerFiles), exercise.EntryFile, isolation, python, Go: go, NuGet: nuget, Maven: maven);
         await using var program = await runner.PrepareAsync(request, ct);
         if (program.PreparationFailure is { } failure) return EvaluatorSupport.FromPreparationFailure(failure);
 

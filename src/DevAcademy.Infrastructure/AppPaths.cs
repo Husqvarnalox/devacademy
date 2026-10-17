@@ -20,6 +20,7 @@ public sealed class AppPaths
     public string NodeContentDir => Path.Combine(DataDir, "node-content");
     public string GoContentDir => Path.Combine(DataDir, "go-content");
     public string NuGetContentDir => Path.Combine(DataDir, "nuget-content");
+    public string MavenContentDir => Path.Combine(DataDir, "maven-content");
 
     private static string DefaultDataDir()
     {

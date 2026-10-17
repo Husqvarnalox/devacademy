@@ -1,0 +1,187 @@
+id: "java.spring.beans-dependency-injection"
+title: "Бины и внедрение зависимостей"
+goal: "Понимать, как контейнер Spring создаёт и связывает объекты: стереотипы и сканирование, внедрение через конструктор, выбор между реализациями, области видимости, методы @Bean и жизненный цикл."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "java.spring.request-bodies-validation"
+related:
+  - "csharp.aspnetcore.dependency-injection"
+next:
+  - "java.spring.configuration-properties"
+objectives:
+  - "Объяснять, что такое бин и контейнер, и регистрировать бины стереотипами (@Component, @Service, @Repository) и методами @Bean."
+  - "Внедрять зависимости через единственный конструктор и объяснять, чем это лучше внедрения в поле."
+  - "Выбирать из нескольких реализаций интерфейса через @Primary, @Qualifier, List<T> с @Order и Map<String, T>."
+  - "Различать singleton, prototype и @RequestScope и получать новый prototype-объект внутри singleton через ObjectProvider."
+  - "Использовать @PostConstruct, узнавать ошибки связывания (NoUniqueBeanDefinitionException, циклическая зависимость) и исправлять их."
+masteryCriteria:
+  - "Вы называете причину падения запуска по исключению: два подходящих бина, ни одного, цикл."
+  - "Вы предсказываете, сколько объектов будет создано для singleton, prototype и @RequestScope при нескольких запросах."
+  - "Вы пишете сервис с зависимостями через конструктор и подставляете в него тестовую реализацию без контейнера."
+tags:
+  - "java"
+  - "spring-boot"
+  - "dependency-injection"
+  - "ioc"
+  - "beans"
+facts:
+  - kind: "internals"
+    text: "Контейнер Spring (ApplicationContext) создаёт объекты-бины, внедряет в них зависимости и управляет жизненным циклом. Классы со стереотипами @Component, @Service, @Repository, @Controller находятся сканированием пакета @SpringBootApplication и его подпакетов; имя бина по умолчанию - имя класса с маленькой буквы."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/core/beans/classpath-scanning.html"
+      - "https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html"
+  - kind: "internals"
+    text: "Область видимости бина по умолчанию - singleton: один объект на контейнер. Prototype создаёт новый объект при каждом обращении к контейнеру, @RequestScope - один на HTTP-запрос; для внедрения request-бина в singleton Spring подставляет прокси."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/core/beans/factory-scopes.html"
+  - kind: "misconception"
+    text: "«Prototype-бин в singleton даёт новый объект при каждом вызове». Нет: зависимость внедряется один раз при создании singleton, поэтому prototype в конструкторе singleton - это один и тот же объект. Новый объект при каждом использовании даёт ObjectProvider<T> (getObject()) или метод-фабрика."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/core/beans/factory-scopes.html"
+      - "https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-method-injection.html"
+  - kind: "real-world"
+    text: "Документация Spring рекомендует внедрение через конструктор для обязательных зависимостей: объект неизменяем и не создаётся в неполном состоянии. Если у класса единственный конструктор, @Autowired не нужен; Spring Boot по умолчанию запрещает циклические ссылки между бинами."
+    sources:
+      - "https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html"
+      - "https://docs.spring.io/spring-framework/reference/core/beans/annotation-config/autowired.html"
+      - "https://docs.spring.io/spring-boot/reference/features/spring-application.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Интерфейс Notifier реализуют два бина без @Primary, а конструктор сервиса просит один Notifier. Что произойдёт?"
+      options:
+        - "Запуск контекста упадёт с NoUniqueBeanDefinitionException"
+        - "Spring выберет первый по алфавиту"
+        - "Выберется случайный бин при каждом запросе"
+        - "Сервис получит null"
+      answer: 0
+      explanation: "Spring не угадывает: при двух подходящих бинах нужен @Primary, @Qualifier или параметр-коллекция. Ошибка видна при старте."
+    - id: "q2"
+      type: "single"
+      prompt: "Prototype-бин внедрён в singleton-сервис через конструктор. Сколько объектов prototype будет использовано за 100 вызовов сервиса?"
+      options:
+        - "Один"
+        - "Сто"
+        - "Столько, сколько потоков"
+        - "Ни одного, это ошибка запуска"
+      answer: 0
+      explanation: "Зависимость внедряется один раз при создании singleton. Новый объект при каждом использовании даёт ObjectProvider<T>."
+    - id: "q3"
+      type: "single"
+      prompt: "В классе с @Configuration (по умолчанию) метод car() вызывает engine(), оба помечены @Bean. Сколько объектов Engine будет создано?"
+      options:
+        - "Один: вызов вернёт бин контейнера"
+        - "Два: бин и копия в car()"
+        - "Столько, сколько вызовов car()"
+        - "Ни одного"
+      answer: 0
+      explanation: "Конфигурационный класс проксируется (proxyBeanMethods = true), и вызов engine() возвращает существующий бин. С proxyBeanMethods = false вызов был бы обычным."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения о внедрении через конструктор верны?"
+      options:
+        - "Поля зависимостей можно сделать final"
+        - "При единственном конструкторе @Autowired не нужен"
+        - "Объект легко создать в тесте без контейнера через new"
+        - "Он позволяет без проблем создавать циклические зависимости"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Цикл между конструкторами создать нельзя: Spring сообщит BeanCurrentlyInCreationException. Остальные три утверждения верны."
+    - id: "q5"
+      type: "single"
+      prompt: "Бины SmsNotifier с @Order(1), EmailNotifier с @Order(2), PushNotifier с @Order(3) внедряются в List<Notifier>. В каком порядке они будут в списке?"
+      options:
+        - "Sms, Email, Push"
+        - "Email, Push, Sms"
+        - "Push, Email, Sms"
+        - "Порядок не определён"
+      answer: 0
+      explanation: "Меньшее значение @Order идёт раньше, а не порядок по алфавиту или регистрации."
+exercise:
+  id: "java.spring.beans-dependency-injection.exercise"
+  title: "Магазин: цены, уведомления, билеты"
+  prompt: |
+    Приложение в `demo/App.java` - это маленький магазин, собранный из бинов. Проверка поднимает Spring Boot без веб-сервера и подаёт запросы через MockMvc: порт не открывается. Одна строка ввода - один запрос, `demo/Main.java` печатает код состояния, тип содержимого и тело. Контроллеры и сервисы написаны, но контейнер собирает их неправильно: расставьте недостающие аннотации и настройки (комментарии `TODO 1` ... `TODO 7`), логику методов менять не нужно.
+
+    Что должно получиться:
+
+    1. **`GET /quote?sku=pen&qty=3[&policy=bulk]`** - расчёт цены. Политик скидок три: `standard` (без скидки, основная при `@Primary`), `seasonal` (90 процентов суммы) и `bulk` (80 процентов); `PricingService` получает их все как `Map<String, DiscountPolicy>` по имени бина. Налог считает `TaxCalculator`: он из «библиотеки», поэтому регистрируется методом `@Bean` со ставкой **20**. Цены читает `Catalog` при создании бина (`@PostConstruct`): `pen` - 100, `book` - 1250, `lamp` - 3999 (в копейках). Неизвестная политика - 400, неизвестный `sku` - 404.
+    2. **`GET /promo?sku=book`** - цена и акционная цена. `PromoService` всегда считает по политике `seasonal` (через `@Qualifier`), а не по основной.
+    3. **`GET /notify/{user}`** - сообщения всех `Notifier` в порядке `@Order`: сначала `push`, потом `sms`, потом `email`.
+    4. **`POST /queues/{name}/tickets`** - выдаёт следующий номер билета в очереди. Каждая очередь должна иметь **свой** счётчик (бин `TicketCounter` типа prototype, который `QueueService` берёт через `ObjectProvider`).
+    5. **`GET /trace`** - список шагов, записанных двумя сервисами в одном запросе. Шаги хранит `RequestTrace`: он должен жить **один запрос**, поэтому второй вызов `/trace` не видит шагов первого.
+
+    **Пример ввода**
+
+    ```
+    GET /quote?sku=pen&qty=3
+    POST /queues/a/tickets
+    POST /queues/b/tickets
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"sku":"pen","qty":3,"subtotal":300,"discounted":300,"tax":60,"total":360,"policy":"standard"}
+    201 application/json {"queue":"a","number":1}
+    201 application/json {"queue":"b","number":1}
+    ```
+
+    **Что дано.** Решение собирается и запускается, но налог равен нулю, каталог пуст, политики `seasonal` и `bulk` не являются бинами, а у очередей общий счётчик. Файл `demo/Main.java` менять не нужно.
+  entryFile: "demo/Main.java"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    memoryMb: 512
+    mavenArtifacts: ["org.springframework.boot:spring-boot-starter-webmvc", "org.springframework:spring-test"]
+  hints:
+    - "TODO 1 и 2: бином класс делает стереотип с именем: @Component(\"seasonal\") и @Component(\"bulk\"). Метод @Bean в ShopConfig должен вернуть new TaxCalculator(20)."
+    - "TODO 3: метод load() каталога нужно пометить @PostConstruct (jakarta.annotation.PostConstruct), чтобы контейнер вызвал его после создания бина. TODO 4: параметр конструктора PromoService уточните аннотацией @Qualifier(\"seasonal\")."
+    - "TODO 5: порядок в List<Notifier> задаёт @Order(число) на классах: PushNotifier - 1, SmsNotifier - 2, EmailNotifier - 3."
+    - "TODO 6 и 7: на TicketCounter добавьте @Scope(\"prototype\"), на RequestTrace - @RequestScope (org.springframework.web.context.annotation.RequestScope)."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "GET /quote?sku=pen&qty=3\nPOST /queues/a/tickets\nPOST /queues/b/tickets\n"
+      expected: "200 application/json {\"sku\":\"pen\",\"qty\":3,\"subtotal\":300,\"discounted\":300,\"tax\":60,\"total\":360,\"policy\":\"standard\"}\n201 application/json {\"queue\":\"a\",\"number\":1}\n201 application/json {\"queue\":\"b\",\"number\":1}\n"
+      hint: "standard без скидки: 300 плюс налог 60; у каждой очереди счёт начинается с 1."
+    - id: "policies"
+      title: "Политики и налог"
+      stdin: "GET /quote?sku=lamp&qty=1&policy=seasonal\nGET /quote?sku=book&qty=2&policy=bulk\nGET /promo?sku=book\n"
+      expected: "200 application/json {\"sku\":\"lamp\",\"qty\":1,\"subtotal\":3999,\"discounted\":3599,\"tax\":719,\"total\":4318,\"policy\":\"seasonal\"}\n200 application/json {\"sku\":\"book\",\"qty\":2,\"subtotal\":2500,\"discounted\":2000,\"tax\":400,\"total\":2400,\"policy\":\"bulk\"}\n200 application/json {\"sku\":\"book\",\"price\":1250,\"promo\":1125}\n"
+      hint: "seasonal и bulk должны быть бинами; налог - 20 процентов от суммы со скидкой; promo всегда seasonal."
+    - id: "notify"
+      title: "Порядок уведомлений"
+      stdin: "GET /notify/ann\nGET /notify/bob\n"
+      expected: "200 application/json [\"push:ann\",\"sms:ann\",\"email:ann\"]\n200 application/json [\"push:bob\",\"sms:bob\",\"email:bob\"]\n"
+      hint: "List<Notifier> упорядочивает @Order: push, sms, email."
+    - id: "queues"
+      title: "Счётчики очередей (скрытый)"
+      stdin: "POST /queues/a/tickets\nPOST /queues/a/tickets\nPOST /queues/b/tickets\nPOST /queues/a/tickets\nPOST /queues/b/tickets\n"
+      expected: "201 application/json {\"queue\":\"a\",\"number\":1}\n201 application/json {\"queue\":\"a\",\"number\":2}\n201 application/json {\"queue\":\"b\",\"number\":1}\n201 application/json {\"queue\":\"a\",\"number\":3}\n201 application/json {\"queue\":\"b\",\"number\":2}\n"
+      hidden: true
+      hint: "Prototype-бин создаётся на каждую очередь отдельно: a идёт 1, 2, 3, b - 1, 2."
+    - id: "trace"
+      title: "Область запроса (скрытый)"
+      stdin: "GET /trace\nGET /trace\nGET /trace\n"
+      expected: "200 application/json [\"audit:start\",\"billing:fee\"]\n200 application/json [\"audit:start\",\"billing:fee\"]\n200 application/json [\"audit:start\",\"billing:fee\"]\n"
+      hidden: true
+      hint: "RequestTrace с @RequestScope создаётся заново на каждый запрос, поэтому список не растёт."
+    - id: "errors"
+      title: "Ошибки и методы (скрытый)"
+      stdin: "GET /quote?sku=pen&qty=1&policy=nope\nGET /quote?sku=ghost&qty=1\nGET /quote?sku=pen\nGET /promo?sku=ghost\nDELETE /quote\nGET /queues/a/tickets\n"
+      expected: "400 -\n404 -\n400 -\n404 -\n405 -\n405 -\n"
+      hidden: true
+      hint: "Неизвестная политика - 400, неизвестный sku - 404, нет qty - 400; неверные методы дают 405."
+    - id: "catalog"
+      title: "Каталог и скидки (скрытый)"
+      stdin: "GET /quote?sku=book&qty=1\nGET /quote?sku=lamp&qty=2&policy=bulk\nGET /quote?sku=pen&qty=10&policy=seasonal\nGET /promo?sku=pen\nGET /promo?sku=lamp\n"
+      expected: "200 application/json {\"sku\":\"book\",\"qty\":1,\"subtotal\":1250,\"discounted\":1250,\"tax\":250,\"total\":1500,\"policy\":\"standard\"}\n200 application/json {\"sku\":\"lamp\",\"qty\":2,\"subtotal\":7998,\"discounted\":6398,\"tax\":1279,\"total\":7677,\"policy\":\"bulk\"}\n200 application/json {\"sku\":\"pen\",\"qty\":10,\"subtotal\":1000,\"discounted\":900,\"tax\":180,\"total\":1080,\"policy\":\"seasonal\"}\n200 application/json {\"sku\":\"pen\",\"price\":100,\"promo\":90}\n200 application/json {\"sku\":\"lamp\",\"price\":3999,\"promo\":3599}\n"
+      hidden: true
+      hint: "Каталог заполняется в @PostConstruct; суммы считаются целочисленно."

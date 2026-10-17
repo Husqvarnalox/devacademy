@@ -1,3 +1,4 @@
+using DevAcademy.Domain;
 using DevAcademy.Execution;
 using CliMain = global::Cli;
 
@@ -241,4 +242,51 @@ public class ValidateWithRequirementsTests : IDisposable
     }
 
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
+}
+
+public class MavenCliTests
+{
+    [Fact]
+    public void Parses_maven_env_and_set()
+    {
+        var o = CliMain.Parse(["--run-solutions", "--maven-env", ".maven-content"], out var error);
+        Assert.Null(error);
+        Assert.Equal(".maven-content", o!.MavenEnv);
+        Assert.Null(CliMain.Parse(["--run-solutions"], out _)!.MavenEnv);
+        var s = CliMain.Parse(["--maven-env", "d", "--set", "spring-boot-web-test"], out _);
+        Assert.Equal("spring-boot-web-test", s!.Set);
+    }
+
+    [Theory]
+    [InlineData("--maven-env")]
+    [InlineData("--maven-env", "--run-solutions")]
+    [InlineData("--set")]
+    public void Incomplete_maven_arguments_are_rejected(params string[] args)
+    {
+        Assert.Null(CliMain.Parse(args, out var error));
+        Assert.StartsWith("error:", error);
+    }
+
+    [Fact]
+    public async Task Maven_env_downloads_the_set_from_the_lock_and_verifies_hashes_with_a_fake_server()
+    {
+        var packages = ContentPackageIndex.TryLoadDefault()!;
+        var set = packages.For(PackageSetLanguage.Maven).First();
+        var dir = Path.Combine(Path.GetTempPath(), "devacademy-cli-maven-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            // Every request is answered with the same wrong bytes: the very first jar must fail its size or sha256 check and nothing may be kept.
+            var code = await CliMain.MavenEnvAsync(dir, set.Id, new WrongBytesHandler());
+            Assert.Equal(1, code);
+            var lib = Path.Combine(dir, set.Id, "lib");
+            Assert.Empty(Directory.Exists(lib) ? Directory.GetFiles(lib) : []);
+        }
+        finally { try { Directory.Delete(dir, true); } catch (IOException) { } }
+    }
+
+    private sealed class WrongBytesHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3]) });
+    }
 }

@@ -356,9 +356,12 @@ tracks:
     title: Spring Boot
     description: >-
       Фреймворк для Java-приложений: контейнер Spring и внедрение зависимостей, автоконфигурация, веб-слой, доступ к данным через Spring Data,
-      транзакции, тестирование. Предполагает знание Java.
+      транзакции, тестирование. Предполагает знание Java. Доступен курс «Spring Boot: основы» (Spring Boot 4: контроллеры и маршрутизация, тела запросов
+      и валидация, внедрение зависимостей и бины, конфигурационные свойства и профили, ProblemDetail, тесты через MockMvc). Spring Data, базы данных,
+      Spring Security и реактивный WebFlux пока не входят. Проверки упражнений используют библиотеки Maven Central (скачиваются один раз по запросу).
     languageId: java
-    status: planned
+    status: available
+    courses: [spring-boot-fundamentals]
   - id: aspnet-core
     kind: framework
     title: ASP.NET Core

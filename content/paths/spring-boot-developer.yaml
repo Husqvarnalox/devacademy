@@ -1,0 +1,12 @@
+id: spring-boot-developer
+title: Spring Boot-разработчик (начальный уровень)
+description: "Путь к основам серверной разработки на Spring Boot 4. «Java: первые шаги» и «Java: язык и платформа JVM», затем «Spring Boot: основы»: контроллеры и маршрутизация, тела запросов и валидация, бины и внедрение зависимостей, конфигурационные свойства и профили, обработка ошибок и ProblemDetail, тесты через MockMvc и небольшой CRUD-сервис. Spring Data и базы данных, Spring Security и WebFlux пока не входят. Для проверок упражнений нужен набор библиотек курса с Maven Central (Настройки - Среды выполнения; Maven на компьютере не нужен)."
+goal: backend
+targets: [spring-boot-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [java-first-steps]
+  - title: Язык и платформа JVM
+    courses: [java-fundamentals]
+  - title: Spring Boot
+    courses: [spring-boot-fundamentals]

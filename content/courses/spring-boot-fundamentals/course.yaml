@@ -1,0 +1,46 @@
+id: spring-boot-fundamentals
+version: 1.0.0
+title: "Spring Boot: основы"
+description: >-
+  Курс по Spring Boot 4 для тех, кто прошёл «Java: язык и платформа JVM». Семь уроков: контроллеры и маршрутизация Spring MVC, тела запросов и
+  валидация, внедрение зависимостей и бины, конфигурационные свойства и профили, обработка ошибок и ProblemDetail, тестирование через MockMvc
+  и небольшой CRUD-сервис. Все упражнения собираются и проверяются настоящим Spring Boot в песочнице без сети: контекст приложения
+  поднимается без веб-сервера, а запросы подаются прямо в DispatcherServlet через MockMvc, порт не открывается. Для этого один раз нужно
+  скачать набор библиотек курса с Maven Central (Настройки - Среды выполнения, около 18 МБ; Maven на компьютере не нужен). Spring Data и базы
+  данных, Spring Security, реактивный WebFlux, Actuator и развёртывание в курс не входят.
+languageId: java
+level: 2
+track: spring-boot
+requires: [java-fundamentals]
+lessons:
+  - 01-controllers-and-mapping
+  - 02-request-bodies-validation
+  - 03-beans-dependency-injection
+  - 04-configuration-properties
+  - 05-error-handling-problem-detail
+  - 06-testing-with-mockmvc
+  - 07-crud-service
+framework:
+  id: spring-boot
+  version: "4.1.x"
+  docs:
+    - https://docs.spring.io/spring-boot/reference/index.html
+    - https://docs.spring.io/spring-framework/reference/web/webmvc.html
+    - https://docs.spring.io/spring-framework/reference/testing/mockmvc.html
+    - https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide
+  compatibility: "Spring Boot 4.1.1 (Spring Framework 7.0.9, Jakarta EE 11, Jackson 3, Hibernate Validator 9.1) на JDK 17 и новее (проверено на JDK 22); версии закреплены в tools/content-packages/maven/spring-boot-web-test/lock.json. Только Spring MVC в сервлетном окружении; веб-сервер (Tomcat) не используется, запросы подаются через MockMvc."
+  deprecated:
+    - feature: "Конфигурация через XML и WebMvcConfigurerAdapter"
+      status: deprecated
+      note: "Начиная со Spring 5 конфигурация задаётся классами с @Configuration и @Bean, а вместо WebMvcConfigurerAdapter реализуют интерфейс WebMvcConfigurer. XML-конфигурация работает, но для новых проектов не рекомендуется."
+    - feature: "Jackson 2 (пакет com.fasterxml.jackson)"
+      status: changed
+      note: "Spring Boot 4 использует Jackson 3: пакеты tools.jackson.* вместо com.fasterxml.jackson.*, аннотации остались в com.fasterxml.jackson.annotation. Примеры из статей для Spring Boot 3 с импортами com.fasterxml.jackson.databind нужно переносить."
+    - feature: "Модульная структура Spring Boot 4"
+      status: changed
+      note: "Начиная с Spring Boot 4.0 автоконфигурация разделена на модули (spring-boot-webmvc, spring-boot-validation и другие), а spring-boot-starter-web заменён стартером spring-boot-starter-webmvc."
+  migrationNotes: |
+    **Версии Spring Boot.** Содержимое курса проверено на Spring Boot 4.1. Для следующей мажорной версии нужно новое издание курса: примеры не обновляются «молча».
+
+    * Сверяйтесь с руководством по переходу: https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide
+    * Набор библиотек курса (tools/content-packages/maven/spring-boot-web-test) фиксирует версии и контрольные суммы jar-файлов.

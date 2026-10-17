@@ -2,6 +2,7 @@ using DevAcademy.AI;
 using DevAcademy.AI.Http;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.Maven;
 using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
@@ -74,10 +75,14 @@ public static class Bootstrapper
         services.AddSingleton(sp => CreateNuGetEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
         services.AddSingleton<INuGetEnvironmentResolver>(sp => sp.GetRequiredService<NuGetEnvironmentService>());
 
+        // Maven content environment (jars of a package set, e.g. Spring Boot + MockMvc): downloaded and sha256-verified only on an explicit, confirmed action, read-only at grading time.
+        services.AddSingleton(sp => CreateMavenEnvironment(sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
+        services.AddSingleton<IMavenEnvironmentResolver>(sp => sp.GetRequiredService<MavenEnvironmentService>());
+
         services.AddSingleton<CatalogService>();
         services.AddSingleton<LearningPathService>();
-        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>()));
-        services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>()));
+        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>(), sp.GetRequiredService<IMavenEnvironmentResolver>()));
+        services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>(), sp.GetRequiredService<IMavenEnvironmentResolver>()));
         services.AddSingleton<ProgressService>();
         services.AddSingleton<HintService>();
         services.AddSingleton<ProblemService>();
@@ -149,6 +154,16 @@ public static class Bootstrapper
             : NuGetEnvironmentService.HasInstalledSet(paths.NuGetContentDir) ? paths.NuGetContentDir
             : NuGetEnvironmentService.FindRepositoryEnvironment() ?? paths.NuGetContentDir;
         return new NuGetEnvironmentService(tools, env, packages);
+    }
+
+    /// <summary>Same rule as the NuGet environment: <c>DEVACADEMY_MAVEN_ENV</c>, else the app data directory once a set is installed there, else a checkout's <c>.maven-content</c>, else the app data directory.</summary>
+    private static MavenEnvironmentService CreateMavenEnvironment(AppPaths paths, ContentPackageIndex packages)
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("DEVACADEMY_MAVEN_ENV");
+        var env = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv
+            : MavenEnvironmentService.HasInstalledSet(paths.MavenContentDir) ? paths.MavenContentDir
+            : MavenEnvironmentService.FindRepositoryEnvironment() ?? paths.MavenContentDir;
+        return new MavenEnvironmentService(new HttpClient { Timeout = TimeSpan.FromMinutes(10) }, env, packages);
     }
 
     private static ProviderRegistry CreateRegistry(AiHttp http, ISettingsRepository settings)
