@@ -53,7 +53,8 @@
     "title": "PyTorch (CPU)",
     "language": "python",
     "description": "PyTorch для процессора вместе с NumPy: тензоры, autograd, nn.Module и обучение небольших сетей.",
-    "packages": ["numpy", "torch"]
+    "packages": ["numpy", "torch"],
+    "platforms": ["osx-arm64", "linux-x64", "linux-arm64", "win-x64"]
   },
   {
     "id": "gomlx",

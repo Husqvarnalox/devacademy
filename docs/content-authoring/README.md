@@ -466,6 +466,14 @@ versions must be identical across sets); Python sets are `python/<id>.txt` with 
 the top-level module paths). Current sets: node `react`, `typescript`,
 `express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`; nuget `aspnetcore-testing`; maven `spring-boot-web-test`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
 
+A set may carry an optional `platforms` list of the .NET RIDs it can be installed on (`osx-arm64`, `osx-x64`, `linux-x64`, `linux-arm64`, `win-x64`,
+`win-arm64`); absent means every platform. Use it when an upstream library has no builds for a platform (`pytorch`: PyTorch publishes no macOS Intel wheels, so
+its set lists `osx-arm64`, `linux-x64`, `linux-arm64`, `win-x64`). On an unsupported platform the app offers no Install button and says why, Settings shows the set as
+unavailable, and `devacademy validate-content --run-solutions` skips the affected solutions and samples with a Warning (`package set '<id>' is not available on
+<rid>`) instead of an Error; `python-env-check` lists such packages as "unsupported on <rid>", not MISSING. Structural validation ignores `platforms`. A Python
+set whose requirements file must still install everywhere (via `tools/python-dev-requirements.txt`) puts a PEP 508 environment marker on the affected line
+(`torch==2.14.1; sys_platform != "darwin" or platform_machine != "x86_64"`; markers have no `not`).
+
 An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node; `requires.goModules` for Go; `requires.nugetPackages` for C#; `requires.mavenArtifacts` for Java) must be
 covered by ONE set of the right language: the smallest covering set wins, ties go to index order. The validator reports an error for an
 exercise no set covers, so when adding a course that needs a new package, add it to an existing set (or create a set) in the same change.

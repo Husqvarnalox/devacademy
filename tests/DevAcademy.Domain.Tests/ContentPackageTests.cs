@@ -182,4 +182,67 @@ public class ContentPackageIndexTests
         }
         finally { Directory.Delete(dir, true); }
     }
+
+    private static readonly string[] ArmLinuxWindows = ["osx-arm64", "linux-x64", "linux-arm64", "win-x64"];
+
+    [Fact]
+    public void PlatformsAreParsedAndAbsentMeansEveryPlatform()
+    {
+        Assert.True(ContentPackageIndex.TryParse(
+            """[ { "id": "pytorch", "title": "t", "language": "python", "packages": ["torch"], "platforms": ["osx-arm64", "linux-x64", "linux-arm64", "win-x64"] }, { "id": "numpy", "title": "n", "language": "python", "packages": ["numpy"] } ]""", null, out var parsed, out var error), error);
+        Assert.Equal(ArmLinuxWindows, parsed.Sets[0].Platforms);
+        Assert.Null(parsed.Sets[1].Platforms);
+        Assert.True(parsed.Sets[0].IsSupportedOn("linux-x64"));
+        Assert.False(parsed.Sets[0].IsSupportedOn("osx-x64"));
+        Assert.True(parsed.Sets[1].IsSupportedOn("osx-x64"));
+    }
+
+    [Theory]
+    [InlineData("""[ { "id": "a", "title": "t", "language": "python", "packages": ["x"], "platforms": [] } ]""")]
+    [InlineData("""[ { "id": "a", "title": "t", "language": "python", "packages": ["x"], "platforms": ["osx-x86"] } ]""")]
+    [InlineData("""[ { "id": "a", "title": "t", "language": "python", "packages": ["x"], "platforms": "linux-x64" } ]""")]
+    public void MalformedPlatformsAreRejected(string json) => Assert.False(ContentPackageIndex.TryParse(json, null, out _, out var error) || error is null);
+
+    [Fact]
+    public void ShippedPytorchSetExcludesMacIntelAndEverythingElseStaysUnrestricted()
+    {
+        var dir = ContentPackageIndex.FindDirectory(AppContext.BaseDirectory);
+        Assert.NotNull(dir);
+        Assert.True(ContentPackageIndex.TryLoad(dir!, out var index, out var error), error);
+        var pytorch = index.Find(PackageSetLanguage.Python, "pytorch")!;
+        Assert.False(pytorch.IsSupportedOn("osx-x64"));
+        Assert.True(pytorch.IsSupportedOn("osx-arm64"));
+        Assert.All(index.Sets.Where(s => s.Key != "python/pytorch"), s => Assert.Null(s.Platforms));
+        // The marker keeps `pip install -r` working on Intel Macs, and the pin is still read.
+        Assert.Contains(new PinnedPackage("torch", "2.14.1"), index.ReadPins(pytorch));
+        Assert.Contains("torch==2.14.1;", File.ReadAllText(index.SourcePath(pytorch)!));
+    }
+
+    [Theory]
+    [InlineData("osx", System.Runtime.InteropServices.Architecture.Arm64, "osx-arm64")]
+    [InlineData("osx", System.Runtime.InteropServices.Architecture.X64, "osx-x64")]
+    [InlineData("linux", System.Runtime.InteropServices.Architecture.X64, "linux-x64")]
+    [InlineData("linux", System.Runtime.InteropServices.Architecture.Arm64, "linux-arm64")]
+    [InlineData("win", System.Runtime.InteropServices.Architecture.X64, "win-x64")]
+    [InlineData("win", System.Runtime.InteropServices.Architecture.Arm64, "win-arm64")]
+    [InlineData("", System.Runtime.InteropServices.Architecture.X64, "unknown")]
+    [InlineData("linux", System.Runtime.InteropServices.Architecture.X86, "unknown")]
+    public void RidIsMappedFromOperatingSystemAndArchitecture(string os, System.Runtime.InteropServices.Architecture arch, string expected) =>
+        Assert.Equal(expected, PlatformRid.Map(os, arch));
+
+    [Fact]
+    public void ResolvePrefersASupportedCoveringSetAndExplainsAnUnsupportedOne()
+    {
+        var torch = new ContentPackageSet("pytorch", "PyTorch (CPU)", PackageSetLanguage.Python, "", ["numpy", "torch"], ["linux-x64"]);
+        var numpy = Py("numpy", "numpy");
+        var intel = new ContentPackageIndex([torch, numpy], null, "osx-x64");
+
+        Assert.Equal("numpy", intel.Resolve(PackageSetLanguage.Python, ["numpy"]).Set!.Id);
+        var blocked = intel.Resolve(PackageSetLanguage.Python, ["torch"]);
+        Assert.Null(blocked.Set);
+        Assert.Same(torch, blocked.Unsupported);
+        Assert.Equal("Набор пакетов «PyTorch (CPU)» недоступен на этой платформе (macOS Intel): для неё нет сборок пакетов этого набора.", blocked.Error);
+
+        Assert.Equal("pytorch", new ContentPackageIndex([torch, numpy], null, "linux-x64").Resolve(PackageSetLanguage.Python, ["torch"]).Set!.Id);
+    }
 }

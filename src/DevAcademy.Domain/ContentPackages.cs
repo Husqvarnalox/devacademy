@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace DevAcademy.Domain;
@@ -10,9 +11,17 @@ public enum PackageSetLanguage { Python, Node, Go, NuGet, Maven }
 /// installation, so a machine only ever downloads what the learner explicitly asked to study. <see cref="Packages"/> are the names an exercise may
 /// require from this set (the set's pinned files may carry more, such as dependencies).
 /// </summary>
-public sealed record ContentPackageSet(string Id, string Title, PackageSetLanguage Language, string Description, IReadOnlyList<string> Packages)
+public sealed record ContentPackageSet(string Id, string Title, PackageSetLanguage Language, string Description, IReadOnlyList<string> Packages, IReadOnlyList<string>? Platforms = null)
 {
     public string Key => $"{Language.ToString().ToLowerInvariant()}/{Id}";
+
+    /// <summary>True when the set can be installed on <paramref name="rid"/>; a set without <see cref="Platforms"/> (<c>platforms</c> in index.json) supports every platform.</summary>
+    public bool IsSupportedOn(string rid) => Platforms is null || Platforms.Contains(rid, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The Russian explanation shown instead of an Install button; null when the set is supported on <paramref name="rid"/>.</summary>
+    public string? UnsupportedReason(string rid) => IsSupportedOn(rid)
+        ? null
+        : $"Набор пакетов «{Title}» недоступен на этой платформе ({PlatformRid.Describe(rid)}): для неё нет сборок пакетов этого набора.";
 
     /// <summary>True when every required package name is offered by this set.</summary>
     public bool Covers(IEnumerable<string> required)
@@ -25,8 +34,41 @@ public sealed record ContentPackageSet(string Id, string Title, PackageSetLangua
 /// <summary>A package pinned by a set (<c>name==version</c> or a top-level exact pin in an npm manifest).</summary>
 public sealed record PinnedPackage(string Name, string Version);
 
-/// <summary>The outcome of choosing the set for an exercise: exactly one of <see cref="Set"/> and <see cref="Error"/> is set.</summary>
-public sealed record PackageSetResolution(ContentPackageSet? Set, string? Error);
+/// <summary>
+/// The outcome of choosing the set for an exercise: exactly one of <see cref="Set"/> and <see cref="Error"/> is set. <see cref="Unsupported"/> is
+/// non-null when a set covers the packages but cannot be installed on this platform (then <see cref="Set"/> is null and <see cref="Error"/> says why).
+/// </summary>
+public sealed record PackageSetResolution(ContentPackageSet? Set, string? Error, ContentPackageSet? Unsupported = null);
+
+/// <summary>The .NET runtime identifier (RID) of the machine, as used in <c>platforms</c> of index.json: osx-arm64, osx-x64, linux-x64, linux-arm64, win-x64, win-arm64.</summary>
+public static class PlatformRid
+{
+    /// <summary>The RID of this machine; <c>unknown</c> for an operating system or architecture that is not mapped.</summary>
+    public static string Current { get; } = Map(
+        OperatingSystem.IsMacOS() ? "osx" : OperatingSystem.IsLinux() ? "linux" : OperatingSystem.IsWindows() ? "win" : "",
+        RuntimeInformation.OSArchitecture);
+
+    public static string Map(string os, Architecture architecture) => os.Length == 0
+        ? "unknown"
+        : architecture switch
+        {
+            Architecture.X64 => os + "-x64",
+            Architecture.Arm64 => os + "-arm64",
+            _ => "unknown",
+        };
+
+    /// <summary>A short human name of a RID for messages, e.g. <c>osx-x64</c> becomes "macOS Intel".</summary>
+    public static string Describe(string rid) => rid switch
+    {
+        "osx-x64" => "macOS Intel",
+        "osx-arm64" => "macOS Apple Silicon",
+        "linux-x64" => "Linux x64",
+        "linux-arm64" => "Linux arm64",
+        "win-x64" => "Windows x64",
+        "win-arm64" => "Windows arm64",
+        _ => rid,
+    };
+}
 
 /// <summary>
 /// The shipped <c>content-packages/index.json</c> (a repository checkout keeps it in <c>tools/content-packages</c>) and the choice of a set for an
@@ -36,6 +78,9 @@ public sealed record PackageSetResolution(ContentPackageSet? Set, string? Error)
 public sealed partial class ContentPackageIndex
 {
     public const string IndexFile = "index.json";
+    /// <summary>The RIDs a set's <c>platforms</c> may list.</summary>
+    public static readonly IReadOnlyList<string> KnownRids = ["osx-arm64", "osx-x64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"];
+
     public const string ShippedDirectoryName = "content-packages";
 
     [GeneratedRegex(@"^[a-z0-9][a-z0-9-]{0,40}$", RegexOptions.CultureInvariant)]
@@ -52,13 +97,17 @@ public sealed partial class ContentPackageIndex
     [GeneratedRegex(@"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([^\s;#]+)", RegexOptions.CultureInvariant)]
     private static partial Regex PinPattern();
 
-    public ContentPackageIndex(IReadOnlyList<ContentPackageSet> sets, string? directory = null)
+    public ContentPackageIndex(IReadOnlyList<ContentPackageSet> sets, string? directory = null, string? rid = null)
     {
         Sets = sets;
+        Rid = rid ?? PlatformRid.Current;
         Directory = directory is null ? null : Path.GetFullPath(directory);
     }
 
     public IReadOnlyList<ContentPackageSet> Sets { get; }
+
+    /// <summary>The platform (RID) the sets are offered for; this machine unless an index is built for tests.</summary>
+    public string Rid { get; }
 
     /// <summary>The directory that holds <c>index.json</c> and the manifests; null for an index built in memory.</summary>
     public string? Directory { get; }
@@ -121,9 +170,15 @@ public sealed partial class ContentPackageIndex
     public PackageSetResolution Resolve(PackageSetLanguage language, IReadOnlyCollection<string> required)
     {
         if (required.Count == 0) return new(null, "нет требуемых пакетов");
-        ContentPackageSet? best = null;
+        ContentPackageSet? best = null, unsupported = null;
         foreach (var set in For(language))
-            if (set.Covers(required) && (best is null || set.Packages.Count < best.Packages.Count)) best = set;
+        {
+            if (!set.Covers(required)) continue;
+            if (!set.IsSupportedOn(Rid)) { if (unsupported is null || set.Packages.Count < unsupported.Packages.Count) unsupported = set; }
+            else if (best is null || set.Packages.Count < best.Packages.Count) best = set;
+        }
+        if (best is null && unsupported is not null)
+            return new(null, unsupported.UnsupportedReason(Rid), unsupported);
         return best is not null
             ? new(best, null)
             : new(null, $"ни один набор пакетов не покрывает {string.Join(", ", required)} одновременно (наборы {Describe(language)} в {IndexFile})");
@@ -203,15 +258,15 @@ public sealed partial class ContentPackageIndex
     }
 
     /// <summary>Finds and loads the index; null when it is missing or malformed.</summary>
-    public static ContentPackageIndex? TryLoadDefault(string? startDirectory = null) =>
-        FindDirectory(startDirectory) is { } dir && TryLoad(dir, out var index, out _) ? index : null;
+    public static ContentPackageIndex? TryLoadDefault(string? startDirectory = null, string? rid = null) =>
+        FindDirectory(startDirectory) is { } dir && TryLoad(dir, out var index, out _, rid) ? index : null;
 
-    public static bool TryLoad(string directory, out ContentPackageIndex index, out string? error)
+    public static bool TryLoad(string directory, out ContentPackageIndex index, out string? error, string? rid = null)
     {
-        index = new ContentPackageIndex([], directory);
+        index = new ContentPackageIndex([], directory, rid);
         try
         {
-            return TryParse(File.ReadAllText(Path.Combine(directory, IndexFile)), directory, out index, out error);
+            return TryParse(File.ReadAllText(Path.Combine(directory, IndexFile)), directory, out index, out error, rid);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -220,9 +275,9 @@ public sealed partial class ContentPackageIndex
         }
     }
 
-    public static bool TryParse(string json, string? directory, out ContentPackageIndex index, out string? error)
+    public static bool TryParse(string json, string? directory, out ContentPackageIndex index, out string? error, string? rid = null)
     {
-        index = new ContentPackageIndex([], directory);
+        index = new ContentPackageIndex([], directory, rid);
         var sets = new List<ContentPackageSet>();
         try
         {
@@ -240,8 +295,15 @@ public sealed partial class ContentPackageIndex
                 if (item.TryGetProperty("packages", out var arr) && arr.ValueKind == JsonValueKind.Array)
                     packages.AddRange(arr.EnumerateArray().Where(p => p.ValueKind == JsonValueKind.String).Select(p => p.GetString()!));
                 if (packages.Count == 0) { error = $"set '{id}': packages is empty"; return false; }
+                IReadOnlyList<string>? platforms = null;
+                if (item.TryGetProperty("platforms", out var plat))
+                {
+                    if (plat.ValueKind != JsonValueKind.Array || plat.GetArrayLength() == 0 || plat.EnumerateArray().Any(p => p.ValueKind != JsonValueKind.String || !KnownRids.Contains(p.GetString()!)))
+                    { error = $"set '{id}': platforms must be a non-empty list of {string.Join(", ", KnownRids)}"; return false; }
+                    platforms = plat.EnumerateArray().Select(p => p.GetString()!).Distinct(StringComparer.Ordinal).ToList();
+                }
                 if (sets.Any(s => s.Language == language && s.Id == id)) { error = $"duplicate set '{language.ToString()!.ToLowerInvariant()}/{id}'"; return false; }
-                sets.Add(new ContentPackageSet(id, Str("title")!, language.Value, Str("description") ?? "", packages));
+                sets.Add(new ContentPackageSet(id, Str("title")!, language.Value, Str("description") ?? "", packages, platforms));
             }
         }
         catch (JsonException ex)
@@ -249,7 +311,7 @@ public sealed partial class ContentPackageIndex
             error = ex.Message;
             return false;
         }
-        index = new ContentPackageIndex(sets, directory);
+        index = new ContentPackageIndex(sets, directory, rid);
         error = null;
         return true;
     }

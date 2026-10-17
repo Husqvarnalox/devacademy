@@ -36,6 +36,15 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: tools/content-packages/node/*/package-lock.json
+      # GoMLX exercises need Go >= 1.26.5; Spring Boot exercises need a JDK 17+.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
       - run: dotnet restore DevAcademy.slnx
       - run: dotnet build DevAcademy.slnx -c Release --no-restore
       - run: dotnet format whitespace DevAcademy.slnx --verify-no-changes
@@ -73,10 +82,32 @@ jobs:
             cp "$d/package.json" "$d/package-lock.json" ".node-content/$id/"
             (cd ".node-content/$id" && npm ci --ignore-scripts --no-audit --no-fund)
           done
+      # Go/NuGet/Maven course package sets, each in its own throwaway directory below the repo (gitignored), never global.
+      - name: Go content environment
+        shell: bash
+        run: |
+          for d in tools/content-packages/go/*/; do
+            id=$(basename "$d")
+            mkdir -p ".go-content/$id"
+            cp "$d/go.mod" "$d/go.sum" ".go-content/$id/"
+            (cd ".go-content/$id" && here=$(cygpath -m "$PWD" 2>/dev/null || pwd) && GOMODCACHE="$here/pkg/mod" GOPATH="$here/gopath" GOFLAGS=-mod=mod GOPROXY=https://proxy.golang.org GOTOOLCHAIN=local go mod download) || exit 1
+          done
+      - name: NuGet content environment
+        shell: bash
+        run: |
+          for d in tools/content-packages/nuget/*/; do
+            id=$(basename "$d")
+            mkdir -p ".nuget-content/$id"
+            cp "$d/restore.csproj" ".nuget-content/$id/"
+            (cd ".nuget-content/$id" && here=$(cygpath -m "$PWD" 2>/dev/null || pwd) && DOTNET_CLI_HOME="$here/cli" NUGET_HTTP_CACHE_PATH="$here/http-cache" \
+              dotnet restore restore.csproj --packages "$here/packages" --source https://api.nuget.org/v3/index.json) || exit 1
+          done
+      - name: Maven content environment (jars verified against the committed sha256 locks)
+        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- maven-env --maven-env .maven-content
       - name: Check Python environment against content
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- python-env-check --python-env .venv-content --content content
       - name: Validate content (runs reference solutions where toolchains exist)
-        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions --python-env .venv-content --node-env .node-content
+        run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions --python-env .venv-content --node-env .node-content --go-env .go-content --nuget-env .nuget-content --maven-env .maven-content
 
   publish:
     needs: test

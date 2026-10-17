@@ -1,4 +1,5 @@
 # DevAcademy package set "pytorch": PyTorch (CPU) с NumPy
+# torch has no wheels for macOS Intel (platforms in index.json excludes osx-x64); the marker on its line keeps `pip install -r` working there.
 # Installed into the ACTIVE managed Python environment only after an explicit, confirmed action (shows the command; needs network).
 numpy==2.5.4
-torch==2.14.1
+torch==2.14.1; sys_platform != "darwin" or platform_machine != "x86_64"

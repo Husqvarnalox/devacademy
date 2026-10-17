@@ -17,6 +17,9 @@ public sealed partial class NodeSetViewModel(NodeEnvironmentViewModel owner, Nod
     public string Description => Set.Description;
     public bool IsInstalled => status.Installed;
     public bool CanRemove => status.Installed;
+    /// <summary>Why the set cannot be installed on this platform (an index <c>platforms</c> restriction); null when it can. No Install button is offered then.</summary>
+    public string? UnavailableText => Set.UnsupportedReason(owner.Rid);
+    public bool IsAvailable => UnavailableText is null;
     public string StatusText => status.Installed
         ? Loc.F("Sets_Installed", string.Join(", ", status.Packages.Select(p => $"{p.Name} {(string.IsNullOrEmpty(p.Version) ? Loc.T("Node_Missing") : p.Version)}")))
         : Loc.T("Sets_NotInstalled");
@@ -47,6 +50,8 @@ public sealed partial class NodeEnvironmentViewModel : ObservableObject
     [ObservableProperty, NotifyCanExecuteChangedFor(nameof(CancelCommand))] private bool _isInstalling;
 
     public bool HasSets => Sets.Count > 0;
+
+    public string Rid => _s.PackageSets.Rid;
 
     public async Task LoadAsync()
     {

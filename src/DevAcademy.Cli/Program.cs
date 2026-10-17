@@ -175,7 +175,7 @@ internal static class Cli
     }
 
     /// <summary>Finds the interpreter of a venv directory (bin/python or Scripts/python.exe) and checks that it answers.</summary>
-    private static async Task<(PythonEnvironmentManager? Manager, PythonRunSelection? Selection, string? Error)> OpenEnvironmentAsync(string envDir)
+    internal static async Task<(PythonEnvironmentManager? Manager, PythonRunSelection? Selection, string? Error)> OpenEnvironmentAsync(string envDir)
     {
         var full = Path.GetFullPath(envDir);
         if (!Directory.Exists(full)) return (null, null, $"error: python environment '{envDir}' does not exist (run `make python-env`)");
@@ -187,8 +187,9 @@ internal static class Cli
         return (manager, new PythonRunSelection(python, full), null);
     }
 
-    private static async Task<int> EnvCheckAsync(string root, PythonEnvironmentManager manager, PythonRunSelection selection)
+    internal static async Task<int> EnvCheckAsync(string root, PythonEnvironmentManager manager, PythonRunSelection selection, ContentPackageIndex? packages = null)
     {
+        packages ??= ContentPackageIndex.TryLoadDefault();
         var result = ContentLoader.Load(root);
         var requirements = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal); // spec text -> lessons
         foreach (var lesson in result.Content.Lessons)
@@ -211,9 +212,18 @@ internal static class Cli
 
         Console.WriteLine($"environment {selection.EnvironmentPath}: Python {probe.Version} ({selection.InterpreterPath})");
         var missing = 0;
+        var unsupported = 0;
         foreach (var (spec, users) in requirements)
         {
             var isPython = spec.StartsWith("python", StringComparison.Ordinal);
+            // A package only an unsupported set offers (torch on macOS Intel) cannot be installed here: report it as such, not as MISSING.
+            if (!isPython && packages is not null && PythonPackageSpec.TryParse(spec, out var specParsed, out _)
+                && packages.Resolve(PackageSetLanguage.Python, [specParsed.NormalizedName]).Unsupported is { } blockedSet)
+            {
+                unsupported++;
+                Console.WriteLine($"  unsupp  {spec,-24} unsupported on {packages.Rid} (package set '{blockedSet.Id}') used by {users.Count} lesson(s): {string.Join(", ", users.Take(3))}{(users.Count > 3 ? ", ..." : "")}");
+                continue;
+            }
             var check = RequirementChecker.Check(isPython ? new ExerciseRequirements(spec[6..], []) : new ExerciseRequirements(null, [spec]), probe);
             var shown = isPython ? $"Python {probe.Version}"
                 : PythonPackageSpec.TryParse(spec, out var ps, out _) && probe.Installed.TryGetValue(ps.Name, out var v) ? "installed " + v : "not installed";
@@ -221,7 +231,7 @@ internal static class Cli
             if (!check.Satisfied) missing++;
             Console.WriteLine($"  {label} {spec,-24} {shown,-22} used by {users.Count} lesson(s): {string.Join(", ", users.Take(3))}{(users.Count > 3 ? ", ..." : "")}");
         }
-        Console.WriteLine($"{requirements.Count} requirement(s) in content, {missing} not satisfied");
+        Console.WriteLine($"{requirements.Count} requirement(s) in content, {missing} not satisfied" + (unsupported > 0 ? $", {unsupported} unsupported on {packages!.Rid}" : ""));
         if (missing > 0) Console.WriteLine("hint: make python-env  (installs tools/python-dev-requirements.txt into .venv-content; downloads from PyPI)");
         return missing > 0 ? 1 : 0;
     }
@@ -267,9 +277,11 @@ internal static class Cli
         return string.Join(" and ", parts);
     }
 
-    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget, MavenEnvironmentService? maven)
+    internal static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget, MavenEnvironmentService? maven, ContentPackageIndex? packages = null)
     {
         var diagnostics = new List<ContentDiagnostic>();
+        // The package-set index decides which sets this platform can install at all (`platforms` in index.json); a test passes an index for another RID.
+        packages ??= ContentPackageIndex.TryLoadDefault();
         var runner = ExecutionEngine.CreateDefault();
         var resolver = manager is not null && python is not null ? new ExternalEnvironmentResolver(manager, python) : null;
         var service = new ExerciseEvaluationService(runner, resolver, node, go, nuget, maven);
@@ -290,6 +302,11 @@ internal static class Cli
                 {
                     var tag = ex.HasExplicitVariants ? $"exercise '{ex.Id}' [{variant.LanguageId}]" : $"exercise '{ex.Id}'";
                     var needsEnv = variant.LanguageId == "python" && ex.HasRequirements;
+                    if (UnsupportedSet(packages, ex, needsEnv ? "python" : variant.LanguageId) is { } unsupportedSet)
+                    {
+                        Add(DiagnosticSeverity.Warning, lesson, $"{tag}: skipped: package set '{unsupportedSet.Id}' is not available on {packages!.Rid}");
+                        continue;
+                    }
                     var needsNode = ex.NeedsNodeEnvironment;
                     if (needsNode && node is null)
                     {
@@ -365,12 +382,21 @@ internal static class Cli
             // Theory samples have no requires of their own: a Python sample needs what the lesson's exercises declare.
             var lessonRequires = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.HasRequirements)?.Requires;
             var warnedSamples = false;
+            var unsupportedSamples = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>()
+                .Select(e => (Exercise: e, Set: UnsupportedSet(packages, e, null))).FirstOrDefault(x => x.Set is not null);
+            var warnedUnsupported = false;
             var nodeExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNodeEnvironment);
             var mavenExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsMavenEnvironment);
             var nugetExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNuGetEnvironment);
             var goExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsGoEnvironment);
             foreach (var sample in lesson.Theory.Samples.Where(s => s.ExpectedOutput is not null))
             {
+                if (UnsupportedSet(packages, unsupportedSamples.Exercise, sample.LanguageId) is { } unsupportedForSample)
+                {
+                    if (!warnedUnsupported) Add(DiagnosticSeverity.Warning, lesson, $"code samples ({sample.LanguageId}): skipped: package set '{unsupportedForSample.Id}' is not available on {packages!.Rid}");
+                    warnedUnsupported = true;
+                    continue;
+                }
                 PythonRunSelection? sampleEnv = null;
                 if (sample.LanguageId == "python" && lessonRequires is not null)
                 {
@@ -499,6 +525,23 @@ internal static class Cli
             if (!result.Ok) { Console.Error.WriteLine("error: " + (result.Error ?? "cancelled")); return 1; }
         }
         return 0;
+    }
+
+    /// <summary>
+    /// The package set that would cover the exercise's packages for <paramref name="languageId"/> but is not offered on this platform (index.json
+    /// <c>platforms</c>); null when there is none. A null <paramref name="languageId"/> looks at every language the exercise needs packages for.
+    /// </summary>
+    internal static ContentPackageSet? UnsupportedSet(ContentPackageIndex? packages, Exercise? ex, string? languageId)
+    {
+        if (packages is null || ex is null) return null;
+        ContentPackageSet? Check(PackageSetLanguage language, IReadOnlyCollection<string> required) =>
+            required.Count == 0 ? null : packages.Resolve(language, required).Unsupported;
+        bool Is(params string[] ids) => languageId is null || ids.Contains(languageId);
+        return (Is("python") && ex.HasRequirements ? Check(PackageSetLanguage.Python, ContentPackageIndex.RequiredPythonPackages(ex)) : null)
+            ?? (Is("javascript", "typescript") ? Check(PackageSetLanguage.Node, ContentPackageIndex.RequiredNodePackages(ex)) : null)
+            ?? (Is("go") ? Check(PackageSetLanguage.Go, ContentPackageIndex.RequiredGoModules(ex)) : null)
+            ?? (Is("csharp") ? Check(PackageSetLanguage.NuGet, ContentPackageIndex.RequiredNuGetPackages(ex)) : null)
+            ?? (Is("java") ? Check(PackageSetLanguage.Maven, ContentPackageIndex.RequiredMavenArtifacts(ex)) : null);
     }
 
     /// <summary>The evaluators report a run over its wall limit as "Time limit exceeded" (IoEvaluator, CommandEvaluator).</summary>

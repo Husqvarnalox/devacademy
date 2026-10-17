@@ -1,3 +1,4 @@
+using DevAcademy.Content;
 using DevAcademy.Domain;
 using DevAcademy.Execution;
 using CliMain = global::Cli;
@@ -239,6 +240,66 @@ public class ValidateWithRequirementsTests : IDisposable
         Assert.Contains("installed 0.5", output);
         Assert.Contains("ok      python>=3.12", output);
         Assert.Contains("1 not satisfied", output);
+    }
+
+    // An index that offers torch only on Linux, asked as an Intel Mac: nothing here depends on the host's architecture.
+    private static ContentPackageIndex IntelMacIndex() => new(
+    [
+        new ContentPackageSet("pytorch", "PyTorch", PackageSetLanguage.Python, "", ["numpy", "torch"], ["linux-x64"]),
+        new ContentPackageSet("numpy", "NumPy", PackageSetLanguage.Python, "", ["numpy"]),
+    ], null, "osx-x64");
+
+    private void RequireTorch()
+    {
+        var lesson = Path.Combine(_root, "content", "courses", "py-basics", "lessons", "02-vars", "lesson.yaml");
+        File.WriteAllText(lesson, File.ReadAllText(lesson).Replace("numpy>=1", "torch>=2"));
+    }
+
+    [Fact]
+    public async Task Exercise_whose_set_is_unsupported_on_the_platform_is_skipped_with_a_warning_not_an_error()
+    {
+        RequireTorch();
+        var content = ContentLoader.Load(Content).Content;
+        var diagnostics = await CliMain.RunSolutionsAsync(content, null, null, null, null, null, null, IntelMacIndex());
+        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("exercise 'py.vars.ex1': skipped: package set 'pytorch' is not available on osx-x64", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("py.vars.ex1", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, d => d.Message.Contains("code samples (python): skipped: package set 'pytorch'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Supported_platform_still_asks_for_the_environment()
+    {
+        RequireTorch();
+        var supported = new ContentPackageIndex(IntelMacIndex().Sets, null, "linux-x64");
+        var diagnostics = await CliMain.RunSolutionsAsync(ContentLoader.Load(Content).Content, null, null, null, null, null, null, supported);
+        Assert.Contains(diagnostics, d => d.Message.Contains("pass --python-env", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, d => d.Message.Contains("is not available on", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Env_check_reports_unsupported_requirements_apart_from_missing_ones()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        RequireTorch();
+        var env = Path.Combine(_root, "venv");
+        var python = Path.Combine(env, "bin", "python");
+        Directory.CreateDirectory(Path.GetDirectoryName(python)!);
+        File.WriteAllText(python, "#!/bin/sh\ncat >/dev/null\necho '{\"version\":\"3.14.0\",\"impl\":\"cpython\",\"installed\":{}}'\n");
+        File.SetUnixFileMode(python, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var (manager, selection, error) = await CliMain.OpenEnvironmentAsync(env);
+        Assert.NotNull(selection);
+
+        var (so, se) = (Console.Out, Console.Error);
+        using var o = new StringWriter();
+        Console.SetOut(o);
+        int code;
+        try { code = await CliMain.EnvCheckAsync(Content, manager!, selection, IntelMacIndex()); }
+        finally { Console.SetOut(so); Console.SetError(se); }
+        Assert.Equal(0, code);
+        Assert.Contains("unsupported on osx-x64", o.ToString());
+        Assert.DoesNotContain("MISSING torch", o.ToString());
+        Assert.Contains("0 not satisfied", o.ToString());
+        Assert.Contains("1 unsupported on osx-x64", o.ToString());
     }
 
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }

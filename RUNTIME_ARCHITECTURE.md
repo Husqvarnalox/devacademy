@@ -108,6 +108,10 @@ set's directory only, after an explicit confirmation showing the command and tha
 covering its packages) and mounts only that `node_modules` read-only. Python sets are pinned requirements files installed into the active managed
 environment through `PythonEnvironmentService.PlanSetInstallAsync` (the same plan + consent flow). CLI `--node-env <dir>` takes the directory holding the set
 subdirectories (`make node-env`). The runner itself never installs anything.
+A set may restrict itself with `platforms` (a list of RIDs such as `osx-arm64`, `linux-x64`; absent = all) in `index.json`; `PlatformRid.Current` maps the
+machine, `ContentPackageSet.IsSupportedOn(rid)` answers, and `ContentPackageIndex.Resolve` returns `Set = null` plus `Unsupported` and a Russian reason when only
+an unsupported set covers the packages, so no environment service offers an Install button for it, `PackageSetInstallFlow` and `PlanSetInstallAsync` refuse it,
+Settings shows the reason, and the CLI skips such exercises with a Warning (see `docs/content-authoring/README.md`).
 
 NuGet sets (`tools/content-packages/nuget/<set>/restore.csproj`, language `nuget` in `index.json`, exact pins) are installed by `NuGetEnvironmentService` into
 `<data dir>/nuget-content/<set>/` with `dotnet restore restore.csproj --packages <root>/<set>/packages --source https://api.nuget.org/v3/index.json` run in that set's directory only

@@ -25,6 +25,7 @@ public sealed class PackageSetInstallFlow(AppServices s)
 {
     public async Task<PackageInstallResult> InstallAsync(ContentPackageSet set, Action<string> onLine, CancellationToken ct)
     {
+        if (set.UnsupportedReason(s.PackageSets.Rid) is { } unsupported) return new(PackageInstallOutcome.Failed, unsupported);
         try
         {
             string commandLine, network;

@@ -136,6 +136,7 @@ public sealed class PythonEnvironmentService(
     /// </summary>
     public async Task<(PythonInstallPlan? Plan, IReadOnlyList<PackageAcceleratorNote> Notes, string? Error)> PlanSetInstallAsync(ContentPackageSet set, CancellationToken ct)
     {
+        if (set.UnsupportedReason(packages?.Rid ?? PlatformRid.Current) is { } unsupported) return (null, [], unsupported);
         ManagedPythonEnvironment? env = await GetActiveAsync(ct).ConfigureAwait(false);
         if (env is null) return (null, [], NoEnvironmentMessage);
         string? file = packages?.SourcePath(set);
@@ -204,8 +205,9 @@ public sealed class PythonEnvironmentService(
             RequirementCheckResult check = RequirementChecker.Check(req, probe);
             if (!check.Satisfied)
             {
-                ContentPackageSet? set = check.MissingPackages.Count > 0 ? packages?.Resolve(PackageSetLanguage.Python, ContentPackageIndex.RequiredPythonPackages(exercise)).Set : null;
-                return new ExerciseRunPlan(selection, Explain(req, check, env, set), InstallSet: env is not null ? set : null);
+                PackageSetResolution? resolution = check.MissingPackages.Count > 0 ? packages?.Resolve(PackageSetLanguage.Python, ContentPackageIndex.RequiredPythonPackages(exercise)) : null;
+                ContentPackageSet? set = resolution?.Set;
+                return new ExerciseRunPlan(selection, Explain(req, check, env, set, resolution?.Unsupported is null ? null : resolution.Error), InstallSet: env is not null ? set : null);
             }
         }
 
@@ -223,7 +225,7 @@ public sealed class PythonEnvironmentService(
         return new ExerciseRunPlan(selection, null, notice);
     }
 
-    internal static string Explain(ExerciseRequirements req, RequirementCheckResult check, ManagedPythonEnvironment? env, ContentPackageSet? set = null)
+    internal static string Explain(ExerciseRequirements req, RequirementCheckResult check, ManagedPythonEnvironment? env, ContentPackageSet? set = null, string? unsupportedReason = null)
     {
         if (check.ProbeError is not null)
             return $"Не удалось проверить окружение Python: {check.ProbeError}";
@@ -233,7 +235,9 @@ public sealed class PythonEnvironmentService(
         };
         if (check.MissingPackages.Count > 0)
         {
-            if (env is null)
+            if (unsupportedReason is not null)
+                lines.Add(unsupportedReason + " Установить его здесь нельзя.");
+            else if (env is null)
                 lines.Add(NoEnvironmentMessage);
             else if (set is not null)
                 lines.Add($"Нужен набор пакетов «{set.Title}»: установите его в окружение «{env.Name}» кнопкой ниже (нужна сеть). Приложение ничего не устанавливает само.");

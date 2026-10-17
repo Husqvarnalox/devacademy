@@ -18,9 +18,10 @@
                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding StatusText}" Classes="caption" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding UnavailableText}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding !IsAvailable}" />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button Content="{loc:T Sets_Install}" Command="{Binding InstallCommand}" />
+                <Button Content="{loc:T Sets_Install}" Command="{Binding InstallCommand}" IsVisible="{Binding IsAvailable}" />
                 <Button Content="{loc:T Sets_Remove}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" />
               </StackPanel>
             </Grid>

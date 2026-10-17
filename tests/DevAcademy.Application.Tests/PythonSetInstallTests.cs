@@ -63,5 +63,25 @@ public sealed class PythonSetInstallTests : IDisposable
         Assert.Contains("-r " + Path.Combine(_dir, "pkgs", "python", "numpy.txt"), plan.CommandLine);
     }
 
+    [Fact]
+    public async Task A_set_unsupported_on_the_platform_gets_no_plan_and_a_russian_reason_even_with_an_active_environment()
+    {
+        Directory.CreateDirectory(Path.Combine(_dir, "pkgs", "python"));
+        File.WriteAllText(Path.Combine(_dir, "pkgs", "index.json"),
+            """[{"id":"pytorch","title":"PyTorch (CPU)","language":"python","description":"d","packages":["numpy","torch"],"platforms":["linux-x64"]}]""");
+        File.WriteAllText(Path.Combine(_dir, "pkgs", "python", "pytorch.txt"), "torch==2.14.1\n");
+        Assert.True(ContentPackageIndex.TryLoad(Path.Combine(_dir, "pkgs"), out var index, out var loadError, "osx-x64"), loadError);
+        var runner = new UvOnly();
+        var svc = new PythonEnvironmentService(new PythonEnvironmentManager(Path.Combine(_dir, "envs"), runner, isWindows: false),
+            new PythonInterpreterDetector(runner), new MlRuntimeManager(runner), _settings, index);
+        FakeEnv("lab");
+        await svc.SetActiveAsync("lab", CancellationToken.None);
+
+        var (plan, _, error) = await svc.PlanSetInstallAsync(index.Sets[0], CancellationToken.None);
+        Assert.Null(plan);
+        Assert.Equal("Набор пакетов «PyTorch (CPU)» недоступен на этой платформе (macOS Intel): для неё нет сборок пакетов этого набора.", error);
+        Assert.Null(index.Resolve(PackageSetLanguage.Python, ["torch"]).Set);
+    }
+
     public void Dispose() { if (Directory.Exists(_dir)) Directory.Delete(_dir, true); }
 }
