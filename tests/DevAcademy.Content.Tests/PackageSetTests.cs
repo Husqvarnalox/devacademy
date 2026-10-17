@@ -13,6 +13,7 @@ public class PackageSetValidationTests
         new("pandas", "pandas", PackageSetLanguage.Python, "", ["numpy", "pandas"]),
         new("fastapi", "FastAPI", PackageSetLanguage.Python, "", ["fastapi", "httpx"]),
         new("gomlx", "GoMLX", PackageSetLanguage.Go, "", ["github.com/gomlx/gomlx", "github.com/gomlx/compute"]),
+        new("aspnetcore-testing", "ASP.NET Core testing", PackageSetLanguage.NuGet, "", ["Microsoft.AspNetCore.TestHost"]),
     ]);
 
     private static string[] Errors(IEnumerable<ContentDiagnostic> d) =>
@@ -44,6 +45,22 @@ public class PackageSetValidationTests
         using var g = new Fixture();
         g.EditVars(Anchor, Anchor + "  requires: { goModules: [\"not a module\"] }\n");
         Assert.Contains(Errors(ContentValidator.Validate(g.Load().Content, Index())), e => e.Contains("plain Go module path"));
+    }
+
+    [Fact]
+    public void NuGet_packages_need_a_set_a_plain_id_and_a_csharp_exercise()
+    {
+        using var f = new Fixture();
+        f.EditVars(Anchor, Anchor + "  requires: { nugetPackages: [Microsoft.AspNetCore.TestHost] }\n");
+        // The fixture exercise is Python, so the only complaints are the language and the missing project, never set coverage.
+        Assert.DoesNotContain(Errors(ContentValidator.Validate(f.Load().Content, Index())), e => e.Contains("ни один набор"));
+        Assert.Contains(Errors(ContentValidator.Validate(f.Load().Content, Index())), e => e.Contains("only apply to csharp"));
+        using var g = new Fixture();
+        g.EditVars(Anchor, Anchor + "  requires: { nugetPackages: [Some.Other.Package] }\n");
+        Assert.Contains(Errors(ContentValidator.Validate(g.Load().Content, Index())), e => e.Contains("Some.Other.Package"));
+        using var h = new Fixture();
+        h.EditVars(Anchor, Anchor + "  requires: { nugetPackages: [\"not a package\"] }\n");
+        Assert.Contains(Errors(ContentValidator.Validate(h.Load().Content, Index())), e => e.Contains("plain NuGet package id"));
     }
 
     [Fact]

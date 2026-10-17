@@ -19,6 +19,7 @@ public sealed class AppPaths
     /// <summary>The node content environment (<c>package.json</c>, lock and <c>node_modules</c> for React/Vitest exercises), created only by an explicit install.</summary>
     public string NodeContentDir => Path.Combine(DataDir, "node-content");
     public string GoContentDir => Path.Combine(DataDir, "go-content");
+    public string NuGetContentDir => Path.Combine(DataDir, "nuget-content");
 
     private static string DefaultDataDir()
     {

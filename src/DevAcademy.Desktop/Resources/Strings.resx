@@ -393,6 +393,11 @@
   <data name="Go_Description" xml:space="preserve"><value>Модули Go ставятся наборами: только для той библиотеки, которую вы решили изучать (например, GoMLX). Каждая загрузка — отдельное подтверждённое действие: сначала показывается точная команда, и она требует сети. Набор лежит в своём каталоге (не в общем кэше Go) и при проверке доступен только для чтения, без сети.</value></data>
   <data name="Go_NoGo" xml:space="preserve"><value>Go не найден: установите Go 1.26.5 или новее.</value></data>
   <data name="Go_Version" xml:space="preserve"><value>Go {0}.</value></data>
+  <data name="Sets_NetworkNuGet" xml:space="preserve"><value>Нужна сеть: пакеты NuGet скачиваются с {0}. Версии зафиксированы в restore.csproj, пакеты лежат в каталоге набора (глобально ничего не ставится) и при проверке доступны только для чтения, без сети.</value></data>
+  <data name="NuGet_Title" xml:space="preserve"><value>Пакеты NuGet для курсов</value></data>
+  <data name="NuGet_Description" xml:space="preserve"><value>Пакеты NuGet ставятся наборами: только для той библиотеки, которую вы решили изучать (например, тестовый хост ASP.NET Core). Каждая загрузка — отдельное подтверждённое действие: сначала показывается точная команда, и она требует сети. Набор лежит в своём каталоге (не в общем кэше NuGet) и при проверке доступен только для чтения, без сети.</value></data>
+  <data name="NuGet_NoDotnet" xml:space="preserve"><value>dotnet не найден: установите .NET SDK 10 или новее.</value></data>
+  <data name="NuGet_Version" xml:space="preserve"><value>.NET SDK {0}.</value></data>
   <data name="Sets_NetworkPypi" xml:space="preserve"><value>Нужна сеть: пакеты скачиваются с PyPI в активное окружение Python «{0}». Глобально ничего не ставится.</value></data>
   <data name="Sets_RemoveTitle" xml:space="preserve"><value>Удалить пакеты: {0}</value></data>
   <data name="Sets_RemoveMessage" xml:space="preserve"><value>Будет удалён каталог набора: {0}. Упражнения этого курса не смогут проверяться, пока набор не установлен снова. Сеть не нужна.</value></data>

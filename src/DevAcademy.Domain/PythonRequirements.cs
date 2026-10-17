@@ -13,9 +13,10 @@ public enum AcceleratorNeed { None, Optional, Required }
 /// installed in the node content environment (<c>vitest</c>, <c>@testing-library/react</c>).
 /// Go (go exercises): a Go version specifier (<c>&gt;=1.26.5</c>) and module paths that must be in the Go module cache of a package set
 /// (<c>github.com/gomlx/gomlx</c>).
+/// .NET (csharp exercises): NuGet package ids that must be in the packages folder of a nuget package set (<c>Microsoft.AspNetCore.TestHost</c>).
 /// </summary>
 public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages, string? Node = null, IReadOnlyList<string>? NpmPackages = null,
-    string? Go = null, IReadOnlyList<string>? GoModules = null, int? MemoryMb = null)
+    string? Go = null, IReadOnlyList<string>? GoModules = null, int? MemoryMb = null, IReadOnlyList<string>? NugetPackages = null)
 {
     /// <summary>Bounds of <c>requires.memoryMb</c>: the default run limit is 256 MB; heavy libraries (PyTorch) may ask for more, never more than the maximum.</summary>
     public const int MinMemoryMb = 256;
@@ -23,10 +24,12 @@ public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> 
 
     public IReadOnlyList<string> Npm => NpmPackages ?? [];
     public IReadOnlyList<string> Modules => GoModules ?? [];
+    public IReadOnlyList<string> NuGet => NugetPackages ?? [];
+    public bool HasNuGet => NuGet.Count > 0;
     public bool HasGo => !string.IsNullOrWhiteSpace(Go) || Modules.Count > 0;
     public bool HasPython => !string.IsNullOrWhiteSpace(Python) || Packages.Count > 0;
     public bool HasNode => !string.IsNullOrWhiteSpace(Node) || Npm.Count > 0;
-    public bool IsEmpty => !HasPython && !HasNode && !HasGo;
+    public bool IsEmpty => !HasPython && !HasNode && !HasGo && !HasNuGet;
 }
 
 /// <summary>An npm package name as it appears in <c>requires.npmPackages</c>: a lower-case (optionally scoped) registry name, no versions, URLs or paths.</summary>
@@ -296,4 +299,13 @@ public static partial class GoModulePath
     private static partial Regex Pattern();
 
     public static bool IsValid(string? path) => path is { Length: > 0 and <= 200 } && Pattern().IsMatch(path);
+}
+
+/// <summary>A NuGet package id as it appears in <c>requires.nugetPackages</c>: dotted identifier segments, no versions, URLs or paths.</summary>
+public static partial class NuGetPackageId
+{
+    [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)*$", RegexOptions.CultureInvariant)]
+    private static partial Regex Pattern();
+
+    public static bool IsValid(string? id) => id is { Length: > 0 and <= 100 } && Pattern().IsMatch(id);
 }

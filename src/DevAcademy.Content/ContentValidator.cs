@@ -301,6 +301,13 @@ public static class ContentValidator
             error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript/typescript exercises, but no variant is javascript or typescript");
         if (ex.Requires is { HasGo: true } && !ex.AllVariants.Any(v => v.LanguageId == "go"))
             error(path, $"{label}: 'requires.go/goModules' only apply to go exercises, but no variant is go");
+        if (ex.Requires is { HasNuGet: true } && !ex.AllVariants.Any(v => v.LanguageId == "csharp"))
+            error(path, $"{label}: 'requires.nugetPackages' only apply to csharp exercises, but no variant is csharp");
+        if (ex.Requires is { HasNuGet: true })
+            foreach (var variant in ex.AllVariants.Where(v => v.LanguageId == "csharp"))
+                foreach (var (kind, files) in new[] { ("starter", variant.Starter), ("solution", variant.Solution) })
+                    if (files.Count(f => !f.Path.Contains('/') && f.Path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)) != 1)
+                        error(path, $"{label}: requires.nugetPackages needs exactly one .csproj in the root of the {kind} (the project that references the packages)");
         if (ex.Command is { UsesNodeTool: true } && ex.Requires is not { HasNode: true })
             error(path, $"{label}: command.tool needs requires.npmPackages");
         if (ex.Requires is { } req)
@@ -332,6 +339,12 @@ public static class ContentValidator
                 if (!GoModulePath.IsValid(module)) error(path, $"{label}: requires.goModules: '{module}' is not a plain Go module path (host/path, no versions or URLs)");
                 else if (!goSeen.Add(module)) error(path, $"{label}: requires.goModules lists '{module}' twice");
             }
+            var nugetSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var package in req.NuGet)
+            {
+                if (!NuGetPackageId.IsValid(package)) error(path, $"{label}: requires.nugetPackages: '{package}' is not a plain NuGet package id (no versions or URLs)");
+                else if (!nugetSeen.Add(package)) error(path, $"{label}: requires.nugetPackages lists '{package}' twice");
+            }
             var npmSeen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var pkg in req.Npm)
             {
@@ -349,10 +362,11 @@ public static class ContentValidator
         var python = ContentPackageIndex.RequiredPythonPackages(ex);
         var node = ContentPackageIndex.RequiredNodePackages(ex);
         var go = ContentPackageIndex.RequiredGoModules(ex);
-        if (python.Count == 0 && node.Count == 0 && go.Count == 0) return;
+        var nuget = ContentPackageIndex.RequiredNuGetPackages(ex);
+        if (python.Count == 0 && node.Count == 0 && go.Count == 0 && nuget.Count == 0) return;
         if (index() is not { } packages) return;
         var label = $"{kind} '{ex.Id}'";
-        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node), (PackageSetLanguage.Go, go) })
+        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node), (PackageSetLanguage.Go, go), (PackageSetLanguage.NuGet, nuget) })
             if (required.Count > 0 && packages.Resolve(language, required).Error is { } problem)
                 error(path, $"{label}: {problem}");
     }

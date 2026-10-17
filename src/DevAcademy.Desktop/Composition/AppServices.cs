@@ -1,6 +1,7 @@
 using DevAcademy.AI;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
 using DevAcademy.Application.Python;
@@ -46,6 +47,7 @@ public sealed class AppServices(
     DebugService debug,
     NodeEnvironmentService node,
     GoEnvironmentService go,
+    NuGetEnvironmentService nuget,
     ContentPackageIndex packageSets)
 {
     public AppPaths Paths { get; } = paths;
@@ -79,6 +81,7 @@ public sealed class AppServices(
     public DebugService Debug { get; } = debug;
     public NodeEnvironmentService Node { get; } = node;
     public GoEnvironmentService Go { get; } = go;
+    public NuGetEnvironmentService NuGet { get; } = nuget;
     public ContentPackageIndex PackageSets { get; } = packageSets;
 
     /// <summary>Delay between the last keystroke and the draft being written.</summary>

@@ -1,0 +1,182 @@
+id: "csharp.aspnetcore.middleware-pipeline"
+title: "Конвейер middleware"
+goal: "Собирать конвейер из слоёв Use, Run, Map и UseWhen, понимать порядок выполнения и короткое замыкание и писать слои-классы по соглашению."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.aspnetcore.dependency-injection"
+related:
+  - "express.fundamentals.middleware"
+next:
+  - "csharp.aspnetcore.configuration-options"
+objectives:
+  - "Описывать путь запроса через слои: код до next идёт сверху вниз, код после - снизу вверх."
+  - "Различать Use, Run, Map и UseWhen и применять каждый по назначению."
+  - "Писать слой-класс по соглашению с внедрением зависимостей в конструктор и в InvokeAsync."
+  - "Объяснять, почему ответ нельзя менять после начала, и использовать OnStarting; сравнивать middleware и фильтры конечных точек."
+masteryCriteria:
+  - "Вы предсказываете порядок записей в журнале для цепочки слоёв, в том числе при коротком замыкании внутренним слоем."
+  - "Вы выбираете между Map и UseWhen и объясняете, что происходит с Path и PathBase."
+  - "Вы отличаете задачи для middleware от задач для фильтра конечной точки."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "middleware"
+  - "pipeline"
+facts:
+  - kind: "internals"
+    text: "Конвейер запроса ASP.NET Core - цепочка делегатов: каждый слой получает HttpContext и next, может выполнить код до и после вызова next или не вызвать next, замкнув конвейер. Порядок регистрации определяет порядок выполнения."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "Use добавляет слой с вызовом next, Run - терминальный слой без next, Map создаёт ветку по префиксу пути и не возвращается в основной конвейер, а UseWhen создаёт ветку по условию и возвращается в основной конвейер. В запуске курса в ветке Map префикс переходит из Path в PathBase."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.builder.usewhenextensions.usewhen"
+  - kind: "misconception"
+    text: "«Заголовок ответа можно поставить после await next()». Когда ответ начат (HasStarted), код состояния и заголовки уже недоступны для записи; в запуске курса попытка завершилась InvalidOperationException. Заголовки в таких случаях добавляют через Response.OnStarting."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httpresponse.hasstarted"
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.httpresponse.onstarting"
+  - kind: "internals"
+    text: "Слой-класс по соглашению создаётся один раз на приложение: RequestDelegate и singleton-сервисы приходят в конструктор, а scoped-сервисы - параметрами Invoke или InvokeAsync. В окружении Development scoped-сервис в конструкторе слоя вызвал в запуске курса исключение при старте."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-10.0"
+  - kind: "real-world"
+    text: "Фильтры конечных точек (AddEndpointFilter) оборачивают только обработчик минимального API и видят его аргументы и результат; middleware работает со всем запросом. Фильтр можно повесить и на группу маршрутов."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/min-api-filters?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/middleware?view=aspnetcore-10.0"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Слои A и B вызывают next между записями «before» и «after». Какой порядок записей у запроса, дошедшего до обработчика?"
+      options:
+        - "A before, B before, обработчик, A after, B after"
+        - "A before, B before, обработчик, B after, A after"
+        - "B before, A before, обработчик, A after, B after"
+        - "A before, A after, B before, B after"
+      answer: 1
+      explanation: "Внешний слой закрывается последним: ответ идёт по слоям в обратном порядке."
+    - id: "q2"
+      type: "single"
+      prompt: "Слой не вызывает next и пишет ответ сам. Что произойдёт со слоями, расположенными выше?"
+      options:
+        - "Они не выполнятся"
+        - "Выполнится только их код после вызова next"
+        - "Выполнится их код до next, затем после next"
+        - "Будет исключение"
+      answer: 2
+      explanation: "Вызов next во внешнем слое просто вернётся: часть до и часть после выполнятся как обычно."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно про Map и UseWhen?"
+      options:
+        - "Map отрезает префикс от Path и переносит его в PathBase"
+        - "UseWhen возвращает запрос в основной конвейер после ветки"
+        - "Map возвращает запрос в основной конвейер"
+        - "UseWhen меняет Path и PathBase"
+      answer:
+        - 0
+        - 1
+      explanation: "Map уводит запрос в ветку навсегда и меняет Path и PathBase, UseWhen ветвится по условию и возвращается."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Слои A и B пишут по записи до и после вызова next, а слой C ничего не вызывает и пишет одну запись «C». Сколько всего записей у запроса, дошедшего до C?"
+      answer: 5
+      tolerance: 0
+      explanation: "A before, B before, C, B after, A after - пять записей."
+    - id: "q5"
+      type: "single"
+      prompt: "Когда предпочесть фильтр конечной точки вместо middleware?"
+      options:
+        - "Когда нужно действие на каждый запрос, включая ответы 404"
+        - "Когда логика зависит от аргументов обработчика или его результата"
+        - "Когда нужно изменить PathBase"
+        - "Когда нужно прочитать заголовок до маршрутизации"
+      answer: 1
+      explanation: "Фильтр оборачивает конкретный обработчик и видит его аргументы и результат; для сквозной логики на всех запросах используют middleware."
+exercise:
+  id: "csharp.aspnetcore.middleware-pipeline.exercise"
+  title: "Идентификатор запроса и ключ API"
+  prompt: |
+    Доработайте файл `Api.cs`: напишите два слоя-класса и соберите из них конвейер. Проверка подаёт запросы прямо в приложение через TestServer: порт не открывается. Одна строка ввода - один запрос: `METHOD /path [| h:Имя=значение] [| b:тело]`. `Program.cs` печатает код, тип содержимого и тело, затем заголовки ответа `X-...` и строку `log:` - порядок событий из `Api.Log`.
+
+    Нужно сделать:
+
+    1. Зарегистрировать `IdGenerator` как singleton.
+    2. `CorrelationIdMiddleware`: идентификатор берётся из заголовка запроса `X-Correlation-Id`, а если его нет - из `ids.Next()`; он записывается в заголовок ответа `X-Correlation-Id` до вызова `next`. В журнал: `correlation:before` до `next` и `correlation:after` после него.
+    3. `ApiKeyMiddleware`: если заголовок `X-Api-Key` не равен `secret`, в журнал идёт `apikey:rejected`, ответ - 401 с текстом `unauthorized`, и `next` **не вызывается**. Иначе - `apikey:ok` и запрос идёт дальше.
+    4. В `Api.Map` соберите конвейер (до конечных точек): `CorrelationIdMiddleware` самым внешним слоем; затем слой через `app.Use`, добавляющий заголовок ответа `X-Handled-By: api` (через `OnStarting`); затем `ApiKeyMiddleware` только для путей `/admin` (`UseWhen`).
+
+    Конечные точки (`/hello`, `/admin/stats`) и терминальная ветка `/health` уже есть.
+
+    **Пример ввода**
+
+    ```
+    GET /hello
+    GET /admin/stats
+    ```
+
+    **Вывод**
+
+    ```
+    200 text/plain hello
+      X-Correlation-Id: req-1
+      X-Handled-By: api
+      log: correlation:before > handler:hello > correlation:after
+    401 - unauthorized
+      X-Correlation-Id: req-2
+      X-Handled-By: api
+      log: correlation:before > apikey:rejected > correlation:after
+    ```
+
+    **Что дано.** Решение собирается, но слои пропускают запрос без изменений и в конвейер не подключены. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages:
+      - "Microsoft.AspNetCore.TestHost"
+  hints:
+    - "IdGenerator нужен слою через метод InvokeAsync(HttpContext context, IdGenerator ids): в Configure достаточно builder.Services.AddSingleton<IdGenerator>()."
+    - "Заголовок запроса: context.Request.Headers.TryGetValue(\"X-Correlation-Id\", out var values); заголовок ответа: context.Response.Headers[\"X-Correlation-Id\"] = id. Ставьте его до await next(context): после начала ответа заголовки менять нельзя."
+    - "В ApiKeyMiddleware сравнивайте context.Request.Headers[\"X-Api-Key\"] со \"secret\"; при отказе задайте StatusCode 401, вызовите context.Response.WriteAsync(\"unauthorized\") и сделайте return без next."
+    - "Порядок в Map: app.UseMiddleware<CorrelationIdMiddleware>(); затем app.Use(async (context, next) => { context.Response.OnStarting(...); await next(); }); затем app.UseWhen(c => c.Request.Path.StartsWithSegments(\"/admin\"), b => b.UseMiddleware<ApiKeyMiddleware>())."
+  tests:
+    - id: "correlation"
+      title: "Идентификатор запроса"
+      stdin: "GET /hello\nGET /hello | h:X-Correlation-Id=abc\nGET /hello\n"
+      expected: "200 text/plain hello\n  X-Correlation-Id: req-1\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n200 text/plain hello\n  X-Correlation-Id: abc\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n200 text/plain hello\n  X-Correlation-Id: req-2\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n"
+      hint: "Без заголовка идентификаторы выдаёт IdGenerator (req-1, req-2), с заголовком - его значение возвращается как есть; заголовок ответа ставится до next."
+    - id: "apikey"
+      title: "Ключ API коротко замыкает конвейер"
+      stdin: "GET /admin/stats\nGET /admin/stats | h:X-Api-Key=nope\nGET /admin/stats | h:X-Api-Key=secret\nGET /hello\n"
+      expected: "401 - unauthorized\n  X-Correlation-Id: req-1\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n401 - unauthorized\n  X-Correlation-Id: req-2\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n200 application/json {\"requests\":42}\n  X-Correlation-Id: req-3\n  X-Handled-By: api\n  log: correlation:before > apikey:ok > handler:stats > correlation:after\n200 text/plain hello\n  X-Correlation-Id: req-4\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n"
+      hint: "401 и текст unauthorized без вызова next: обработчик (handler:stats) в логе не появляется; /hello вне /admin ключ не проверяет."
+    - id: "order"
+      title: "Порядок и ветки"
+      stdin: "GET /health\nGET /nope\nPOST /hello\n"
+      expected: "200 - ok\n  X-Correlation-Id: req-1\n  X-Handled-By: api\n  log: correlation:before > health > correlation:after\n404 -\n  X-Correlation-Id: req-2\n  X-Handled-By: api\n  log: correlation:before > correlation:after\n405 -\n  X-Correlation-Id: req-3\n  X-Handled-By: api\n  log: correlation:before > correlation:after\n"
+      hint: "correlation стоит снаружи: он оборачивает и ветку /health, и ответы 404 и 405 от маршрутизации (в логе before ... after)."
+    - id: "prefix"
+      title: "Границы /admin (скрытый)"
+      stdin: "GET /ADMIN/stats\nGET /administrator\nGET /admin/stats | h:x-api-key=secret\nGET /admin/stats | h:X-Api-Key=SECRET\n"
+      expected: "401 - unauthorized\n  X-Correlation-Id: req-1\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n404 -\n  X-Correlation-Id: req-2\n  X-Handled-By: api\n  log: correlation:before > correlation:after\n200 application/json {\"requests\":42}\n  X-Correlation-Id: req-3\n  X-Handled-By: api\n  log: correlation:before > apikey:ok > handler:stats > correlation:after\n401 - unauthorized\n  X-Correlation-Id: req-4\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n"
+      hidden: true
+      hint: "UseWhen с StartsWithSegments сравнивает сегмент пути без учёта регистра, поэтому /administrator в ветку не попадает (просто 404); имя заголовка не чувствительно к регистру, а значение ключа - да."
+    - id: "incoming-id"
+      title: "Идентификатор на отказе (скрытый)"
+      stdin: "GET /admin/stats | h:X-Correlation-Id=trace-7\nGET /hello | h:X-Correlation-Id=trace-8\nGET /hello\nGET /admin/stats\nGET /hello\n"
+      expected: "401 - unauthorized\n  X-Correlation-Id: trace-7\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n200 text/plain hello\n  X-Correlation-Id: trace-8\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n200 text/plain hello\n  X-Correlation-Id: req-1\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n401 - unauthorized\n  X-Correlation-Id: req-2\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n200 text/plain hello\n  X-Correlation-Id: req-3\n  X-Handled-By: api\n  log: correlation:before > handler:hello > correlation:after\n"
+      hidden: true
+      hint: "Переданный идентификатор возвращается и в ответе 401, и генератор его не расходует: следующий собственный идентификатор - req-1."
+    - id: "after"
+      title: "Что выполняется после next (скрытый)"
+      stdin: "GET /admin/stats | h:X-Api-Key=secret\nGET /health | h:X-Correlation-Id=h1\nGET /admin/stats | h:X-Api-Key=bad\n"
+      expected: "200 application/json {\"requests\":42}\n  X-Correlation-Id: req-1\n  X-Handled-By: api\n  log: correlation:before > apikey:ok > handler:stats > correlation:after\n200 - ok\n  X-Correlation-Id: h1\n  X-Handled-By: api\n  log: correlation:before > health > correlation:after\n401 - unauthorized\n  X-Correlation-Id: req-2\n  X-Handled-By: api\n  log: correlation:before > apikey:rejected > correlation:after\n"
+      hidden: true
+      hint: "Код после await next(context) выполняется на обратном пути, даже если внутренний слой ответил сам: в логе correlation:after стоит последним."

@@ -168,6 +168,13 @@ public sealed record NodeRunSelection(string EnvironmentPath);
 /// </summary>
 public sealed record GoRunSelection(string ModCachePath);
 
+/// <summary>
+/// The NuGet packages folder of a nuget package set for a run (<c>NUGET_PACKAGES</c>, filled by <c>dotnet restore</c> from
+/// <c>tools/content-packages/nuget/&lt;set&gt;/restore.csproj</c>). The build restores offline (the folder is the only package source) and the OS sandbox may
+/// read but never write it.
+/// </summary>
+public sealed record NuGetRunSelection(string PackagesPath);
+
 public sealed record ExecutionRequest(
     string LanguageId,
     IReadOnlyList<SourceFile> Files,
@@ -183,7 +190,9 @@ public sealed record ExecutionRequest(
     /// <summary>Only honoured for javascript/typescript: exposes the node content environment as a read-only <c>node_modules</c>. Such a run never uses a container.</summary>
     NodeRunSelection? Node = null,
     /// <summary>Only honoured for language "go": builds against the module cache of a go package set, offline and read-only. Such a run never uses a container.</summary>
-    GoRunSelection? Go = null);
+    GoRunSelection? Go = null,
+    /// <summary>Only honoured for language "csharp": restores and builds against the packages folder of a nuget package set, offline and read-only. Such a run never uses a container.</summary>
+    NuGetRunSelection? NuGet = null);
 
 /// <summary>Entry point of the engine. Enforces a global concurrency limit and always cleans up working directories.</summary>
 public interface ICodeRunner

@@ -52,7 +52,7 @@ public sealed class HarnessEvaluator(ICodeRunner runner) : IExerciseEvaluator
     public EvaluationKind Kind => EvaluationKind.Harness;
 
     public async Task<EvaluationReport> EvaluateAsync(Exercise exercise, IReadOnlyList<ExerciseFile> learnerFiles,
-        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null)
+        IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null, NuGetRunSelection? nuget = null)
     {
         if (string.IsNullOrWhiteSpace(exercise.HarnessEntry))
             return EvaluationReport.Failure(Verdict.Error, $"Content error: exercise '{exercise.Id}' has no harnessEntry", isolation);
@@ -63,7 +63,7 @@ public sealed class HarnessEvaluator(ICodeRunner runner) : IExerciseEvaluator
 
         var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         var files = EvaluatorSupport.ToSource(learnerFiles.Concat(exercise.Harness));
-        var request = new ExecutionRequest(exercise.LanguageId, files, exercise.HarnessEntry, isolation, python, Go: go);
+        var request = new ExecutionRequest(exercise.LanguageId, files, exercise.HarnessEntry, isolation, python, Go: go, NuGet: nuget);
 
         await using var program = await runner.PrepareAsync(request, ct);
         if (program.PreparationFailure is { } failure) return EvaluatorSupport.FromPreparationFailure(failure);

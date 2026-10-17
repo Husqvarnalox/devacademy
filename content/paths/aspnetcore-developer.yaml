@@ -1,0 +1,12 @@
+id: aspnetcore-developer
+title: ASP.NET Core-разработчик (начальный уровень)
+description: "Путь к основам серверной разработки на ASP.NET Core 10. «C#: первые шаги» и «C#: язык и платформа .NET», затем «ASP.NET Core: основы»: minimal APIs и маршрутизация, привязка модели и валидация, внедрение зависимостей, конвейер middleware, конфигурация и Options, обработка ошибок и ProblemDetails, тесты через TestServer и небольшой CRUD-сервис. Entity Framework Core, аутентификация, Razor и Blazor пока не входят. Для проверок упражнений нужен набор пакетов NuGet курса (Настройки - Среды выполнения)."
+goal: backend
+targets: [aspnetcore-fundamentals]
+stages:
+  - title: Первые шаги
+    courses: [csharp-first-steps]
+  - title: Язык и платформа .NET
+    courses: [csharp-fundamentals]
+  - title: ASP.NET Core
+    courses: [aspnetcore-fundamentals]

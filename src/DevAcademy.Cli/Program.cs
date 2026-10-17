@@ -2,6 +2,7 @@ using DevAcademy.Application;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
 using DevAcademy.Application.Node;
+using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Python;
 using DevAcademy.Content;
 using DevAcademy.Domain;
@@ -14,7 +15,7 @@ internal static class Cli
 {
     private const string Usage = """
         usage:
-          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>] [--node-env <dir>] [--go-env <dir>]]
+          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>] [--node-env <dir>] [--go-env <dir>] [--nuget-env <dir>]]
           devacademy python-env-check --python-env <venv dir> [--content <dir>]
           devacademy list [--content <dir>]
           devacademy runtimes
@@ -36,8 +37,8 @@ internal static class Cli
 
         switch (args[0])
         {
-            case "validate-content" when (options.PythonEnv is not null || options.NodeEnv is not null || options.GoEnv is not null) && !options.RunSolutions:
-                Console.Error.WriteLine("error: --python-env, --node-env and --go-env only apply together with --run-solutions");
+            case "validate-content" when (options.PythonEnv is not null || options.NodeEnv is not null || options.GoEnv is not null || options.NuGetEnv is not null) && !options.RunSolutions:
+                Console.Error.WriteLine("error: --python-env, --node-env, --go-env and --nuget-env only apply together with --run-solutions");
                 return 2;
             case "validate-content":
                 {
@@ -80,7 +81,23 @@ internal static class Cli
                         }
                         go = new GoEnvironmentService(new SystemToolRunner(), full, packages);
                     }
-                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node, go);
+                    NuGetEnvironmentService? nuget = null;
+                    if (options.NuGetEnv is not null)
+                    {
+                        var full = Path.GetFullPath(options.NuGetEnv);
+                        if (!NuGetEnvironmentService.HasInstalledSet(full))
+                        {
+                            Console.Error.WriteLine($"error: NuGet environment '{options.NuGetEnv}' has no installed package sets (a packages folder per set subdirectory; run `make nuget-env`)");
+                            return 2;
+                        }
+                        if (ContentPackageIndex.TryLoadDefault() is not { } packages)
+                        {
+                            Console.Error.WriteLine("error: tools/content-packages/index.json (the package sets) was not found next to the CLI or in a parent directory");
+                            return 2;
+                        }
+                        nuget = new NuGetEnvironmentService(new SystemToolRunner(), full, packages);
+                    }
+                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node, go, nuget);
                 }
             case "python-env-check" when options.PythonEnv is not null && !options.RunSolutions:
                 {
@@ -91,7 +108,7 @@ internal static class Cli
             case "python-env-check":
                 Console.Error.WriteLine("error: python-env-check needs --python-env <venv dir> (and takes no --run-solutions)");
                 return 2;
-            case "list" when !options.RunSolutions && options.PythonEnv is null && options.NodeEnv is null && options.GoEnv is null: return List(root);
+            case "list" when !options.RunSolutions && options.PythonEnv is null && options.NodeEnv is null && options.GoEnv is null && options.NuGetEnv is null: return List(root);
             default: Console.Error.WriteLine(Usage); return 2;
         }
     }
@@ -109,11 +126,11 @@ internal static class Cli
         return 0;
     }
 
-    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null, string? GoEnv = null);
+    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null, string? GoEnv = null, string? NuGetEnv = null);
 
     internal static Options? Parse(string[] rest, out string? error)
     {
-        string? dir = null, env = null, nodeEnv = null, goEnv = null;
+        string? dir = null, env = null, nodeEnv = null, goEnv = null, nugetEnv = null;
         var run = false;
         error = null;
         for (var i = 0; i < rest.Length; i++)
@@ -124,11 +141,12 @@ internal static class Cli
                 case "--python-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): env = rest[++i]; break;
                 case "--node-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): nodeEnv = rest[++i]; break;
                 case "--go-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): goEnv = rest[++i]; break;
+                case "--nuget-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): nugetEnv = rest[++i]; break;
                 case "--run-solutions": run = true; break;
                 default: error = $"error: unknown or incomplete argument '{rest[i]}'"; return null;
             }
         }
-        return new Options(dir, run, env, nodeEnv, goEnv);
+        return new Options(dir, run, env, nodeEnv, goEnv, nugetEnv);
     }
 
     /// <summary>Finds the interpreter of a venv directory (bin/python or Scripts/python.exe) and checks that it answers.</summary>
@@ -201,11 +219,11 @@ internal static class Cli
         return 0;
     }
 
-    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null, GoEnvironmentService? go = null)
+    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null, GoEnvironmentService? go = null, NuGetEnvironmentService? nuget = null)
     {
         var result = ContentLoader.Load(root);
         var diagnostics = result.Diagnostics.ToList();
-        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node, go));
+        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node, go, nuget));
         else if (runSolutions) Console.WriteLine("skipping --run-solutions: fix content errors first");
 
         foreach (var d in diagnostics.OrderBy(d => d.Path, StringComparer.Ordinal).ThenBy(d => d.Severity))
@@ -224,12 +242,12 @@ internal static class Cli
         return string.Join(" and ", parts);
     }
 
-    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go)
+    private static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget)
     {
         var diagnostics = new List<ContentDiagnostic>();
         var runner = ExecutionEngine.CreateDefault();
         var resolver = manager is not null && python is not null ? new ExternalEnvironmentResolver(manager, python) : null;
-        var service = new ExerciseEvaluationService(runner, resolver, node, go);
+        var service = new ExerciseEvaluationService(runner, resolver, node, go, nuget);
         var missing = new HashSet<string>(StringComparer.Ordinal);
 
         void Add(DiagnosticSeverity s, Lesson l, string msg) => diagnostics.Add(new ContentDiagnostic(s, l.SourcePath, msg));
@@ -257,6 +275,12 @@ internal static class Cli
                     if (needsGo && go is null)
                     {
                         Add(DiagnosticSeverity.Warning, lesson, $"{tag}: needs Go modules ({string.Join(", ", ex.Requires?.Modules ?? [])}); pass --go-env <dir> (make go-env): solution and starter were not run");
+                        continue;
+                    }
+                    var needsNuGet = ex.NeedsNuGetEnvironment;
+                    if (needsNuGet && nuget is null)
+                    {
+                        Add(DiagnosticSeverity.Warning, lesson, $"{tag}: needs NuGet packages ({string.Join(", ", ex.Requires?.NuGet ?? [])}); pass --nuget-env <dir> (make nuget-env): solution and starter were not run");
                         continue;
                     }
                     if (needsEnv && resolver is null)
@@ -287,6 +311,11 @@ internal static class Cli
                         Add(DiagnosticSeverity.Error, lesson, $"{tag}: the Go environment cannot run it: {First(solution.Message ?? "")}");
                         continue;
                     }
+                    if (solution.Status == Verdict.RuntimeMissing && needsNuGet)
+                    {
+                        Add(DiagnosticSeverity.Error, lesson, $"{tag}: the NuGet environment cannot run it: {First(solution.Message ?? "")}");
+                        continue;
+                    }
                     if (solution.Status == Verdict.RuntimeMissing) { RuntimeMissing(lesson, variant.LanguageId); continue; }
                     if (solution.Status != Verdict.Passed)
                         Add(DiagnosticSeverity.Error, lesson, $"{tag}: reference solution did not pass ({solution.Status}): {Describe(solution)}");
@@ -301,6 +330,7 @@ internal static class Cli
             var lessonRequires = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.HasRequirements)?.Requires;
             var warnedSamples = false;
             var nodeExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNodeEnvironment);
+            var nugetExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsNuGetEnvironment);
             var goExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsGoEnvironment);
             foreach (var sample in lesson.Theory.Samples.Where(s => s.ExpectedOutput is not null))
             {
@@ -347,14 +377,29 @@ internal static class Cli
                     sampleGo = goPlan.Go;
                     sampleFiles.AddRange(goExercise.Solution.Where(f => f.Path is GoEnvironmentService.ModFile or GoEnvironmentService.SumFile).Select(f => new SourceFile(f.Path, f.Content)));
                 }
+                // A C# sample that uses a nuget package set builds as the lesson's exercise does: its Program.cs inside the exercise's project file.
+                NuGetRunSelection? sampleNuGet = null;
+                if (sample.LanguageId == "csharp" && nugetExercise is not null)
+                {
+                    if (nuget is null)
+                    {
+                        if (!warnedSamples) Add(DiagnosticSeverity.Warning, lesson, "code samples (csharp) use NuGet packages; pass --nuget-env <dir> (make nuget-env): they were not run");
+                        warnedSamples = true;
+                        continue;
+                    }
+                    var nugetPlan = await nuget.ResolveAsync(nugetExercise, CancellationToken.None);
+                    if (nugetPlan.BlockedMessage is not null) { Add(DiagnosticSeverity.Error, lesson, $"code sample (csharp): {First(nugetPlan.BlockedMessage)}"); continue; }
+                    sampleNuGet = nugetPlan.NuGet;
+                    sampleFiles.AddRange(nugetExercise.Solution.Where(f => !f.Path.Contains('/') && f.Path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)).Select(f => new SourceFile(f.Path, f.Content)));
+                }
                 sampleFiles.Add(new SourceFile(file, sample.Code));
                 var run = await runner.RunOnceAsync(
-                    new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo),
+                    new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet),
                     null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                 if (run.Status == ExecutionStatus.Timeout)
                 {
                     run = await runner.RunOnceAsync(
-                        new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo),
+                        new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet),
                         null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                     if (run.IsSuccess) Add(DiagnosticSeverity.Warning, lesson, $"code sample ({sample.LanguageId}) timed out and passed only on retry (machine under load?)");
                 }

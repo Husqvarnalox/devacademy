@@ -19,9 +19,13 @@ NODEENV_ARG = $(if $(wildcard $(NODEENV)/*/node_modules),--node-env $(NODEENV),)
 # tools/content-packages/go/<set>/go.mod + go.sum (the app downloads a set only when the learner asks for it).
 GOENV    ?= .go-content
 GOENV_ARG = $(if $(wildcard $(GOENV)/*/pkg/mod/cache/download),--go-env $(GOENV),)
+# NuGet content environments: one packages folder per package set under $(NUGETENV)/<set>/packages, pinned by
+# tools/content-packages/nuget/<set>/restore.csproj (the app restores a set only when the learner asks for it).
+NUGETENV  ?= .nuget-content
+NUGETENV_ARG = $(if $(wildcard $(NUGETENV)/*/packages/*),--nuget-env $(NUGETENV),)
 
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
-        python-env node-env go-env runtimes publish package checksums version notices clean
+        python-env node-env go-env nuget-env runtimes publish package checksums version notices clean
 
 help:
 	@echo "setup             restore packages and report detected language runtimes"
@@ -36,6 +40,7 @@ help:
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
 	@echo "node-env          npm ci EVERY tools/content-packages/node set into $(NODEENV)/<set>/ (react, typescript, express; DOWNLOADS from npm)"
 	@echo "go-env            go mod download EVERY tools/content-packages/go set into $(GOENV)/<set>/pkg/mod (gomlx; DOWNLOADS from proxy.golang.org)"
+	@echo "nuget-env         dotnet restore EVERY tools/content-packages/nuget set into $(NUGETENV)/<set>/packages (aspnetcore-testing; DOWNLOADS from api.nuget.org)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
 	@echo "package           installer(s) for RID=$(RID) on this OS into artifacts/package (.app+.dmg on macOS, AppImage+.deb on Linux)"
@@ -73,10 +78,11 @@ format:
 	dotnet format whitespace $(SLN)
 
 validate-content:
-	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG) $(GOENV_ARG)
+	dotnet run --project $(CLI) -- validate-content --content $(CONTENT) --run-solutions $(PYENV_ARG) $(NODEENV_ARG) $(GOENV_ARG) $(NUGETENV_ARG)
 	@if [ -z "$(PYENV_ARG)" ]; then echo "note: no $(PYENV); exercises that need Python packages were skipped (run: make python-env)"; fi
 	@if [ -z "$(NODEENV_ARG)" ]; then echo "note: no $(NODEENV); exercises that need npm packages were skipped (run: make node-env)"; fi
 	@if [ -z "$(GOENV_ARG)" ]; then echo "note: no $(GOENV); exercises that need Go modules were skipped (run: make go-env)"; fi
+	@if [ -z "$(NUGETENV_ARG)" ]; then echo "note: no $(NUGETENV); exercises that need NuGet packages were skipped (run: make nuget-env)"; fi
 
 python-env:
 	@echo "NOTE: this downloads packages from PyPI into $(PYENV) (nothing is installed globally)."
@@ -99,6 +105,15 @@ go-env:
 	  id=$$(basename $$d); \
 	  mkdir -p $(GOENV)/$$id && cp $$d/go.mod $$d/go.sum $(GOENV)/$$id/ && \
 	  (cd $(GOENV)/$$id && GOMODCACHE=$$PWD/pkg/mod GOPATH=$$PWD/gopath GOFLAGS=-mod=mod GOPROXY=https://proxy.golang.org GOTOOLCHAIN=local go mod download) || exit 1; \
+	done
+
+nuget-env:
+	@echo "NOTE: this downloads NuGet packages from api.nuget.org into $(NUGETENV) (nothing is installed globally; the packages folder is private to each set)."
+	for d in tools/content-packages/nuget/*/; do \
+	  id=$$(basename $$d); \
+	  mkdir -p $(NUGETENV)/$$id && cp $$d/restore.csproj $(NUGETENV)/$$id/ && \
+	  (cd $(NUGETENV)/$$id && DOTNET_CLI_HOME=$$PWD/cli NUGET_HTTP_CACHE_PATH=$$PWD/http-cache DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+	    dotnet restore restore.csproj --packages $$PWD/packages --source https://api.nuget.org/v3/index.json) || exit 1; \
 	done
 
 runtimes:

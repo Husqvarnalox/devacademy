@@ -58,6 +58,12 @@ validated as path-safe. Removal of a set deletes only its directory and is confi
 them against the module proxy and checksum database at install time) pin the contents. A Go module is arbitrary code that runs at build or run time inside the same
 sandbox as learner code (no network, writes only to the work directory); installing the cache itself runs no module code.
 
+NuGet sets follow the same rules: `dotnet restore restore.csproj --packages <set>/packages --source https://api.nuget.org/v3/index.json` runs in the set's own directory only (private
+`DOTNET_CLI_HOME` and HTTP cache, no user or machine `NuGet.Config`), versions are exact pins in the shipped `restore.csproj`, and nothing is downloaded without the confirmation dialog. At grading time the
+packages folder is a read-only sandbox path (`NUGET_PACKAGES`), restore is offline (`-p:RestoreSources=<packages>`) and the run never uses a container. The `.nupkg` payload is arbitrary code
+(including MSBuild `build/*.props|targets` that execute during `dotnet build`); it runs inside the same sandbox as learner code (no network, writes only to the work directory), and installing performs no
+package scripts (PackageReference restore has none). Listening sockets are denied, so ASP.NET Core exercises run under `TestServer` in memory.
+
 ## 5. Out of scope (today)
 
 Protection against a malicious local administrator; kernel/hypervisor escapes; supply-chain

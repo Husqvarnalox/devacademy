@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace DevAcademy.Domain;
 
-public enum PackageSetLanguage { Python, Node, Go }
+public enum PackageSetLanguage { Python, Node, Go, NuGet }
 
 /// <summary>
 /// A per-course package set: the pinned packages of ONE library (or a small family) that a learner can choose to install. Sets are the unit of
@@ -45,6 +45,10 @@ public sealed partial class ContentPackageIndex
     [GeneratedRegex(@"^\s*(?:require\s+)?([A-Za-z0-9][A-Za-z0-9._~/-]*\.[A-Za-z0-9._~/-]+)\s+(v[0-9][^\s]*)\s*(//.*)?$", RegexOptions.CultureInvariant)]
     private static partial Regex GoRequirePattern();
 
+    // `<PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />` in a nuget set's restore.csproj (exact pins only).
+    [GeneratedRegex(@"<PackageReference\s+Include=""([A-Za-z0-9][A-Za-z0-9._-]*)""\s+Version=""([0-9][^""\s]*)""", RegexOptions.CultureInvariant)]
+    private static partial Regex PackageReferencePattern();
+
     [GeneratedRegex(@"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*==\s*([^\s;#]+)", RegexOptions.CultureInvariant)]
     private static partial Regex PinPattern();
 
@@ -65,12 +69,18 @@ public sealed partial class ContentPackageIndex
         Sets.FirstOrDefault(s => s.Language == language && string.Equals(s.Id, id, StringComparison.Ordinal));
 
     public static string NormalizeName(PackageSetLanguage language, string name) =>
-        language == PackageSetLanguage.Python ? PythonPackageSpec.Normalize(name) : name;
+        language switch
+        {
+            PackageSetLanguage.Python => PythonPackageSpec.Normalize(name),
+            PackageSetLanguage.NuGet => name.ToLowerInvariant(), // NuGet package ids are case-insensitive
+            _ => name,
+        };
 
     public static string Describe(PackageSetLanguage language) => language switch
     {
         PackageSetLanguage.Python => "Python",
         PackageSetLanguage.Go => "Go",
+        PackageSetLanguage.NuGet => ".NET (NuGet)",
         _ => "Node.js",
     };
 
@@ -88,6 +98,10 @@ public sealed partial class ContentPackageIndex
     /// <summary>The Go module paths an exercise needs (<c>requires.goModules</c>). Empty = no go set needed.</summary>
     public static IReadOnlyList<string> RequiredGoModules(Exercise exercise) =>
         (exercise.Requires?.GoModules ?? []).Distinct(StringComparer.Ordinal).ToList();
+
+    /// <summary>The NuGet package ids an exercise needs (<c>requires.nugetPackages</c>). Empty = no nuget set needed.</summary>
+    public static IReadOnlyList<string> RequiredNuGetPackages(Exercise exercise) =>
+        (exercise.Requires?.NugetPackages ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
     /// <summary>The PyPI distributions an exercise needs (names only, normalised). Empty = no python set needed.</summary>
     public static IReadOnlyList<string> RequiredPythonPackages(Exercise exercise)
@@ -111,11 +125,12 @@ public sealed partial class ContentPackageIndex
 
     // ---------------------------------------------------------------- files
 
-    /// <summary>The set's npm directory (package.json + package-lock.json), Go module directory (go.mod + go.sum) or Python requirements file; null when the index is in memory.</summary>
+    /// <summary>The set's npm directory (package.json + package-lock.json), Go module directory (go.mod + go.sum), NuGet restore directory (restore.csproj) or Python requirements file; null when the index is in memory.</summary>
     public string? SourcePath(ContentPackageSet set) => Directory is null ? null : set.Language switch
     {
         PackageSetLanguage.Node => Path.Combine(Directory, "node", set.Id),
         PackageSetLanguage.Go => Path.Combine(Directory, "go", set.Id),
+        PackageSetLanguage.NuGet => Path.Combine(Directory, "nuget", set.Id),
         _ => Path.Combine(Directory, "python", set.Id + ".txt"),
     };
 
@@ -136,6 +151,11 @@ public sealed partial class ContentPackageIndex
                 foreach (var line in File.ReadLines(Path.Combine(path, "go.mod")))
                     if (GoRequirePattern().Match(line) is { Success: true } m && !m.Groups[3].Value.Contains("indirect", StringComparison.Ordinal))
                         pins.Add(new(m.Groups[1].Value, m.Groups[2].Value));
+            }
+            else if (set.Language == PackageSetLanguage.NuGet)
+            {
+                foreach (var line in File.ReadLines(Path.Combine(path, "restore.csproj")))
+                    if (PackageReferencePattern().Match(line) is { Success: true } m) pins.Add(new(m.Groups[1].Value, m.Groups[2].Value));
             }
             else
             {
@@ -199,8 +219,8 @@ public sealed partial class ContentPackageIndex
                 string? Str(string name) => item.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                 var id = Str("id");
                 if (id is null || !IdPattern().IsMatch(id)) { error = $"set id '{id}' must be lower-case letters, digits and '-'"; return false; }
-                var language = Str("language") switch { "python" => PackageSetLanguage.Python, "node" => PackageSetLanguage.Node, "go" => PackageSetLanguage.Go, _ => (PackageSetLanguage?)null };
-                if (language is null) { error = $"set '{id}': language must be 'python', 'node' or 'go'"; return false; }
+                var language = Str("language") switch { "python" => PackageSetLanguage.Python, "node" => PackageSetLanguage.Node, "go" => PackageSetLanguage.Go, "nuget" => PackageSetLanguage.NuGet, _ => (PackageSetLanguage?)null };
+                if (language is null) { error = $"set '{id}': language must be 'python', 'node', 'go' or 'nuget'"; return false; }
                 if (string.IsNullOrWhiteSpace(Str("title"))) { error = $"set '{id}': title is missing"; return false; }
                 var packages = new List<string>();
                 if (item.TryGetProperty("packages", out var arr) && arr.ValueKind == JsonValueKind.Array)

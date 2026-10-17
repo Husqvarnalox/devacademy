@@ -99,6 +99,8 @@ internal sealed class RequiresDto
     /// <summary>go exercises: Go version specifier (">=1.26.5") and module paths that a go package set must provide.</summary>
     public string? Go { get; set; }
     public List<string>? GoModules { get; set; }
+    /// <summary>csharp exercises: NuGet package ids that a nuget package set must provide.</summary>
+    public List<string>? NugetPackages { get; set; }
     /// <summary>Per-exercise memory limit of a run in MB (256-1024; default 256) for libraries whose import alone is close to the default, e.g. PyTorch.</summary>
     public int? MemoryMb { get; set; }
 }

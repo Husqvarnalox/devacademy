@@ -97,6 +97,10 @@
         "goModules": {
           "type": "array",
           "items": { "type": "string", "description": "Go module path (no version); one go package set (tools/content-packages/go/<set>/go.mod + go.sum) must provide all of them. The exercise ships its own go.mod and go.sum with the same pins.", "examples": ["github.com/gomlx/gomlx"] }
+        },
+        "nugetPackages": {
+          "type": "array",
+          "items": { "type": "string", "description": "NuGet package id (no version); one nuget package set (tools/content-packages/nuget/<set>/restore.csproj) must provide all of them. The C# exercise ships exactly one root .csproj that references the same pinned versions; builds are offline against the set's packages folder.", "examples": ["Microsoft.AspNetCore.TestHost"] }
         }
       }
     },

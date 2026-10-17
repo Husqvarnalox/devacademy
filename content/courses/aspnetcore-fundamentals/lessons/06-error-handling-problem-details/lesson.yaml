@@ -1,0 +1,174 @@
+id: "csharp.aspnetcore.error-handling-problem-details"
+title: "Обработка ошибок и ProblemDetails"
+goal: "Превращать исключения и пустые ответы об ошибках в предсказуемые ответы ProblemDetails (RFC 9457), не раскрывая внутренности приложения."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.aspnetcore.configuration-options"
+related:
+  - "express.fundamentals.error-handling"
+next:
+  - "csharp.aspnetcore.testing-crud-service"
+objectives:
+  - "Подключать AddProblemDetails, UseExceptionHandler и UseStatusCodePages и объяснять, что делает каждый из них."
+  - "Писать IExceptionHandler, который сопоставляет доменные исключения кодам состояния и полям ProblemDetails."
+  - "Возвращать ожидаемые ошибки через Results.Problem, TypedResults.Problem и Results.ValidationProblem."
+  - "Различать страницу исключений разработчика и обработку в Production и не раскрывать сообщения исключений клиенту."
+masteryCriteria:
+  - "Вы перечисляете поля ProblemDetails из RFC 9457 и знаете, что программная логика клиента строится на status, type и расширениях, а не на detail."
+  - "Вы объясняете, почему пустые 404 и 405 без UseStatusCodePages остаются без тела и что произойдёт, если ответ уже начат."
+  - "Вы возвращаете из IExceptionHandler true только когда ответ записан, и false для неизвестных исключений."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "error-handling"
+  - "problem-details"
+facts:
+  - kind: "internals"
+    text: "Problem Details - формат ошибок HTTP API с типом application/problem+json и полями type, title, status, detail, instance; дополнительные члены (расширения) допускаются. Клиенту предназначены type и расширения, а detail - описание конкретного случая для человека."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9457.html"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/handle-errors?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "IExceptionHandler.TryHandleAsync возвращает true, если исключение обработано и ответ записан, и false, чтобы передать его следующему обработчику; обработчики вызываются в порядке регистрации через AddExceptionHandler<T>, а если никто не обработал, при подключённом AddProblemDetails пишется общий ответ 500."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.diagnostics.iexceptionhandler"
+  - kind: "misconception"
+    text: "«Страница разработчика безвредна, она же не для пользователей». Страница исключений разработчика показывает стек, заголовки и значения запроса и подходит только для Development; в боевой среде исключения обрабатывает UseExceptionHandler, который не раскрывает сообщение исключения."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-10.0"
+  - kind: "real-world"
+    text: "UseStatusCodePages заполняет тело ответов с кодами 400-599, у которых его нет (404 для неизвестного пути, 405 для неверного метода); при подключённом AddProblemDetails тело становится ProblemDetails, иначе это простой текст. Results.ValidationProblem возвращает 400 с полем errors."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какие поля определены RFC 9457 для Problem Details?"
+      options:
+        - "code, message, stackTrace"
+        - "type, title, status, detail, instance"
+        - "error, errorDescription, errorUri"
+        - "id, severity, text"
+      answer: 1
+      explanation: "RFC 9457 определяет type, title, status, detail и instance; дополнительные члены (расширения) допускаются."
+    - id: "q2"
+      type: "single"
+      prompt: "Приложение с AddProblemDetails и UseExceptionHandler, но без UseStatusCodePages. Что вернёт GET на несуществующий путь?"
+      options:
+        - "404 с телом ProblemDetails"
+        - "404 без тела"
+        - "500 с телом ProblemDetails"
+        - "200 с пустым JSON"
+      answer: 1
+      explanation: "UseExceptionHandler ловит исключения, а тело пустых 404 и 405 добавляет UseStatusCodePages."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно про IExceptionHandler?"
+      options:
+        - "Возврат true сообщает, что ответ записан и остальные обработчики не вызываются"
+        - "Возврат false передаёт исключение следующему обработчику"
+        - "Обработчик может изменить статус ответа, который уже начали отправлять клиенту"
+        - "Обработчики регистрируются через AddExceptionHandler<T>() и вызываются в порядке регистрации"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Начатый ответ изменить нельзя: заголовки уже ушли. Остальные утверждения описывают контракт IExceptionHandler."
+    - id: "q4"
+      type: "single"
+      prompt: "Что произойдёт при запуске, если вызвать app.UseExceptionHandler() без аргументов, не зарегистрировав AddProblemDetails() и обработчики?"
+      options:
+        - "Приложение запустится и будет отвечать пустыми 500"
+        - "Приложение не запустится: ошибка конфигурации middleware"
+        - "Включится страница разработчика"
+        - "Исключения будут игнорироваться, запросы вернут 200"
+      answer: 1
+      explanation: "Для UseExceptionHandler() без пути нужен ExceptionHandler, зарегистрированный обработчик или AddProblemDetails; иначе при старте будет InvalidOperationException."
+    - id: "q5"
+      type: "single"
+      prompt: "Что должен делать клиент, чтобы выбрать логику по виду ошибки?"
+      options:
+        - "Разбирать текст detail регулярным выражением"
+        - "Опираться на status, type и документированные расширения"
+        - "Сравнивать title с ожидаемой строкой, так как он всегда одинаков для сервера"
+        - "Читать traceId"
+      answer: 1
+      explanation: "detail и title - для людей и могут меняться; type и расширения образуют контракт, а traceId нужен для связи с журналом."
+exercise:
+  id: "csharp.aspnetcore.error-handling-problem-details.exercise"
+  title: "Доменные ошибки в ProblemDetails"
+  prompt: |
+    Сервис заказов бросает **доменные исключения** (`NotFoundException`, `ConflictException`, `RuleViolationException`), а клиент должен получать `application/problem+json`. Маршруты `/orders`, `/boom` уже написаны. Доработайте `Api.cs`. Проверка подаёт запросы в приложение через TestServer: порт не открывается. Одна строка ввода - один запрос, `Program.cs` печатает `код тип тело`; поле `traceId` из ответов удаляется (оно меняется между запусками). Если исключение дошло до клиента необработанным, печатается `unhandled <тип>`.
+
+    Нужно:
+
+    1. В `Api.Configure` включить ProblemDetails и зарегистрировать `DomainExceptionHandler`.
+    2. Реализовать `DomainExceptionHandler.TryHandleAsync`: `NotFoundException` -> 404, `ConflictException` -> 409, `RuleViolationException` -> 400; у всех `type` (`https://example.com/problems/not-found`, `.../conflict`, `.../validation`), `title` (`Not Found`, `Conflict`, `Validation failed`), `detail` = сообщение исключения, `instance` = путь запроса; у ошибки правила ещё расширение `errors`. Остальные исключения не обрабатывайте (`false`): `GET /boom` должен вернуть общий 500, **без** пароля из сообщения.
+    3. В `Api.Map` подключить `UseExceptionHandler()` и `UseStatusCodePages()`, чтобы неизвестные пути и методы тоже получали ProblemDetails.
+    4. `GET /search?q=..` - при пустом `q` вернуть `Results.ValidationProblem` с ошибкой `{"q": ["q is required"]}`, иначе JSON `{query, found}` (число заказов, в названии которых есть `q`, без учёта регистра).
+
+    **Пример ввода**
+
+    ```
+    GET /orders/1
+    GET /orders/9
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"id":1,"item":"tea","quantity":2}
+    404 application/problem+json {"type":"https://example.com/problems/not-found","title":"Not Found","status":404,"detail":"Order 9 was not found","instance":"/orders/9"}
+    ```
+
+    **Что дано.** Решение собирается, но обработчик пока ничего не обрабатывает, `Configure` пуст и `/search` отсутствует. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages: ["Microsoft.AspNetCore.TestHost"]
+  hints:
+    - "Configure: builder.Services.AddProblemDetails(); builder.Services.AddExceptionHandler<DomainExceptionHandler>();. Без AddProblemDetails вызов UseExceptionHandler() без аргументов не запустится."
+    - "В TryHandleAsync: if (exception is not DomainException) return false; соберите new ProblemDetails { Status, Title, Type, Detail = exception.Message, Instance = httpContext.Request.Path }, а расширения кладите в problem.Extensions[\"errors\"]."
+    - "Перед записью задайте httpContext.Response.StatusCode, затем return await problemDetails.TryWriteAsync(new ProblemDetailsContext { HttpContext = httpContext, Exception = exception, ProblemDetails = problem });"
+    - "Map: в начале app.UseExceptionHandler(); app.UseStatusCodePages();. Для /search используйте Results.ValidationProblem(new Dictionary<string, string[]> { [\"q\"] = [\"q is required\"] })."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "GET /orders/1\nGET /orders/9\n"
+      expected: "200 application/json {\"id\":1,\"item\":\"tea\",\"quantity\":2}\n404 application/problem+json {\"type\":\"https://example.com/problems/not-found\",\"title\":\"Not Found\",\"status\":404,\"detail\":\"Order 9 was not found\",\"instance\":\"/orders/9\"}\n"
+      hint: "Существующий заказ - обычный JSON; отсутствующий - NotFoundException, которую обработчик превращает в 404 ProblemDetails с instance, равным пути."
+    - id: "conflict"
+      title: "Создание и конфликт"
+      stdin: "POST /orders | b:{\"item\":\"milk\",\"quantity\":3}\nPOST /orders | b:{\"item\":\"MILK\",\"quantity\":1}\nGET /orders/3\n"
+      expected: "201 application/json {\"id\":3,\"item\":\"milk\",\"quantity\":3}\n409 application/problem+json {\"type\":\"https://example.com/problems/conflict\",\"title\":\"Conflict\",\"status\":409,\"detail\":\"An order for 'MILK' already exists\",\"instance\":\"/orders\"}\n200 application/json {\"id\":3,\"item\":\"milk\",\"quantity\":3}\n"
+      hint: "Второй заказ на то же название (без учёта регистра) - ConflictException: 409 с detail из сообщения."
+    - id: "validation"
+      title: "Ошибки проверки"
+      stdin: "POST /orders | b:{\"item\":\"\",\"quantity\":0}\nGET /search\nGET /search?q=EA\n"
+      expected: "400 application/problem+json {\"type\":\"https://example.com/problems/validation\",\"title\":\"Validation failed\",\"status\":400,\"detail\":\"One or more rules were violated\",\"instance\":\"/orders\",\"errors\":{\"item\":[\"item is required\"],\"quantity\":[\"quantity must be positive\"]}}\n400 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"q\":[\"q is required\"]}}\n200 application/json {\"query\":\"EA\",\"found\":1}\n"
+      hint: "RuleViolationException даёт 400 с расширением errors; /search без q - Results.ValidationProblem, с q - JSON с числом совпадений."
+    - id: "boom"
+      title: "Неизвестное исключение (скрытый)"
+      stdin: "GET /boom\nGET /orders/2\n"
+      expected: "500 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.6.1\",\"title\":\"An error occurred while processing your request.\",\"status\":500}\n200 application/json {\"id\":2,\"item\":\"coffee\",\"quantity\":1}\n"
+      hidden: true
+      hint: "Для не доменного исключения обработчик возвращает false: фреймворк пишет общий 500 без detail, пароль не раскрыт, а приложение продолжает работать."
+    - id: "routing"
+      title: "Пустые 404 и 405 (скрытый)"
+      stdin: "GET /nope\nDELETE /orders/1\nGET /orders/abc\n"
+      expected: "404 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404}\n405 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.6\",\"title\":\"Method Not Allowed\",\"status\":405}\n404 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404}\n"
+      hidden: true
+      hint: "Без UseStatusCodePages ответы остаются без тела. С ним они становятся ProblemDetails; /orders/abc не проходит ограничение :int - тоже 404."
+    - id: "bad-body"
+      title: "Неверный JSON и несколько ошибок (скрытый)"
+      stdin: "POST /orders | b:{bad\nPOST /orders | b:{\"item\":\"x\",\"quantity\":-5}\nPOST /orders | b:{\"item\":\"\",\"quantity\":2}\n"
+      expected: "400 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"Bad Request\",\"status\":400}\n400 application/problem+json {\"type\":\"https://example.com/problems/validation\",\"title\":\"Validation failed\",\"status\":400,\"detail\":\"One or more rules were violated\",\"instance\":\"/orders\",\"errors\":{\"quantity\":[\"quantity must be positive\"]}}\n400 application/problem+json {\"type\":\"https://example.com/problems/validation\",\"title\":\"Validation failed\",\"status\":400,\"detail\":\"One or more rules were violated\",\"instance\":\"/orders\",\"errors\":{\"item\":[\"item is required\"]}}\n"
+      hidden: true
+      hint: "Нечитаемое тело отвергает привязка (400 через UseStatusCodePages); ошибки правил собираются в errors по полям."

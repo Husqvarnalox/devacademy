@@ -1,0 +1,46 @@
+id: aspnetcore-fundamentals
+version: 1.0.0
+title: "ASP.NET Core: основы"
+description: >-
+  Курс по ASP.NET Core 10 для тех, кто прошёл «C#: язык и платформа .NET». Семь уроков: minimal APIs и маршрутизация, привязка модели и
+  валидация, внедрение зависимостей и времена жизни сервисов, конвейер middleware, конфигурация и Options, обработка ошибок и ProblemDetails,
+  тестирование через TestServer и HttpClient вместе с небольшим CRUD-сервисом. Все упражнения собираются и проверяются настоящим ASP.NET Core
+  в песочнице без сети: приложение работает в памяти через TestServer, порт не открывается. Для этого один раз нужно установить набор пакетов
+  курса (Настройки - Среды выполнения, пакет Microsoft.AspNetCore.TestHost). Entity Framework Core, аутентификация и авторизация, Razor и Blazor,
+  контроллеры MVC, gRPC и развёртывание в курс не входят.
+languageId: csharp
+level: 2
+track: aspnet-core
+requires: [csharp-fundamentals]
+lessons:
+  - 01-minimal-apis-routing
+  - 02-model-binding-validation
+  - 03-dependency-injection
+  - 04-middleware-pipeline
+  - 05-configuration-options
+  - 06-error-handling-problem-details
+  - 07-testing-crud-service
+framework:
+  id: aspnet-core
+  version: "10.0.x"
+  docs:
+    - https://learn.microsoft.com/en-us/aspnet/core/
+    - https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/overview?view=aspnetcore-10.0
+    - https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0
+    - https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0?view=aspnetcore-10.0
+  compatibility: "ASP.NET Core 10.0 на .NET SDK 10 (в окружении курса проверено на среде выполнения Microsoft.AspNetCore.App 10.0.10); пакет Microsoft.AspNetCore.TestHost 10.0.10 закреплён в tools/content-packages/nuget/aspnetcore-testing/restore.csproj. Только minimal APIs; контроллеры MVC, Razor и Blazor не используются."
+  deprecated:
+    - feature: "WebHost.CreateDefaultBuilder и класс Startup (ConfigureServices/Configure)"
+      status: deprecated
+      note: "Начиная с .NET 6 приложение настраивается в Program.cs через WebApplication.CreateBuilder: службы добавляются в builder.Services, конвейер строится на app (Use..., Map...). Старый шаблон с Startup по-прежнему работает, но для новых проектов не рекомендуется."
+    - feature: "IWebHostEnvironment и IHostingEnvironment"
+      status: changed
+      note: "IHostingEnvironment удалён в пользу IWebHostEnvironment и IHostEnvironment; в minimal APIs окружение доступно как builder.Environment и app.Environment."
+    - feature: "Синхронные операции чтения и записи тела запроса и ответа"
+      status: changed
+      note: "Kestrel и TestServer по умолчанию запрещают синхронный ввод-вывод в тело (AllowSynchronousIO = false): используйте асинхронные методы и async/await."
+  migrationNotes: |
+    **Версии ASP.NET Core.** Содержимое курса проверено на ASP.NET Core 10.0. Для следующей мажорной версии нужно новое издание курса: примеры не обновляются «молча».
+
+    * Сверяйтесь с примечаниями к выпуску: https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0
+    * Пакет `Microsoft.AspNetCore.TestHost` должен совпадать по мажорной версии со средой выполнения (здесь 10.0.x).

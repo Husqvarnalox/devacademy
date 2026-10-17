@@ -103,6 +103,19 @@ public sealed class CodeRunner : ICodeRunner
                 notes.Add("A Go module cache is selected, so the run uses OsSandbox instead of a container.");
             }
         }
+        string? nugetPackages = null;
+        if (request.NuGet is { } nugetEnv)
+        {
+            if (runtime.LanguageId != "csharp")
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A NuGet packages folder only applies to C#.", IsolationLevel.ProcessLimits);
+            string? nugetProblem = CheckNuGetSelection(nugetEnv, out nugetPackages);
+            if (nugetProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, nugetProblem, IsolationLevel.ProcessLimits);
+            if (requestedLevel == IsolationLevel.Container)
+            {
+                requestedLevel = IsolationLevel.OsSandbox;
+                notes.Add("A NuGet packages folder is selected, so the run uses OsSandbox instead of a container.");
+            }
+        }
         ICommandRuntime? commandRuntime = null;
         if (request.Command is { } argv)
         {
@@ -175,6 +188,18 @@ public sealed class CodeRunner : ICodeRunner
                     ReadOnlyPaths = ro,
                 };
                 plan = new BuildPlan(plan.CompileSteps.Select(WithCache).ToList(), WithCache(plan.Run));
+            }
+            if (nugetPackages is not null)
+            {
+                // Restore resolves only from the set's packages folder (no other source, so no network attempt), which must stay unwritable even if a sandbox allows writes somewhere above it.
+                IReadOnlyDictionary<string, string> nugetVars = CSharpRuntime.PackagesEnvironment(nugetPackages);
+                string[] ro = [.. plan.Run.ReadOnlyPaths ?? [], nugetPackages];
+                ProcessSpec WithPackages(ProcessSpec p) => p with
+                {
+                    Environment = (p.Environment ?? new Dictionary<string, string>()).Concat(nugetVars).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.Last().Value),
+                    ReadOnlyPaths = ro,
+                };
+                plan = new BuildPlan(plan.CompileSteps.Select(c => WithPackages(c with { Args = [.. c.Args, .. CSharpRuntime.OfflineRestoreArguments(nugetPackages)] })).ToList(), WithPackages(plan.Run));
             }
             await program.CompileAsync(plan, ct).ConfigureAwait(false);
         }
@@ -255,6 +280,21 @@ public sealed class CodeRunner : ICodeRunner
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
             return "The Go module cache lies inside a writable sandbox area and cannot be mounted read-only.";
         modCache = real;
+        return null;
+    }
+
+    /// <summary>The packages folder must exist, hold restored packages (at least one package directory) and not lie inside a writable sandbox area. On success <paramref name="packages"/> is its real path.</summary>
+    private string? CheckNuGetSelection(NuGetRunSelection nuget, out string? packages)
+    {
+        packages = null;
+        string path = Path.GetFullPath(nuget.PackagesPath);
+        if (!Directory.Exists(path) || !Directory.EnumerateDirectories(path).Any())
+            return $"The NuGet packages folder '{nuget.PackagesPath}' has no restored packages (run `make nuget-env` or install the course packages in Settings).";
+        string real = MacSandboxExecSandbox.RealPath(path).TrimEnd(Path.DirectorySeparatorChar);
+        string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
+            return "The NuGet packages folder lies inside a writable sandbox area and cannot be mounted read-only.";
+        packages = real;
         return null;
     }
 

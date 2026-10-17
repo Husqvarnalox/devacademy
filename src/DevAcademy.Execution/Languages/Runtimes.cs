@@ -338,7 +338,7 @@ internal sealed class RustRuntime : ILanguageRuntime, IDebugBuildRuntime
 internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime
 {
     public string LanguageId => "csharp";
-    public string DisplayName => "C# (.NET file-based app)";
+    public string DisplayName => "C# (.NET file-based app or project)";
     public string DefaultEntryFile => "Program.cs";
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
@@ -349,7 +349,7 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime
         string? v = await ToolLocator.ProbeAsync(dotnet, ["--version"], ct).ConfigureAwait(false);
         if (v is null) return ToolLocator.Missing(LanguageId, "A working dotnet SDK", Hint);
         return Version.TryParse(v.Split('-')[0], out Version? ver) && ver.Major >= 10
-            ? new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, dotnet, "Only the entry file is compiled (file-based app).", null)
+            ? new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, dotnet, "Only the entry file is compiled (file-based app), unless the files hold exactly one .csproj (then the project is built).", null)
             : new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, dotnet, ".NET SDK 10 or newer is required for file-based apps.", Hint);
     }
 
@@ -366,11 +366,44 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime
             ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
             ["MSBUILDDISABLENODEREUSE"] = "1",
         };
+        // Project mode: exactly one .csproj at the root builds as a project (all its .cs files) and runs <AssemblyName>.dll.
+        // Otherwise the entry file alone is built as a file-based app, exactly as before.
+        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false"];
+        if (FindProject(workingDirectory) is { } project)
+            return new BuildPlan(
+                [new ProcessSpec(status.ExecutablePath!, ["build", project, .. flags], workingDirectory, env)],
+                new ProcessSpec(status.ExecutablePath!, [Path.Combine("out", AssemblyName(workingDirectory, project) + ".dll")], workingDirectory, env));
         string name = Path.GetFileNameWithoutExtension(entryFile);
         return new BuildPlan(
-            [new ProcessSpec(status.ExecutablePath!, ["build", entryFile, "-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false"], workingDirectory, env)],
+            [new ProcessSpec(status.ExecutablePath!, ["build", entryFile, .. flags], workingDirectory, env)],
             new ProcessSpec(status.ExecutablePath!, [Path.Combine("out", name + ".dll")], workingDirectory, env));
     }
+
+    /// <summary>The only project file in the root of the working directory (relative name), or null when there is none or several (then the entry file is built as a file-based app).</summary>
+    internal static string? FindProject(string workingDirectory)
+    {
+        string[] projects = Directory.GetFiles(workingDirectory, "*.csproj", SearchOption.TopDirectoryOnly);
+        return projects.Length == 1 ? Path.GetFileName(projects[0]) : null;
+    }
+
+    /// <summary>The assembly the project builds: its <c>AssemblyName</c> property when set, else the project file name without the extension.</summary>
+    internal static string AssemblyName(string workingDirectory, string project)
+    {
+        string fallback = Path.GetFileNameWithoutExtension(project);
+        try
+        {
+            var doc = System.Xml.Linq.XDocument.Load(Path.Combine(workingDirectory, project));
+            string? name = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "AssemblyName")?.Value.Trim();
+            return string.IsNullOrEmpty(name) || name.Contains('$') || name.IndexOfAny(['/', '\\']) >= 0 ? fallback : name;
+        }
+        catch (Exception ex) when (ex is System.Xml.XmlException or IOException or UnauthorizedAccessException) { return fallback; }
+    }
+
+    /// <summary>Environment that points NuGet at a nuget package set's packages folder, which the caller mounts read-only.</summary>
+    internal static IReadOnlyDictionary<string, string> PackagesEnvironment(string packages) => new Dictionary<string, string> { ["NUGET_PACKAGES"] = packages };
+
+    /// <summary>Restore resolves only from the set's packages folder: no other package source is consulted, so a build never tries the network.</summary>
+    internal static IReadOnlyList<string> OfflineRestoreArguments(string packages) => [$"-p:RestoreSources={packages}"];
 }
 
 internal sealed class KotlinRuntime : ILanguageRuntime

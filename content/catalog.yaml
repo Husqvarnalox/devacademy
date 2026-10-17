@@ -364,9 +364,13 @@ tracks:
     title: ASP.NET Core
     description: >-
       Кроссплатформенный веб-фреймворк на C# и .NET: конвейер middleware, Minimal API и контроллеры, внедрение зависимостей, конфигурация,
-      Entity Framework Core, аутентификация и авторизация.
+      Entity Framework Core, аутентификация и авторизация. Доступен курс «ASP.NET Core: основы» (ASP.NET Core 10: minimal APIs и маршрутизация,
+      привязка модели и валидация, внедрение зависимостей, конвейер middleware, конфигурация и Options, ProblemDetails, тесты через TestServer).
+      Entity Framework Core, аутентификация, контроллеры MVC, Razor и Blazor пока не входят. Проверки упражнений используют пакеты NuGet курса
+      (устанавливаются один раз по запросу).
     languageId: csharp
-    status: planned
+    status: available
+    courses: [aspnetcore-fundamentals]
   - id: gin
     kind: framework
     title: Gin

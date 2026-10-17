@@ -1,5 +1,6 @@
 using DevAcademy.Application.Go;
 using DevAcademy.Application.Node;
+using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Python;
 using DevAcademy.Domain;
 using DevAcademy.Execution;
@@ -13,16 +14,18 @@ public sealed class ExerciseEvaluationService
     private readonly IExerciseEnvironmentResolver? _environment;
     private readonly INodeEnvironmentResolver? _node;
     private readonly IGoEnvironmentResolver? _go;
+    private readonly INuGetEnvironmentResolver? _nuget;
 
     public ExerciseEvaluationService(ICodeRunner runner, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null,
-        IGoEnvironmentResolver? go = null)
-        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node, go) { }
+        IGoEnvironmentResolver? go = null, INuGetEnvironmentResolver? nuget = null)
+        : this([new IoEvaluator(runner), new HarnessEvaluator(runner), new CommandEvaluator(runner)], environment, node, go, nuget) { }
 
     public ExerciseEvaluationService(IEnumerable<IExerciseEvaluator> evaluators, IExerciseEnvironmentResolver? environment = null, INodeEnvironmentResolver? node = null,
-        IGoEnvironmentResolver? go = null)
+        IGoEnvironmentResolver? go = null, INuGetEnvironmentResolver? nuget = null)
     {
         _node = node;
         _go = go;
+        _nuget = nuget;
         _evaluators = evaluators.ToDictionary(e => e.Kind);
         _environment = environment;
     }
@@ -66,6 +69,16 @@ public sealed class ExerciseEvaluationService
                 return EvaluationReport.Failure(Verdict.RuntimeMissing, goPlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
             goEnv = goPlan.Go;
         }
-        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv, goEnv).ConfigureAwait(false);
+        NuGetRunSelection? nugetEnv = null;
+        if (exercise.NeedsNuGetEnvironment)
+        {
+            if (_nuget is null)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, "Для упражнения нужны пакеты NuGet курса, но окружение не подключено (make nuget-env).", isolation) with { LanguageId = exercise.LanguageId };
+            NuGetRunPlan nugetPlan = await _nuget.ResolveAsync(exercise, ct).ConfigureAwait(false);
+            if (nugetPlan.IsBlocked)
+                return EvaluationReport.Failure(Verdict.RuntimeMissing, nugetPlan.BlockedMessage!, isolation) with { LanguageId = exercise.LanguageId };
+            nugetEnv = nugetPlan.NuGet;
+        }
+        return await evaluator.EvaluateAsync(exercise, learnerFiles, isolation, ct, python, nodeEnv, goEnv, nugetEnv).ConfigureAwait(false);
     }
 }

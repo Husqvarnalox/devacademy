@@ -206,6 +206,9 @@ public sealed record Exercise(
     /// <summary>True when anything about Go must be checked before a run: the module cache or a <c>requires.go</c> version.</summary>
     public bool HasGoRequirements => NeedsGoEnvironment || !string.IsNullOrWhiteSpace(Requires?.Go);
 
+    /// <summary>True when grading needs NuGet packages from a nuget package set (<c>requires.nugetPackages</c>).</summary>
+    public bool NeedsNuGetEnvironment => Requires is { NuGet.Count: > 0 };
+
     /// <summary>Explicit variants (non-empty) when the exercise was declared with a <c>variants</c> map.</summary>
     public bool HasExplicitVariants => Variants is { Count: > 0 };
 

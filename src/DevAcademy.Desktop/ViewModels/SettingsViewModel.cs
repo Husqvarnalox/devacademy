@@ -66,6 +66,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         LanguageServers = new LanguageServersViewModel(s);
         Node = new NodeEnvironmentViewModel(s);
         Go = new GoEnvironmentViewModel(s);
+        NuGet = new NuGetEnvironmentViewModel(s);
         Python.EnvironmentsChanged += () => _ = Ml.RefreshEnvironmentsAsync();
     }
 
@@ -75,6 +76,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     public LanguageServersViewModel LanguageServers { get; }
     public NodeEnvironmentViewModel Node { get; }
     public GoEnvironmentViewModel Go { get; }
+    public NuGetEnvironmentViewModel NuGet { get; }
     [ObservableProperty] private int _selectedTab;
 
     public IReadOnlyList<Choice<ThemeChoice>> Themes { get; }
@@ -109,6 +111,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         await Python.LoadAsync();
         await Node.LoadAsync();
         await Go.LoadAsync();
+        await NuGet.LoadAsync();
         await Ml.LoadAsync();
         await LanguageServers.LoadAsync();
     }

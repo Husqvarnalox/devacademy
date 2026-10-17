@@ -284,6 +284,9 @@ normal plan/consent flow into the ACTIVE managed environment (never auto-created
 can offer «Установить пакеты: …»; the dialog lists packages with versions, the exact command and the network notice. Nothing is installed implicitly.
 A Go set is the same idea for Go modules: `GoEnvironmentService` (`go mod download` into `<data dir>/go-content/<set>/pkg/mod`), `GoRunPlan` carries `InstallSet`, and
 `PackageSetInstallFlow` serves Python, Node and Go alike; Settings has a Go section (`GoEnvironmentViewModel`) with Install/Remove per set.
+A NuGet set is the same idea for C# (`NuGetEnvironmentService`: `dotnet restore` of the set's pinned `restore.csproj` into `<data dir>/nuget-content/<set>/packages`), `NuGetRunPlan` carries `InstallSet`,
+`PackageSetInstallFlow` serves it too, and Settings has a NuGet section (`NuGetEnvironmentViewModel`). `CSharpRuntime` also supports **project mode**: exactly one root `.csproj` among the exercise files is
+built as a project and its assembly run, which is how multi-file ASP.NET Core exercises (a fixed TestServer driver plus the learner's files) are graded.
 
 **Run isolation.** A selected env replaces the auto-detected interpreter. The env directory is passed as
 `ReadOnlyPaths`: the macOS profile ends with `(deny file-write* (subpath env))` (last rule wins), bwrap uses

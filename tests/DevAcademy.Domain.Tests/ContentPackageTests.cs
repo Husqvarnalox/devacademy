@@ -143,4 +143,43 @@ public class ContentPackageIndexTests
         }
         finally { Directory.Delete(dir, true); }
     }
+
+    private static ContentPackageSet NuGet(string id, params string[] packages) => new(id, id, PackageSetLanguage.NuGet, "", packages);
+
+    [Fact]
+    public void NuGetSetsResolveByCaseInsensitivePackageIdAndStayApartFromOtherLanguages()
+    {
+        var index = Index(NuGet("aspnetcore-testing", "Microsoft.AspNetCore.TestHost"), Go("gomlx", "github.com/gomlx/gomlx"));
+        Assert.Equal("aspnetcore-testing", index.Resolve(PackageSetLanguage.NuGet, ["microsoft.aspnetcore.testhost"]).Set!.Id);
+        Assert.Null(index.Resolve(PackageSetLanguage.NuGet, ["Other.Package"]).Set);
+        Assert.Null(index.Resolve(PackageSetLanguage.Go, ["Microsoft.AspNetCore.TestHost"]).Set);
+        Assert.True(ContentPackageIndex.TryParse(
+            """[ { "id": "aspnetcore-testing", "title": "t", "language": "nuget", "packages": ["Microsoft.AspNetCore.TestHost"] } ]""", null, out var parsed, out _));
+        Assert.Equal(PackageSetLanguage.NuGet, parsed.Sets[0].Language);
+    }
+
+    [Fact]
+    public void RequiredNuGetPackagesComeFromRequires()
+    {
+        var exercise = Make.Exercise() with { Requires = new ExerciseRequirements(null, [], NugetPackages: ["A.B", "A.B", "C.D"]) };
+        Assert.Equal(["A.B", "C.D"], ContentPackageIndex.RequiredNuGetPackages(exercise));
+        Assert.True(exercise.NeedsNuGetEnvironment);
+        Assert.False(Make.Exercise().NeedsNuGetEnvironment);
+        Assert.Empty(ContentPackageIndex.RequiredNuGetPackages(Make.Exercise()));
+    }
+
+    [Fact]
+    public void NuGetPinsAreReadFromTheRestoreProject()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "devacademy-nugetpins-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(dir, "nuget", "aspnetcore-testing"));
+            File.WriteAllText(Path.Combine(dir, "nuget", "aspnetcore-testing", "restore.csproj"),
+                "<Project Sdk=\"Microsoft.NET.Sdk\"><ItemGroup><PackageReference Include=\"Microsoft.AspNetCore.TestHost\" Version=\"10.0.10\" /></ItemGroup></Project>");
+            var set = NuGet("aspnetcore-testing", "Microsoft.AspNetCore.TestHost");
+            Assert.Equal([new PinnedPackage("Microsoft.AspNetCore.TestHost", "10.0.10")], new ContentPackageIndex([set], dir).ReadPins(set));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
 }

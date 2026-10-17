@@ -109,6 +109,15 @@ covering its packages) and mounts only that `node_modules` read-only. Python set
 environment through `PythonEnvironmentService.PlanSetInstallAsync` (the same plan + consent flow). CLI `--node-env <dir>` takes the directory holding the set
 subdirectories (`make node-env`). The runner itself never installs anything.
 
+NuGet sets (`tools/content-packages/nuget/<set>/restore.csproj`, language `nuget` in `index.json`, exact pins) are installed by `NuGetEnvironmentService` into
+`<data dir>/nuget-content/<set>/` with `dotnet restore restore.csproj --packages <root>/<set>/packages --source https://api.nuget.org/v3/index.json` run in that set's directory only
+(`DOTNET_CLI_HOME` and `NUGET_HTTP_CACHE_PATH` stay inside it), after the same confirmation. A run whose exercise declares `requires.nugetPackages` gets
+`ExecutionRequest.NuGet = NuGetRunSelection(packages path)`: `CSharpRuntime` then builds offline (`NUGET_PACKAGES=<packages>`, `-p:RestoreSources=<packages>`), the packages folder is a read-only path
+of the OS sandbox (a write to it fails) and such a run never uses a container. `CSharpRuntime` builds a **project** (`dotnet build <csproj> -o out`, running `out/<AssemblyName>.dll`) when the
+files hold exactly one root `.csproj`, otherwise the entry file as a file-based app as before. Measured under the macOS sandbox with the Web SDK and `Microsoft.AspNetCore.TestHost`: build 1.5-1.7 s / about 230 MB RSS,
+run 0.15-0.2 s / about 90 MB RSS, so the default limits suffice. CLI `--nuget-env <dir>` takes the directory holding the set subdirectories (`make nuget-env`, default `.nuget-content`);
+CI has no `make nuget-env` step yet, so `make validate-content` in CI skips NuGet exercises and theory samples with a warning.
+
 Go sets (`tools/content-packages/go/<set>/{go.mod,go.sum}`, language `go` in `index.json`) are installed by `GoEnvironmentService` into
 `<data dir>/go-content/<set>/` with `go mod download` (`GOMODCACHE=<root>/<set>/pkg/mod`, `GOFLAGS=-mod=mod`, `GOTOOLCHAIN=local`) run in that set's directory only,
 after the same confirmation (modules with versions, the exact command, that the network is needed). A run whose exercise declares `requires.goModules` (and optionally

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Pinned packages of the "aspnetcore-testing" set. The app restores this project (dotnet restore with the packages folder set to <set>/packages)
+       only after the learner confirms the install; exercises then build offline against that packages folder. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+  </ItemGroup>
+</Project>

@@ -40,7 +40,18 @@ public class ArgumentParsingTests
         Assert.Null(CliMain.Parse(["--run-solutions"], out _)!.GoEnv);
     }
 
+    [Fact]
+    public void Parses_nuget_env()
+    {
+        var o = CliMain.Parse(["--run-solutions", "--nuget-env", ".nuget-content"], out var error);
+        Assert.Null(error);
+        Assert.Equal(".nuget-content", o!.NuGetEnv);
+        Assert.Null(CliMain.Parse(["--run-solutions"], out _)!.NuGetEnv);
+    }
+
     [Theory]
+    [InlineData("--nuget-env")]
+    [InlineData("--nuget-env", "--run-solutions")]
     [InlineData("--go-env")]
     [InlineData("--go-env", "--run-solutions")]
     [InlineData("--node-env")]

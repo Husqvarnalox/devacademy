@@ -1,5 +1,6 @@
 using System.Text;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.NuGet;
 using DevAcademy.Desktop.Composition;
 using DevAcademy.Desktop.Localization;
 using DevAcademy.Domain;
@@ -16,8 +17,8 @@ public sealed record PackageInstallResult(PackageInstallOutcome Outcome, string?
 
 /// <summary>
 /// The one way a course package set gets installed from the UI (lesson button and Settings share it): build the plan, show the packages with
-/// versions, the exact command and the network notice, and only a confirmation runs it. Declining runs nothing. Node and Go sets go to their own
-/// directory under the node / Go environment root; Python sets go into the ACTIVE managed environment.
+/// versions, the exact command and the network notice, and only a confirmation runs it. Declining runs nothing. Node, Go and NuGet sets go to their own
+/// directory under the node / Go / NuGet environment root; Python sets go into the ACTIVE managed environment.
 /// </summary>
 public sealed class PackageSetInstallFlow(AppServices s)
 {
@@ -42,6 +43,14 @@ public sealed class PackageSetInstallFlow(AppServices s)
                 commandLine = plan.CommandLine;
                 network = Loc.F("Sets_NetworkGo", GoEnvironmentService.Proxy);
                 run = async token => { var r = await s.Go.InstallAsync(plan, onLine, token); return (r.Ok, r.Cancelled, r.Error); };
+            }
+            else if (set.Language == PackageSetLanguage.NuGet)
+            {
+                var (plan, error) = s.NuGet.PlanInstall(set);
+                if (plan is null) return new(PackageInstallOutcome.Failed, error);
+                commandLine = plan.CommandLine;
+                network = Loc.F("Sets_NetworkNuGet", NuGetEnvironmentService.Source);
+                run = async token => { var r = await s.NuGet.InstallAsync(plan, onLine, token); return (r.Ok, r.Cancelled, r.Error); };
             }
             else
             {

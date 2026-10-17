@@ -1,0 +1,175 @@
+id: "csharp.aspnetcore.minimal-apis-routing"
+title: "Minimal APIs и маршрутизация"
+goal: "Описывать HTTP API через minimal APIs: выбирать обработчик по методу и шаблону пути, понимать привязку параметров и возвращать ответы с нужными кодами состояния."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.fundamentals.async-await"
+related:
+  - "express.fundamentals.architecture"
+next:
+  - "csharp.aspnetcore.model-binding-validation"
+objectives:
+  - "Собирать приложение через WebApplication.CreateBuilder, Build и Map... и объяснять, что делает каждый шаг."
+  - "Составлять шаблоны маршрутов с параметрами и ограничениями и предсказывать 200, 404 и 405."
+  - "Определять, откуда берётся значение параметра обработчика (маршрут, строка запроса, заголовок, тело, сервисы) и когда результатом будет 400."
+  - "Возвращать ответы через значения, Results и TypedResults и группировать маршруты через MapGroup."
+masteryCriteria:
+  - "Вы отличаете 404 из-за ограничения маршрута от 404 из-за отсутствующих данных и 405 из-за неверного метода."
+  - "Вы называете источник каждого параметра обработчика и знаете, что обязательный параметр без значения даёт 400."
+  - "Вы возвращаете 201 с заголовком Location при создании ресурса и 404 вместо пустого ответа."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "minimal-apis"
+  - "routing"
+facts:
+  - kind: "internals"
+    text: "Minimal APIs создают HTTP API через WebApplication: MapGet, MapPost и другие методы сопоставляют шаблон маршрута и метод HTTP с обработчиком (лямбдой или методом), а параметры обработчика привязываются из маршрута, строки запроса, заголовков, тела и контейнера сервисов."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/overview?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/route-handlers?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "Ограничение маршрута, например {id:int}, участвует в сопоставлении: запрос, не прошедший ограничение, не совпадает с конечной точкой и получает 404. Параметр {**path} захватывает остаток пути вместе с косыми чертами."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing?view=aspnetcore-10.0"
+  - kind: "misconception"
+    text: "«Необязательный параметр можно просто не передавать». В minimal APIs параметр, не допускающий null и без значения по умолчанию, обязателен: если значения нет или его нельзя преобразовать, обработчик не вызывается и клиент получает 400; необязательность выражают типом, допускающим null, или значением по умолчанию."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding?view=aspnetcore-10.0"
+  - kind: "real-world"
+    text: "Results и TypedResults создают ответы с нужным кодом состояния (Ok, Created, NotFound, NoContent, Redirect, Problem); TypedResults возвращают конкретные типы, поэтому их удобно проверять в тестах. MapGroup задаёт общий префикс для набора конечных точек."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/route-handlers?view=aspnetcore-10.0"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой ответ получит GET /orders/abc, если зарегистрирован app.MapGet(\"/orders/{id:int}\", ...)?"
+      options:
+        - "400 Bad Request"
+        - "404 Not Found"
+        - "500 Internal Server Error"
+        - "200 с id равным 0"
+      answer: 1
+      explanation: "Ограничение :int участвует в сопоставлении маршрута. Запрос не совпал ни с одной конечной точкой, поэтому 404."
+    - id: "q2"
+      type: "single"
+      prompt: "Для пути есть только MapGet. Что вернёт DELETE на этот путь?"
+      options:
+        - "404"
+        - "405"
+        - "400"
+        - "204"
+      answer: 1
+      explanation: "Путь существует, но метод не зарегистрирован: 405 Method Not Allowed."
+    - id: "q3"
+      type: "single"
+      prompt: "Обработчик (int a, int b) => a + b вызван запросом ?a=2. Что произойдёт?"
+      options:
+        - "Вернётся 2: b станет 0"
+        - "Вернётся 400, обработчик не вызывается"
+        - "Вернётся 404"
+        - "Выбросится NullReferenceException"
+      answer: 1
+      explanation: "int b не допускает null и не имеет значения по умолчанию, значит параметр обязателен. Без значения - 400."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Откуда minimal APIs по умолчанию берут значение простого параметра обработчика?"
+      options:
+        - "Из шаблона маршрута, если в нём есть параметр с таким именем"
+        - "Из строки запроса, если в маршруте такого имени нет"
+        - "Из тела запроса, если тип простой (int, string)"
+        - "Из контейнера сервисов, если тип зарегистрирован как сервис"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Простые типы берутся из маршрута или строки запроса; тело ожидается для сложных типов; сервисы подставляются из контейнера."
+    - id: "q5"
+      type: "single"
+      prompt: "Какой результат правильно сообщит клиенту о создании ресурса?"
+      options:
+        - "Results.Ok(book)"
+        - "Results.Created($\"/books/{book.Id}\", book)"
+        - "Results.NoContent()"
+        - "Results.Redirect(\"/books\")"
+      answer: 1
+      explanation: "Created возвращает 201 и заголовок Location с адресом нового ресурса."
+exercise:
+  id: "csharp.aspnetcore.minimal-apis-routing.exercise"
+  title: "Каталог книг"
+  prompt: |
+    Доработайте файл `Api.cs`: метод `Api.Map` регистрирует маршруты каталога книг (список `books` уже создан). Проверка подаёт запросы прямо в приложение через TestServer: порт не открывается. Одна строка ввода - один запрос, `Program.cs` печатает код состояния, тип содержимого и тело (и заголовок `Location`, если он есть).
+
+    Нужны маршруты:
+
+    1. `GET /ping` - текст `pong` (уже есть).
+    2. `GET /books` - JSON-список книг; необязательный параметр запроса `author` оставляет только книги этого автора, **без учёта регистра**.
+    3. `GET /books/{id:int}` - книга в JSON или 404, если книги с таким id нет.
+    4. `POST /books` с телом `{"title": ..., "author": ...}` - создаёт книгу с id **на единицу больше максимального**, отвечает 201 с заголовком `Location: /books/<id>` и самой книгой.
+
+    Остальное делает фреймворк: `/books/abc` не совпадёт с ограничением `:int` (404), а `DELETE /books/1` получит 405.
+
+    **Пример ввода**
+
+    ```
+    GET /books/2
+    GET /books/99
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"id":2,"title":"Emma","author":"Austen"}
+    404 -
+    ```
+
+    **Что дано.** Решение собирается, но `/books` игнорирует фильтр, а маршрутов `GET /books/{id}` и `POST /books` нет. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages: ["Microsoft.AspNetCore.TestHost"]
+  hints:
+    - "Параметр строки запроса - это просто параметр лямбды: app.MapGet(\"/books\", (string? author) => ...). Если author равен null, верните весь список."
+    - "Сравнивайте авторов через string.Equals(a, b, StringComparison.OrdinalIgnoreCase)."
+    - "Для маршрута с ограничением напишите \"/books/{id:int}\" и параметр int id, а для ответа используйте Results.Ok(book) и Results.NotFound()."
+    - "POST: параметр NewBook input берётся из JSON-тела. Новый id - books.Max(b => b.Id) + 1; ответ - Results.Created($\"/books/{book.Id}\", book)."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "GET /ping\nGET /books\nGET /books/2\n"
+      expected: "200 text/plain pong\n200 application/json [{\"id\":1,\"title\":\"Dune\",\"author\":\"Herbert\"},{\"id\":2,\"title\":\"Emma\",\"author\":\"Austen\"},{\"id\":3,\"title\":\"Persuasion\",\"author\":\"Austen\"}]\n200 application/json {\"id\":2,\"title\":\"Emma\",\"author\":\"Austen\"}\n"
+      hint: "Три ответа: pong, весь список и книга с id 2."
+    - id: "filter"
+      title: "Фильтр по автору"
+      stdin: "GET /books?author=austen\nGET /books?author=HERBERT\n"
+      expected: "200 application/json [{\"id\":2,\"title\":\"Emma\",\"author\":\"Austen\"},{\"id\":3,\"title\":\"Persuasion\",\"author\":\"Austen\"}]\n200 application/json [{\"id\":1,\"title\":\"Dune\",\"author\":\"Herbert\"}]\n"
+      hint: "Сравнение без учёта регистра: austen находит двух авторов Austen, HERBERT - Dune."
+    - id: "create"
+      title: "Создание книги"
+      stdin: "POST /books | b:{\"title\":\"Ulysses\",\"author\":\"Joyce\"}\nGET /books/4\n"
+      expected: "201 application/json {\"id\":4,\"title\":\"Ulysses\",\"author\":\"Joyce\"}\n  Location: /books/4\n200 application/json {\"id\":4,\"title\":\"Ulysses\",\"author\":\"Joyce\"}\n"
+      hint: "Новый id - максимальный плюс один (4); ответ 201 с заголовком Location, затем книга доступна по этому адресу."
+    - id: "missing"
+      title: "Нет такой книги или маршрута (скрытый)"
+      stdin: "GET /books/1\nGET /books/abc\nGET /books/99\nGET /nope\n"
+      expected: "200 application/json {\"id\":1,\"title\":\"Dune\",\"author\":\"Herbert\"}\n404 -\n404 -\n404 -\n"
+      hidden: true
+      hint: "{id:int} не совпадает с abc (404 от маршрутизации); id 99 совпадает, но книги нет - Results.NotFound()."
+    - id: "methods"
+      title: "Не тот метод (скрытый)"
+      stdin: "DELETE /books/1\nPOST /ping\n"
+      expected: "405 -\n405 -\n"
+      hidden: true
+      hint: "Путь существует, но такой метод не зарегистрирован: фреймворк сам отвечает 405."
+    - id: "nomatch"
+      title: "Пустой фильтр и два новых id (скрытый)"
+      stdin: "GET /books?author=nobody\nPOST /books | b:{\"title\":\"A\",\"author\":\"X\"}\nPOST /books | b:{\"title\":\"B\",\"author\":\"X\"}\nGET /books?author=x\n"
+      expected: "200 application/json []\n201 application/json {\"id\":4,\"title\":\"A\",\"author\":\"X\"}\n  Location: /books/4\n201 application/json {\"id\":5,\"title\":\"B\",\"author\":\"X\"}\n  Location: /books/5\n200 application/json [{\"id\":4,\"title\":\"A\",\"author\":\"X\"},{\"id\":5,\"title\":\"B\",\"author\":\"X\"}]\n"
+      hidden: true
+      hint: "Фильтр без совпадений даёт [], а новые id растут: 4, затем 5."

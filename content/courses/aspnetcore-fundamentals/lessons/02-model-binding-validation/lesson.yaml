@@ -1,0 +1,176 @@
+id: "csharp.aspnetcore.model-binding-validation"
+title: "Привязка модели и валидация"
+goal: "Привязывать части HTTP-запроса к параметрам обработчика, описывать правила через DataAnnotations и возвращать ошибки по полям встроенной и ручной валидацией."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.aspnetcore.minimal-apis-routing"
+related:
+  - "express.fundamentals.validation-security"
+next:
+  - "csharp.aspnetcore.dependency-injection"
+objectives:
+  - "Определять источник каждого параметра (маршрут, строка запроса, заголовок, тело, [AsParameters]) и предсказывать 400 и 415."
+  - "Привязывать enum, DateOnly, Guid и необязательные значения и подключать свои типы через TryParse и BindAsync."
+  - "Включать встроенную валидацию AddValidation и описывать правила атрибутами DataAnnotations."
+  - "Возвращать ошибки по полям через Results.ValidationProblem, когда правило зависит от состояния."
+masteryCriteria:
+  - "Вы отличаете 400 из-за непривязанного значения от 400 из-за нарушенного правила валидации и знаете, какой ответ получит клиент в каждом случае."
+  - "Вы объясняете, почему тип с атрибутами должен быть public и почему вне AddValidation атрибуты ничего не проверяют."
+  - "Вы пишете TryParse для своего типа и [AsParameters]-объект с необязательными членами."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "model-binding"
+  - "validation"
+  - "dataannotations"
+facts:
+  - kind: "internals"
+    text: "Значение параметра minimal API берётся из маршрута, строки запроса, заголовков, тела, сервисов или формы; для сложных типов можно подключить свою привязку через статические TryParse и BindAsync, а [AsParameters] разворачивает объект в набор отдельных параметров."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding?view=aspnetcore-10.0"
+  - kind: "misconception"
+    text: "«Если запрос привязался, данные корректны». Привязка проверяет лишь возможность преобразования в тип; значение вроде age=-5 привяжется без ошибок, смысл проверяют правила валидации. Присутствующий, но неразбираемый параметр даёт 400, даже если он необязателен."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/parameter-binding?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "В ASP.NET Core 10 встроенную проверку атрибутов System.ComponentModel.DataAnnotations для minimal APIs включает builder.Services.AddValidation(); отдельный пакет не нужен. В запуске курса проверено: ошибки группируются по пути поля (Lines[0].Sku, Address.City), а типы, объявленные не public, не проверяются."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/overview?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.componentmodel.dataannotations.validationattribute"
+  - kind: "real-world"
+    text: "Results.ValidationProblem и TypedResults.ValidationProblem формируют ответ 400 в формате ProblemDetails со словарём ошибок «поле - сообщения», который клиент может показать рядом с полями формы; подходит для правил, зависящих от состояния (уникальность, согласованность полей)."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.results.validationproblem"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "Validator.TryValidateObject проверяет атрибуты свойств объекта через ValidationContext; для позиционных записей атрибут на параметре конструктора нужно писать с целью property, иначе он останется на параметре."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/api/system.componentmodel.dataannotations.validator"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "GET /items?count=x обрабатывается лямбдой (int? count) => ... . Что получит клиент?"
+      options:
+        - "200, count равен null"
+        - "400, обработчик не вызывается"
+        - "404"
+        - "500"
+      answer: 1
+      explanation: "Необязательность разрешает отсутствие значения, но значение count=x присутствует и не разбирается в int, поэтому 400."
+    - id: "q2"
+      type: "single"
+      prompt: "POST с Content-Type: text/plain и JSON-телом на обработчик (Note note) => ... Что вернётся?"
+      options:
+        - "200, тело всё равно разберётся"
+        - "400"
+        - "415"
+        - "404"
+      answer: 2
+      explanation: "Тело ожидается как application/json; другой тип содержимого даёт 415 Unsupported Media Type."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что нужно, чтобы атрибуты [Required] и [Range] на записи из тела запроса реально приводили к 400?"
+      options:
+        - "Вызвать builder.Services.AddValidation()"
+        - "Объявить запись как public"
+        - "Добавить пакет FluentValidation"
+        - "Вернуть Results.BadRequest() в обработчике"
+      answer:
+        - 0
+        - 1
+      explanation: "Встроенная валидация включается AddValidation() и проверяет публичные типы. Сторонние пакеты и ручной BadRequest для этого не нужны."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Тело запроса: lines: [{sku: \"\", qty: 0}, {sku: \"A\", qty: 2}], address: {city: \"\"}; Sku обязателен, Qty от 1 до 100, City обязателен. Сколько ключей будет в словаре errors ответа 400?"
+      answer: 3
+      tolerance: 0
+      explanation: "Нарушены Lines[0].Sku, Lines[0].Qty и Address.City: три ключа. Вторая строка заказа корректна."
+    - id: "q5"
+      type: "single"
+      prompt: "Какой ответ получит GET /users?role=admin, если enum Role содержит Admin, а привязка выполняется из строки запроса?"
+      options:
+        - "200, регистр не учитывается"
+        - "400, имя перечисления ищется с учётом регистра"
+        - "404"
+        - "200, значение станет Role.Guest"
+      answer: 1
+      explanation: "В проверочном запуске курса role=admin дало 400, а role=Admin - успешную привязку."
+exercise:
+  id: "csharp.aspnetcore.model-binding-validation.exercise"
+  title: "Пользователи: фильтры и регистрация"
+  prompt: |
+    Доработайте файл `Api.cs`: сервис пользователей с привязкой параметров и валидацией. Проверка подаёт запросы прямо в приложение через TestServer: порт не открывается. Одна строка ввода - один запрос, `Program.cs` печатает ответы: код, тип содержимого и тело (`Location` и прочее печатается отдельной строкой).
+
+    Нужно сделать четыре вещи:
+
+    1. В `Api.Configure` включите встроенную валидацию DataAnnotations (`AddValidation`). Типы `Registration` и `UserFilter` с атрибутами уже написаны.
+    2. В `SortSpec.TryParse` разберите значение `?sort=age:desc`: поле `name`, `age` или `joined` (без учёта регистра), направление `asc` (по умолчанию) или `desc`. Любой другой ввод - `false`, и клиент получит 400.
+    3. `GET /users` принимает `[AsParameters] UserFilter`: `role` и `joinedAfter` (строго позже даты) фильтруют, `sort` упорядочивает, `limit` (1-10, по умолчанию 10) ограничивает число записей. Ответ - JSON-массив **имён**.
+    4. `POST /register` принимает `Registration`. Если email уже занят (без учёта регистра), верните `Results.ValidationProblem` с ключом `Email`. Иначе добавьте пользователя (id на единицу больше максимального, `JoinedOn` равен `2025-06-01`) и ответьте 201 с заголовком `Location: /users/<id>` и самим пользователем.
+
+    Остальное делает фреймворк: невалидные значения привязки дают 400, нарушенные атрибуты - 400 со списком ошибок по полям.
+
+    **Пример ввода**
+
+    ```
+    GET /users?role=User
+    GET /users?sort=age:desc&limit=2
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json ["Bob","Cid"]
+    200 application/json ["Cid","Ann"]
+    ```
+
+    **Что дано.** Решение собирается, но `/users` игнорирует параметры, `TryParse` всегда возвращает `false`, а маршрута `POST /register` нет. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages:
+      - "Microsoft.AspNetCore.TestHost"
+  hints:
+    - "Включите валидацию в Configure: builder.Services.AddValidation(). Она проверяет атрибуты только у public-типов (Registration и UserFilter уже public)."
+    - "Сигнатура уже задана: TryParse(string? value, IFormatProvider? provider, out SortSpec result). Разделите строку по ':' (одна или две части), поле приведите к нижнему регистру и проверьте его, направление - только \"asc\" или \"desc\"."
+    - "Принимайте ([AsParameters] UserFilter filter) и применяйте условия по очереди: filter.Role, filter.JoinedAfter (u.JoinedOn > after), сортировка по filter.Sort, затем Take(filter.Limit) и Select(u => u.Name)."
+    - "В POST ищите дубликат через string.Equals(..., StringComparison.OrdinalIgnoreCase); при совпадении возвращайте Results.ValidationProblem(new Dictionary<string, string[]> { [\"Email\"] = [\"...\"] }), иначе - Results.Created($\"/users/{id}\", user)."
+  tests:
+    - id: "filter"
+      title: "Фильтры role и joinedAfter"
+      stdin: "GET /users\nGET /users?role=User\nGET /users?joinedAfter=2024-06-01\nGET /users?role=Guest&joinedAfter=2025-01-01\n"
+      expected: "200 application/json [\"Ann\",\"Bob\",\"Cid\",\"Dina\"]\n200 application/json [\"Bob\",\"Cid\"]\n200 application/json [\"Cid\",\"Dina\"]\n200 application/json [\"Dina\"]\n"
+      hint: "Role? и DateOnly? берутся из строки запроса; joinedAfter - строго позже даты, поэтому Bob (2024-06-01) не подходит."
+    - id: "sort"
+      title: "Своя привязка sort и limit"
+      stdin: "GET /users?sort=age:desc&limit=2\nGET /users?sort=name:desc\nGET /users?sort=joined\nGET /users?sort=AGE:asc\n"
+      expected: "200 application/json [\"Cid\",\"Ann\"]\n200 application/json [\"Dina\",\"Cid\",\"Bob\",\"Ann\"]\n200 application/json [\"Ann\",\"Bob\",\"Cid\",\"Dina\"]\n200 application/json [\"Dina\",\"Bob\",\"Ann\",\"Cid\"]\n"
+      hint: "TryParse разбирает поле и направление; Limit по умолчанию 10, поэтому limit=2 оставляет две записи."
+    - id: "register"
+      title: "Регистрация и Location"
+      stdin: "POST /register | b:{\"name\":\"Eve\",\"email\":\"eve@example.org\",\"age\":29,\"role\":\"Admin\"}\nGET /users?sort=joined:desc&limit=1\nGET /users?role=Admin\n"
+      expected: "201 application/json {\"id\":5,\"name\":\"Eve\",\"email\":\"eve@example.org\",\"age\":29,\"role\":\"Admin\",\"joinedOn\":\"2025-06-01\"}\n  Location: /users/5\n200 application/json [\"Eve\"]\n200 application/json [\"Ann\",\"Eve\"]\n"
+      hint: "Успешная регистрация даёт 201 и Location: /users/5; новый пользователь с JoinedOn 2025-06-01 идёт первым при сортировке joined:desc."
+    - id: "bad-binding"
+      title: "Не удалось привязать параметры (скрытый)"
+      stdin: "GET /users?role=nobody\nGET /users?joinedAfter=yesterday\nGET /users?sort=zzz\nGET /users?sort=age:up\nGET /users?sort=a:b:c\n"
+      expected: "400 -\n400 -\n400 -\n400 -\n400 -\n"
+      hidden: true
+      hint: "Если значение нельзя преобразовать (enum, DateOnly, TryParse вернул false), обработчик не вызывается: 400."
+    - id: "validation"
+      title: "Ошибки по полям (скрытый)"
+      stdin: "POST /register | b:{\"name\":\"E\",\"email\":\"nope\",\"age\":5}\nPOST /register | b:{\"email\":\"x@y.zz\",\"age\":20}\nGET /users?limit=0\nGET /users?limit=11\nPOST /register | b:{\"name\":\"Eve\",\"email\":\"e@e.org\",\"age\":29,\"role\":\"Boss\"}\nPOST /register | b:oops\n"
+      expected: "400 application/json {\"title\":\"One or more validation errors occurred.\",\"errors\":{\"Name\":[\"The field Name must be a string with a minimum length of 2 and a maximum length of 20.\"],\"Email\":[\"The Email field is not a valid e-mail address.\"],\"Age\":[\"The field Age must be between 18 and 120.\"]}}\n400 application/json {\"title\":\"One or more validation errors occurred.\",\"errors\":{\"Name\":[\"The Name field is required.\"]}}\n400 application/json {\"title\":\"One or more validation errors occurred.\",\"errors\":{\"Limit\":[\"The field Limit must be between 1 and 10.\"]}}\n400 application/json {\"title\":\"One or more validation errors occurred.\",\"errors\":{\"Limit\":[\"The field Limit must be between 1 and 10.\"]}}\n400 -\n400 -\n"
+      hidden: true
+      hint: "AddValidation проверяет атрибуты на теле и на параметрах [AsParameters]; ошибки группируются по полю. Некорректный JSON и неизвестная роль - 400 без списка."
+    - id: "duplicate"
+      title: "Дубликат email (скрытый)"
+      stdin: "POST /register | b:{\"name\":\"Zed\",\"email\":\"ANN@example.org\",\"age\":40}\nPOST /register | b:{\"name\":\"Zed\",\"email\":\"zed@example.org\",\"age\":40}\nPOST /register | b:{\"name\":\"Zed2\",\"email\":\"ZED@example.org\",\"age\":41}\nGET /users?limit=10&sort=name:desc\n"
+      expected: "400 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"Email\":[\"Этот адрес уже зарегистрирован.\"]}}\n201 application/json {\"id\":5,\"name\":\"Zed\",\"email\":\"zed@example.org\",\"age\":40,\"role\":\"User\",\"joinedOn\":\"2025-06-01\"}\n  Location: /users/5\n400 application/problem+json {\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"Email\":[\"Этот адрес уже зарегистрирован.\"]}}\n200 application/json [\"Zed\",\"Dina\",\"Cid\",\"Bob\",\"Ann\"]\n"
+      hidden: true
+      hint: "Сравните email через OrdinalIgnoreCase; при дубликате верните Results.ValidationProblem со словарём {\"Email\": [...]} и не добавляйте пользователя."

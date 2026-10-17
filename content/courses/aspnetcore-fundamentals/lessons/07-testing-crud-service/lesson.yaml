@@ -1,0 +1,258 @@
+id: "csharp.aspnetcore.testing-crud-service"
+title: "Тестирование CRUD-сервиса"
+goal: "Писать интеграционные тесты HTTP API через TestServer и HttpClient, подменять зависимости до сборки приложения и реализовать CRUD-сервис с репозиторием в DI и ошибками в формате ProblemDetails."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "csharp.aspnetcore.error-handling-problem-details"
+related:
+  - "express.fundamentals.testing"
+objectives:
+  - "Запускать приложение на TestServer и проверять код состояния, заголовки, тело и побочные эффекты через HttpClient."
+  - "Объяснять, что добавляет WebApplicationFactory из Microsoft.AspNetCore.Mvc.Testing и чем сборка приложения вручную отличается от неё."
+  - "Подменять регистрации сервисов (часы, идентификаторы, хранилище) до Build() и делать тесты детерминированными и изолированными."
+  - "Реализовать CRUD-сервис: репозиторий через DI, 201 с Location, 404 и 409 как ProblemDetails, 400 для неверных данных, 204 при удалении."
+masteryCriteria:
+  - "Вы создаёте отдельное приложение для каждого теста и объясняете, почему общее приложение делает тесты зависимыми."
+  - "Вы проверяете в тесте не только код ответа, но и Location, Content-Type и результат повторного запроса."
+  - "Вы знаете, что сервисы заменяют до Build(), и подставляете фиксированные часы или счётчик вместо недетерминированных источников."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "testing"
+  - "crud"
+facts:
+  - kind: "internals"
+    text: "Пакет Microsoft.AspNetCore.Mvc.Testing предоставляет WebApplicationFactory<TEntryPoint>: она запускает проверяемое приложение на TestServer, копирует файл зависимостей (.deps) в проект тестов и задаёт корень содержимого проверяемого проекта. Если среда не задана, по умолчанию используется Development."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.testing.webapplicationfactory-1"
+  - kind: "internals"
+    text: "Для минимальных API класс Program должен быть доступен тестовому проекту (например, public partial class Program { }), а подмена сервисов в тесте выполняется через WithWebHostBuilder и ConfigureTestServices."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0"
+  - kind: "misconception"
+    text: "«Тест можно запускать на общем приложении, чтобы он шёл быстрее». Хранилище в памяти принадлежит приложению; общее приложение делит состояние между тестами, и результат зависит от порядка запуска. Надёжнее создавать приложение на каждый тест: TestServer не открывает порт и запускается быстро."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-10.0"
+  - kind: "real-world"
+    text: "TypedResults.Problem и Results.Problem возвращают ответ ProblemDetails (application/problem+json), а Results.Created задаёт и код 201, и заголовок Location; в тесте проверяют оба."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.typedresults.problem"
+  - kind: "real-world"
+    text: "Условные запросы HTTP: заголовок If-None-Match со значением ETag позволяет серверу ответить 304 Not Modified без тела, а If-Match защищает изменение от потерянного обновления: если ресурс изменился, сервер отвечает 412 Precondition Failed."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9110.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Когда нужно заменять регистрацию сервиса для теста при ручной сборке приложения на TestServer?"
+      options:
+        - "После builder.Build(): достаточно вызвать app.Services.AddSingleton(...)"
+        - "До builder.Build(): после сборки коллекция сервисов доступна только для чтения"
+        - "Во время запроса, внутри обработчика"
+        - "Замена невозможна: нужно менять код приложения"
+      answer: 1
+      explanation: "Контейнер собирается один раз в Build(); после этого коллекция сервисов доступна только для чтения, поэтому замены делают до сборки."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что делает пакет Microsoft.AspNetCore.Mvc.Testing с WebApplicationFactory<TEntryPoint>?"
+      options:
+        - "Запускает приложение проверяемого проекта на TestServer"
+        - "Копирует файл зависимостей (.deps) проверяемого проекта в проект тестов"
+        - "Подменяет базу данных на SQLite автоматически"
+        - "Позволяет заменить сервисы через WithWebHostBuilder и ConfigureTestServices"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Фабрика запускает приложение на TestServer и поддерживает замену сервисов. Базу данных она сама не подменяет."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему тесты, использующие одно общее приложение с хранилищем в памяти, считаются хрупкими?"
+      options:
+        - "TestServer не поддерживает больше одного запроса"
+        - "Состояние хранилища переходит из теста в тест, и результат зависит от порядка запуска"
+        - "HttpClient закрывается после первого запроса"
+        - "Такие тесты нельзя запускать параллельно с компилятором"
+      answer: 1
+      explanation: "Хранилище живёт столько же, сколько приложение. Запись, созданная в одном тесте, видна другим."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Какой код состояния вернёт GET /items/1 с заголовком If-None-Match, совпавшим с текущим ETag ресурса?"
+      answer: 304
+      explanation: "Совпадение If-None-Match при GET означает, что у клиента актуальная копия: 304 Not Modified без тела."
+    - id: "q5"
+      type: "single"
+      prompt: "PUT /items/1 пришёл с If-Match, не совпадающим с текущим ETag ресурса. Что вернёт сервер?"
+      options:
+        - "409 Conflict"
+        - "412 Precondition Failed"
+        - "304 Not Modified"
+        - "400 Bad Request"
+      answer: 1
+      explanation: "If-Match выражает условие «изменять, только если ресурс не менялся». Условие нарушено - 412."
+exercise:
+  id: "csharp.aspnetcore.testing-crud-service.exercise"
+  title: "CRUD-сервис товаров"
+  prompt: |
+    Доработайте `Api.cs`: сервис товаров (`Item`: `id`, `name`, `price`) поверх `IItemRepository`. Класс `InMemoryItemRepository` (два товара: Tea 2.5 и Coffee 3) уже написан. Проверка подаёт запросы в приложение через TestServer: порт не открывается. Одна строка ввода - один запрос, `Program.cs` печатает `код тип тело` и заголовок `Location`, если он есть. В ответах `application/problem+json` поля `type` и `traceId` удаляются, остальные печатаются как есть.
+
+    Нужно:
+
+    1. `Configure`: зарегистрировать `IItemRepository` как singleton (`InMemoryItemRepository`).
+    2. `GET /items` - JSON-список; `GET /items/{id:int}` - товар или 404.
+    3. `POST /items` с телом `{"name": ..., "price": ...}`:
+       * пустое имя -> ошибка `name`: `name is required`; цена не задана или `<= 0` -> ошибка `price`: `price must be greater than zero`; ошибки возвращаются вместе одним `Results.ValidationProblem` (400);
+       * имя занято (без учёта регистра, `NameTaken`) -> 409;
+       * иначе 201 с заголовком `Location: /items/<id>` и товаром.
+    4. `PUT /items/{id:int}` - полная замена: порядок проверок 404, затем 400, затем 409 (имя занято **другим** товаром; собственное имя повторять можно); успех - 200 с обновлённым товаром.
+    5. `DELETE /items/{id:int}` - 204 без тела или 404.
+
+    Ошибки 404 и 409 - `Results.Problem(statusCode: ..., title: "Not Found" / "Conflict", detail: ...)`: для 404 detail `Item {id} was not found`, для 409 `Item '{name}' already exists`.
+
+    **Пример ввода**
+
+    ```
+    GET /items/2
+    GET /items/9
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"id":2,"name":"Coffee","price":3}
+    404 application/problem+json {"title":"Not Found","status":404,"detail":"Item 9 was not found"}
+    ```
+
+    **Что дано.** Решение собирается, но репозиторий не зарегистрирован и маршрутов нет. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages: ["Microsoft.AspNetCore.TestHost"]
+  hints:
+    - "Регистрация: builder.Services.AddSingleton<IItemRepository, InMemoryItemRepository>(); в обработчик репозиторий приходит параметром лямбды."
+    - "Все маршруты удобно собрать в группе: var items = app.MapGroup(\"/items\"); затем items.MapGet(\"/\", ...), items.MapGet(\"/{id:int}\", ...) и так далее."
+    - "Тело POST/PUT - параметр ItemInput (Name и Price необязательные, поэтому отсутствие значения не даёт автоматический 400). Соберите Dictionary<string, string[]> ошибок и верните Results.ValidationProblem(errors), если он не пуст."
+    - "Для PUT вызовите repository.NameTaken(name, id): второй аргумент исключает сам редактируемый товар. Создание - Results.Created($\"/items/{item.Id}\", item), удаление - Results.NoContent()."
+  tests:
+    - id: "read"
+      title: "Чтение (пример из условия)"
+      stdin: "GET /items\nGET /items/2\nGET /items/9\n"
+      expected: "200 application/json [{\"id\":1,\"name\":\"Tea\",\"price\":2.5},{\"id\":2,\"name\":\"Coffee\",\"price\":3}]\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":3}\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 9 was not found\"}\n"
+      hint: "Список и товар - обычный JSON, отсутствующий id - Results.Problem(statusCode: 404, ...) с title и detail из условия."
+    - id: "create"
+      title: "Создание"
+      stdin: "POST /items | b:{\"name\":\"Milk\",\"price\":1.2}\nGET /items/3\nGET /items\n"
+      expected: "201 application/json {\"id\":3,\"name\":\"Milk\",\"price\":1.2}\n  Location: /items/3\n200 application/json {\"id\":3,\"name\":\"Milk\",\"price\":1.2}\n200 application/json [{\"id\":1,\"name\":\"Tea\",\"price\":2.5},{\"id\":2,\"name\":\"Coffee\",\"price\":3},{\"id\":3,\"name\":\"Milk\",\"price\":1.2}]\n"
+      hint: "Новый товар получает id 3, ответ 201 с Location: /items/3; затем он виден по адресу и в списке (репозиторий один на приложение)."
+    - id: "validation"
+      title: "Проверка тела"
+      stdin: "POST /items | b:{\"name\":\" \",\"price\":0}\nPOST /items | b:{\"name\":\"Cocoa\"}\nPOST /items | b:{}\nGET /items\n"
+      expected: "400 application/problem+json {\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"name\":[\"name is required\"],\"price\":[\"price must be greater than zero\"]}}\n400 application/problem+json {\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"price\":[\"price must be greater than zero\"]}}\n400 application/problem+json {\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"name\":[\"name is required\"],\"price\":[\"price must be greater than zero\"]}}\n200 application/json [{\"id\":1,\"name\":\"Tea\",\"price\":2.5},{\"id\":2,\"name\":\"Coffee\",\"price\":3}]\n"
+      hint: "Ошибки собираются по полям и отдаются одним Results.ValidationProblem; после неудачных запросов список не изменился."
+    - id: "conflict"
+      title: "Дубликат имени (скрытый)"
+      stdin: "POST /items | b:{\"name\":\"tea\",\"price\":1}\nPOST /items | b:{\"name\":\"Milk\",\"price\":1}\nPOST /items | b:{\"name\":\"MILK\",\"price\":2}\n"
+      expected: "409 application/problem+json {\"title\":\"Conflict\",\"status\":409,\"detail\":\"Item 'tea' already exists\"}\n201 application/json {\"id\":3,\"name\":\"Milk\",\"price\":1}\n  Location: /items/3\n409 application/problem+json {\"title\":\"Conflict\",\"status\":409,\"detail\":\"Item 'MILK' already exists\"}\n"
+      hidden: true
+      hint: "Имя сравнивается без учёта регистра (NameTaken): tea занят, Milk свободен, а второй MILK уже дубликат - 409."
+    - id: "update"
+      title: "Обновление (скрытый)"
+      stdin: "PUT /items/1 | b:{\"name\":\"Green tea\",\"price\":4}\nPUT /items/1 | b:{\"name\":\"green TEA\",\"price\":5}\nPUT /items/2 | b:{\"name\":\"Green tea\",\"price\":4}\nPUT /items/9 | b:{\"name\":\"x\",\"price\":1}\nPUT /items/1 | b:{\"price\":-1}\nGET /items\n"
+      expected: "200 application/json {\"id\":1,\"name\":\"Green tea\",\"price\":4}\n200 application/json {\"id\":1,\"name\":\"green TEA\",\"price\":5}\n409 application/problem+json {\"title\":\"Conflict\",\"status\":409,\"detail\":\"Item 'Green tea' already exists\"}\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 9 was not found\"}\n400 application/problem+json {\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"name\":[\"name is required\"],\"price\":[\"price must be greater than zero\"]}}\n200 application/json [{\"id\":1,\"name\":\"green TEA\",\"price\":5},{\"id\":2,\"name\":\"Coffee\",\"price\":3}]\n"
+      hidden: true
+      hint: "Переименование в то же имя собственного товара допустимо; чужое имя - 409; сначала проверяется существование (404), затем тело."
+    - id: "delete"
+      title: "Удаление (скрытый)"
+      stdin: "DELETE /items/1\nDELETE /items/1\nGET /items/1\nPOST /items | b:{\"name\":\"Tea\",\"price\":2}\nGET /items\n"
+      expected: "204 -\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 1 was not found\"}\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 1 was not found\"}\n201 application/json {\"id\":3,\"name\":\"Tea\",\"price\":2}\n  Location: /items/3\n200 application/json [{\"id\":2,\"name\":\"Coffee\",\"price\":3},{\"id\":3,\"name\":\"Tea\",\"price\":2}]\n"
+      hidden: true
+      hint: "Первое удаление - 204 без тела, повторное - 404; после удаления имя Tea снова свободно, а новый id продолжает счёт (3)."
+challenge:
+  id: "csharp.aspnetcore.testing-crud-service.challenge"
+  title: "Условный GET: ETag и If-Match"
+  prompt: |
+    Добавьте к сервису товаров **кэширование и защиту от потерянного обновления** через `ETag`. Все изменения в `Api.cs`; хранилище `ItemStore` (Tea 2.5, Coffee 3) готово. Проверка работает так же, как в основном задании, но печатает ещё и заголовок `ETag` (`  ETag: "..."`), поэтому значение тега сравнивается точно.
+
+    Алгоритм тега: **первые 16 символов SHA-256 от байтов тела ответа** (строчные hex-цифры) в двойных кавычках, например `"796b614f6e826586"` для `{"id":1,"name":"Tea","price":2.5}`.
+
+    Нужно:
+
+    1. `GET /items/{id:int}` - JSON товара с заголовком `ETag`, либо 404 (`Results.Problem(statusCode: 404, title: "Not Found", detail: "Item {id} was not found")`, без `ETag`).
+    2. Условный GET в виде **middleware** (`app.Use`): если `If-None-Match` содержит текущий тег (список через запятую; префикс `W/` игнорируется; `*` подходит всегда), ответ - `304` **без тела и без `Content-Type`**, заголовок `ETag` остаётся.
+    3. `PUT /items/{id:int}` с телом `{"name": ..., "price": ...}`: сначала 404, если товара нет (даже при `If-Match`). Если задан `If-Match` и в нём нет **текущего** тега (тот же алгоритм от JSON товара в формате `JsonSerializerDefaults.Web`) и нет `*`, ответ `412` (`Results.Problem(statusCode: 412, title: "Precondition Failed", detail: "The item was changed by someone else")`). Иначе товар сохраняется (`store.Save`), ответ - 200 с товаром и `ETag` нового представления. Без `If-Match` изменение безусловно.
+
+    **Пример ввода**
+
+    ```
+    GET /items/1
+    GET /items/1 | h:If-None-Match="796b614f6e826586"
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"id":1,"name":"Tea","price":2.5}
+      ETag: "796b614f6e826586"
+    304 -
+      ETag: "796b614f6e826586"
+    ```
+
+    **Что дано.** Решение собирается, но маршрутов нет, поэтому любой запрос даёт 404. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  requires:
+    nugetPackages: ["Microsoft.AspNetCore.TestHost"]
+  hints:
+    - "Тег удобно считать функцией ETagOf(ReadOnlySpan<byte> bytes): SHA256.HashData(bytes), Convert.ToHexStringLower(...)[..16], затем обрамить кавычками. Один и тот же код нужен и в middleware, и в PUT."
+    - "Middleware: подмените context.Response.Body на MemoryStream, вызовите next(), затем (если статус 200 и тело не пусто) вычислите тег по buffer.ToArray(), задайте context.Response.Headers.ETag; при совпадении поставьте StatusCode = 304, ContentType = null, ContentLength = null и верните управление, иначе скопируйте буфер в исходный поток."
+    - "Разбор If-None-Match / If-Match: context.Request.Headers.IfNoneMatch.ToString().Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries); для If-None-Match отбросьте префикс W/, значение * считайте совпадением с любым существующим ресурсом."
+    - "Для PUT текущий тег считайте от JsonSerializer.SerializeToUtf8Bytes(current, new JsonSerializerOptions(JsonSerializerDefaults.Web)) - эти же байты отдаёт Results.Ok. Заголовок для PUT-ответа: context.Response.Headers.ETag = ... (HttpContext запросите параметром лямбды)."
+  tests:
+    - id: "etag"
+      title: "ETag у GET"
+      stdin: "GET /items/1\nGET /items/1\nGET /items/2\n"
+      expected: "200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":2.5}\n  ETag: \"796b614f6e826586\"\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":2.5}\n  ETag: \"796b614f6e826586\"\n200 application/json {\"id\":2,\"name\":\"Coffee\",\"price\":3}\n  ETag: \"521c71adfa880696\"\n"
+      hint: "Тег зависит только от байтов тела, поэтому одинаковый для повторных запросов и разный для разных товаров; форма - 16 hex-символов SHA-256 в кавычках."
+    - id: "not-modified"
+      title: "304 по If-None-Match"
+      stdin: "GET /items/1 | h:If-None-Match=\"796b614f6e826586\"\nGET /items/1 | h:If-None-Match=\"521c71adfa880696\"\n"
+      expected: "304 -\n  ETag: \"796b614f6e826586\"\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":2.5}\n  ETag: \"796b614f6e826586\"\n"
+      hint: "Совпавший тег даёт 304 без тела и без Content-Type (ETag остаётся); тег другого товара не совпадает - обычный 200."
+    - id: "put-mismatch"
+      title: "412 при несовпадении If-Match"
+      stdin: "PUT /items/1 | h:If-Match=\"bad\" | b:{\"name\":\"Green tea\",\"price\":4}\nGET /items/1\n"
+      expected: "412 application/problem+json {\"title\":\"Precondition Failed\",\"status\":412,\"detail\":\"The item was changed by someone else\"}\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":2.5}\n  ETag: \"796b614f6e826586\"\n"
+      hint: "Если If-Match задан и не содержит текущий ETag, PUT отклоняется с 412, а ресурс не меняется."
+    - id: "put-match"
+      title: "PUT с верным If-Match (скрытый)"
+      stdin: "PUT /items/1 | h:If-Match=\"796b614f6e826586\" | b:{\"name\":\"Green tea\",\"price\":4}\nGET /items/1 | h:If-None-Match=\"796b614f6e826586\"\nGET /items/1 | h:If-None-Match=\"5c6480bb07a6faec\"\n"
+      expected: "200 application/json {\"id\":1,\"name\":\"Green tea\",\"price\":4}\n  ETag: \"5c6480bb07a6faec\"\n200 application/json {\"id\":1,\"name\":\"Green tea\",\"price\":4}\n  ETag: \"5c6480bb07a6faec\"\n304 -\n  ETag: \"5c6480bb07a6faec\"\n"
+      hidden: true
+      hint: "Верный тег пропускает PUT: ответ 200 с ETag нового представления; старый тег после изменения уже не даёт 304, новый - даёт."
+    - id: "tag-lists"
+      title: "Список, слабый тег и звёздочка (скрытый)"
+      stdin: "GET /items/1 | h:If-None-Match=\"x\", \"796b614f6e826586\"\nGET /items/1 | h:If-None-Match=W/\"796b614f6e826586\"\nGET /items/1 | h:If-None-Match=*\nGET /items/1 | h:If-None-Match=\"x\", \"y\"\n"
+      expected: "304 -\n  ETag: \"796b614f6e826586\"\n304 -\n  ETag: \"796b614f6e826586\"\n304 -\n  ETag: \"796b614f6e826586\"\n200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":2.5}\n  ETag: \"796b614f6e826586\"\n"
+      hidden: true
+      hint: "If-None-Match - список через запятую; префикс W/ игнорируем; * подходит любому существующему ресурсу; ни один тег не совпал - 200."
+    - id: "missing"
+      title: "Нет такого товара (скрытый)"
+      stdin: "GET /items/9\nGET /items/9 | h:If-None-Match=*\nPUT /items/9 | h:If-Match=* | b:{\"name\":\"x\",\"price\":1}\nPUT /items/9 | h:If-Match=\"796b614f6e826586\" | b:{\"name\":\"x\",\"price\":1}\n"
+      expected: "404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 9 was not found\"}\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 9 was not found\"}\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 9 was not found\"}\n404 application/problem+json {\"title\":\"Not Found\",\"status\":404,\"detail\":\"Item 9 was not found\"}\n"
+      hidden: true
+      hint: "Отсутствие ресурса всегда 404 как ProblemDetails: условные заголовки не превращают его в 304 или 412."
+    - id: "unconditional"
+      title: "PUT без условий и со звёздочкой (скрытый)"
+      stdin: "PUT /items/1 | b:{\"name\":\"Tea\",\"price\":2.5}\nPUT /items/2 | h:If-Match=* | b:{\"name\":\"Latte\",\"price\":4}\nGET /items/2\nPUT /items/1 | h:If-Match=\"bad\" | b:{\"name\":\"X\",\"price\":1}\n"
+      expected: "200 application/json {\"id\":1,\"name\":\"Tea\",\"price\":2.5}\n  ETag: \"796b614f6e826586\"\n200 application/json {\"id\":2,\"name\":\"Latte\",\"price\":4}\n  ETag: \"722bcd85f9932c84\"\n200 application/json {\"id\":2,\"name\":\"Latte\",\"price\":4}\n  ETag: \"722bcd85f9932c84\"\n412 application/problem+json {\"title\":\"Precondition Failed\",\"status\":412,\"detail\":\"The item was changed by someone else\"}\n"
+      hidden: true
+      hint: "Без If-Match запись безусловна; * подходит любому существующему ресурсу; PUT с теми же данными возвращает прежний ETag."

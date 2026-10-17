@@ -2,6 +2,7 @@ using DevAcademy.AI;
 using DevAcademy.AI.Http;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
+using DevAcademy.Application.NuGet;
 using DevAcademy.Application.Node;
 using DevAcademy.Application.Ports;
 using DevAcademy.Application.Python;
@@ -69,10 +70,14 @@ public static class Bootstrapper
         services.AddSingleton(sp => CreateGoEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
         services.AddSingleton<IGoEnvironmentResolver>(sp => sp.GetRequiredService<GoEnvironmentService>());
 
+        // NuGet content environment (packages folder of a package set, e.g. ASP.NET Core TestHost): read-only at grading time, restored only on an explicit action.
+        services.AddSingleton(sp => CreateNuGetEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
+        services.AddSingleton<INuGetEnvironmentResolver>(sp => sp.GetRequiredService<NuGetEnvironmentService>());
+
         services.AddSingleton<CatalogService>();
         services.AddSingleton<LearningPathService>();
-        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>()));
-        services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>()));
+        services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>()));
+        services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>()));
         services.AddSingleton<ProgressService>();
         services.AddSingleton<HintService>();
         services.AddSingleton<ProblemService>();
@@ -134,6 +139,16 @@ public static class Bootstrapper
             : GoEnvironmentService.HasInstalledSet(paths.GoContentDir) ? paths.GoContentDir
             : GoEnvironmentService.FindRepositoryEnvironment() ?? paths.GoContentDir;
         return new GoEnvironmentService(tools, env, packages);
+    }
+
+    /// <summary>Same rule as the Go environment: <c>DEVACADEMY_NUGET_ENV</c>, else the app data directory once a set is installed there, else a checkout's <c>.nuget-content</c>, else the app data directory.</summary>
+    private static NuGetEnvironmentService CreateNuGetEnvironment(IToolRunner tools, AppPaths paths, ContentPackageIndex packages)
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("DEVACADEMY_NUGET_ENV");
+        var env = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv
+            : NuGetEnvironmentService.HasInstalledSet(paths.NuGetContentDir) ? paths.NuGetContentDir
+            : NuGetEnvironmentService.FindRepositoryEnvironment() ?? paths.NuGetContentDir;
+        return new NuGetEnvironmentService(tools, env, packages);
     }
 
     private static ProviderRegistry CreateRegistry(AiHttp http, ISettingsRepository settings)

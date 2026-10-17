@@ -381,6 +381,34 @@ Authoring rules learned from `go-ml-gomlx`:
 * Pre-1.0 libraries: pin exact versions, say so in `framework.deprecated`/`migrationNotes`, and describe tradeoffs honestly (the pure-Go GoMLX backend is slower
   than XLA; the course teaches principles, not performance).
 
+## C# projects and NuGet packages (ASP.NET Core)
+
+```yaml
+requires: { nugetPackages: [Microsoft.AspNetCore.TestHost] }   # csharp exercises only
+```
+
+**Project mode.** A C# exercise normally builds its entry file as a file-based app. When the exercise files hold **exactly one `*.csproj` in the root**, the runner builds that
+project instead (`dotnet build <project> -o out` with the same flags) and runs `out/<AssemblyName>.dll` (`<AssemblyName>` from the project, else the project file name), so
+an exercise may have several `.cs` files, a fixed driver `Program.cs` and a learner file. Without a project nothing changes. Harness, io and command evaluation all work with multiple files.
+
+**NuGet sets.** `nugetPackages` are package ids (no versions: the pins come from the set). They must be covered by ONE `nuget` set in `tools/content-packages/index.json`
+(`nuget/<id>/restore.csproj`, language `nuget`, exact `Version="..."` pins; same smallest-covering-set rule). The exercise's own project references the **same pinned versions**
+(copy the `PackageReference` lines of the set); the validator requires exactly one root `.csproj` in the starter and in the solution. The build runs offline against the set's
+read-only packages folder: `NUGET_PACKAGES=<set>/packages` and `-p:RestoreSources=<set>/packages` (no `NuGet.Config`: the build never consults the network), and such a run never
+uses a container. The install is `dotnet restore restore.csproj --packages <data>/nuget-content/<set>/packages --source https://api.nuget.org/v3/index.json` after the learner confirms
+(packages with versions, the exact command, the network notice); nothing is downloaded implicitly.
+
+`make nuget-env` runs that restore for EVERY nuget set into the gitignored `.nuget-content/<set>/packages` (DOWNLOADS from api.nuget.org). `make validate-content` passes
+`--nuget-env .nuget-content` when that directory exists; without it, NuGet exercises and theory samples are skipped with a warning (as `--go-env` does for Go).
+
+Authoring rules for ASP.NET Core courses (`aspnetcore-fundamentals`):
+
+* The sandbox denies listening sockets, so the app runs in memory under `TestServer` (`builder.WebHost.UseTestServer()`) and a fixed driver `Program.cs` feeds it requests from stdin
+  through `app.GetTestClient()`. The driver clears logging providers and strips nondeterministic data (`traceId`, timestamps, GUIDs) from what it prints.
+* Theory samples (` ```csharp run `) of a lesson whose exercise has `nugetPackages` are built as a `Program.cs` next to the **solution's** `.csproj`, so a sample is one top-level program
+  (the Web SDK implicit usings are on) that needs no other file. Output blocks come from real runs.
+* A build takes about 2 s and 230 MB of memory, a run about 0.2 s and 90 MB; the default 256 MB run limit is enough (the compile step has its own limit).
+
 ## npm packages for JavaScript exercises (React, Vitest, Testing Library)
 
 ```yaml
@@ -421,9 +449,9 @@ A learner's machine downloads only the packages of the library being studied, so
 Node sets are `node/<id>/{package.json,package-lock.json}` (lock generated with `npm install --package-lock-only --ignore-scripts`; shared
 versions must be identical across sets); Python sets are `python/<id>.txt` with pinned requirements; Go sets are `go/<id>/{go.mod,go.sum}` (`packages` lists
 the top-level module paths). Current sets: node `react`, `typescript`,
-`express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
+`express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`; nuget `aspnetcore-testing`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
 
-An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node; `requires.goModules` for Go) must be
+An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node; `requires.goModules` for Go; `requires.nugetPackages` for C#) must be
 covered by ONE set of the right language: the smallest covering set wins, ties go to index order. The validator reports an error for an
 exercise no set covers, so when adding a course that needs a new package, add it to an existing set (or create a set) in the same change.
 If the index cannot be found the validator only warns.

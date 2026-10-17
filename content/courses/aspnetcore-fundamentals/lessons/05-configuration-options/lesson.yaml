@@ -1,0 +1,197 @@
+id: "csharp.aspnetcore.configuration-options"
+title: "Конфигурация и шаблон параметров"
+goal: "Читать конфигурацию из нескольких источников с учётом приоритета, привязывать её к типизированным параметрам через IOptions, IOptionsSnapshot и IOptionsMonitor и останавливать запуск при неверных настройках."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.aspnetcore.middleware-pipeline"
+related:
+  - "csharp.aspnetcore.dependency-injection"
+next:
+  - "csharp.aspnetcore.error-handling-problem-details"
+objectives:
+  - "Объяснять, как провайдеры конфигурации складываются в плоские ключи с двоеточием и какой источник перекрывает какой."
+  - "Читать значения через индексатор, GetSection, GetValue, Get и Bind и записывать иерархические ключи для переменных окружения через __."
+  - "Выбирать между IOptions, IOptionsSnapshot и IOptionsMonitor по времени жизни и по необходимости видеть изменения."
+  - "Проверять параметры через ValidateDataAnnotations, Validate и ValidateOnStart и использовать IHostEnvironment для различий между средами."
+masteryCriteria:
+  - "Вы предсказываете итоговое значение ключа, заданного в нескольких источниках, и пишете для него имя переменной окружения."
+  - "Вы знаете, что IOptions читается один раз, IOptionsSnapshot пересчитывается на запрос, а IOptionsMonitor обновляется при изменении источника."
+  - "Вы включаете ValidateOnStart, чтобы ошибка конфигурации останавливала запуск, а не ломала запросы."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "configuration"
+  - "options"
+facts:
+  - kind: "internals"
+    text: "Конфигурация - это набор пар «ключ - строка» из провайдеров, применяемых по порядку: более поздний провайдер перекрывает более раннего. По умолчанию WebApplication.CreateBuilder подключает appsettings.json, appsettings.{Environment}.json, секреты пользователя (в Development), переменные окружения и аргументы командной строки."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "IOptions<T> регистрируется как singleton и не видит изменений после запуска, IOptionsSnapshot<T> регистрируется как scoped и пересчитывается на каждый запрос, IOptionsMonitor<T> - singleton с актуальным CurrentValue и событием OnChange."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/options"
+  - kind: "misconception"
+    text: "«Неверная конфигурация обнаружится при старте». Без ValidateOnStart проверка параметров выполняется лениво, при первом чтении значения: ошибка проявится в запросе или сервисе, который первым обратился к параметрам. ValidateOnStart переносит проверку на запуск приложения."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.dependencyinjection.optionsbuilderextensions.validateonstart"
+  - kind: "real-world"
+    text: "Секреты (пароли, ключи API) не хранят в appsettings.json в репозитории: в разработке используют секреты пользователя, в боевой среде - переменные окружения или специальное хранилище, а имена с __ в переменных окружения соответствуют ключам с двоеточием."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "Имя среды берётся из переменных DOTNET_ENVIRONMENT и ASPNETCORE_ENVIRONMENT, по умолчанию это Production; IHostEnvironment предоставляет IsDevelopment, IsStaging, IsProduction и IsEnvironment, от среды зависят файл appsettings.{Environment}.json и поведение приложения."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments?view=aspnetcore-10.0"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Ключ Shop:Name задан в appsettings.json как Books, а переменной окружения Shop__Name как Outlet. Что вернёт config[\"Shop:Name\"] при стандартной настройке?"
+      options:
+        - "Books"
+        - "Outlet"
+        - "null: источники конфликтуют"
+        - "Исключение"
+      answer: 1
+      explanation: "Переменные окружения подключаются после файлов и перекрывают их; __ в имени переменной означает двоеточие."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой интерфейс параметров вернёт новое значение в следующем запросе после перезагрузки источника конфигурации, но не подходит для внедрения в singleton?"
+      options:
+        - "IOptions<T>"
+        - "IOptionsSnapshot<T>"
+        - "IOptionsMonitor<T>"
+        - "IConfiguration"
+      answer: 1
+      explanation: "IOptionsSnapshot<T> scoped: пересчитывается на запрос. IOptions<T> читается один раз, а IOptionsMonitor<T> - singleton и подходит для долгоживущих сервисов."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что делает ValidateOnStart()?"
+      options:
+        - "Проверяет параметры при запуске приложения, а не при первом чтении"
+        - "Останавливает запуск, если настройки нарушают правила"
+        - "Заставляет IOptions<T> перечитывать конфигурацию на каждый запрос"
+        - "Собирает все нарушения в одну ошибку OptionsValidationException"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "ValidateOnStart переносит проверку на запуск и прерывает его с OptionsValidationException, в которой собраны все нарушения. Перечитыванием он не занимается."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Сколько знаков подчёркивания (_) в имени переменной окружения, которая задаёт ключ Shop:Limits:MaxItems (в имени переменной двоеточие записывают как __)?"
+      answer: 4
+      explanation: "Имя Shop__Limits__MaxItems: каждое двоеточие заменено двумя подчёркиваниями, всего четыре."
+    - id: "q5"
+      type: "single"
+      prompt: "config.GetSection(\"Nothing\") для несуществующего раздела возвращает..."
+      options:
+        - "null"
+        - "Пустой раздел, не равный null: проверять наличие данных нужно через Exists()"
+        - "Исключение InvalidOperationException"
+        - "Раздел со значением из appsettings.json"
+      answer: 1
+      explanation: "GetSection всегда возвращает объект раздела; есть ли в нём данные, показывают Exists() и GetChildren()."
+exercise:
+  id: "csharp.aspnetcore.configuration-options.exercise"
+  title: "Настройки магазина"
+  prompt: |
+    Доработайте `Api.cs`: метод `Api.Configure` должен зарегистрировать параметры `ShopOptions` из секции `Shop`, а `Api.Map` - маршруты, которые их используют. Класс `ShopOptions` уже описан (значения по умолчанию и атрибуты `[Required]`, `[Range]` есть).
+
+    Драйвер `Program.cs` сначала применяет строки настройки, затем запускает приложение и подаёт запросы. Ввод состоит из блока настройки, строки `---` и запросов (если `---` нет, весь ввод - запросы). Строки настройки добавляют источники конфигурации по порядку, **поздний перекрывает ранний**:
+
+    * `cfg:Shop:Name=Books` - значение в памяти (как из `appsettings.json`);
+    * `arg:--Shop:Currency=EUR` - аргумент командной строки;
+    * `env:Shop__Name=Outlet` - переменная окружения (`__` означает `:`);
+    * `mode:Development` - имя среды (по умолчанию `Production`).
+
+    Если запуск прерван ошибкой проверки параметров (`ValidateOnStart`), драйвер печатает `startup failed: ShopOptions, failures: <число ошибок>` и завершает работу.
+
+    Нужно:
+
+    1. В `Configure`: привязать секцию `Shop` к `ShopOptions`, включить проверку атрибутов, добавить правило **`Currency` ровно из 3 символов** и проверку при запуске.
+    2. `GET /shop` - JSON `{name, currency, maxItems, discountPercent}` из `IOptions<ShopOptions>`.
+    3. `GET /quote?price=..&qty=..` - если `qty` больше `MaxItems`, ответ 400 с JSON `{"error":"too many items","maxItems":N}`; иначе 200 с `{currency, total}`, где `total = price * qty * (100 - DiscountPercent) / 100` (целые числа).
+    4. `GET /raw?key=Shop:Name` - значение ключа из `IConfiguration` как текст или 404, если ключа нет.
+    5. `GET /env` - JSON `{environment, isDevelopment}` из `IHostEnvironment`.
+    6. `GET /dev/config` (текст `dev tools`) регистрируется **только** в среде Development; в остальных средах - 404.
+
+    **Пример ввода**
+
+    ```
+    cfg:Shop:Name=Books
+    cfg:Shop:DiscountPercent=10
+    ---
+    GET /quote?price=100&qty=3
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"currency":"USD","total":270}
+    ```
+
+    **Что дано.** Решение собирается, но кроме `/ping` маршрутов нет и параметры не зарегистрированы. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages: ["Microsoft.AspNetCore.TestHost"]
+  hints:
+    - "Регистрация: builder.Services.AddOptions<ShopOptions>().Bind(builder.Configuration.GetSection(\"Shop\")) - дальше цепочкой .ValidateDataAnnotations(), .Validate(o => ..., \"сообщение\") и .ValidateOnStart()."
+    - "В обработчике запросите IOptions<ShopOptions> параметром лямбды и читайте options.Value; для /raw запросите IConfiguration и string key (из строки запроса)."
+    - "400 с телом: Results.BadRequest(new { error = \"too many items\", maxItems = shop.MaxItems }); обычный ответ - анонимный объект, он сериализуется в camelCase."
+    - "Среду даёт IHostEnvironment (параметр обработчика) или app.Environment.IsDevelopment(); последний вариант вызывайте в Map, чтобы маршрут /dev/config регистрировался условно."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "cfg:Shop:Name=Books\ncfg:Shop:DiscountPercent=10\n---\nGET /shop\nGET /quote?price=100&qty=3\n"
+      expected: "200 application/json {\"name\":\"Books\",\"currency\":\"USD\",\"maxItems\":10,\"discountPercent\":10}\n200 application/json {\"currency\":\"USD\",\"total\":270}\n"
+      hint: "Остальные параметры берутся по умолчанию: USD и MaxItems 10; итог 100 * 3 * 90 / 100 = 270."
+    - id: "precedence"
+      title: "Приоритет источников"
+      stdin: "cfg:Shop:Name=Memory\nenv:Shop__Name=EnvVar\ncfg:Shop:Currency=EUR\narg:--Shop:Currency=GBP\ncfg:Shop:MaxItems=3\n---\nGET /shop\nGET /raw?key=Shop:Name\nGET /raw?key=Shop:MaxItems\n"
+      expected: "200 application/json {\"name\":\"EnvVar\",\"currency\":\"GBP\",\"maxItems\":3,\"discountPercent\":0}\n200 text/plain EnvVar\n200 text/plain 3\n"
+      hint: "Побеждает источник, добавленный позже: Name из переменной окружения, Currency из командной строки, MaxItems из памяти. Привязка секции даёт то же, что видит IConfiguration."
+    - id: "raw"
+      title: "Чтение ключей напрямую"
+      stdin: "cfg:Shop:Name=Books\n---\nGET /raw?key=Shop:Name\nGET /raw?key=Shop:Missing\nGET /raw?key=shop:NAME\nGET /ping\n"
+      expected: "200 text/plain Books\n404 -\n200 text/plain Books\n200 text/plain pong\n"
+      hint: "configuration[key] возвращает null для отсутствующего ключа (тогда 404); ключи не зависят от регистра, а значения по умолчанию из класса в конфигурации не видны."
+    - id: "too-many"
+      title: "Лимит количества (скрытый)"
+      stdin: "cfg:Shop:Name=Books\ncfg:Shop:MaxItems=2\ncfg:Shop:Currency=EUR\n---\nGET /quote?price=50&qty=2\nGET /quote?price=50&qty=3\nGET /quote?price=50\n"
+      expected: "200 application/json {\"currency\":\"EUR\",\"total\":100}\n400 application/json {\"error\":\"too many items\",\"maxItems\":2}\n400 -\n"
+      hidden: true
+      hint: "qty > MaxItems даёт 400 с JSON-описанием; ровно MaxItems допустимо; обязательный параметр qty без значения фреймворк отвергает сам (400)."
+    - id: "fail-annotations"
+      title: "Остановка при ошибках атрибутов (скрытый)"
+      stdin: "cfg:Shop:MaxItems=0\n---\nGET /ping\n"
+      expected: "startup failed: ShopOptions, failures: 2\n"
+      hidden: true
+      hint: "Name не задан ([Required]) и MaxItems = 0 вне [Range(1, 100)]: ValidateDataAnnotations плюс ValidateOnStart дают две ошибки до обработки запросов."
+    - id: "fail-custom"
+      title: "Остановка по своему правилу (скрытый)"
+      stdin: "cfg:Shop:Name=Books\ncfg:Shop:Currency=EURO\n---\nGET /ping\n"
+      expected: "startup failed: ShopOptions, failures: 1\n"
+      hidden: true
+      hint: "Currency из четырёх символов нарушает правило Validate (ровно 3): одна ошибка, запуск прерывается."
+    - id: "environment"
+      title: "Среда и условный маршрут (скрытый)"
+      stdin: "cfg:Shop:Name=Books\nmode:Development\n---\nGET /env\nGET /dev/config\n"
+      expected: "200 application/json {\"environment\":\"Development\",\"isDevelopment\":true}\n200 text/plain dev tools\n"
+      hidden: true
+      hint: "В Development IsDevelopment() даёт true, и маршрут /dev/config регистрируется."
+    - id: "production"
+      title: "Production по умолчанию (скрытый)"
+      stdin: "cfg:Shop:Name=Books\n---\nGET /env\nGET /dev/config\n"
+      expected: "200 application/json {\"environment\":\"Production\",\"isDevelopment\":false}\n404 -\n"
+      hidden: true
+      hint: "Без mode среда Production: /dev/config не зарегистрирован, ответ 404."

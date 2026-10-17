@@ -1,0 +1,180 @@
+id: "csharp.aspnetcore.dependency-injection"
+title: "Внедрение зависимостей"
+goal: "Регистрировать сервисы с правильным временем жизни, внедрять их в обработчики и конструкторы, различать область запроса и ловить захваченные зависимости."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites:
+  - "csharp.aspnetcore.model-binding-validation"
+related:
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+next:
+  - "csharp.aspnetcore.middleware-pipeline"
+objectives:
+  - "Регистрировать сервисы как Singleton, Scoped и Transient и предсказывать, сколько экземпляров создаётся за запрос."
+  - "Внедрять сервисы в параметры обработчиков и конструкторы других сервисов."
+  - "Объяснять захваченную зависимость и включать ValidateScopes и ValidateOnBuild."
+  - "Использовать IEnumerable<T>, TryAdd, сервисы с ключом, фабрики и понимать порядок освобождения IDisposable."
+masteryCriteria:
+  - "Вы называете время жизни для общего кэша, данных запроса и лёгкого объекта без состояния и обосновываете выбор."
+  - "Вы предсказываете, какие экземпляры разделят обработчик и сервис в одном запросе и в разных запросах."
+  - "Вы объясняете, почему singleton не может зависеть от scoped-сервиса и как это обнаружить до продакшена."
+tags:
+  - "csharp"
+  - "aspnetcore"
+  - "dependency-injection"
+  - "lifetimes"
+  - "di"
+facts:
+  - kind: "internals"
+    text: "Контейнер ASP.NET Core поддерживает три времени жизни: Transient (новый экземпляр при каждом обращении), Scoped (один на область, в веб-приложении - на запрос) и Singleton (один на приложение)."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/service-lifetimes"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-10.0"
+  - kind: "misconception"
+    text: "«Singleton можно внедрять куда угодно, а наоборот тоже безопасно». Singleton, принимающий scoped-сервис, захватывает его на всё время жизни приложения. В запуске курса в окружении Production без проверок все запросы получили один и тот же экземпляр, а с ValidateScopes - InvalidOperationException «Cannot consume scoped service»."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-10.0"
+  - kind: "internals"
+    text: "Проверки ValidateScopes и ValidateOnBuild в окружении Development включены по умолчанию; в запуске курса Build() с такой регистрацией завершился AggregateException. Включить их явно можно через builder.Host.UseDefaultServiceProvider."
+    sources:
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-10.0"
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines"
+  - kind: "internals"
+    text: "Контейнер освобождает только те IDisposable-сервисы, которые создал сам: scoped и transient - по завершении области, singleton - при остановке приложения. Сервис, переданный в AddSingleton готовым экземпляром, контейнер не освобождает."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/guidelines"
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/overview"
+  - kind: "real-world"
+    text: "Несколько регистраций одного типа возвращаются списком через IEnumerable<T> в порядке регистрации, а запрос одного T даёт последнюю; TryAdd регистрирует сервис, только если его ещё нет, что удобно для умолчаний библиотек. Сервисы с ключом подключаются атрибутом [FromKeyedServices]."
+    sources:
+      - "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection/service-lifetimes"
+      - "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-10.0"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какое время жизни подходит для кэша справочников, общего для всего приложения и потокобезопасного?"
+      options:
+        - "Transient"
+        - "Scoped"
+        - "Singleton"
+        - "Любое: разницы нет"
+      answer: 2
+      explanation: "Один экземпляр на приложение - это Singleton; Scoped пересоздавал бы кэш на каждый запрос."
+    - id: "q2"
+      type: "single"
+      prompt: "Singleton-сервис принимает в конструкторе Scoped-сервис. Что произойдёт в Production без включённых проверок?"
+      options:
+        - "Исключение при Build()"
+        - "Исключение при первом запросе"
+        - "Приложение работает, а Scoped-экземпляр остаётся один на все запросы"
+        - "Каждый запрос получит новый Scoped-экземпляр"
+      answer: 2
+      explanation: "Без ValidateScopes ошибка не обнаруживается: зависимость «застревает» в singleton. Именно поэтому проверки включают в тестах."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно о регистрации builder.Services.AddSingleton<IRule, A>(); AddSingleton<IRule, B>();?"
+      options:
+        - "(IRule rule) получит экземпляр B"
+        - "(IRule rule) получит экземпляр A"
+        - "(IEnumerable<IRule> rules) получит A и B в порядке регистрации"
+        - "Второй вызов бросит исключение, потому что тип уже зарегистрирован"
+      answer:
+        - 0
+        - 2
+      explanation: "Для одного IRule побеждает последняя регистрация, а IEnumerable<IRule> содержит все регистрации по порядку. Исключения нет."
+    - id: "q4"
+      type: "numeric"
+      prompt: "За один запрос обработчик получает Scoped-сервис A, Transient-сервис B и Transient-сервис C; Singleton-сервис S уже создан в предыдущем запросе. Сколько новых экземпляров создаст контейнер?"
+      answer: 3
+      tolerance: 0
+      explanation: "Один A (scoped, на область запроса) и по одному экземпляру каждого transient (B и C): три. S не создаётся заново."
+    - id: "q5"
+      type: "single"
+      prompt: "В каком порядке контейнер освобождает scoped и transient IDisposable-сервисы при завершении области?"
+      options:
+        - "В порядке создания"
+        - "В порядке, обратном созданию"
+        - "Случайно"
+        - "Сначала scoped, затем transient"
+      answer: 1
+      explanation: "Освобождение идёт в обратном порядке: зависимые сервисы освобождаются раньше тех, от которых они зависят."
+exercise:
+  id: "csharp.aspnetcore.dependency-injection.exercise"
+  title: "Время жизни сервисов"
+  prompt: |
+    Доработайте файл `Api.cs`: в `Api.Configure` нужно зарегистрировать сервисы, а в `Api.Map` - дописать два обработчика. Проверка подаёт запросы прямо в приложение через TestServer: порт не открывается. Одна строка ввода - один запрос. Каждый сервис получает порядковый номер при создании и записывает в `Api.Events` своё имя при освобождении; `Program.cs` печатает ответ, а затем строку `disposed:` со списком освобождённых сервисов запроса (и `shutdown:` при остановке приложения), так что время жизни видно прямо в выводе.
+
+    Нужно сделать:
+
+    1. Зарегистрировать `AppCache` как singleton, `RequestContext` и `Auditor` как scoped, `Worker` как transient. Сейчас все четыре - transient.
+    2. Зарегистрировать правила `NotEmptyRule`, `MaxLengthRule`, `NoDigitsRule` как `IRule` (в таком порядке) и вернуть в `GET /check?text=...` сообщения всех сработавших правил (`Check` вернул не `null`).
+    3. Зарегистрировать `INotifier` по ключам `"email"` и `"sms"`; `GET /alert` берёт сервис с ключом `"sms"` через `[FromKeyedServices]`, а `GET /notify/{channel}?to=...` ищет сервис по ключу из маршрута и отвечает `text/plain` или 404, если такого ключа нет.
+
+    Обработчики `/state` и `/scopes` уже написаны: они покажут, правильно ли выбрано время жизни.
+
+    **Пример ввода**
+
+    ```
+    GET /state
+    GET /check?text=abc1234567890
+    ```
+
+    **Вывод**
+
+    ```
+    200 application/json {"cache":1,"context":1,"worker":1,"auditorContext":1,"auditorWorker":2}
+      disposed: Auditor#1, Worker#2, Worker#1, RequestContext#1
+    200 application/json ["too long","has digits"]
+    shutdown: AppCache#1
+    ```
+
+    **Что дано.** Решение собирается, но все сервисы transient, правила не зарегистрированы, а `/check`, `/alert` и `/notify` возвращают заглушки. Файл `Program.cs` менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  requires:
+    nugetPackages:
+      - "Microsoft.AspNetCore.TestHost"
+  hints:
+    - "Внутри одного запроса scoped-сервис один и тот же: и обработчик, и Auditor должны видеть RequestContext с одним Id. Используйте AddSingleton<AppCache>(), AddScoped<RequestContext>(), AddScoped<Auditor>(), AddTransient<Worker>()."
+    - "Для нескольких реализаций вызывайте AddSingleton<IRule, NotEmptyRule>() и так далее по одному разу для каждого правила: IEnumerable<IRule> получит их в порядке регистрации. Результат - rules.Select(r => r.Check(text)).OfType<string>().ToArray()."
+    - "AddKeyedSingleton<INotifier, EmailNotifier>(\"email\") и AddKeyedSingleton<INotifier, SmsNotifier>(\"sms\"). В /alert параметр помечается [FromKeyedServices(\"sms\")] INotifier notifier (using Microsoft.AspNetCore.Mvc)."
+    - "В /notify/{channel} примите IServiceProvider services и вызовите services.GetKeyedService<INotifier>(channel): для неизвестного ключа он вернёт null (тогда Results.NotFound()), иначе Results.Text(notifier.Send(to))."
+  tests:
+    - id: "lifetimes"
+      title: "Singleton, Scoped, Transient"
+      stdin: "GET /state\nGET /state\n"
+      expected: "200 application/json {\"cache\":1,\"context\":1,\"worker\":1,\"auditorContext\":1,\"auditorWorker\":2}\n  disposed: Auditor#1, Worker#2, Worker#1, RequestContext#1\n200 application/json {\"cache\":1,\"context\":2,\"worker\":3,\"auditorContext\":2,\"auditorWorker\":4}\n  disposed: Auditor#2, Worker#4, Worker#3, RequestContext#2\nshutdown: AppCache#1\n"
+      hint: "AppCache - Singleton (id 1 в обоих ответах); RequestContext и Auditor - Scoped (внутри запроса один и тот же RequestContext); Worker - Transient (у обработчика и у Auditor разные)."
+    - id: "scopes"
+      title: "Области и освобождение"
+      stdin: "GET /scopes\nGET /state\n"
+      expected: "200 application/json [1,1,2]\n  disposed: RequestContext#2, RequestContext#1\n200 application/json {\"cache\":1,\"context\":3,\"worker\":1,\"auditorContext\":3,\"auditorWorker\":2}\n  disposed: Auditor#1, Worker#2, Worker#1, RequestContext#3\nshutdown: AppCache#1\n"
+      hint: "Каждая CreateScope даёт свой RequestContext; Dispose области освобождает Scoped-сервисы, Transient освобождаются вместе с областью запроса в обратном порядке создания."
+    - id: "rules"
+      title: "IEnumerable<IRule>"
+      stdin: "GET /check?text=hello\nGET /check?text=abc1234567890\n"
+      expected: "200 application/json []\n200 application/json [\"too long\",\"has digits\"]\n"
+      hint: "Зарегистрируйте три правила как IRule и принимайте IEnumerable<IRule>: придут все, в порядке регистрации."
+    - id: "keyed"
+      title: "Сервисы с ключом (скрытый)"
+      stdin: "GET /alert\nGET /notify/email?to=ann\nGET /notify/sms?to=bob\nGET /notify/fax?to=cid\n"
+      expected: "200 text/plain sms to duty\n200 text/plain email to ann\n200 text/plain sms to bob\n404 -\n"
+      hidden: true
+      hint: "AddKeyedSingleton<INotifier, EmailNotifier>(\"email\"); для /alert нужен [FromKeyedServices(\"sms\")], для маршрута - GetKeyedService, который вернёт null для неизвестного ключа."
+    - id: "order"
+      title: "Порядок правил и пустая строка (скрытый)"
+      stdin: "GET /check?text=\nGET /check?text=12345678901\nGET /check?text=ok\n"
+      expected: "200 application/json [\"empty\"]\n200 application/json [\"too long\",\"has digits\"]\n200 application/json []\n"
+      hidden: true
+      hint: "Сообщения идут в порядке регистрации: empty, too long, has digits. Для пустой строки срабатывает только первое правило."
+    - id: "many"
+      title: "Много запросов (скрытый)"
+      stdin: "GET /state\nGET /state\nGET /state\n"
+      expected: "200 application/json {\"cache\":1,\"context\":1,\"worker\":1,\"auditorContext\":1,\"auditorWorker\":2}\n  disposed: Auditor#1, Worker#2, Worker#1, RequestContext#1\n200 application/json {\"cache\":1,\"context\":2,\"worker\":3,\"auditorContext\":2,\"auditorWorker\":4}\n  disposed: Auditor#2, Worker#4, Worker#3, RequestContext#2\n200 application/json {\"cache\":1,\"context\":3,\"worker\":5,\"auditorContext\":3,\"auditorWorker\":6}\n  disposed: Auditor#3, Worker#6, Worker#5, RequestContext#3\nshutdown: AppCache#1\n"
+      hidden: true
+      hint: "AppCache создаётся один раз и освобождается только при остановке приложения (строка shutdown), RequestContext и Worker создаются заново для каждого запроса."
