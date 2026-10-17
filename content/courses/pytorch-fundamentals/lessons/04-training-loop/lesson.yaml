@@ -1,0 +1,156 @@
+id: "ml.pytorch.training-loop"
+title: "Цикл обучения: потеря, оптимизатор SGD и Adam, zero_grad"
+goal: "Написать канонический цикл обучения PyTorch (forward, loss, zero_grad, backward, step), обучить линейную регрессию и проверить результат против метода наименьших квадратов."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "ml.pytorch.modules"
+  - "ml.foundations.linear-regression"
+related:
+  - "ml.numpy.linear-regression"
+  - "go.ml.gomlx.linear-regression-gradient-descent"
+next:
+  - "ml.pytorch.classification"
+seeAlso:
+  - "Документация PyTorch: torch.optim и туториал по оптимизации модели"
+objectives:
+  - "Записать шаг обучения из пяти действий и объяснить, зачем нужен каждый из них и почему важен порядок."
+  - "Выбрать функцию потерь и оптимизатор (SGD, Adam), создать их и передать параметры модели."
+  - "Показать, что обучение nn.Linear с SGD повторяет ручной градиентный спуск и сходится к решению lstsq."
+  - "Отделить вычисление потерь для обучения от оценки (no_grad) и хранить историю как числа через item()."
+  - "Сравнить SGD и Adam на одной задаче и объяснить роль скорости обучения."
+masteryCriteria:
+  - "train_step возвращает float, обнуляет градиенты в начале шага и после двух шагов оставляет в .grad свежий, а не накопленный градиент."
+  - "fit_linear сходится к решению наименьших квадратов с допуском 1e-3 за 300 эпох, а потери совпадают с ручным градиентным спуском на 15 шагах."
+  - "Adam за 200 эпох уменьшает потерю малой сети минимум в 20 раз; при epochs = 0 модель не меняется."
+tags:
+  - "ml"
+  - "pytorch"
+  - "training-loop"
+  - "sgd"
+  - "adam"
+  - "mse"
+requires:
+  python: ">=3.11"
+  packages:
+    - "torch>=2.5"
+    - "numpy>=2"
+  memoryMb: 512
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "По документации PyTorch, Optimizer.zero_grad() по умолчанию (set_to_none=True) не записывает нули, а сбрасывает .grad в None: это уменьшает расход памяти и немного ускоряет шаг; после такого сброса .grad у параметра равен None до следующего backward."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html"
+  - kind: "internals"
+    text: "Оптимизатор SGD в PyTorch выполняет обновление w ← w - lr · g (при нулевых momentum и weight_decay); Adam хранит для каждого параметра скользящие оценки первого и второго моментов градиента и адаптирует шаг по каждой координате."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.optim.SGD.html"
+      - "https://pytorch.org/docs/stable/generated/torch.optim.Adam.html"
+  - kind: "real-world"
+    text: "Канонический цикл обучения в официальном туториале PyTorch состоит из прямого прохода, вычисления потери, loss.backward(), optimizer.step() и optimizer.zero_grad(); потери на стадии оценки считаются без градиентов."
+    sources:
+      - "https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html"
+  - kind: "misconception"
+    text: "«Adam всегда лучше SGD, поэтому скорость обучения можно не подбирать». Adam часто сходится быстрее без тонкой настройки, но скорость обучения влияет и на него: слишком большое значение даёт нестабильное обучение, слишком малое - медленное."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.optim.Adam.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой порядок действий в шаге обучения верный?"
+      options:
+        - "zero_grad, прямой проход, потеря, backward, step"
+        - "step, backward, потеря, прямой проход, zero_grad"
+        - "backward, zero_grad, step, потеря"
+        - "прямой проход, step, backward, потеря"
+      answer: 0
+      explanation: "Градиенты нужно сбросить до backward (или сразу после step), step применяется только после backward."
+    - id: "q2"
+      type: "single"
+      prompt: "Что хранить в истории потерь?"
+      options:
+        - "loss.item() - обычное число"
+        - "сам тензор loss - вместе с графом"
+        - "model.parameters()"
+        - "loss.grad"
+      answer: 0
+      explanation: "Тензор loss тянет за собой граф и память; число из item() ничего не удерживает."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что произойдёт, если забыть optimizer.zero_grad()?"
+      options:
+        - "Градиенты нескольких шагов сложатся"
+        - "Шаги окажутся больше, чем нужно, и обучение станет нестабильным"
+        - "PyTorch сам обнулит градиенты перед backward"
+        - "Обучение может расходиться без ошибки в коде"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "PyTorch ничего не обнуляет сам: градиенты накапливаются, а ошибка проявляется только как плохая сходимость."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Сколько шагов оптимизатора выполнится при обучении 5 эпох по 4 пакета на эпоху? Ответ - число."
+      answer: 20
+      tolerance: 0
+      explanation: "Шаг делается на каждом пакете: 5 * 4 = 20."
+    - id: "q5"
+      type: "single"
+      prompt: "Для чего нужен torch.no_grad() при оценке модели?"
+      options:
+        - "Не строить граф: экономия памяти и времени; градиенты в .grad не изменятся"
+        - "Чтобы модель не обучалась в дальнейшем"
+        - "Чтобы выключить dropout"
+        - "Чтобы получить градиенты быстрее"
+      answer: 0
+      explanation: "no_grad не влияет на dropout (это делает eval()); он только отключает запись графа."
+exercise:
+  id: "ml.pytorch.training-loop.exercise"
+  title: "Шаг обучения, evaluate и линейная регрессия на nn.Linear"
+  prompt: |
+    В файле `train_task.py` реализуйте четыре функции. PyTorch доступен; ничего не печатайте.
+
+    1. `train_step(model, optimizer, loss_fn, xb, yb)` - один шаг: обнулить градиенты, прямой проход, потеря, `backward`, `optimizer.step()`. Верните значение потери **до** шага как `float` (`loss.item()`).
+    2. `evaluate(model, loss_fn, X, y)` - потеря на данных **без обучения**: без графа и без изменения `.grad`. Верните `float`.
+    3. `train(model, optimizer, loss_fn, X, y, epochs)` - полнопакетное обучение: `epochs` раз вызовите `train_step` на всех данных; верните список потерь (`float`) длины `epochs`.
+    4. `fit_linear(X, y, lr, epochs)` - линейная регрессия на `nn.Linear(d, 1)`: вес и смещение стартуют с **нулей**, оптимизатор `SGD(lr)`, потеря `MSELoss`. `X` формы `(n, d)` типа `float32`, `y` формы `(n,)`. Верните `(w, b, losses)`: `w` - тензор формы `(d,)` без градиента, `b` - `float`, `losses` - список потерь по эпохам. Выход слоя имеет форму `(n, 1)`, а `y` - `(n,)`: согласуйте формы (`squeeze`), иначе `MSELoss` сделает broadcasting и даст неверное число.
+
+    **Пример.** Для данных `y = 2·x1 - x2 + 0.5·x3 + 1.5` с небольшим шумом `fit_linear(X, y, 0.1, 300)` возвращает веса около `[2.0, -1.0, 0.5]` и смещение около `1.5`.
+  entryFile: "train_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "train_step: optimizer.zero_grad(); loss = loss_fn(model(xb), yb); loss.backward(); optimizer.step(); return loss.item(). Порядок важен: zero_grad до backward."
+    - "evaluate: with torch.no_grad(): return loss_fn(model(X), y).item(). train: [train_step(model, optimizer, loss_fn, X, y) for _ in range(epochs)]."
+    - "fit_linear: layer = nn.Linear(d, 1); обнулите layer.weight и layer.bias под torch.no_grad() (zero_()). Модель для train должна давать выход формы (n,): оберните слой в небольшой Module с squeeze(-1) или в nn.Sequential(layer, nn.Flatten(0))."
+    - "Верните layer.weight.detach().reshape(-1).clone() как w и layer.bias.item() как b. Если потери не совпадают с ручным спуском, проверьте zero_grad и формы y и выхода (n,) против (n, 1)."
+  tests:
+    - id: "step-decreases"
+      title: "train_step: float и уменьшение потери"
+      hint: "Верните loss.item() и вызывайте optimizer.step() после backward."
+    - id: "fit-linear"
+      title: "fit_linear сходится к решению наименьших квадратов"
+      hint: "SGD с lr = 0.1 и 300 эпохами; начальные веса и смещение - нули."
+    - id: "evaluate"
+      title: "evaluate: потеря без градиентов"
+      hint: "with torch.no_grad(): loss_fn(model(X), y).item(); backward не вызывайте."
+    - id: "matches-manual-gd"
+      title: "Совпадение с ручным градиентным спуском (скрытый)"
+      hidden: true
+      hint: "Каждый шаг: zero_grad, потеря, backward, step; потери записывайте до шага."
+    - id: "zero-grad-needed"
+      title: "Свежие градиенты на каждом шаге (скрытый)"
+      hidden: true
+      hint: "Вызовите optimizer.zero_grad() в начале train_step; после шага в .grad остаётся градиент последнего backward."
+    - id: "adam"
+      title: "Adam на маленькой сети (скрытый)"
+      hidden: true
+      hint: "train работает с любым оптимизатором; потери возвращайте как float через item()."
+    - id: "edge-epochs"
+      title: "epochs = 0 (скрытый)"
+      hidden: true
+      hint: "При epochs = 0 верните пустой список, веса не трогайте; fit_linear вернёт нули и b = 0.0."

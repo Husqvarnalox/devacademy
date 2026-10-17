@@ -1,0 +1,149 @@
+id: "ml.pytorch.modules"
+title: "nn.Module и слои: параметры, forward, ModuleList и заморозка"
+goal: "Собирать модели из nn.Module и стандартных слоёв, понимать, как PyTorch находит параметры, и управлять ими: считать, инициализировать, замораживать."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "ml.pytorch.autograd"
+related:
+  - "go.ml.gomlx.tiny-mlp"
+  - "ml.numpy.logistic-regression"
+next:
+  - "ml.pytorch.training-loop"
+seeAlso:
+  - "Документация PyTorch: torch.nn.Module и torch.nn.Linear"
+objectives:
+  - "Написать подкласс nn.Module с методами __init__ и forward и вызвать модель как функцию."
+  - "Объяснить, почему слои нужно хранить в nn.ModuleList или nn.Sequential, а не в обычном списке Python."
+  - "Прочитать список параметров через parameters и named_parameters, посчитать их число и сопоставить с формулой для nn.Linear."
+  - "Инициализировать веса константой под torch.no_grad и заморозить часть параметров через requires_grad_(False)."
+  - "Сравнить nn.Sequential и собственный Module и выбрать подходящий вариант."
+masteryCriteria:
+  - "MLP([2, 4, 3, 1]) имеет шесть параметров форм (4, 2), (4,), (3, 4), (3,), (1, 3), (1,) и ключи state_dict вида layers.0.weight."
+  - "С константными весами 0.5 и смещением 0.1 выход MLP([2, 3, 1]) на входе [1, 2] равен 2.5; ReLU стоит только между слоями."
+  - "freeze_first_layer оставляет 19 обучаемых параметров для MLP([2, 4, 3, 1]), и у замороженного слоя после backward нет градиента."
+tags:
+  - "ml"
+  - "pytorch"
+  - "nn-module"
+  - "layers"
+  - "parameters"
+requires:
+  python: ">=3.11"
+  packages:
+    - "torch>=2.5"
+    - "numpy>=2"
+  memoryMb: 512
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "В документации PyTorch nn.Module описан как базовый класс для всех нейросетевых модулей; модули могут содержать другие модули, образуя дерево, а атрибуты-модули и параметры регистрируются автоматически, если присвоены как атрибуты экземпляра."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.Module.html"
+  - kind: "internals"
+    text: "Слой nn.Linear(in_features, out_features) вычисляет y = x Aᵀ + b; вес имеет форму (out_features, in_features), смещение - (out_features,); начальные значения берутся из равномерного распределения на отрезке (-sqrt(k), sqrt(k)), где k = 1 / in_features."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.Linear.html"
+  - kind: "misconception"
+    text: "«Список слоёв в обычном list Python работает так же, как nn.ModuleList». Слои из обычного списка не регистрируются в модуле: их параметры не попадут в parameters(), не будут переданы оптимизатору и не сохранятся в state_dict. Для списков слоёв предназначены nn.ModuleList и nn.Sequential."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.Module.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Сколько обучаемых параметров у nn.Linear(10, 3) со смещением?"
+      options:
+        - "33"
+        - "30"
+        - "13"
+        - "3"
+      answer: 0
+      explanation: "Вес 3 x 10 = 30 элементов плюс смещение 3: итого 33."
+    - id: "q2"
+      type: "single"
+      prompt: "Что произойдёт, если сложить слои в обычный список self.layers = [nn.Linear(2, 2)] внутри __init__?"
+      options:
+        - "Параметры слоёв не будут видны в model.parameters()"
+        - "Параметры слоёв удвоятся"
+        - "Модель не создастся"
+        - "Слои автоматически заморозятся"
+      answer: 0
+      explanation: "Модуль регистрирует только атрибуты-модули и ModuleList/Sequential; обычный список невидим для parameters()."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие утверждения о model(x) верны?"
+      options:
+        - "Вызов model(x) запускает forward и дополнительные хуки"
+        - "Вместо model(x) принято вызывать model.forward(x) напрямую"
+        - "Результат участвует в графе, если параметры требуют градиент"
+        - "forward можно переопределять в подклассе"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Вызывайте модель как функцию: так работают хуки. Прямой вызов forward обходит их."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Сколько параметров (элементов) в сети [2, 4, 1] со смещениями? Ответ - число."
+      answer: 17
+      tolerance: 0
+      explanation: "Первый слой 2*4 + 4 = 12, второй 4*1 + 1 = 5; всего 17."
+    - id: "q5"
+      type: "single"
+      prompt: "Как заморозить слой, чтобы по его параметрам не считался градиент?"
+      options:
+        - "Для каждого параметра вызвать p.requires_grad_(False)"
+        - "Вызвать layer.zero_grad()"
+        - "Вызвать layer.eval()"
+        - "Обернуть вызов слоя в try/except"
+      answer: 0
+      explanation: "eval() меняет режим слоя (dropout, batchnorm), но не отключает градиенты; zero_grad только обнуляет."
+exercise:
+  id: "ml.pytorch.modules.exercise"
+  title: "Собственный MLP на nn.Module"
+  prompt: |
+    В файле `module_task.py` реализуйте класс и три функции. PyTorch доступен; ничего не печатайте.
+
+    1. Класс `MLP(nn.Module)` с конструктором `MLP(sizes)`, где `sizes = [in, h1, ..., out]`. Для каждой пары соседних размеров создайте `nn.Linear`; слои храните в `self.layers` типа `nn.ModuleList`. В `forward` между линейными слоями применяйте `ReLU`, **после последнего слоя активации нет**. Если в `sizes` меньше двух чисел, бросьте `ValueError`.
+    2. `count_params(model)` - число обучаемых параметров (элементов тензоров с `requires_grad=True`), `int`.
+    3. `set_constant(model, weight, bias)` - заполнить все веса значением `weight`, а все смещения значением `bias` **на месте и вне графа** (имена параметров оканчиваются на `weight` и `bias`); вернуть `model`.
+    4. `freeze_first_layer(model)` - заморозить параметры первого слоя (`requires_grad=False`) и вернуть число оставшихся обучаемых параметров.
+
+    **Пример.** `MLP([2, 4, 3, 1])` имеет `31` параметр (`2*4+4 + 4*3+3 + 3*1+1`). Если все веса равны `0.5`, а смещения `0.1`, то `MLP([2, 3, 1])` на входе `[[1., 2.]]` даёт `[[2.5]]`.
+  entryFile: "module_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "В __init__: self.layers = nn.ModuleList(nn.Linear(a, b) for a, b in zip(sizes[:-1], sizes[1:])). Проверку len(sizes) < 2 сделайте до создания слоёв."
+    - "forward: пройдите по слоям с enumerate; после каждого слоя, кроме последнего, применяйте torch.relu. count_params: sum(p.numel() for p in model.parameters() if p.requires_grad)."
+    - "set_constant: with torch.no_grad(): for name, p in model.named_parameters(): p.fill_(weight if name.endswith('weight') else bias). In-place запись вне no_grad для листа с градиентом запрещена."
+    - "freeze_first_layer: for p in model.layers[0].parameters(): p.requires_grad_(False); затем верните count_params(model)."
+  tests:
+    - id: "structure"
+      title: "Структура MLP: формы и имена параметров"
+      hint: "nn.ModuleList даёт имена layers.0.weight и т. д.; обычный список параметры скроет."
+    - id: "forward-shape"
+      title: "Форма выхода и участие в графе"
+      hint: "Для входа (7, 2) и sizes = [2, 5, 3] выход имеет форму (7, 3)."
+    - id: "count-params"
+      title: "count_params для [2, 4, 3, 1]"
+      hint: "Сумма numel по параметрам с requires_grad: 31."
+    - id: "constant-forward"
+      title: "Постоянные веса: выход 2.5 (скрытый)"
+      hidden: true
+      hint: "Заполняйте под torch.no_grad() через fill_; параметры должны остаться листьями с requires_grad=True."
+    - id: "relu-only-hidden"
+      title: "ReLU только между слоями (скрытый)"
+      hidden: true
+      hint: "Последний слой возвращайте без активации; ReLU после каждого слоя, кроме последнего."
+    - id: "freeze"
+      title: "Заморозка первого слоя (скрытый)"
+      hidden: true
+      hint: "requires_grad_(False) для параметров model.layers[0]; после backward у них нет grad."
+    - id: "validation-and-state-dict"
+      title: "ValueError и ключи state_dict (скрытый)"
+      hidden: true
+      hint: "MLP([3]) бросает ValueError; ключи state_dict начинаются с layers.<номер>."

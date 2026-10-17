@@ -1,0 +1,44 @@
+id: pytorch-fundamentals
+version: 1.0.0
+title: "PyTorch: основы"
+description: >-
+  Семь уроков по PyTorch (версия 2.14) для тех, кто прошёл «Основы машинного обучения», «Классическое ML с нуля на NumPy» и «NumPy»: тензоры (создание, dtype, формы, broadcasting, обмен данными с NumPy),
+  автоматическое дифференцирование (requires_grad, backward, накопление градиентов, no_grad, проверка по аналитической формуле), nn.Module и слои, цикл обучения (потеря, SGD и Adam, zero_grad, линейная регрессия),
+  классификация небольшой сетью с CrossEntropyLoss, Dataset и DataLoader с разбиением на train и val и ранней остановкой, сохранение state_dict, режимы train и eval, Dropout и BatchNorm;
+  в итоговой задаче сравниваются значения weight_decay. Все примеры детерминированы (фиксированные seed и torch.set_num_threads(1)) и работают на процессоре: без GPU, сети и загрузки наборов данных.
+  Библиотека PyTorch (около 130 МБ колёс для macOS arm64) устанавливается один раз, только по явному согласию: в уроке или в настройках («make python-env» для разработчиков курса).
+  Упражнения запрашивают 512 МБ памяти вместо обычных 256 МБ. Свёрточные и рекуррентные сети, Transformer, GPU, torch.compile и распределённое обучение в курс не входят.
+languageId: python
+level: 4
+track: deep-learning
+requires: [ml-foundations, ml-classical-numpy]
+lessons:
+  - 01-tensors
+  - 02-autograd
+  - 03-modules
+  - 04-training-loop
+  - 05-classification
+  - 06-data-loading
+  - 07-checkpoints
+framework:
+  id: pytorch
+  version: "2.14"
+  docs:
+    - https://pytorch.org/docs/stable/
+    - https://pytorch.org/tutorials/beginner/basics/intro.html
+    - https://pytorch.org/docs/stable/notes/autograd.html
+    - https://pytorch.org/get-started/locally/
+  compatibility: "Python 3.11-3.14 (курс проверен на 3.14); torch 2.14.1 (CPU, колесо macOS arm64) и numpy 2.5.4; GPU не нужен, сеть при запуске упражнений не используется."
+  deprecated:
+    - feature: "torch.load с weights_only=False по умолчанию"
+      status: changed
+      note: "Начиная с PyTorch 2.6 значение по умолчанию weights_only=True: загружаются только тензоры и простые типы. Курс сохраняет словари из state_dict и чисел, поэтому подходит под это значение."
+    - feature: "Весь API до фиксации версий курса"
+      status: changed
+      note: "PyTorch выпускает новые минорные версии несколько раз в год и иногда меняет значения по умолчанию; версии закреплены в tools/content-packages/python/pytorch.txt."
+  migrationNotes: |
+    **Что важно при обновлении PyTorch.**
+
+    * Версии закреплены в `tools/content-packages/python/pytorch.txt` (torch и numpy); новая минорная версия означает новое издание курса, примеры не обновляются «молча».
+    * Перед обновлением прочитайте заметки к релизу и раздел о обратной несовместимости, затем пересоберите числа в упражнениях: порядок операций и значения по умолчанию могут влиять на последние знаки.
+    * Курс специально использует стабильное ядро: тензоры, autograd, nn.Module, torch.optim, torch.utils.data, torch.save и torch.load.

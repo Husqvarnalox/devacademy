@@ -1,8 +1,8 @@
 id: python-ml-engineer
 title: Python для инженера машинного обучения
-description: "Путь к классическому ML на Python. Сначала «Основы Python» и «Продвинутый Python», затем «NumPy: массивы и векторизация», «Основы машинного обучения» на чистом Python и «Классическое ML с нуля на NumPy»: векторизованная линейная регрессия, логистическая регрессия, k-means и PCA. Этап с библиотекой scikit-learn пока запланирован. Остальные темы трека (деревья, ансамбли, нейросети) тоже запланированы."
+description: "Путь к классическому ML на Python. Сначала «Основы Python» и «Продвинутый Python», затем «NumPy: массивы и векторизация», «Основы машинного обучения» на чистом Python и «Классическое ML с нуля на NumPy»: векторизованная линейная регрессия, логистическая регрессия, k-means и PCA. Затем «PyTorch: основы»: тензоры, autograd, обучение небольших нейросетей. Этап с библиотекой scikit-learn пока запланирован. Остальные темы (деревья, ансамбли, свёрточные сети и Transformer) тоже запланированы."
 goal: ml
-targets: [ml-classical-numpy]
+targets: [ml-classical-numpy, pytorch-fundamentals]
 stages:
   - title: Python core
     courses: [python-fundamentals, python-advanced]
@@ -12,3 +12,5 @@ stages:
     courses: [ml-foundations]
   - title: Классическое ML на NumPy
     courses: [ml-classical-numpy]
+  - title: Глубокое обучение на PyTorch
+    courses: [pytorch-fundamentals]

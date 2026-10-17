@@ -8,6 +8,7 @@
 -r content-packages/python/pandas.txt
 -r content-packages/python/fastapi.txt
 -r content-packages/python/django.txt
+-r content-packages/python/pytorch.txt
 # Jupyter kernel for the notebook workspace's real-kernel integration tests (tests/DevAcademy.Notebooks.Tests); keep in step with
 # KernelProvisioner.PinnedRequirement.
 ipykernel==7.4.0

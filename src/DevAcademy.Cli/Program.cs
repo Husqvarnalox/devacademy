@@ -1,3 +1,4 @@
+using DevAcademy.Application;
 using DevAcademy.Application.Evaluation;
 using DevAcademy.Application.Go;
 using DevAcademy.Application.Node;
@@ -349,12 +350,12 @@ internal static class Cli
                 sampleFiles.Add(new SourceFile(file, sample.Code));
                 var run = await runner.RunOnceAsync(
                     new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo),
-                    null, ResourceLimits.DefaultRun, CancellationToken.None);
+                    null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                 if (run.Status == ExecutionStatus.Timeout)
                 {
                     run = await runner.RunOnceAsync(
                         new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo),
-                        null, ResourceLimits.DefaultRun, CancellationToken.None);
+                        null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                     if (run.IsSuccess) Add(DiagnosticSeverity.Warning, lesson, $"code sample ({sample.LanguageId}) timed out and passed only on retry (machine under load?)");
                 }
                 if (run.Status == ExecutionStatus.RuntimeMissing) { RuntimeMissing(lesson, sample.LanguageId); continue; }

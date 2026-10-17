@@ -351,7 +351,8 @@ public static class ContentLoader
                 string.IsNullOrWhiteSpace(r.Node) ? null : r.Node.Trim(),
                 (r.NpmPackages ?? []).Select(p => p.Trim()).ToList(),
                 string.IsNullOrWhiteSpace(r.Go) ? null : r.Go.Trim(),
-                (r.GoModules ?? []).Select(p => p.Trim()).ToList());
+                (r.GoModules ?? []).Select(p => p.Trim()).ToList(),
+                r.MemoryMb);
 
         private Exercise? ParseExerciseCore(ExerciseDto e, string lessonDir, string path, string courseLanguage)
         {

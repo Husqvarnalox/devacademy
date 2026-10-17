@@ -1,0 +1,4 @@
+# DevAcademy package set "pytorch": PyTorch (CPU) с NumPy
+# Installed into the ACTIVE managed Python environment only after an explicit, confirmed action (shows the command; needs network).
+numpy==2.5.4
+torch==2.14.1

@@ -68,7 +68,7 @@ public sealed class HarnessEvaluator(ICodeRunner runner) : IExerciseEvaluator
         await using var program = await runner.PrepareAsync(request, ct);
         if (program.PreparationFailure is { } failure) return EvaluatorSupport.FromPreparationFailure(failure);
 
-        var result = await program.RunAsync(null, ResourceLimits.DefaultRun, ct,
+        var result = await program.RunAsync(null, ExerciseLimits.For(exercise.Requires), ct,
             new Dictionary<string, string> { [NonceVariable] = nonce });
         if (result.Status is ExecutionStatus.RuntimeMissing or ExecutionStatus.InternalError or ExecutionStatus.Cancelled)
             return new EvaluationReport(result.Status == ExecutionStatus.RuntimeMissing ? Verdict.RuntimeMissing : Verdict.Error,

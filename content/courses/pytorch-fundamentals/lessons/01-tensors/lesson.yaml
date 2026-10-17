@@ -1,0 +1,163 @@
+id: "ml.pytorch.tensors"
+title: "Тензоры: создание, dtype, форма, broadcasting и обмен с NumPy"
+goal: "Создавать тензоры PyTorch, управлять dtype и формой, писать векторные вычисления через broadcasting и понимать, когда тензор делит память с массивом NumPy."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "python.numpy.broadcasting"
+  - "ml.foundations.linear-regression"
+related:
+  - "python.numpy.dtypes-and-casting"
+  - "python.numpy.views-and-copies"
+  - "go.ml.gomlx.tensors-and-backend"
+next:
+  - "ml.pytorch.autograd"
+seeAlso:
+  - "Документация PyTorch: torch.Tensor и tensor attributes"
+objectives:
+  - "Создать тензор из списка, torch.zeros, torch.arange и случайный тензор с фиксированным seed и назвать форму, dtype и устройство результата."
+  - "Объяснить, чем float32 (по умолчанию для чисел с точкой) отличается от int64 (по умолчанию для целых) и когда нужен явный dtype."
+  - "Изменять форму через reshape, view, unsqueeze и транспонирование и отличать вид (общая память) от копии."
+  - "Записать стандартизацию по столбцам и матрицу попарных расстояний через broadcasting без циклов."
+  - "Объяснить, когда torch.from_numpy и Tensor.numpy делят память с массивом NumPy, и как получить независимую копию."
+masteryCriteria:
+  - "to_float_matrix возвращает float32-тензор нужной формы, а standardize_columns даёт нулевое среднее и единичное std по столбцам (в том числе для константного столбца)."
+  - "pairwise_sq_dists совпадает с torch.cdist(a, b) ** 2 с допуском 1e-4 и не использует циклов."
+  - "share_with_numpy делит память с тензором, а copy_from_numpy возвращает независимый float32-тензор для входов float32, float64 и int64."
+tags:
+  - "ml"
+  - "pytorch"
+  - "tensors"
+  - "broadcasting"
+  - "dtype"
+  - "numpy"
+requires:
+  python: ">=3.11"
+  packages:
+    - "torch>=2.5"
+    - "numpy>=2"
+  memoryMb: 512
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "По документации PyTorch, torch.from_numpy создаёт тензор из numpy.ndarray, и тензор с массивом делят одну и ту же память: изменение одного видно в другом. Метод Tensor.numpy() для тензора на CPU работает так же и возвращает массив, делящий память с тензором."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.from_numpy.html"
+      - "https://pytorch.org/docs/stable/generated/torch.Tensor.numpy.html"
+  - kind: "internals"
+    text: "Правила broadcasting в PyTorch повторяют правила NumPy: формы сравниваются с последней оси; оси совместимы, если их размеры равны или один из них равен 1 либо отсутствует."
+    sources:
+      - "https://pytorch.org/docs/stable/notes/broadcasting.html"
+  - kind: "internals"
+    text: "У каждого тензора есть dtype, device и layout; список поддерживаемых dtype (float32, float64, int64, bool и другие) приведён на странице tensor attributes. Тип torch.float32 является типом с плавающей точкой по умолчанию."
+    sources:
+      - "https://pytorch.org/docs/stable/tensor_attributes.html"
+  - kind: "misconception"
+    text: "«torch.from_numpy(arr).float() всегда делает копию». Если массив уже float32, .float() возвращает тот же тензор без копирования, и общая память с массивом сохраняется. Для гарантированной независимости применяйте torch.tensor(arr, dtype=torch.float32) или .clone()."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.from_numpy.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой dtype у torch.tensor([1, 2, 3])?"
+      options:
+        - "torch.int64"
+        - "torch.float32"
+        - "torch.float64"
+        - "torch.int32"
+      answer: 0
+      explanation: "Целые числа Python по умолчанию дают int64, числа с точкой - float32 (тип с плавающей точкой по умолчанию)."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой формы результат x[:, None, :] - y[None, :, :], если x имеет форму (5, 3), а y - (4, 3)?"
+      options:
+        - "(5, 4, 3)"
+        - "(5, 3)"
+        - "(4, 3)"
+        - "Ошибка: формы несовместимы"
+      answer: 0
+      explanation: "x становится (5, 1, 3), y - (1, 4, 3); оси размера 1 растягиваются, получается (5, 4, 3)."
+    - id: "q3"
+      type: "multiple"
+      prompt: "В каких случаях тензор делит память с массивом NumPy?"
+      options:
+        - "t = torch.from_numpy(arr) для массива float64"
+        - "arr = t.numpy() для тензора на CPU"
+        - "t = torch.tensor(arr)"
+        - "t = torch.from_numpy(arr).float() для массива float32"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "torch.tensor всегда копирует данные. Для float32-массива .float() не меняет dtype и возвращает тот же тензор, поэтому память остаётся общей."
+    - id: "q4"
+      type: "numeric"
+      prompt: "Сколько элементов в тензоре torch.zeros(2, 3, 4)? Ответ - число."
+      answer: 24
+      tolerance: 0
+      explanation: "2 * 3 * 4 = 24."
+    - id: "q5"
+      type: "single"
+      prompt: "Что делает x.view(-1) для непрерывного тензора формы (2, 3)?"
+      options:
+        - "Возвращает вид формы (6,), делящий память с x"
+        - "Возвращает копию формы (6,)"
+        - "Бросает ошибку, потому что -1 недопустимо"
+        - "Транспонирует тензор"
+      answer: 0
+      explanation: "-1 означает вычислить размер оси автоматически; view не копирует данные."
+exercise:
+  id: "ml.pytorch.tensors.exercise"
+  title: "Стандартизация, попарные расстояния и обмен с NumPy"
+  prompt: |
+    В файле `tensor_task.py` реализуйте пять функций. PyTorch и NumPy доступны; ничего не печатайте.
+
+    1. `to_float_matrix(rows)` - список списков чисел -> тензор формы `(n, d)` dtype `float32`.
+    2. `standardize_columns(x)` - стандартизация по столбцам: `(x - mean) / std`, где `std` считается как для генеральной совокупности (`unbiased=False`). Столбец с нулевым `std` должен стать нулевым (делите на 1, а не на 0). Без циклов; входной тензор менять нельзя.
+    3. `pairwise_sq_dists(a, b)` - `a` формы `(n, d)`, `b` формы `(m, d)`; результат `(n, m)` с квадратами евклидовых расстояний. Без циклов, через broadcasting.
+    4. `share_with_numpy(t)` - вернуть `numpy`-массив, который **делит память** с тензором `t`.
+    5. `copy_from_numpy(arr)` - вернуть `float32`-тензор с данными `arr`, который **не делит память** с `arr` (в том числе когда `arr` уже `float32`).
+
+    **Пример.**
+
+    ```python
+    to_float_matrix([[1, 2], [3, 4]])               # tensor([[1., 2.], [3., 4.]])
+    pairwise_sq_dists(torch.tensor([[0., 0.]]), torch.tensor([[3., 4.]]))   # tensor([[25.]])
+    ```
+  entryFile: "tensor_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Начните с to_float_matrix: torch.tensor(rows, dtype=torch.float32). Для standardize_columns используйте x.mean(dim=0, keepdim=True) и x.std(dim=0, unbiased=False, keepdim=True)."
+    - "Нулевой std заменяйте единицей без цикла: std = torch.where(std == 0, torch.ones_like(std), std). Тогда константный столбец даст (x - mean) / 1 = 0."
+    - "pairwise_sq_dists: a[:, None, :] имеет форму (n, 1, d), b[None, :, :] - (1, m, d). Разность даёт (n, m, d); возведите в квадрат и просуммируйте по последней оси (dim=-1)."
+    - "share_with_numpy - это t.numpy(). Для copy_from_numpy нужна копия с нужным dtype: torch.tensor(arr, dtype=torch.float32); torch.from_numpy(arr).float() не копирует массив, который уже float32."
+  tests:
+    - id: "to-float-matrix"
+      title: "to_float_matrix: форма, dtype и значения"
+      hint: "torch.tensor(rows, dtype=torch.float32)."
+    - id: "standardize-columns"
+      title: "standardize_columns: среднее 0 и std 1"
+      hint: "mean и std по dim=0, std с unbiased=False; вход менять нельзя."
+    - id: "pairwise-values"
+      title: "pairwise_sq_dists на маленьком примере"
+      hint: "(a[:, None, :] - b[None, :, :]) ** 2, затем sum(dim=-1)."
+    - id: "share-memory"
+      title: "Общая память с NumPy (скрытый)"
+      hidden: true
+      hint: "t.numpy() возвращает массив, делящий память с тензором."
+    - id: "copy-independent"
+      title: "Независимая копия для float32, float64 и int64 (скрытый)"
+      hidden: true
+      hint: "torch.tensor(arr, dtype=torch.float32) копирует; from_numpy(arr).float() для float32 не копирует."
+    - id: "constant-column"
+      title: "Константный столбец (скрытый)"
+      hidden: true
+      hint: "Замените нулевой std на 1 через torch.where, чтобы не получить nan."
+    - id: "pairwise-vs-cdist"
+      title: "Сравнение с torch.cdist (скрытый)"
+      hidden: true
+      hint: "Результат должен совпасть с torch.cdist(a, b) ** 2, быть неотрицательным и иметь нули на диагонали для (a, a)."

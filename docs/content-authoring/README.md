@@ -337,6 +337,10 @@ Settings -> Runtimes (nothing is installed automatically). `accelerator: require
 accelerator is found in the selected environment; use it only for GPU-only exercises. The validator rejects
 bad specifiers, option-like or URL packages, duplicates, and the fields on non-Python exercises.
 
+`requires.memoryMb` (256-1024, Python exercises only, default 256) raises the memory limit of a run of that exercise (Run button, grading, theory samples
+checked by `validate-content`); use it only for libraries whose import alone nears the default (PyTorch: `import torch` is ~215 MB resident). Time limits, the
+network ban and the write restrictions are not affected.
+
 Validating such content: `make python-env` creates `.venv-content` from `tools/python-dev-requirements.txt` (downloads from PyPI;
 nothing is installed globally), after which `make validate-content` passes `--python-env .venv-content` automatically.
 `devacademy validate-content --run-solutions --python-env <venv dir>` runs exercises and theory samples whose lesson declares

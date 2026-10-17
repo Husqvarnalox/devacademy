@@ -25,7 +25,7 @@ public sealed class IoEvaluator(ICodeRunner runner) : IExerciseEvaluator
         foreach (var test in exercise.Tests)
         {
             if (test.Hidden) hiddenOrdinal++;
-            var result = await program.RunAsync(test.Stdin, ResourceLimits.DefaultRun, ct);
+            var result = await program.RunAsync(test.Stdin, ExerciseLimits.For(exercise.Requires), ct);
             applied = result.AppliedIsolation;
             total += result.Duration;
 

@@ -49,6 +49,13 @@
     "packages": ["Django"]
   },
   {
+    "id": "pytorch",
+    "title": "PyTorch (CPU)",
+    "language": "python",
+    "description": "PyTorch для процессора вместе с NumPy: тензоры, autograd, nn.Module и обучение небольших сетей.",
+    "packages": ["numpy", "torch"]
+  },
+  {
     "id": "gomlx",
     "title": "GoMLX (чистый Go)",
     "language": "go",

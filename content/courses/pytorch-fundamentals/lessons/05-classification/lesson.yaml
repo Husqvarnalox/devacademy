@@ -1,0 +1,153 @@
+id: "ml.pytorch.classification"
+title: "Классификация: небольшая сеть MLP, CrossEntropyLoss, точность"
+goal: "Построить и обучить небольшую сеть Linear-ReLU-Linear на синтетических данных с тремя классами и измерить точность на обучающих и новых данных."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "ml.pytorch.training-loop"
+  - "ml.foundations.classification-metrics"
+related:
+  - "ml.numpy.logistic-regression"
+  - "go.ml.gomlx.logistic-regression"
+next:
+  - "ml.pytorch.data-loading"
+seeAlso:
+  - "Документация PyTorch: torch.nn.CrossEntropyLoss"
+objectives:
+  - "Объяснить, что сеть для классификации возвращает логиты, а CrossEntropyLoss сама применяет log-softmax."
+  - "Подготовить метки как LongTensor с номерами классов и согласовать формы (N, C) и (N,)."
+  - "Собрать MLP из Linear и ReLU и посчитать число параметров."
+  - "Вычислить точность через argmax и отличать точность на обучающих данных от точности на новых."
+  - "Сделать обучение воспроизводимым: seed до создания сети и до генерации данных."
+masteryCriteria:
+  - "make_blobs возвращает float32 X и int64 y блоками классов и воспроизводится по seed."
+  - "build_mlp даёт цепочку Linear, ReLU, Linear без softmax на выходе; число параметров совпадает с формулой."
+  - "train_classifier достигает точности не ниже 0.95 на обучающих и не ниже 0.9 на новых данных, потери воспроизводятся по seed."
+tags:
+  - "ml"
+  - "pytorch"
+  - "classification"
+  - "mlp"
+  - "cross-entropy"
+requires:
+  python: ">=3.11"
+  packages:
+    - "torch>=2.5"
+    - "numpy>=2"
+  memoryMb: 512
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "По документации PyTorch, nn.CrossEntropyLoss принимает на вход необработанные логиты и объединяет LogSoftmax и NLLLoss в одном классе; метки классов задаются как индексы типа long формы (N,)."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html"
+  - kind: "internals"
+    text: "nn.ReLU применяет поэлементно max(0, x); без нелинейности между слоями Linear стопка слоёв сводится к одному линейному преобразованию."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.ReLU.html"
+  - kind: "misconception"
+    text: "«Перед CrossEntropyLoss нужно применить softmax». Это ошибка: потеря сама применяет log-softmax, а двойное применение softmax искажает градиенты и замедляет обучение."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что должна вернуть последняя линейная часть сети, если используется CrossEntropyLoss?"
+      options:
+        - "Логиты без softmax"
+        - "Вероятности после softmax"
+        - "Номера классов"
+        - "Логарифмы вероятностей после sigmoid"
+      answer: 0
+      explanation: "CrossEntropyLoss сама применяет log-softmax к логитам."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой тип и форму должны иметь метки для CrossEntropyLoss при батче из N объектов и C классов?"
+      options:
+        - "long, форма (N,)"
+        - "float, форма (N, C)"
+        - "float, форма (N,)"
+        - "long, форма (N, C)"
+      answer: 0
+      explanation: "Метки классов - целочисленные индексы формы (N,); логиты имеют форму (N, C)."
+    - id: "q3"
+      type: "numeric"
+      prompt: "Сколько параметров у сети Linear(2, 8) -> ReLU -> Linear(8, 3)? Ответ - число."
+      answer: 51
+      tolerance: 0
+      explanation: "2*8 + 8 + 8*3 + 3 = 16 + 8 + 24 + 3 = 51."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие утверждения о точности верны?"
+      options:
+        - "Это доля объектов, для которых argmax логитов совпал с меткой"
+        - "Высокая точность на обучающих данных гарантирует высокую точность на новых"
+        - "Её нужно измерять и на данных, которые сеть не видела при обучении"
+        - "Для её вычисления нужен backward"
+      answer:
+        - 0
+        - 2
+      explanation: "Точность на обучении может быть завышена; backward для точности не нужен."
+    - id: "q5"
+      type: "single"
+      prompt: "Что произойдёт, если убрать ReLU между двумя Linear?"
+      options:
+        - "Сеть станет эквивалентна одному линейному слою"
+        - "Сеть перестанет обучаться вообще"
+        - "Сеть станет глубже"
+        - "Потеря станет отрицательной"
+      answer: 0
+      explanation: "Композиция линейных отображений линейна."
+exercise:
+  id: "ml.pytorch.classification.exercise"
+  title: "Три облака точек: данные, MLP, точность, обучение"
+  prompt: |
+    В файле `classify_task.py` реализуйте четыре функции. Ничего не печатайте.
+
+    1. `make_blobs(n_per_class, seed)` - три гауссовых облака в 2D с центрами `CENTERS` (уже в файле) и стандартным отклонением `0.6`. Верните `X` формы `(3n, 2)` типа `float32` и `y` формы `(3n,)` типа `int64`: сначала все точки класса 0, затем 1, затем 2. Случайность берите только из `torch.Generator().manual_seed(seed)`.
+    2. `build_mlp(in_dim, hidden, n_classes)` - `nn.Sequential(Linear(in_dim, hidden), ReLU(), Linear(hidden, n_classes))`. Выход - логиты, без softmax.
+    3. `accuracy(logits, y)` - доля объектов, у которых `argmax` логитов совпадает с меткой, как `float`.
+    4. `train_classifier(X, y, hidden, epochs, lr, seed)` - вызовите `torch.manual_seed(seed)` **до** создания сети, обучайте на полном пакете с `Adam(lr)` и `CrossEntropyLoss`. Число классов - `y.max() + 1`. Верните `(model, losses)`, где `losses` - список `float` длины `epochs`.
+
+    **Пример.** `X, y = make_blobs(60, 1)`; `model, losses = train_classifier(X, y, 16, 150, 0.05, 0)` даёт `accuracy(model(X), y) >= 0.95`, а потеря падает минимум вдвое.
+  entryFile: "classify_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "make_blobs: noise = 0.6 * torch.randn(3, n, 2, generator=g); X = (centers[:, None, :] + noise).reshape(-1, 2), где centers = torch.tensor(CENTERS). Метки: torch.arange(3).repeat_interleave(n)."
+    - "build_mlp: nn.Sequential(nn.Linear(in_dim, hidden), nn.ReLU(), nn.Linear(hidden, n_classes)). accuracy: (logits.argmax(dim=1) == y).float().mean().item()."
+    - "train_classifier: torch.manual_seed(seed); model = build_mlp(X.shape[1], hidden, int(y.max()) + 1); затем обычный цикл: zero_grad, CrossEntropyLoss()(model(X), y), backward, step; losses.append(loss.item())."
+    - "Если точность низкая, проверьте, что y имеет тип int64 и что вы не применяете softmax к выходу сети. При epochs = 0 цикл не выполняется, но модель всё равно создаётся."
+  tests:
+    - id: "blobs-shape"
+      title: "make_blobs: формы, типы, метки"
+      hint: "float32 для X, int64 для y, метки идут блоками."
+    - id: "mlp-shape"
+      title: "build_mlp: форма логитов и число параметров"
+      hint: "Linear, ReLU, Linear; 2*8+8+8*3+3 параметров для (2, 8, 3)."
+    - id: "accuracy"
+      title: "accuracy на небольшом примере"
+      hint: "argmax по dim=1, сравнение с y, mean, item."
+    - id: "train-accuracy"
+      title: "Обучение достигает высокой точности (скрытый)"
+      hidden: true
+      hint: "Adam(lr), CrossEntropyLoss, полный пакет; потери храните как float."
+    - id: "generalizes"
+      title: "Точность на новых данных (скрытый)"
+      hidden: true
+      hint: "Новые данные генерируются другим seed; сеть не должна переобучаться на 180 точках."
+    - id: "deterministic"
+      title: "Воспроизводимость по seed (скрытый)"
+      hidden: true
+      hint: "Генератор в make_blobs и torch.manual_seed до build_mlp."
+    - id: "logits-not-softmax"
+      title: "Без softmax на выходе (скрытый)"
+      hidden: true
+      hint: "Верните логиты: CrossEntropyLoss применит log-softmax сама."
+    - id: "edge"
+      title: "Граничные случаи (скрытый)"
+      hidden: true
+      hint: "epochs = 0 даёт пустой список потерь, n_per_class = 1 даёт три точки."

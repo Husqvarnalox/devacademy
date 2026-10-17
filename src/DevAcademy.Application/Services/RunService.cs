@@ -37,6 +37,6 @@ public sealed class RunService(ICodeRunner runner, IExerciseEnvironmentResolver?
         }
         return await runner.RunOnceAsync(
             new ExecutionRequest(languageId, files.Select(f => new SourceFile(f.Path, f.Content)).ToList(), entryFile, IsolationLevel.OsSandbox, python, Go: goEnv),
-            stdin, ResourceLimits.DefaultRun, ct).ConfigureAwait(false);
+            stdin, ExerciseLimits.For(exercise?.Requires), ct).ConfigureAwait(false);
     }
 }

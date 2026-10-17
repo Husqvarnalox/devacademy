@@ -1,0 +1,159 @@
+id: "ml.pytorch.data-loading"
+title: "Dataset и DataLoader: пакеты, разбиение на train и val, ранняя остановка"
+goal: "Организовать данные через Dataset и DataLoader, разбить их на обучающую и валидационную части и остановить обучение, когда потеря на валидации перестаёт улучшаться."
+difficulty: "medium"
+estimatedMinutes: 100
+prerequisites:
+  - "ml.pytorch.classification"
+related:
+  - "ml.numpy.logistic-regression"
+  - "ml.foundations.classification-metrics"
+next:
+  - "ml.pytorch.checkpoints"
+seeAlso:
+  - "Документация PyTorch: torch.utils.data и туториал по данным"
+objectives:
+  - "Реализовать Dataset с методами __len__ и __getitem__ и объяснить, что получает DataLoader."
+  - "Настроить DataLoader: размер пакета, перемешивание, воспроизводимый порядок через generator."
+  - "Разбить индексы на train и val без пересечения и воспроизводимо."
+  - "Распознать переобучение по расхождению потерь на обучении и валидации."
+  - "Реализовать раннюю остановку с терпением (patience) и возвратом весов лучшей эпохи."
+masteryCriteria:
+  - "PointsDataset, split_indices и make_loader работают на пограничных размерах и воспроизводятся по seed."
+  - "fit_early_stopping останавливается ровно через patience эпох после лучшей и возвращает в модель её веса."
+  - "Результат совпадает с эталонным циклом по потерям на валидации с допуском 1e-5."
+tags:
+  - "ml"
+  - "pytorch"
+  - "dataloader"
+  - "validation"
+  - "early-stopping"
+  - "overfitting"
+requires:
+  python: ">=3.11"
+  packages:
+    - "torch>=2.5"
+    - "numpy>=2"
+  memoryMb: 512
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "По документации PyTorch, DataLoader объединяет Dataset и сэмплер: при shuffle=True порядок индексов перемешивается заново в каждую эпоху, а параметр generator позволяет сделать этот порядок воспроизводимым."
+    sources:
+      - "https://pytorch.org/docs/stable/data.html"
+  - kind: "internals"
+    text: "Dataset в стиле map обязан реализовать __getitem__ (получить образец по ключу, обычно индексу) и, как правило, __len__; DataLoader склеивает образцы пакета функцией collate_fn, по умолчанию в тензоры с новой первой размерностью."
+    sources:
+      - "https://pytorch.org/docs/stable/data.html"
+      - "https://pytorch.org/tutorials/beginner/basics/data_tutorial.html"
+  - kind: "misconception"
+    text: "«Чем больше эпох, тем лучше качество». Потеря на обучении почти всегда продолжает падать, а потеря на валидации после некоторого момента растёт: это переобучение, и поэтому момент остановки выбирают по валидации."
+    sources:
+      - "https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какие методы обязательно нужны Dataset в стиле map для работы с DataLoader?"
+      options:
+        - "__getitem__ (и обычно __len__)"
+        - "__iter__ и __next__"
+        - "train и eval"
+        - "forward и backward"
+      answer: 0
+      explanation: "DataLoader обращается к образцам по индексу, а длину узнаёт из __len__."
+    - id: "q2"
+      type: "numeric"
+      prompt: "Сколько пакетов даст DataLoader для 10 объектов при batch_size = 4 и drop_last = False? Ответ - число."
+      answer: 3
+      tolerance: 0
+      explanation: "Пакеты 4, 4 и 2: всего 3."
+    - id: "q3"
+      type: "single"
+      prompt: "Как ведёт себя переобученная модель?"
+      options:
+        - "Потеря на обучении мала, на валидации выросла"
+        - "Потеря на обучении выросла, на валидации мала"
+        - "Обе потери одинаково велики"
+        - "Потеря на валидации всегда равна нулю"
+      answer: 0
+      explanation: "Модель запомнила обучающие данные, но хуже обобщает."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Что верно о ранней остановке с терпением patience = 5?"
+      options:
+        - "Остановка происходит после пяти эпох подряд без улучшения валидационной потери"
+        - "После остановки полезно вернуть веса лучшей эпохи"
+        - "Для неё нужны данные, на которых модель не обучается"
+        - "Она делает обучение быстрее, но не влияет на обобщение"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Ранняя остановка ещё и работает как регуляризация, поэтому влияет на обобщение."
+    - id: "q5"
+      type: "single"
+      prompt: "Зачем передавать DataLoader генератор с фиксированным seed?"
+      options:
+        - "Чтобы порядок перемешивания был воспроизводимым"
+        - "Чтобы ускорить загрузку"
+        - "Чтобы отключить перемешивание"
+        - "Чтобы обучать на GPU"
+      answer: 0
+      explanation: "Генератор задаёт случайность сэмплера."
+exercise:
+  id: "ml.pytorch.data-loading.exercise"
+  title: "Dataset, разбиение, загрузчик и ранняя остановка"
+  prompt: |
+    В файле `data_task.py` реализуйте четыре части. Ничего не печатайте.
+
+    1. Класс `PointsDataset(Dataset)`: `__init__(X, y)` сохраняет данные (при разной длине - `ValueError`), `__len__`, `__getitem__(i)` возвращает пару `(X[i], y[i])`.
+    2. `split_indices(n, val_fraction, seed)` - верните `(train_idx, val_idx)` как тензоры `int64`: `torch.randperm(n, generator=...)` с `seed`, первые `round(n * val_fraction)` индексов - валидация, остальные - обучение.
+    3. `make_loader(dataset, batch_size, shuffle, seed)` - `DataLoader` с `num_workers=0`, перемешивание управляется генератором с этим `seed`.
+    4. `fit_early_stopping(model, train_loader, X_val, y_val, lr, max_epochs, patience)` - `Adam(lr)`, `CrossEntropyLoss`. Каждая эпоха: один проход по `train_loader` (режим `train`), затем потеря на валидации под `no_grad` (режим `eval`). Лучшая эпоха - со **строго** меньшей потерей. Остановитесь, когда `epoch - best_epoch >= patience`, либо после `max_epochs` эпох. В конце загрузите в модель веса лучшей эпохи (`copy.deepcopy(model.state_dict())`). Верните `(best_epoch, val_losses)`; при `max_epochs = 0` - `(-1, [])`.
+
+    **Пример.** При `patience = 8` и лучшей эпохе 12 цикл выполнит 21 эпоху (12 + 1 + 8) и вернёт `val_losses` длины 21.
+  entryFile: "data_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Dataset: сохраните self.X, self.y; __len__ возвращает len(self.X); __getitem__ возвращает self.X[i], self.y[i]. split_indices: perm = torch.randperm(n, generator=g); n_val = round(n * val_fraction); return perm[n_val:], perm[:n_val]."
+    - "make_loader: g = torch.Generator().manual_seed(seed); DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, generator=g, num_workers=0)."
+    - "fit_early_stopping: на каждой эпохе model.train(); for xb, yb in loader: zero_grad, потеря, backward, step. Затем model.eval() и with torch.no_grad(): v = loss_fn(model(X_val), y_val).item(). Если v < best: запомните эпоху и copy.deepcopy(model.state_dict()); иначе если epoch - best_epoch >= patience: break."
+    - "Не забудьте после цикла model.load_state_dict(best_state), если лучшая эпоха была. Если потери не совпадают с ожидаемыми, проверьте, что остановка идёт по условию epoch - best_epoch >= patience, а не раньше или позже на одну эпоху."
+  tests:
+    - id: "dataset"
+      title: "PointsDataset: длина, элементы, ValueError"
+      hint: "__getitem__ возвращает кортеж (X[i], y[i])."
+    - id: "split"
+      title: "split_indices: размеры и непересечение"
+      hint: "perm[n_val:] для train, perm[:n_val] для val."
+    - id: "loader-batches"
+      title: "make_loader: формы пакетов и порядок"
+      hint: "10 объектов по 4 дают пакеты 4, 4, 2; без перемешивания порядок сохраняется."
+    - id: "loader-shuffle"
+      title: "Перемешивание воспроизводится по seed (скрытый)"
+      hidden: true
+      hint: "Передайте generator в DataLoader."
+    - id: "split-deterministic"
+      title: "Разбиение воспроизводится по seed (скрытый)"
+      hidden: true
+      hint: "randperm с generator, созданным из seed."
+    - id: "early-stops"
+      title: "Остановка через patience эпох (скрытый)"
+      hidden: true
+      hint: "Длина val_losses равна best_epoch + 1 + patience."
+    - id: "restores-best"
+      title: "Веса лучшей эпохи возвращены (скрытый)"
+      hidden: true
+      hint: "Копируйте state_dict через deepcopy: он ссылается на живые тензоры."
+    - id: "max-epochs-patience"
+      title: "max_epochs ограничивает обучение (скрытый)"
+      hidden: true
+      hint: "Цикл for epoch in range(max_epochs); при 0 верните (-1, [])."
+    - id: "matches-reference"
+      title: "Совпадение с эталонным циклом (скрытый)"
+      hidden: true
+      hint: "Один проход по загрузчику за эпоху, потеря на валидации после прохода."

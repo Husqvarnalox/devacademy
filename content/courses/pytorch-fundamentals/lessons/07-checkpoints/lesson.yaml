@@ -1,0 +1,218 @@
+id: "ml.pytorch.checkpoints"
+title: "Сохранение и загрузка: state_dict, режимы train и eval, Dropout и BatchNorm"
+goal: "Сохранять и восстанавливать модель и оптимизатор через state_dict, возобновлять обучение и понимать, как режимы train и eval меняют поведение Dropout и BatchNorm."
+difficulty: "medium"
+estimatedMinutes: 100
+prerequisites:
+  - "ml.pytorch.data-loading"
+related:
+  - "ml.pytorch.modules"
+  - "ml.numpy.logistic-regression"
+next: []
+seeAlso:
+  - "Туториал PyTorch: сохранение и загрузка моделей"
+objectives:
+  - "Получить state_dict модели и оптимизатора и объяснить, что в нём хранится (параметры и буферы)."
+  - "Сохранить контрольную точку в файл и загрузить её в заново созданную модель."
+  - "Возобновить обучение так, чтобы оно продолжилось без разрыва (вместе с состоянием оптимизатора)."
+  - "Объяснить разницу между train() и eval() для Dropout и BatchNorm и вовремя переключать режим."
+  - "Предсказывать в режиме eval без градиентов и возвращать модель в прежний режим."
+masteryCriteria:
+  - "save_checkpoint и load_checkpoint восстанавливают выход модели и состояние Adam; продолжение обучения совпадает с непрерывным."
+  - "predict работает в eval и no_grad, не меняет скользящие статистики BatchNorm и возвращает режим модели."
+  - "weight_decay в SGD совпадает с ручным обновлением p -= lr * (grad + wd * p), а норма весов убывает с ростом weight_decay."
+tags:
+  - "ml"
+  - "pytorch"
+  - "state-dict"
+  - "dropout"
+  - "batchnorm"
+  - "weight-decay"
+requires:
+  python: ">=3.11"
+  packages:
+    - "torch>=2.5"
+    - "numpy>=2"
+  memoryMb: 512
+accelerator: "none"
+facts:
+  - kind: "internals"
+    text: "state_dict в PyTorch - обычный словарь, сопоставляющий имена параметров и буферов тензорам; в него входят и обучаемые параметры, и буферы, например running_mean и running_var слоя BatchNorm."
+    sources:
+      - "https://pytorch.org/tutorials/beginner/saving_loading_models.html"
+      - "https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html"
+  - kind: "internals"
+    text: "В режиме train слой Dropout обнуляет каждый элемент с вероятностью p и масштабирует оставшиеся на 1/(1-p); в режиме eval он ничего не меняет."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.Dropout.html"
+  - kind: "internals"
+    text: "BatchNorm в режиме train нормирует пакет по его среднему и дисперсии и обновляет скользящие оценки running_mean и running_var; в режиме eval используются накопленные скользящие оценки."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm1d.html"
+  - kind: "real-world"
+    text: "Начиная с PyTorch 2.6, torch.load по умолчанию использует weights_only=True, то есть загружает только тензоры и простые типы; это снижает риск выполнения чужого кода через pickle."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.load.html"
+  - kind: "misconception"
+    text: "«model.eval() отключает градиенты». Режим eval влияет на поведение слоёв (Dropout, BatchNorm), но не отключает запись графа; для этого нужен torch.no_grad()."
+    sources:
+      - "https://pytorch.org/docs/stable/generated/torch.nn.Module.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что лучше сохранять для переносимости модели?"
+      options:
+        - "state_dict модели"
+        - "весь объект модели целиком через pickle"
+        - "только список параметров без имён"
+        - "только последнее значение потери"
+      answer: 0
+      explanation: "state_dict не привязан к конкретным модулям кода и безопаснее для загрузки."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что нужно сохранить, чтобы обучение с Adam продолжилось без разрыва?"
+      options:
+        - "state_dict модели"
+        - "state_dict оптимизатора"
+        - "номер эпохи"
+        - "только веса первого слоя"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Adam хранит моменты; без них обучение продолжится не так, как продолжилось бы без перерыва."
+    - id: "q3"
+      type: "single"
+      prompt: "Что делает Dropout(0.5) в режиме eval?"
+      options:
+        - "Ничего: пропускает вход без изменений"
+        - "Обнуляет половину значений"
+        - "Умножает вход на 0.5"
+        - "Нормирует вход"
+      answer: 0
+      explanation: "Случайное обнуление работает только в режиме train."
+    - id: "q4"
+      type: "single"
+      prompt: "Какие данные использует BatchNorm в режиме eval?"
+      options:
+        - "Накопленные running_mean и running_var"
+        - "Статистику текущего пакета"
+        - "Нулевое среднее и единичную дисперсию"
+        - "Случайные значения"
+      answer: 0
+      explanation: "Это делает предсказание детерминированным и не зависящим от других объектов пакета."
+    - id: "q5"
+      type: "single"
+      prompt: "Что делает weight_decay = wd в SGD?"
+      options:
+        - "Добавляет wd * p к градиенту каждого параметра, тянет веса к нулю"
+        - "Уменьшает скорость обучения"
+        - "Обнуляет случайные веса"
+        - "Останавливает обучение"
+      answer: 0
+      explanation: "Это L2-регуляризация в виде затухания весов."
+exercise:
+  id: "ml.pytorch.checkpoints.exercise"
+  title: "Контрольные точки и безопасное предсказание"
+  prompt: |
+    В файле `ckpt_task.py` реализуйте четыре функции. Ничего не печатайте. Файлы пишите только по переданному `path` (в рабочую папку).
+
+    1. `make_net()` - `nn.Sequential`: `Linear(4, 8)`, `BatchNorm1d(8)`, `ReLU`, `Dropout(0.5)`, `Linear(8, 2)`.
+    2. `save_checkpoint(model, optimizer, epoch, path)` - `torch.save` словаря с ключами `'model'`, `'optimizer'`, `'epoch'`.
+    3. `load_checkpoint(model, optimizer, path)` - загрузить состояния в модель и оптимизатор и вернуть номер эпохи как `int`.
+    4. `predict(model, X)` - классы (`argmax`, `int64`, форма `(n,)`), в режиме `eval` и под `no_grad`. После вызова режим модели должен быть прежним.
+
+    **Пример.** Модель в режиме `train` после `predict` остаётся в режиме `train`; скользящие статистики BatchNorm при этом не меняются.
+  entryFile: "ckpt_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "make_net: nn.Sequential(nn.Linear(4, 8), nn.BatchNorm1d(8), nn.ReLU(), nn.Dropout(0.5), nn.Linear(8, 2)). save: torch.save({'model': model.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}, path)."
+    - "load: state = torch.load(path); model.load_state_dict(state['model']); optimizer.load_state_dict(state['optimizer']); return int(state['epoch'])."
+    - "predict: was = model.training; model.eval(); with torch.no_grad(): out = model(X).argmax(dim=1); затем model.train(was); return out. Для надёжности оберните в try/finally."
+    - "Если продолжение обучения расходится с непрерывным, проверьте, что состояние оптимизатора сохраняется и загружается вместе с моделью. Если меняются running_mean, вы вызвали forward до model.eval()."
+  tests:
+    - id: "make-net"
+      title: "make_net: слои и размеры"
+      hint: "Порядок: Linear, BatchNorm1d, ReLU, Dropout(0.5), Linear."
+    - id: "roundtrip"
+      title: "Сохранение и загрузка воспроизводят модель"
+      hint: "Сравнение идёт в режиме eval; load_checkpoint возвращает int."
+    - id: "predict-basic"
+      title: "predict: тип и форма результата"
+      hint: "argmax(dim=1) даёт int64 формы (n,)."
+    - id: "predict-restores-mode"
+      title: "predict возвращает прежний режим (скрытый)"
+      hidden: true
+      hint: "Запомните model.training до вызова и верните его в finally."
+    - id: "predict-deterministic"
+      title: "predict детерминирован (скрытый)"
+      hidden: true
+      hint: "В режиме eval Dropout отключён."
+    - id: "predict-keeps-batchnorm"
+      title: "Скользящие статистики BatchNorm не меняются (скрытый)"
+      hidden: true
+      hint: "Вызовите model.eval() до прямого прохода."
+    - id: "resume-matches-continuous"
+      title: "Продолжение обучения совпадает с непрерывным (скрытый)"
+      hidden: true
+      hint: "Сохраняйте и загружайте optimizer.state_dict()."
+    - id: "missing-file"
+      title: "Отсутствующий файл (скрытый)"
+      hidden: true
+      hint: "torch.load сам выбросит FileNotFoundError; не перехватывайте его."
+challenge:
+  id: "ml.pytorch.checkpoints.challenge"
+  title: "Затухание весов: сравнение значений weight_decay"
+  prompt: |
+    В файле `wd_task.py` реализуйте четыре функции для регрессии маленькой сетью `Linear(d, hidden) -> ReLU -> Linear(hidden, 1)`.
+
+    1. `train_regularized(X, y, hidden, weight_decay, epochs, lr, seed)` - `torch.manual_seed(seed)` до создания сети; полнопакетный `SGD(lr, weight_decay=weight_decay)` и `MSELoss`; выход сети приводите к форме `(n,)`. Верните модель.
+    2. `weight_norm(model)` - L2-норма всех матриц весов (параметры с `dim() >= 2`; смещения не входят) как `float`.
+    3. `mse(model, X, y)` - среднеквадратичная ошибка без градиентов, `float`.
+    4. `compare_weight_decay(X, y, X_val, y_val, decays, hidden, epochs, lr, seed)` - для каждого значения `decays` обучите свою сеть (одинаковый `seed`) и верните список кортежей `(weight_decay, train_mse, val_mse, weight_norm)`, округлив числа (кроме первого) до 4 знаков.
+
+    Тесты проверяют, что норма весов убывает с ростом `weight_decay`, что регуляризация ухудшает ошибку на обучении, но на малых данных улучшает ошибку на валидации, и что результат совпадает с ручным обновлением `p -= lr * (grad + wd * p)`.
+  entryFile: "wd_task.py"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  evaluation: "harness"
+  harness: "challenge/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "train_regularized: torch.manual_seed(seed); model = nn.Sequential(nn.Linear(d, hidden), nn.ReLU(), nn.Linear(hidden, 1)); opt = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay); в цикле loss = MSELoss()(model(X).squeeze(-1), y)."
+    - "weight_norm: сумма (p.detach() ** 2).sum() по параметрам с p.dim() >= 2, затем корень. mse: with torch.no_grad(): ((model(X).squeeze(-1) - y) ** 2).mean().item()."
+    - "compare_weight_decay: цикл по decays; для каждого вызовите train_regularized с тем же seed и соберите кортеж (wd, round(mse_train, 4), round(mse_val, 4), round(norm, 4))."
+  tests:
+    - id: "weight-norm"
+      title: "weight_norm: только матрицы весов"
+      hint: "Фильтр p.dim() >= 2 пропускает смещения."
+    - id: "mse"
+      title: "mse на маленьком примере"
+      hint: "Среднее квадратов разностей, float."
+    - id: "train-shapes"
+      title: "Структура обученной сети"
+      hint: "Linear(5, 16) -> ReLU -> Linear(16, 1): 113 параметров."
+    - id: "decay-shrinks-norm"
+      title: "Норма весов убывает с ростом weight_decay (скрытый)"
+      hidden: true
+      hint: "Затухание тянет веса к нулю."
+    - id: "decay-raises-train-loss"
+      title: "Регуляризация: хуже на обучении, лучше на валидации (скрытый)"
+      hidden: true
+      hint: "Сравнение weight_decay = 0 и 0.03 на 20 обучающих точках."
+    - id: "matches-manual"
+      title: "Совпадение с ручным обновлением (скрытый)"
+      hidden: true
+      hint: "p -= lr * (grad + wd * p) для всех параметров, включая смещения."
+    - id: "rounding-and-seed"
+      title: "Округление и воспроизводимость (скрытый)"
+      hidden: true
+      hint: "round(v, 4) и одинаковый seed на каждую сеть."
+    - id: "zero-decay-is-plain-sgd"
+      title: "weight_decay = 0 совпадает с обычным SGD (скрытый)"
+      hidden: true
+      hint: "Не добавляйте лишних операций над весами."

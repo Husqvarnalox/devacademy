@@ -290,6 +290,13 @@ public static class ContentValidator
         var usesJavaScript = ex.AllVariants.Any(v => v.LanguageId is "javascript" or "typescript");
         if ((ex.Requires is { HasPython: true } || ex.Accelerator != AcceleratorNeed.None) && !usesPython)
             error(path, $"{label}: 'requires.python/packages' and 'accelerator' only apply to Python exercises, but no variant is python");
+        if (ex.Requires?.MemoryMb is { } mem)
+        {
+            if (mem < ExerciseRequirements.MinMemoryMb || mem > ExerciseRequirements.MaxMemoryMb)
+                error(path, $"{label}: requires.memoryMb must be {ExerciseRequirements.MinMemoryMb}-{ExerciseRequirements.MaxMemoryMb}, got {mem}");
+            if (!usesPython)
+                error(path, $"{label}: 'requires.memoryMb' is supported only for Python exercises");
+        }
         if (ex.Requires is { HasNode: true } && !usesJavaScript)
             error(path, $"{label}: 'requires.node/npmPackages' only apply to javascript/typescript exercises, but no variant is javascript or typescript");
         if (ex.Requires is { HasGo: true } && !ex.AllVariants.Any(v => v.LanguageId == "go"))

@@ -93,6 +93,7 @@
           "items": { "type": "string", "description": "Plain npm package name (scoped allowed); the installed version is pinned by the package set's package-lock.json (tools/content-packages/node/<set>).", "examples": ["vitest", "@testing-library/react"] }
         },
         "go": { "type": "string", "description": "Go toolchain version specifier (go exercises), checked against the installed `go`.", "examples": [">=1.26.5"] },
+        "memoryMb": { "type": "integer", "minimum": 256, "maximum": 1024, "default": 256, "description": "Memory limit (MB) of one run of the exercise (Run button, grading, theory samples checked by validate-content). Default 256. Only for libraries whose import alone is close to the default (PyTorch); does not change the network or write restrictions." },
         "goModules": {
           "type": "array",
           "items": { "type": "string", "description": "Go module path (no version); one go package set (tools/content-packages/go/<set>/go.mod + go.sum) must provide all of them. The exercise ships its own go.mod and go.sum with the same pins.", "examples": ["github.com/gomlx/gomlx"] }

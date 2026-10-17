@@ -15,8 +15,12 @@ public enum AcceleratorNeed { None, Optional, Required }
 /// (<c>github.com/gomlx/gomlx</c>).
 /// </summary>
 public sealed record ExerciseRequirements(string? Python, IReadOnlyList<string> Packages, string? Node = null, IReadOnlyList<string>? NpmPackages = null,
-    string? Go = null, IReadOnlyList<string>? GoModules = null)
+    string? Go = null, IReadOnlyList<string>? GoModules = null, int? MemoryMb = null)
 {
+    /// <summary>Bounds of <c>requires.memoryMb</c>: the default run limit is 256 MB; heavy libraries (PyTorch) may ask for more, never more than the maximum.</summary>
+    public const int MinMemoryMb = 256;
+    public const int MaxMemoryMb = 1024;
+
     public IReadOnlyList<string> Npm => NpmPackages ?? [];
     public IReadOnlyList<string> Modules => GoModules ?? [];
     public bool HasGo => !string.IsNullOrWhiteSpace(Go) || Modules.Count > 0;
