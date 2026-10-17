@@ -1,0 +1,14 @@
+id: django-developer
+title: Django-разработчик
+description: "Путь к веб-приложениям на Django. Сначала «Основы Python» и «Продвинутый Python», затем «SQL и реляционные базы данных», после чего «Django: основы»: маршрутизация, модели и ORM с борьбой с N+1, представления и шаблоны, формы и CSRF, аутентификация и права, middleware и JSON API без DRF с тестами. Админка, миграции как файлы, асинхронные представления, DRF и развёртывание пока не входят."
+goal: backend
+targets: [django-fundamentals]
+stages:
+  - title: Python core
+    courses: [python-fundamentals]
+  - title: Продвинутый Python
+    courses: [python-advanced]
+  - title: Базы данных и SQL
+    courses: [databases-sql]
+  - title: Django
+    courses: [django-fundamentals]

@@ -9,6 +9,8 @@ httpx==0.28.1
 pydantic==2.14.1
 pytest==9.1.1
 uvicorn==0.54.0
+# Django for the django-fundamentals course (6.1 supports Python 3.12-3.14); asgiref and sqlparse come in as its dependencies.
+Django==6.1.2
 # Jupyter kernel for the notebook workspace's real-kernel integration tests (tests/DevAcademy.Notebooks.Tests); keep in step with
 # KernelProvisioner.PinnedRequirement.
 ipykernel==7.4.0

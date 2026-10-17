@@ -1,0 +1,189 @@
+id: "express.fundamentals.routers"
+title: "Роутеры и структура приложения"
+goal: "Разбивать приложение Express на модули: роутеры с монтированием, обработчики параметров, вложенные роутеры и сборка приложения функцией createApp."
+difficulty: "easy"
+estimatedMinutes: 70
+prerequisites:
+  - "express.fundamentals.middleware"
+related:
+  - "express.fundamentals.architecture"
+next:
+  - "express.fundamentals.error-handling"
+objectives:
+  - "Создавать express.Router, монтировать его через app.use(префикс, router) и писать пути внутри роутера относительно точки монтирования."
+  - "Различать req.baseUrl, req.path и req.originalUrl внутри смонтированного роутера."
+  - "Выносить общий код загрузки объекта в router.param и отвечать 404 из обработчика параметра."
+  - "Подключать вложенные роутеры и объяснять, зачем нужен mergeParams."
+  - "Собирать приложение функцией createApp(зависимости) и передавать роутерам хранилище через фабрику, а не через глобальные переменные."
+masteryCriteria:
+  - "Ваши роутеры не знают своего префикса и работают при монтировании под любым путём."
+  - "Вы проверяете формат идентификатора в router.param до преобразования в число."
+  - "Вы не держите состояние на уровне модуля роутера: данные приходят аргументом фабрики."
+  - "Вы разделяете создание приложения (createApp) и открытие порта."
+tags:
+  - "express"
+  - "router"
+  - "routing"
+  - "mergeParams"
+  - "project-structure"
+facts:
+  - kind: "internals"
+    text: "При app.use(префикс, router) Express усекает req.url до остатка после префикса, а req.baseUrl хранит префикс; req.originalUrl остаётся полным исходным адресом. Если ни один маршрут роутера не совпал, управление возвращается в приложение и запрос идёт к следующему обработчику."
+    sources:
+      - "https://expressjs.com/en/5x/api/request#reqbaseurl"
+      - "https://expressjs.com/en/5x/api/router#router"
+  - kind: "internals"
+    text: "Обработчик router.param(name, fn) вызывается не более одного раза за запрос, перед обработчиками маршрутов своего роутера, в пути которых есть этот параметр. В Express 5 name должен быть строкой: передача массива имён в router.param вызывает TypeError (app.param по-прежнему принимает массив), а сигнатура router.param(fn) удалена."
+    sources:
+      - "https://expressjs.com/en/5x/api/router#routerparam"
+      - "https://expressjs.com/en/guide/migrating-5.html"
+  - kind: "internals"
+    text: "Опция mergeParams: true в express.Router объединяет req.params родительского роутера и дочернего; при конфликте имён значение дочернего роутера имеет приоритет. Без неё вложенный роутер видит только параметры собственных путей."
+    sources:
+      - "https://expressjs.com/en/5x/api/express#expressrouter"
+  - kind: "misconception"
+    text: "«Роутер - это отдельный сервер». Роутер не слушает порт и не создаёт процесса: это функция-middleware со своим стеком маршрутов. Всё, что выполняется вокруг него (журнал, парсер тела, обработка ошибок), по-прежнему принадлежит приложению."
+  - kind: "real-world"
+    text: "Фабрики вида createApp(зависимости) и createRouter(зависимости) упрощают тесты: тестовое хранилище, часы и генератор идентификаторов подставляются аргументами. Документация Express не навязывает структуру проекта, поэтому раскладка по каталогам (routes, middleware, services) - договорённость команды, а не требование фреймворка."
+    sources:
+      - "https://expressjs.com/en/starter/faq.html"
+      - "https://expressjs.com/en/guide/routing.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Роутер смонтирован через app.use(\"/api/books\", router). Какой путь надо указать внутри роутера для GET /api/books/42?"
+      options:
+        - "router.get(\"/api/books/:id\", ...)"
+        - "router.get(\"/books/:id\", ...)"
+        - "router.get(\"/:id\", ...)"
+        - "router.get(\"*\", ...)"
+      answer: 2
+      explanation: "Внутри роутера пути относительны точки монтирования: префикс /api/books уже учтён приложением."
+    - id: "q2"
+      type: "multiple"
+      prompt: "В запросе GET /api/books/3/where?x=1 к смонтированному на /api/books роутеру. Что верно внутри его обработчика?"
+      options:
+        - "req.baseUrl равен /api/books"
+        - "req.path равен /3/where"
+        - "req.originalUrl равен /api/books/3/where?x=1"
+        - "req.path равен /api/books/3/where"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Префикс отрезан от req.url и req.path, полный адрес сохраняется в req.originalUrl."
+    - id: "q3"
+      type: "single"
+      prompt: "Зачем нужна опция mergeParams: true у вложенного роутера, смонтированного через router.use(\"/:authorId/books\", child)?"
+      options:
+        - "Чтобы роутер не зависел от регистра пути."
+        - "Чтобы дочерний роутер видел req.params.authorId из пути родителя."
+        - "Чтобы роутер вызывал next при ошибке."
+        - "Чтобы тело запроса разбиралось автоматически."
+      answer: 1
+      explanation: "По умолчанию у каждого роутера свой req.params, содержащий только параметры его собственных путей."
+    - id: "q4"
+      type: "single"
+      prompt: "Что делает router.param(\"id\", fn)?"
+      options:
+        - "Запрещает все параметры, кроме id."
+        - "Вызывает fn перед каждым маршрутом этого роутера с :id (не больше одного раза за запрос), удобно для загрузки объекта или ответа 404."
+        - "Преобразует :id в число автоматически."
+        - "Делает параметр id необязательным."
+      answer: 1
+      explanation: "Обработчик параметра получает (req, res, next, value). Преобразований Express не делает."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция верхнего уровня, которая создаёт приложение со всеми зависимостями, не открывая порт (имя, принятое в курсе)? Ответьте одним словом."
+      answer:
+        - "createApp"
+        - "createapp"
+      explanation: "createApp(зависимости) возвращает приложение; порт открывает отдельный файл запуска, поэтому приложение легко проверять в тестах."
+exercise:
+  id: "express.fundamentals.routers.exercise"
+  title: "Библиотека: книги и авторы в нескольких файлах"
+  prompt: |
+    Нужно собрать приложение «библиотека» из трёх файлов. Хранилище приходит снаружи: `store = { authors: [{ id, name }], books: [{ id, title, authorId }] }`. Запросы подаются прямо в приложение через `light-my-request`.
+
+    **`src/routes/books.mjs`** - `createBooksRouter(store)`: на уровне роутера добавляет заголовок `X-Resource: books`; `router.param("id", ...)` принимает только значение из цифр, которое есть среди `store.books`, иначе `404` и `{ "error": "book not found" }`, а найденную книгу кладёт в `req.book`. Маршруты `GET /` (`{ items }`), `GET /:id` (книга) и `GET /:id/where` (`{ baseUrl, path, originalUrl }` из `req`).
+
+    **`src/routes/authors.mjs`** - `createAuthorsRouter(store)`: `router.param("authorId", ...)` с `404` и `{ "error": "author not found" }`; `GET /` (`{ items }`), `GET /:authorId` (автор) и `GET /:authorId/books` -> `{ author, items }` с книгами автора (вложенный роутер с `mergeParams`).
+
+    **`src/app.mjs`** - `createApp({ store })`: `GET /api` отвечает `{ "name": "library", "resources": ["authors", "books"] }`, роутеры монтируются на `/api/books` и `/api/authors`, а всё остальное - `404` и `{ "error": "not found" }`.
+
+    Комментарии в файлах описывают контракт подробнее. Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/app.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "В app.mjs нужны три вещи: app.get(\"/api\", ...), app.use(\"/api/books\", createBooksRouter(store)) и app.use(\"/api/authors\", createAuthorsRouter(store)); обработчик 404 - app.use((req, res) => ...) последним."
+    - "router.param(\"id\", (req, res, next, value) => { ... }): сначала /^\\d+$/.test(value), потом store.books.find(...). Нет книги - return res.status(404).json(...); иначе req.book = book; next()."
+    - "Заголовок для всего роутера: router.use((req, res, next) => { res.set(\"X-Resource\", \"books\"); next(); }) до маршрутов. Для /where возьмите req.baseUrl, req.path и req.originalUrl."
+    - "Книги автора: const child = express.Router({ mergeParams: true }); child.get(\"/\", (req, res) => ...); затем router.use(\"/:authorId/books\", child). Обработчик router.param(\"authorId\") родителя срабатывает и для вложенного пути, а req.author уже готов."
+  tests:
+    - id: "api-index"
+      title: "Индекс API"
+      match: "Приложение и роутеры > индекс API"
+      hint: "app.get(\"/api\", ...) в самом приложении, не в роутере."
+    - id: "books-list"
+      title: "Список книг и заголовок роутера"
+      match: "Приложение и роутеры > список книг*"
+      hint: "router.use с res.set(\"X-Resource\", \"books\") и next() до маршрутов."
+    - id: "book-by-id"
+      title: "Книга по идентификатору"
+      match: "Приложение и роутеры > книга по идентификатору"
+      hint: "router.get(\"/:id\", (req, res) => res.json(req.book)): книгу уже нашёл router.param."
+    - id: "book-404"
+      title: "Неизвестная книга - 404 из router.param (скрытый)"
+      match: "Приложение и роутеры > неизвестная книга*"
+      hidden: true
+      hint: "Проверяйте формат /^\\d+$/ до Number: значения 1.5, abc и -1 тоже должны дать 404."
+    - id: "author-books"
+      title: "Книги автора через mergeParams"
+      match: "Вложенность и монтирование > книги автора*"
+      hint: "express.Router({ mergeParams: true }) у вложенного роутера; req.author кладёт router.param родителя."
+    - id: "author-404"
+      title: "Неизвестный автор (скрытый)"
+      match: "Вложенность и монтирование > неизвестный автор*"
+      hidden: true
+      hint: "Ответ 404 из router.param(\"authorId\") должен сработать и для /authors/9/books."
+    - id: "authors-list"
+      title: "Список авторов и автор (скрытый)"
+      match: "Вложенность и монтирование > список авторов*"
+      hidden: true
+      hint: "GET / и GET /:authorId в роутере авторов."
+    - id: "x-resource-scope"
+      title: "X-Resource только у книг (скрытый)"
+      match: "Вложенность и монтирование > заголовок X-Resource*"
+      hidden: true
+      hint: "router.use роутера книг не должен влиять на другие роутеры: не вешайте заголовок на app."
+    - id: "where"
+      title: "baseUrl, path, originalUrl (скрытый)"
+      match: "Вложенность и монтирование > baseUrl*"
+      hidden: true
+      hint: "req.path - остаток после префикса, req.originalUrl - исходный адрес с query."
+    - id: "independent"
+      title: "Роутеры независимы от префикса и данных (скрытый)"
+      match: "Вложенность и монтирование > роутеры независимы*"
+      hidden: true
+      hint: "Не пишите /api в путях роутера и не держите данные в переменных модуля: используйте store из аргумента."
+    - id: "fallback-404"
+      title: "JSON 404 для неизвестных путей (скрытый)"
+      match: "Вложенность и монтирование > неизвестные пути*"
+      hidden: true
+      hint: "Общий обработчик app.use((req, res) => ...) в конце; роутер без совпадения возвращает управление приложению."

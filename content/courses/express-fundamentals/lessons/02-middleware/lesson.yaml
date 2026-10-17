@@ -1,0 +1,197 @@
+id: "express.fundamentals.middleware"
+title: "Middleware: порядок, next() и свои обработчики"
+goal: "Строить цепочку middleware в правильном порядке, писать собственные middleware-фабрики и ограничивать их действие уровнем роутера."
+difficulty: "easy"
+estimatedMinutes: 65
+prerequisites:
+  - "express.fundamentals.architecture"
+related:
+  - "nodejs.fundamentals.events-and-process"
+  - "security.fundamentals.access-control"
+next:
+  - "express.fundamentals.routers"
+objectives:
+  - "Описать контракт middleware: ответить, вызвать next() или next(err) и почему нужно ровно одно из этого."
+  - "Объяснить, как порядок регистрации определяет поведение приложения, и расставить requestId, журнал, парсер тела и защиту."
+  - "Написать конфигурируемое middleware как фабрику, возвращающую (req, res, next), и передать зависимости снаружи."
+  - "Использовать событие finish у res для итогового статуса и req.originalUrl вместо req.url внутри смонтированных обработчиков."
+  - "Различать 401 и 403 и вешать защиту на роутер, а не проверять вручную в каждом маршруте."
+masteryCriteria:
+  - "Каждая ветка вашего middleware либо отвечает (с return), либо вызывает next; вы не вызываете next после ответа."
+  - "Вы не доверяете заголовкам клиента: проверяете X-Request-Id по шаблону, схему и токен в Authorization по правилам."
+  - "Вы объясняете, чем отличаются req.url, req.baseUrl и req.originalUrl и где они нужны."
+  - "Вы передаёте зависимости middleware через фабрику, а не через глобальные переменные."
+tags:
+  - "express"
+  - "middleware"
+  - "next"
+  - "routing"
+  - "logging"
+  - "authorization"
+facts:
+  - kind: "internals"
+    text: "Express определяет обработчик ошибок по числу параметров функции: у него четыре аргумента (err, req, res, next), у обычного middleware - три. Поэтому параметр next в обработчике ошибок нужно указывать, даже если он не используется. Вызов next('route') пропускает оставшиеся функции текущего маршрута, next('router') выходит из текущего роутера, любое другое значение next(err) трактуется как ошибка."
+    sources:
+      - "https://expressjs.com/en/guide/using-middleware.html"
+      - "https://expressjs.com/en/guide/error-handling.html"
+  - kind: "internals"
+    text: "Внутри app.use('/api', fn) путь запроса req.url усечён до остатка после префикса, префикс доступен как req.baseUrl, а полный исходный адрес остаётся в req.originalUrl. Поэтому журнал доступа пишет req.originalUrl."
+    sources:
+      - "https://expressjs.com/en/5x/api/request#reqoriginalurl"
+      - "https://expressjs.com/en/5x/api/request#reqbaseurl"
+  - kind: "internals"
+    text: "Встроенные парсеры тела Express 5 (express.json, express.urlencoded, express.text, express.raw) поддерживают сжатие тела запроса gzip, deflate и br. express.urlencoded по умолчанию работает с extended: false, req.body без парсера равен undefined, а express.static по умолчанию не отдаёт файлы и каталоги с точкой в имени."
+    sources:
+      - "https://expressjs.com/en/guide/migrating-5.html"
+      - "https://expressjs.com/en/5x/api/express#expressstatic"
+  - kind: "security"
+    text: "Заголовки запроса, в том числе X-Request-Id, контролирует клиент. Если записывать их в журнал без проверки, в строку можно подставить переводы строк и подделать соседние записи журнала. Поэтому принимают только значения по строгому шаблону (ограниченная длина, безопасные символы), остальные заменяют сгенерированными."
+    sources:
+      - "https://owasp.org/www-community/attacks/Log_Injection"
+  - kind: "misconception"
+    text: "«Middleware всегда выполняется до маршрута». Выполняется то, что зарегистрировано раньше, и только пока никто не ответил. Журнал, подключённый после маршрута, для этого маршрута не вызывается; обратное тоже верно: ответ может завершить цепочку раньше, чем дойдёт очередь до следующих функций."
+  - kind: "real-world"
+    text: "Коды 401 и 403 различаются по смыслу: 401 Unauthorized означает, что запрос не прошёл аутентификацию (учётные данные отсутствуют или недействительны), и ответ должен содержать WWW-Authenticate; 403 Forbidden - сервер понял, кто обращается, но отказывает в доступе."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/401"
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/403"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Middleware проверило заголовок и обнаружило ошибку. Какой вариант корректен, если нужно отказать клиенту?"
+      options:
+        - "res.status(401).json({ error: \"unauthorized\" }); next();"
+        - "return res.status(401).json({ error: \"unauthorized\" });"
+        - "res.status(401); next();"
+        - "next(); return res.status(401).json({ error: \"unauthorized\" });"
+      answer: 1
+      explanation: "После ответа next() вызывать нельзя: следующий обработчик попытается ответить ещё раз. return выходит из функции."
+    - id: "q2"
+      type: "single"
+      prompt: "Журнал доступа подключён после маршрута GET /health, который сразу отвечает. Попадёт ли запрос к /health в журнал?"
+      options:
+        - "Да, журнал вызывается для всех запросов."
+        - "Нет: маршрут ответил раньше, и очередь до журнала не дошла."
+        - "Да, но с пустым статусом."
+        - "Только если поменять GET на POST."
+      answer: 1
+      explanation: "Цепочка выполняется по порядку регистрации и обрывается первым ответом. Журнал нужно подключать до маршрутов."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно для middleware, подключённого через app.use(\"/api\", fn)?"
+      options:
+        - "Внутри fn значение req.url не содержит префикс /api."
+        - "Полный исходный адрес доступен в req.originalUrl."
+        - "Префикс /api доступен в req.baseUrl."
+        - "fn вызывается и для запроса /apis."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Префикс совпадает по границе сегмента: /apis под /api не попадает."
+    - id: "q4"
+      type: "single"
+      prompt: "Какой статус нужно вернуть, если токен в заголовке Authorization есть и разобран, но его владельцу доступ к ресурсу запрещён?"
+      options:
+        - "401 с заголовком WWW-Authenticate."
+        - "403."
+        - "404 всегда."
+        - "200 с пустым телом."
+      answer: 1
+      explanation: "401 - клиент не представился или данные недействительны; 403 - личность известна, но доступа нет."
+    - id: "q5"
+      type: "short"
+      prompt: "Какое событие объекта res нужно слушать, чтобы в журнале был итоговый статус ответа? Одно слово."
+      answer:
+        - "finish"
+      explanation: "Событие finish наступает, когда ответ полностью передан; к этому моменту res.statusCode окончателен."
+exercise:
+  id: "express.fundamentals.middleware.exercise"
+  title: "Цепочка: идентификатор запроса, журнал, проверка токена"
+  prompt: |
+    Нужно собрать цепочку middleware с **детерминированным** результатом (идентификаторы и журнал подставляются снаружи). Запросы подаются в приложение через `light-my-request`, порт не открывается.
+
+    **`src/middleware.mjs`** - три фабрики (комментарии в файле описывают контракт):
+
+    * `requestId({ generate })` - кладёт в `req.id` идентификатор и возвращает его в заголовке ответа `X-Request-Id`. Клиентский `X-Request-Id` принимается, только если подходит под `/^[A-Za-z0-9_-]{1,64}$/`; иначе (или если заголовка нет) вызывается `generate()`. Для принятого клиентского значения `generate()` вызывать нельзя.
+    * `accessLog(sink)` - после отправки ответа вызывает `sink("<req.id> <метод> <req.originalUrl> <статус>")`.
+    * `requireBearer({ tokens })` - `tokens` это `Map` «токен -> пользователь». Нет `Authorization` или он не вида `Bearer <токен>` (слово `Bearer` без учёта регистра) - `401`, заголовок `WWW-Authenticate: Bearer`, тело `{ "error": "unauthorized" }`. Неизвестный токен - `403` и `{ "error": "forbidden" }`. Иначе `req.user = пользователь` и `next()`.
+
+    **`src/app.mjs`** - `createApp({ generateId, log, tokens })`: подключите `requestId`, затем `accessLog`, затем `express.json()`; `GET /health` открыт всем (`{ "status": "ok" }`); всё под `/api` защищено `requireBearer` **на уровне роутера**: `GET /api/me` отвечает `{ "user": ..., "requestId": ... }`, `POST /api/echo` отвечает `{ "echo": req.body ?? null }`.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/middleware.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Каждая фабрика возвращает функцию (req, res, next). requestId: req.get(\"X-Request-Id\") даёт заголовок клиента; res.set(...) ставит заголовок ответа. accessLog: res.on(\"finish\", () => ...), а затем next()."
+    - "В requireBearer сначала разберите заголовок регулярным выражением вроде /^Bearer\\s+(\\S+)$/i. Нет совпадения - 401 (не забудьте res.set(\"WWW-Authenticate\", \"Bearer\") и return). Есть совпадение, но tokens.get(токен) вернул undefined - 403."
+    - "В app.mjs порядок: app.use(requestId({ generate: generateId })); app.use(accessLog(log)); app.use(express.json()). Защита: const api = express.Router(); api.use(requireBearer({ tokens })); api.get(\"/me\", ...); app.use(\"/api\", api)."
+    - "Журнал должен показывать и отказы, поэтому accessLog стоит до защищённого роутера, а requestId - ещё раньше: иначе в строке не будет идентификатора. Используйте req.originalUrl: внутри роутера req.url обрезан."
+  tests:
+    - id: "request-id-sequence"
+      title: "requestId: последовательные идентификаторы"
+      match: "requestId > выдаёт последовательные*"
+      hint: "req.id = generate(); res.set(\"X-Request-Id\", req.id); next()."
+    - id: "request-id-client"
+      title: "requestId: клиентский идентификатор"
+      match: "requestId > принимает допустимый*"
+      hint: "Не вызывайте generate(), если клиентское значение подходит под шаблон."
+    - id: "access-log"
+      title: "accessLog: строка после ответа"
+      match: "accessLog > пишет строку после ответа"
+      hint: "res.on(\"finish\", ...) - после ответа статус уже окончателен."
+    - id: "auth-401"
+      title: "requireBearer: без заголовка - 401"
+      match: "requireBearer > без заголовка*"
+      hint: "Заголовок WWW-Authenticate: Bearer и тело { error: \"unauthorized\" }, затем return."
+    - id: "request-id-invalid"
+      title: "requestId: недопустимый идентификатор (скрытый)"
+      match: "requestId > недопустимый*"
+      hidden: true
+      hint: "Шаблон /^[A-Za-z0-9_-]{1,64}$/: пробел, восклицательный знак, угловые скобки и длина больше 64 не проходят."
+    - id: "log-original-url"
+      title: "accessLog: исходный адрес и отказы (скрытый)"
+      match: "accessLog > журнал содержит*"
+      hidden: true
+      hint: "Внутри роутера req.url усечён: пишите req.originalUrl. Журнал подключайте до роутера, иначе отказы не попадут в него."
+    - id: "auth-403-and-ok"
+      title: "requireBearer: 403 и успех (скрытый)"
+      match: "requireBearer > неизвестный токен*"
+      hidden: true
+      hint: "Неизвестный токен - 403 и { error: \"forbidden\" }; для верного кладите req.user и вызывайте next()."
+    - id: "auth-scheme"
+      title: "requireBearer: схема и пустой токен (скрытый)"
+      match: "requireBearer > другая схема*"
+      hidden: true
+      hint: "Только Bearer (без учёта регистра) и ровно один токен без пробелов."
+    - id: "scope"
+      title: "Роутер защищён, /health открыт (скрытый)"
+      match: "Порядок и область действия > защита роутера*"
+      hidden: true
+      hint: "requireBearer вешается на api (router.use), а не на app: тогда /health остаётся открытым."
+    - id: "json-body"
+      title: "express.json и тело (скрытый)"
+      match: "Порядок и область действия > express.json*"
+      hidden: true
+      hint: "express.json() нужно подключить до роутера; без тела req.body равен undefined, поэтому ?? null."
+    - id: "order-id-before-log"
+      title: "Порядок requestId и accessLog (скрытый)"
+      match: "Порядок и область действия > идентификатор есть*"
+      hidden: true
+      hint: "Сначала requestId, потом accessLog: иначе в журнале будет undefined вместо идентификатора."

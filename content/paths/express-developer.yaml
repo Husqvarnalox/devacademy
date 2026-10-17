@@ -1,0 +1,12 @@
+id: express-developer
+title: Express-разработчик (начальный уровень)
+description: "Путь к основам серверной разработки на Express 5. «JavaScript: основы языка», затем «Node.js: платформа и встроенные модули» и «Express: основы»: маршрутизация и middleware, роутеры и структура приложения, обработка ошибок, проверка данных и защитные настройки (CORS, заголовки, ограничение частоты, cookie), проектирование REST API и тесты приложений. Базы данных, аутентификация, шаблоны и развёртывание пока не входят. Для проверок упражнений нужны npm-пакеты курсов (Настройки - Среды выполнения)."
+goal: backend
+targets: [express-fundamentals]
+stages:
+  - title: Язык
+    courses: [javascript-fundamentals]
+  - title: Платформа Node.js
+    courses: [nodejs-fundamentals]
+  - title: Express
+    courses: [express-fundamentals]

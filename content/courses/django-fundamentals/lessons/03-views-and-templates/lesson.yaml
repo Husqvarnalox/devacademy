@@ -1,0 +1,155 @@
+id: django.fundamentals.views-and-templates
+title: Представления, шаблоны и автоэкранирование
+goal: Писать функциональные и классовые представления, пользоваться языком шаблонов и наследованием и понимать, что и от чего защищает автоэкранирование.
+difficulty: easy
+estimatedMinutes: 90
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [django.fundamentals.architecture-and-routing, python.advanced.inheritance-composition-protocols]
+related: [security.fundamentals.output-encoding-and-xss, django.fundamentals.forms-and-validation]
+next: [django.fundamentals.forms-and-validation]
+objectives:
+  - Писать представление функцией и классом (View, TemplateView), объяснять, что делают as_view() и dispatch и откуда берётся ответ 405.
+  - Подставлять данные в шаблон через render и контекст, пользоваться переменными, фильтрами и тегами if, for ... empty, with, url.
+  - Строить страницы через наследование шаблонов (extends, block, block.super) и подключать шаблоны из словаря загрузчиком locmem.
+  - "Объяснять автоэкранирование: что подставляется как текст, чем отличаются |safe, mark_safe, format_html и linebreaksbr и где автоэкранирование HTML не защищает."
+masteryCriteria:
+  - Вы показываете тестом, что строка с <script> в данных попадает в страницу как &lt;script&gt;, и что POST в View без метода post даёт 405.
+  - Вы пишете базовый шаблон с блоками и два дочерних, один из которых оставляет часть блоков родителя.
+  - Вы объясняете, почему |safe на пользовательском вводе - уязвимость, и называете безопасную альтернативу для сборки разметки.
+  - Вы называете контексты, в которых экранирование HTML недостаточно (скрипт, URL).
+tags: [django, views, class-based-views, templates, inheritance, autoescape, xss, locmem]
+facts:
+  - kind: internals
+    text: >-
+      Классовое представление регистрируют через as_view(): эта функция на каждый запрос создаёт новый экземпляр класса и вызывает dispatch(), который выбирает метод по HTTP-методу запроса. Если метода нет,
+      возвращается 405 Method Not Allowed; OPTIONS обрабатывается автоматически. Аргументы as_view(**initkwargs) переопределяют атрибуты класса только в этом маршруте.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/class-based-views/intro/
+      - https://docs.djangoproject.com/en/6.1/ref/class-based-views/base/
+  - kind: security
+    text: >-
+      Шаблоны Django по умолчанию экранируют значения переменных: символы < > ' " & заменяются на HTML-сущности. Отключить это можно фильтром safe, mark_safe или тегом autoescape off; документация
+      отдельно предупреждает, что делать так для пользовательских данных небезопасно. Автоэкранирование рассчитано на контекст HTML-текста и атрибутов в кавычках; данные в JavaScript выводят через json_script.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/templates/language/
+      - https://docs.djangoproject.com/en/6.1/ref/templates/builtins/
+      - https://docs.djangoproject.com/en/6.1/ref/utils/
+  - kind: internals
+    text: >-
+      Загрузчик django.template.loaders.locmem.Loader берёт шаблоны из словаря «имя -> текст», который передаётся в настройках: это удобно в тестах и примерах. Загрузчики настраиваются в TEMPLATES[...]["OPTIONS"]["loaders"];
+      по умолчанию используются загрузчики файловой системы и каталогов приложений.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/templates/api/
+      - https://docs.djangoproject.com/en/6.1/topics/templates/
+  - kind: misconception
+    text: >-
+      «Если вывод экранируется, значит любые пользовательские данные в шаблоне безопасны». Экранирование HTML не защищает URL в href (например, схему javascript:) и содержимое тега script; такие значения нужно
+      проверять отдельно или передавать через json_script.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/templates/builtins/
+      - https://docs.djangoproject.com/en/6.1/topics/security/
+  - kind: real-world
+    text: >-
+      Шаблонный язык Django намеренно ограничен: в шаблоне нельзя вызвать функцию с аргументами или выполнить произвольный код. Это разделяет работу дизайнера и программиста и уменьшает риск подстановки кода (SSTI).
+      Для более гибких задач к проекту подключают другой движок, например Jinja2, через настройку TEMPLATES.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/templates/
+      - https://docs.djangoproject.com/en/6.1/ref/templates/language/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что именно регистрируют в urlpatterns для классового представления HelloView?"
+      options:
+        - "HelloView"
+        - "HelloView()"
+        - "HelloView.as_view()"
+        - "HelloView.get"
+      answer: 2
+      explanation: "as_view() возвращает функцию, которая на каждый запрос создаёт экземпляр класса и вызывает dispatch."
+    - id: q2
+      type: single
+      prompt: "В View определён только метод get. Что ответит Django на POST?"
+      options:
+        - "200 с пустым телом"
+        - "405 Method Not Allowed с заголовком Allow"
+        - "404"
+        - "500"
+      answer: 1
+      explanation: "dispatch не находит метод post и возвращает http_method_not_allowed, то есть 405."
+    - id: q3
+      type: single
+      prompt: "name = '<b>x</b>'. Что окажется в HTML при {{ name }}?"
+      options:
+        - "<b>x</b>"
+        - "&lt;b&gt;x&lt;/b&gt;"
+        - "x"
+        - "Ошибка шаблона"
+      answer: 1
+      explanation: "Автоэкранирование превращает < и > в &lt; и &gt;, поэтому браузер покажет текст, а не разметку."
+    - id: q4
+      type: multiple
+      prompt: "Какие из этих способов отключают автоэкранирование для значения?"
+      options:
+        - "Фильтр |safe"
+        - "mark_safe(value) в представлении"
+        - "Тег {% autoescape off %}"
+        - "Фильтр |upper"
+      answer: [0, 1, 2]
+      explanation: "Все три помечают вывод как доверенный; upper лишь меняет регистр. Применять их к пользовательским данным нельзя."
+    - id: q5
+      type: short
+      prompt: "Какой тег должен быть первым в дочернем шаблоне, чтобы он унаследовал каркас base.html? (имя тега)"
+      answer: ["extends", "{% extends %}"]
+      explanation: "{% extends \"base.html\" %} первым тегом дочернего шаблона, затем переопределяются блоки {% block %}."
+exercise:
+  id: django.fundamentals.views-and-templates.exercise
+  title: "Каталог товаров: шаблоны, функция, класс и TemplateView"
+  prompt: |
+    В `shop_pages.py` настроен Django и словарь `TEMPLATES_SOURCES` с готовым `base.html` (блоки `title`, `heading`, `content`). Данные - список `PRODUCTS` (словари `id`, `name`, `price`, `note`, `in_stock`). Допишите **два места**, помеченные «ВАШ КОД».
+
+    **(1) Шаблоны** (каждый - `{% extends "base.html" %}`):
+
+    * `list.html`: `title` и `heading` = `Products`; если `q` непустой - `<p class="q">Search: {{ q }}</p>`; затем `<ul>` с `<li>{{ p.name }}: {{ p.price|floatformat:2 }}</li>` для каждого товара из `products`, а при пустом списке (`{% empty %}`) одна строка `<li>No products</li>`.
+    * `detail.html`: `title` и `heading` = имя товара; `<p class="note">` с `product.note` (переводы строк должны стать `<br>`, **без** `|safe`); затем `<span>In stock</span>` или `<span>Sold out</span>`.
+    * `about.html`: `title` = `About`; в `content` - `<p>{{ site_name }}</p>`; `heading` не переопределяйте.
+
+    **(2) Представления и маршруты:**
+
+    * `product_list(request)` - функция: рендерит `list.html` с контекстом `products` и `q`. Параметр `?q=` фильтрует товары по подстроке имени без учёта регистра.
+    * `ProductDetail(View)` - класс с методом `get(self, request, pk)`: рендерит `detail.html` с контекстом `product`; неизвестный `pk` - 404. POST и другие методы должны отвечать 405 сами (метод `post` не пишите).
+    * `urlpatterns`: `products/` (`product-list`), `products/<int:pk>/` (`product-detail`), `about/` (`about`, через `TemplateView.as_view(template_name="about.html", extra_context={"site_name": "Pen Shop"})`).
+
+    Проверка идёт через `django.test.Client`; шаблоны живут в словаре (загрузчик `locmem`).
+  entryFile: shop_pages.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Шаблон начинается с `{% extends \"base.html\" %}`, дальше переопределяйте блоки: `{% block title %}Products{% endblock %}`. Строки шаблона в словаре можно склеивать соседними строковыми литералами в скобках."
+    - "Цикл: `{% for p in products %}<li>{{ p.name }}: {{ p.price|floatformat:2 }}</li>{% empty %}<li>No products</li>{% endfor %}`. Заметка: `{{ product.note|linebreaksbr }}` - фильтр сначала экранирует вход, потом заменяет переводы строк на `<br>`, поэтому `|safe` не нужен."
+    - "Функция: `q = request.GET.get('q', '').strip()`; фильтр `[p for p in PRODUCTS if q.lower() in p['name'].lower()]`; `return render(request, 'list.html', {'products': products, 'q': q})`. Класс: цикл по PRODUCTS с проверкой `p['id'] == pk`, иначе `raise Http404`."
+    - "`urlpatterns = [path('products/', product_list, name='product-list'), path('products/<int:pk>/', ProductDetail.as_view(), name='product-detail'), path('about/', TemplateView.as_view(template_name='about.html', extra_context={'site_name': 'Pen Shop'}), name='about')]`."
+  tests:
+    - id: list-template
+      title: "Список: наследование и цикл"
+      hint: "list.html наследует base.html и переопределяет title и heading; элементы - <li>Имя: цена с двумя знаками</li>; имена экранируются автоматически."
+    - id: search-and-empty
+      title: Поиск, пустой результат и экранирование q
+      hint: "Фильтр без учёта регистра по подстроке имени; при пустом результате срабатывает {% empty %}; q в странице выводится через {{ q }} без |safe."
+    - id: detail-cbv
+      title: Классовое представление, 404 и 405
+      hint: "Из View нужен только get; неизвестный pk -> raise Http404; POST обрабатывает dispatch и возвращает 405 сам."
+    - id: autoescape-and-filters
+      title: Автоэкранирование и linebreaksbr (скрытый)
+      hidden: true
+      hint: "Заметка с <script> должна оказаться как &lt;script&gt;; для переводов строк используйте linebreaksbr, не safe."
+    - id: about-templateview
+      title: TemplateView с extra_context (скрытый)
+      hidden: true
+      hint: "extra_context={'site_name': 'Pen Shop'} попадает в контекст шаблона; heading не переопределён, поэтому остаётся 'Shop' из base.html."
+    - id: route-names
+      title: Имена маршрутов (скрытый)
+      hidden: true
+      hint: "Имена: product-list, product-detail, about. Конвертер int не принимает 'abc' (404)."

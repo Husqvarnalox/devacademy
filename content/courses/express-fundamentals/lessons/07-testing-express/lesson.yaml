@@ -1,0 +1,175 @@
+id: "express.fundamentals.testing"
+title: "Тестирование приложений Express"
+goal: "Проверять приложения Express без сети: запросы через light-my-request, фабрики приложений, юнит-тесты middleware и поиск причин падающих тестов."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "express.fundamentals.rest-api"
+related:
+  - "express.fundamentals.middleware"
+  - "javascript.fundamentals.promises-and-async"
+objectives:
+  - "Подавать искусственные запросы в приложение Express через inject и проверять статус, заголовки и тело ответа."
+  - "Структурировать тесты: createApp в каждом тесте, помощник setup, детерминированные зависимости."
+  - "Писать юнит-тесты middleware с поддельными req, res и next и объяснять, зачем шпионам нужен mockReturnThis."
+  - "Проверять отсутствие побочных эффектов при ошибках (401, 400, 415) и находить причину падения теста в коде приложения."
+masteryCriteria:
+  - "Ваши тесты не открывают порт и не зависят от порядка выполнения."
+  - "Вы проверяете не только статус, но и заголовки, тело и состояние после неудачного запроса."
+  - "Вы сначала определяете, что неверно (код или ожидание), и только потом правите."
+tags:
+  - "express"
+  - "testing"
+  - "vitest"
+  - "light-my-request"
+  - "middleware"
+facts:
+  - kind: "internals"
+    text: "light-my-request вызывает обработчик (в том числе приложение Express) с искусственными объектами запроса и ответа, не открывая порт, и возвращает промис с statusCode, headers, body, json() и cookies. Так приложения проверяются быстро и без сети."
+    sources:
+      - "https://github.com/fastify/light-my-request"
+  - kind: "internals"
+    text: "Vitest запускает файлы тестов и предоставляет describe, it, expect, vi.fn() и хуки beforeEach и afterEach. Заглушка vi.fn().mockReturnThis() возвращает объект, на котором вызвана, что нужно для цепочек вроде res.status(401).json(...)."
+    sources:
+      - "https://vitest.dev/guide/"
+      - "https://vitest.dev/api/mock.html"
+  - kind: "internals"
+    text: "Метод req.is(type) в Express возвращает совпавший тип, если заголовок Content-Type запроса соответствует указанному (параметры вроде charset игнорируются, допускаются сокращения json и шаблоны text/*), и false в противном случае. Строгое сравнение заголовка с application/json не принимает application/json; charset=utf-8."
+    sources:
+      - "https://expressjs.com/en/5x/api/request#reqis"
+  - kind: "misconception"
+    text: "«Тест прошёл - значит код правильный». Тест доказывает только то, что проверено: проверка одного статуса пропустит неверные заголовки и тело, а проверка ответа 401 без проверки состояния пропустит выполнение обработчика после ответа. Надёжность теста проверяют, намеренно ломая код."
+  - kind: "real-world"
+    text: "Тестовая пирамида рекомендует много быстрых юнит-тестов, меньше интеграционных и мало сквозных. Для HTTP-приложений на Express значительную часть ценности дают интеграционные тесты через inject: они проверяют маршрутизацию, middleware и обработку ошибок вместе."
+    sources:
+      - "https://martinfowler.com/articles/practical-test-pyramid.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему приложение Express можно проверять без app.listen?"
+      options:
+        - "Потому что Express всегда запускает сервер на случайном порту."
+        - "Потому что приложение - функция (req, res), и ей можно подать искусственный запрос."
+        - "Потому что тесты не используют HTTP."
+        - "Потому что listen замедляет только production."
+      answer: 1
+      explanation: "light-my-request создаёт искусственные req и res и вызывает приложение, поэтому порт не нужен."
+    - id: "q2"
+      type: "single"
+      prompt: "Что произойдёт в unit-тесте middleware, если res.status = vi.fn() не возвращает res, а middleware вызывает res.status(401).json(...)?"
+      options:
+        - "Тест пройдёт."
+        - "Возникнет TypeError: у undefined нет метода json."
+        - "Vitest автоматически подставит возврат this."
+        - "Middleware вызовет next."
+      answer: 1
+      explanation: "Для цепочек шпионы создают через vi.fn().mockReturnThis()."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что стоит проверить в тесте ответа 401 для POST /bookmarks без ключа?"
+      options:
+        - "Статус 401 и код ошибки в теле."
+        - "Что закладка не была создана (список остался пустым)."
+        - "Что обработчик маршрута вызвал res.json ровно один раз."
+        - "Что тело ответа не содержит внутренних деталей ошибки."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Проверка вызова res.json привязана к реализации; побочный эффект и содержимое ответа - наблюдаемое поведение."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему данные приложения лучше создавать внутри createApp(), а не на уровне модуля?"
+      options:
+        - "Так быстрее работает маршрутизация."
+        - "Чтобы каждый тест получал чистое состояние и тесты не зависели от порядка."
+        - "Так требует Vitest."
+        - "Чтобы Express мог их сериализовать."
+      answer: 1
+      explanation: "Состояние модуля общее для всех приложений и тестов процесса."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой метод запроса Express возвращает совпавший тип содержимого и корректно работает с Content-Type вида application/json; charset=utf-8 (имя метода, например req.get)?"
+      answer:
+        - "req.is"
+        - "is"
+      explanation: "req.is(\"application/json\") сравнивает тип без параметров."
+exercise:
+  id: "express.fundamentals.testing.exercise"
+  title: "Исправьте приложение, чтобы набор тестов прошёл"
+  prompt: |
+    Дано приложение «закладки» (`src/app.mjs`, `src/middleware.mjs`) и набор тестов на Vitest. Приложение содержит несколько ошибок: часть тестов падает. Исправьте **приложение**, не тесты.
+
+    Контракт API описан комментарием в начале `app.mjs`. В папке `spec/` лежит видимая копия публичных тестов: прочитайте её, чтобы увидеть, как устроены фикстура `setup()`, запросы через `inject` и юнит-тест middleware с поддельными `req`, `res`, `next`. Остальные тесты скрыты и проверяют то же поведение иначе: поэтому недостаточно подогнать код под один сценарий.
+
+    Подсказка по методу: падение теста - это вопрос, а не приговор. Прочитайте сообщение (ожидалось и получено), найдите соответствующий пункт контракта и выясните, где приложение расходится с ним. Кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/app.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Запустите тесты и читайте падения по одному: каждое указывает на отдельную ошибку. Файл spec/app.spec.mjs содержит видимую копию публичных тестов; ожидания в нём - это контракт, который описан и комментарием в app.mjs."
+    - "В middleware.mjs после отправки ответа 401 нужен return, иначе вызывается next() и обработчик маршрута выполняется после ответа. Заголовок Content-Type сравнивайте через req.is(\"application/json\"), а не оператором !==."
+    - "В app.mjs: POST отвечает res.status(201).location(...).json(bookmark); GET по неизвестному id отвечает 404 bookmark_not_found; массив закладок и счётчик id должны жить внутри createApp, а не на уровне модуля."
+    - "Для адресов используйте new URL(value) в try/catch и проверяйте url.protocol === \"http:\" или \"https:\". В хранилище кладите url.href. Заголовок title необязателен: строка до 100 символов, по умолчанию пустая."
+  tests:
+    - id: "create"
+      title: "Создание закладки"
+      match: "API закладок > создание закладки*"
+      hint: "POST /bookmarks отвечает res.status(201).location(`/bookmarks/${id}`).json(bookmark)."
+    - id: "no-key"
+      title: "401 без ключа и без побочных эффектов"
+      match: "API закладок > запрос без ключа*"
+      hint: "После res.status(401).json(...) нужен return: иначе вызывается next() и обработчик создаёт закладку."
+    - id: "not-found"
+      title: "Неизвестная закладка"
+      match: "API закладок > неизвестная закладка*"
+      hint: "GET /bookmarks/:id: если закладки нет, ответьте 404 bookmark_not_found вместо 200 с null."
+    - id: "unit"
+      title: "requireApiKey по отдельности"
+      match: "requireApiKey по отдельности > верный ключ*"
+      hint: "Тест вызывает middleware напрямую: при неверном ключе next() вызываться не должен."
+    - id: "charset"
+      title: "Content-Type с charset (скрытый)"
+      match: "Проверка запросов > Content-Type с charset*"
+      hidden: true
+      hint: "Строгое сравнение req.get(\"content-type\") заменить на req.is(\"application/json\")."
+    - id: "urls"
+      title: "Адреса: только http и https (скрытый)"
+      match: "Проверка запросов > небезопасные и некорректные адреса*"
+      hidden: true
+      hint: "new URL(value) в try/catch и проверка url.protocol: javascript:, ftp: и data: должны давать 400."
+    - id: "json"
+      title: "Неверный JSON (скрытый)"
+      match: "Проверка запросов > неверный JSON*"
+      hidden: true
+      hint: "После ошибки приложение должно продолжать работать: проверьте, что следующий корректный POST даёт 201."
+    - id: "isolation"
+      title: "Приложения независимы (скрытый)"
+      match: "Данные и жизненный цикл > два приложения*"
+      hidden: true
+      hint: "Массив закладок и счётчик id перенесите внутрь createApp."
+    - id: "delete"
+      title: "Список и DELETE (скрытый)"
+      match: "Данные и жизненный цикл > список в порядке создания*"
+      hidden: true
+      hint: "Map сохраняет порядок вставки; DELETE отвечает 204, а повтор - 404 bookmark_not_found."
+    - id: "defaults"
+      title: "Значения по умолчанию (скрытый)"
+      match: "Данные и жизненный цикл > title по умолчанию*"
+      hidden: true
+      hint: "Сохраняйте нормализованный адрес new URL(value).href и title ?? \"\"."

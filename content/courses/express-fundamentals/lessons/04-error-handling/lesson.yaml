@@ -1,0 +1,197 @@
+id: "express.fundamentals.error-handling"
+title: "Обработка ошибок"
+goal: "Строить единый путь обработки ошибок в Express 5: middleware ошибок, асинхронные ошибки, 404 как ошибка и единый JSON-формат ответа без утечки внутренностей."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "express.fundamentals.routers"
+related:
+  - "javascript.fundamentals.errors-and-exceptions"
+next:
+  - "express.fundamentals.validation-security"
+objectives:
+  - "Писать middleware ошибок с четырьмя параметрами и подключать его после всех маршрутов."
+  - "Объяснять, как Express 5 передаёт в обработчик исключения, отклонённые промисы и next(err), и почему throw в колбэке не ловится."
+  - "Превращать 404 в ошибку и отдавать её в общем формате вместе с остальными."
+  - "Различать ожидаемые ошибки (4xx, HttpError) и неожиданные (500 без подробностей, запись в журнал)."
+  - "Обрабатывать ошибки парсера тела (entity.parse.failed, entity.too.large) и случай res.headersSent."
+masteryCriteria:
+  - "Все ошибки приложения выходят в одном формате { error: { code, message, details? } }."
+  - "Клиент никогда не видит текст внутренних исключений и трассировку."
+  - "В журнал попадают только ошибки сервера (5xx), по одной записи на ошибку."
+  - "Вы не оборачиваете async-обработчики в try/catch ради передачи ошибки в Express."
+tags:
+  - "express"
+  - "errors"
+  - "error-handling"
+  - "async"
+  - "http-status"
+facts:
+  - kind: "internals"
+    text: "Middleware ошибок отличается от обычного числом параметров: Express вызывает функцию как обработчик ошибок, только если у неё четыре параметра (err, req, res, next). Параметр next нужно объявлять, даже если он не используется. Такие обработчики подключают после остальных app.use и маршрутов."
+    sources:
+      - "https://expressjs.com/en/guide/error-handling.html"
+  - kind: "internals"
+    text: "Начиная с Express 5 обработчик (middleware или маршрут), вернувший промис, при отклонении этого промиса автоматически вызывает next(err), поэтому отдельная обёртка для async-функций не нужна. Исключения, брошенные в колбэках (например, внутри setTimeout), Express не перехватывает: для них вызывают next(err) вручную."
+    sources:
+      - "https://expressjs.com/en/guide/error-handling.html"
+      - "https://expressjs.com/en/guide/migrating-5.html"
+  - kind: "internals"
+    text: "Если ни один пользовательский обработчик не ответил, ошибку обрабатывает встроенный обработчик Express: статус берётся из err.status или err.statusCode, иначе используется 500; в режиме production трассировка в ответ не попадает. Если заголовки ответа уже отправлены, обработчик ошибок должен вызвать next(err), чтобы встроенный обработчик закрыл соединение."
+    sources:
+      - "https://expressjs.com/en/guide/error-handling.html"
+  - kind: "internals"
+    text: "Парсеры тела (express.json и другие) передают ошибки с полями status и type: например, entity.parse.failed со статусом 400 для неверного JSON и entity.too.large со статусом 413 при превышении limit."
+    sources:
+      - "https://expressjs.com/en/5x/api/express#expressjson"
+  - kind: "misconception"
+    text: "«Обработчик ошибок можно подключить где угодно». Обработчик видит только ошибки из middleware и маршрутов, зарегистрированных до него, поэтому его подключают последним. Ещё одна ловушка: функция с тремя параметрами (err, req, res) не считается обработчиком ошибок."
+  - kind: "real-world"
+    text: "RFC 9457 (Problem Details for HTTP APIs) стандартизует формат ошибки в теле ответа с типом application/problem+json. Единый формат ошибок нужен клиентам независимо от того, какой именно формат выбран: код ошибки должен быть стабильной машинной строкой."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9457.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "По какому признаку Express определяет, что функция является обработчиком ошибок?"
+      options:
+        - "По имени функции errorHandler."
+        - "По тому, что у неё четыре параметра (err, req, res, next)."
+        - "По вызову app.use с путём /error."
+        - "По тому, что она возвращает промис."
+      answer: 1
+      explanation: "Express смотрит на число объявленных параметров. Функция (err, req, res) с тремя параметрами будет вызвана как обычное middleware."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие из перечисленных ситуаций в Express 5 приведут ошибку в middleware ошибок без дополнительного кода?"
+      options:
+        - "throw new Error() внутри синхронного обработчика маршрута."
+        - "Отклонённый промис, который вернул async-обработчик."
+        - "next(err) из обработчика."
+        - "throw внутри колбэка setTimeout в обработчике."
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "Исключение в колбэке таймера Express не видит: его нужно передать вручную через next(err)."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему для неожиданных ошибок клиенту отдают общее сообщение Internal Server Error, а не err.message?"
+      options:
+        - "Потому что err.message всегда пустой."
+        - "Потому что в тексте исключений бывают пути, запросы, имена хостов и прочие внутренности, а подробности нужны только в журнале."
+        - "Потому что статус 500 нельзя сопровождать телом."
+        - "Потому что так требует спецификация HTTP."
+      answer: 1
+      explanation: "Показ внутренностей помогает атакующему. Подробности пишут в журнал, а клиенту остаётся стабильный код и общее сообщение."
+    - id: "q4"
+      type: "single"
+      prompt: "Что обработчик ошибок должен сделать, если res.headersSent равно true?"
+      options:
+        - "Вызвать res.status(500).json(...) ещё раз."
+        - "Вызвать next(err) и не менять ответ."
+        - "Вызвать res.end() и забыть об ошибке."
+        - "Перезапустить сервер."
+      answer: 1
+      explanation: "Заголовки уже ушли, изменить статус нельзя. next(err) передаёт ошибку встроенному обработчику, который закроет соединение."
+    - id: "q5"
+      type: "short"
+      prompt: "Какое значение поля type у ошибки express.json() при неверном JSON в теле запроса?"
+      answer:
+        - "entity.parse.failed"
+      explanation: "Для превышения лимита размера используется entity.too.large со статусом 413."
+exercise:
+  id: "express.fundamentals.error-handling.exercise"
+  title: "Контракт обработки ошибок"
+  prompt: |
+    Нужно собрать единый контракт ошибок для приложения. Все ошибки выходят в формате `{ "error": { "code", "message", "details"? } }`; `details` присутствует только если задан.
+
+    **`src/errors.mjs`**:
+
+    * `class HttpError extends Error` с конструктором `(status, code, message, details)` и полями `status`, `code`, `details`.
+    * `notFoundHandler(req, res, next)`: ничего не отвечает, а вызывает `next(new HttpError(404, "not_found", ...))`.
+    * `errorHandler({ log })` возвращает обработчик ошибок с четырьмя параметрами. Если `res.headersSent`, он вызывает `next(err)`. `HttpError` отдаётся со своим статусом, кодом, сообщением и подробностями; ошибка парсера `entity.parse.failed` даёт `400 invalid_json`, `entity.too.large` даёт `413 payload_too_large`; всё остальное (в том числе брошенное не-`Error` значение) даёт `500 internal_error` с сообщением `Internal Server Error`, без утечки текста исключения. Для статусов 500 и выше обработчик вызывает `log(err)` ровно один раз, для 4xx - не вызывает.
+
+    **`src/app.mjs`**: приложение `createApp({ log })` уже содержит маршруты `/items/:id`, `POST /items`, `/crash/sync`, `/crash/async`, `/crash/string`. Подключите `notFoundHandler` и `errorHandler({ log })` в правильном месте (в конце).
+
+    Подробности контракта описаны комментариями в файлах. Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/errors.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "HttpError расширяет Error: вызовите super(message), затем присвойте this.status, this.code, this.details и this.name. Для статуса 404 notFoundHandler вызывает next(new HttpError(404, ...)), а не отвечает сам."
+    - "Обработчик ошибок - return (err, req, res, next) => { ... }: четыре параметра обязательны, даже если next используется только в ветке res.headersSent. В app.mjs его подключают последним, после notFoundHandler."
+    - "Разберите err по очереди: instanceof HttpError, затем err?.type === \"entity.parse.failed\" и \"entity.too.large\", иначе 500. Для 500 сообщение всегда \"Internal Server Error\", а log(err) вызывайте для status >= 500 один раз."
+    - "details кладите в ответ только если оно не undefined: const error = { code, message }; if (details !== undefined) error.details = details. В async-маршрутах try/catch не нужен: Express 5 сам передаёт отклонённый промис в next(err)."
+  tests:
+    - id: "http-error"
+      title: "Класс HttpError"
+      match: "HttpError > несёт статус*"
+      hint: "super(message), затем this.status, this.code и this.details."
+    - id: "not-found"
+      title: "404 в общем формате"
+      match: "Единый формат ошибок > неизвестный маршрут*"
+      hint: "notFoundHandler регистрируется после маршрутов, errorHandler - после него."
+    - id: "async-error"
+      title: "Ошибка из async-обработчика"
+      match: "Единый формат ошибок > ошибка из async-обработчика*"
+      hint: "Лишний try/catch не нужен: Express 5 передаёт отклонённый промис в обработчик ошибок."
+    - id: "no-leak"
+      title: "500 без утечки внутренностей (скрытый)"
+      match: "Единый формат ошибок > неожиданная ошибка*"
+      hidden: true
+      hint: "Для неожиданных ошибок сообщение всегда Internal Server Error, а текст исключения остаётся только в журнале."
+    - id: "details-optional"
+      title: "Подробности только когда заданы (скрытый)"
+      match: "Единый формат ошибок > подробности есть*"
+      hidden: true
+      hint: "Не добавляйте в ответ ключ details, если значение undefined."
+    - id: "logging-once"
+      title: "Одна запись в журнале на ошибку (скрытый)"
+      match: "Источники ошибок > async-ошибка и throw*"
+      hidden: true
+      hint: "Бросок не-Error значения тоже даёт 500 и одну запись log(err)."
+    - id: "no-4xx-log"
+      title: "4xx не попадают в журнал (скрытый)"
+      match: "Источники ошибок > ошибки клиента*"
+      hidden: true
+      hint: "log(err) вызывайте только когда итоговый статус не меньше 500."
+    - id: "parser-errors"
+      title: "Ошибки парсера тела (скрытый)"
+      match: "Источники ошибок > неверный JSON*"
+      hidden: true
+      hint: "err.type равно entity.parse.failed -> 400 invalid_json; entity.too.large -> 413 payload_too_large."
+    - id: "validation-details"
+      title: "Проверка тела с подробностями (скрытый)"
+      match: "Источники ошибок > проверка тела*"
+      hidden: true
+      hint: "Маршрут бросает HttpError с details; обработчик ошибок отдаёт details как есть."
+    - id: "arity"
+      title: "Четыре параметра у errorHandler"
+      match: "Обработчики по отдельности > errorHandler объявлен*"
+      hint: "Возвращаемая функция должна иметь ровно четыре параметра: (err, req, res, next)."
+    - id: "headers-sent"
+      title: "Заголовки уже отправлены (скрытый)"
+      match: "Обработчики по отдельности > если заголовки уже отправлены*"
+      hidden: true
+      hint: "if (res.headersSent) return next(err); до любых вызовов res.status."
+    - id: "not-found-handler"
+      title: "notFoundHandler передаёт ошибку дальше (скрытый)"
+      match: "Обработчики по отдельности > notFoundHandler*"
+      hidden: true
+      hint: "Он не вызывает res.*, а только next(new HttpError(404, ...))."

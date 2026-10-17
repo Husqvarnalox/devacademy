@@ -1,0 +1,294 @@
+id: "express.fundamentals.validation-security"
+title: "Проверка данных и безопасность"
+goal: "Защитить приложение Express на границе: проверка тела запроса с понятным списком ошибок, защитные заголовки, CORS, ограничение частоты и безопасные cookie."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "express.fundamentals.error-handling"
+related:
+  - "security.fundamentals.sessions-csrf-and-cookies"
+  - "system-design.fundamentals.rate-limiting"
+  - "security.fundamentals.injection-defences"
+next:
+  - "express.fundamentals.rest-api"
+objectives:
+  - "Объяснять, почему входные данные проверяют на сервере по белому списку, и проверять тип, границы, набор значений, формат и неизвестные поля."
+  - "Ставить защитные заголовки первым middleware и убирать X-Powered-By."
+  - "Настраивать CORS по белому списку источников: точный Allow-Origin, Vary: Origin, ответ на preflight."
+  - "Реализовывать ограничение частоты (фиксированное окно) с ответом 429, Retry-After и заголовками RateLimit-*, передавая время зависимостью."
+  - "Выставлять cookie сессии с флагами HttpOnly, Secure, SameSite и Max-Age."
+masteryCriteria:
+  - "Вы возвращаете список всех ошибок проверки, а не только первую."
+  - "Вы не отражаете произвольный Origin и не используете * вместе с учётными данными."
+  - "Вы не держите счётчики ограничения частоты в переменных модуля."
+  - "Cookie сессии всегда имеют HttpOnly, Secure и SameSite."
+tags:
+  - "express"
+  - "security"
+  - "validation"
+  - "cors"
+  - "rate-limiting"
+  - "cookies"
+facts:
+  - kind: "internals"
+    text: "express.json() и другие парсеры ограничивают размер тела опцией limit (по умолчанию 100kb); при превышении ошибка имеет type entity.too.large и статус 413. Ограничивать нужно также длину строк и размер массивов внутри допустимого тела."
+    sources:
+      - "https://expressjs.com/en/5x/api/express#expressjson"
+  - kind: "internals"
+    text: "res.cookie(name, value, options) принимает опции httpOnly, secure, sameSite, path, maxAge (в миллисекундах), domain и другие и записывает заголовок Set-Cookie. Атрибут HttpOnly скрывает cookie от document.cookie, Secure ограничивает её HTTPS, SameSite=Lax не отправляет её при большинстве межсайтовых запросов."
+    sources:
+      - "https://expressjs.com/en/5x/api/response#rescookie"
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies"
+  - kind: "internals"
+    text: "Для запросов, требующих preflight, браузер сначала отправляет OPTIONS с заголовками Origin и Access-Control-Request-Method, а сам запрос отправляет только после ответа с подходящими Access-Control-Allow-Methods и Access-Control-Allow-Headers. Если ответ зависит от Origin, нужен заголовок Vary: Origin."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS"
+  - kind: "internals"
+    text: "Статус 429 Too Many Requests сообщает, что клиент превысил допустимую частоту запросов; ответ может содержать заголовок Retry-After с числом секунд ожидания."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/429"
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After"
+  - kind: "misconception"
+    text: "«CORS защищает API от чужих клиентов». CORS - правило для браузера: запрос от curl, из другого сервера или даже из браузера (для простых запросов) всё равно доходит до сервера. Доступ к данным ограничивают авторизацией, а CORS только решает, может ли чужая страница прочитать ответ."
+  - kind: "real-world"
+    text: "В production обычно используют готовые пакеты (helmet для заголовков, cors для CORS, express-rate-limit для ограничения частоты), а документация Express перечисляет безопасные практики: TLS, helmet, безопасные cookie, отключение X-Powered-By и проверку зависимостей."
+    sources:
+      - "https://expressjs.com/en/advanced/best-practice-security.html"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему данные формы нужно проверять на сервере, даже если браузер уже их проверил?"
+      options:
+        - "Потому что браузер не умеет проверять данные."
+        - "Потому что запрос можно отправить в обход формы (curl, скрипт), и сервер получит что угодно."
+        - "Потому что серверная проверка быстрее клиентской."
+        - "Потому что так требует протокол HTTP."
+      answer: 1
+      explanation: "Клиентская проверка - удобство для пользователя, а не защита. Границу доверия охраняет сервер."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие правила верны для ответа с CORS?"
+      options:
+        - "Access-Control-Allow-Origin возвращают равным Origin из белого списка, а не отражают любое значение."
+        - "Если ответ зависит от Origin, добавляют Vary: Origin."
+        - "CORS не позволяет curl-у обратиться к серверу."
+        - "На preflight-запрос (OPTIONS) отвечают без тела, например статусом 204."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "CORS проверяет только браузер; curl его игнорирует."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой ответ получит 4-й запрос подряд за окно с лимитом 3 запроса?"
+      options:
+        - "200 с заголовком RateLimit-Remaining: -1."
+        - "429 Too Many Requests с заголовком Retry-After."
+        - "403 Forbidden."
+        - "500 Internal Server Error."
+      answer: 1
+      explanation: "Запрос сверх лимита отклоняют статусом 429 и сообщают, через сколько секунд повторить."
+    - id: "q4"
+      type: "single"
+      prompt: "Зачем cookie сессии помечают HttpOnly?"
+      options:
+        - "Чтобы она работала только по HTTPS."
+        - "Чтобы скрипт на странице (в том числе внедрённый через XSS) не мог её прочитать через document.cookie."
+        - "Чтобы браузер не отправлял её на другие сайты."
+        - "Чтобы она жила дольше."
+      answer: 1
+      explanation: "За HTTPS отвечает Secure, за межсайтовые запросы - SameSite, за время жизни - Max-Age."
+    - id: "q5"
+      type: "short"
+      prompt: "Каким статусом обычно отвечают на корректный JSON с неподходящим содержимым (код из четырёх цифр не нужен, трёх цифр достаточно)?"
+      answer:
+        - "422"
+      explanation: "422 Unprocessable Content: тело разобрано, но не прошло проверку. Допустим и 400, если так принято в вашем API; курс использует 422."
+exercise:
+  id: "express.fundamentals.validation-security.exercise"
+  title: "Набор middleware с безопасными настройками по умолчанию"
+  prompt: |
+    В файле `src/security.mjs` нужно реализовать четыре части набора «безопасные настройки по умолчанию». Приложение в `src/app.mjs` уже собрано: заголовки и CORS работают на всех путях, ограничение частоты - только на `/api`, `POST /login` ставит cookie сессии.
+
+    * `securityHeaders()` - на каждый ответ (в том числе 404): `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: no-referrer`, `Strict-Transport-Security: max-age=15552000; includeSubDomains`, `Cross-Origin-Resource-Policy: same-origin`; заголовок `X-Powered-By` убирается.
+    * `cors({ allowedOrigins })` - белый список источников, `Vary: Origin` всегда, точное значение `Access-Control-Allow-Origin` для разрешённого источника, preflight (`OPTIONS` с `Access-Control-Request-Method`) отвечает `204`, чужой preflight - `403`.
+    * `rateLimit({ limit, windowMs, now, keyOf })` - фиксированное окно на ключ, `429` с `Retry-After`, заголовки `RateLimit-Limit/Remaining/Reset`; счётчики принадлежат вызову `rateLimit(...)`.
+    * `setSessionCookie(res, value)` - cookie `sid` с `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age=3600`.
+
+    Точные значения заголовков и формат ошибок указаны комментариями в `security.mjs`. Время и адрес клиента в тестах подставляются снаружи, поэтому ожидания не нужны. Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/security.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Для securityHeaders достаточно цикла по объекту с заголовками: res.set(name, value). Сразу после него res.removeHeader(\"X-Powered-By\") и next()."
+    - "cors: res.vary(\"Origin\") первой строкой; потом origin = req.get(\"Origin\"); preflight - это req.method === \"OPTIONS\" и заголовок Access-Control-Request-Method. Ответ 204 завершайте res.status(204).end()."
+    - "rateLimit: Map ключ -> { count, resetAt } внутри фабрики. Если записи нет или now() >= resetAt, заведите новую с resetAt = now() + windowMs. Секунды до сброса - Math.ceil((resetAt - now()) / 1000)."
+    - "Cookie: res.cookie(\"sid\", value, { httpOnly: true, secure: true, sameSite: \"lax\", path: \"/\", maxAge: 3600 * 1000 }) - maxAge в миллисекундах, поэтому тысяча."
+  tests:
+    - id: "headers"
+      title: "Защитные заголовки"
+      match: "Заголовки безопасности > обычный ответ*"
+      hint: "Пять заголовков через res.set и res.removeHeader(\"X-Powered-By\"), затем next()."
+    - id: "headers-404"
+      title: "Заголовки на 404 (скрытый)"
+      match: "Заголовки безопасности > заголовки есть*"
+      hidden: true
+      hint: "Middleware securityHeaders подключено первым в app.mjs; проверьте, что вы вызываете next()."
+    - id: "cors-allowed"
+      title: "Разрешённый Origin"
+      match: "CORS > разрешённый Origin*"
+      hint: "Access-Control-Allow-Origin = ровно значение Origin из запроса, плюс res.vary(\"Origin\")."
+    - id: "cors-denied"
+      title: "Чужой Origin (скрытый)"
+      match: "CORS > чужой Origin*"
+      hidden: true
+      hint: "Для чужого Origin не ставьте Access-Control-Allow-Origin, но Vary: Origin оставьте."
+    - id: "cors-no-origin"
+      title: "Запрос без Origin (скрытый)"
+      match: "CORS > запрос без Origin*"
+      hidden: true
+      hint: "res.vary(\"Origin\") вызывается до проверки наличия заголовка Origin."
+    - id: "cors-preflight"
+      title: "Preflight разрешён"
+      match: "CORS > preflight от разрешённого*"
+      hint: "Метод OPTIONS и заголовок Access-Control-Request-Method: ответьте 204 через res.status(204).end()."
+    - id: "cors-preflight-denied"
+      title: "Preflight чужого Origin (скрытый)"
+      match: "CORS > preflight от чужого*"
+      hidden: true
+      hint: "403 и { error: { code: \"origin_not_allowed\", message: \"Origin is not allowed\" } } без Allow-Origin."
+    - id: "rate-429"
+      title: "Лимит и 429"
+      match: "Ограничение частоты > после лимита*"
+      hint: "Счётчик окна растёт на каждый запрос; при count > limit ответьте 429 и поставьте Retry-After."
+    - id: "rate-headers"
+      title: "Заголовки RateLimit (скрытый)"
+      match: "Ограничение частоты > заголовки RateLimit*"
+      hidden: true
+      hint: "Reset - Math.ceil((resetAt - now) / 1000); Remaining - max(0, limit - count)."
+    - id: "rate-reset"
+      title: "Сброс окна (скрытый)"
+      match: "Ограничение частоты > счётчик сбрасывается*"
+      hidden: true
+      hint: "Окно закончилось, когда now() >= resetAt (включительно): тогда заводите новый счётчик."
+    - id: "rate-keys"
+      title: "Клиенты раздельно (скрытый)"
+      match: "Ограничение частоты > клиенты считаются*"
+      hidden: true
+      hint: "Ключ - keyOf(req) (по умолчанию req.ip), счётчики лежат в Map по ключу."
+    - id: "rate-scope"
+      title: "Только /api, без общих счётчиков (скрытый)"
+      match: "Ограничение частоты > лимит действует*"
+      hidden: true
+      hint: "Map создаётся внутри rateLimit(...), а не на уровне модуля."
+    - id: "rate-direct"
+      title: "Свой keyOf (скрытый вызов) (скрытый)"
+      match: "Ограничение частоты > свой keyOf*"
+      hidden: true
+      hint: "Используйте только res.set, res.status и res.json: других методов у тестового ответа нет."
+    - id: "cookie"
+      title: "Флаги cookie сессии"
+      match: "Cookie сессии > cookie sid*"
+      hint: "res.cookie(\"sid\", value, { httpOnly, secure, sameSite: \"lax\", path: \"/\", maxAge }) - maxAge в миллисекундах."
+challenge:
+  id: "express.fundamentals.validation-security.challenge"
+  title: "Проверка тела запроса по схеме со списком ошибок"
+  prompt: |
+    В файле `src/validate.mjs` напишите проверку тела запроса по схеме и middleware на её основе.
+
+    **`validate(body, schema)`** возвращает массив ошибок `{ field, code, message }`; пустой массив означает, что тело корректно. Схема - объект `{ имяПоля: правило }`, правило содержит `type` (`string`, `integer`, `number`, `boolean`, `array`) и необязательные `required`, `min`, `max`, `enum`, `pattern`, `items`.
+
+    * Тело не объект (`null`, массив, строка, `undefined`): единственная ошибка `{ field: "", code: "invalid_body" }`.
+    * Поля схемы проверяются в порядке схемы, затем неизвестные поля тела (в порядке ключей) дают `unknown_field`.
+    * Отсутствующее поле (`undefined`): `required`, если оно обязательное, иначе пропуск. `null` и неверный тип: `type`, остальные проверки поля пропускаются.
+    * `min` и `max` сравниваются с длиной строки, значением числа или длиной массива (коды `min`, `max`); `enum`; `pattern` (для строк).
+    * Элементы массива проверяются по `items` с полем вида `tags[1]`; ошибки самого массива идут раньше ошибок элементов.
+    * Ошибки возвращаются все сразу; `message` - любая непустая строка.
+    * Наличие поля определяется через `Object.hasOwn`: `toString`, `constructor` и `__proto__` из JSON не должны вести себя как «обычные» поля.
+
+    **`validateBody(schema)`** - middleware: при ошибках отвечает `422` и `{ "error": { "code": "validation_failed", "message": "Request body is invalid", "details": { "errors": [...] } } }`, иначе вызывает `next()`.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/validate.mjs"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Заведите вспомогательную функцию checkValue(field, rule, value, errors): сначала тип (при неудаче return), затем min, max, enum, pattern и, для массива, рекурсивный вызов для каждого элемента с именем `${field}[${index}]`."
+    - "Для размера используйте value.length у строки и массива и само значение у числа. Тип integer проверяйте Number.isInteger, number - typeof и Number.isFinite."
+    - "Основной цикл: for (const [field, rule] of Object.entries(schema)) с value = Object.hasOwn(body, field) ? body[field] : undefined; после него for (const key of Object.keys(body)) для неизвестных полей через Object.hasOwn(schema, key)."
+    - "Тело проверяйте первым делом: body !== null && typeof body === \"object\" && !Array.isArray(body). Иначе return [{ field: \"\", code: \"invalid_body\", message: ... }]."
+  tests:
+    - id: "valid"
+      title: "Корректное тело"
+      match: "validate > корректное тело*"
+      hint: "Для корректного тела верните пустой массив []."
+    - id: "required-type"
+      title: "required и type"
+      match: "validate > required и type*"
+      hint: "Отсутствующее поле (undefined) - required, null и неверный тип - type; после type другие проверки поля пропускайте."
+    - id: "limits"
+      title: "min, max, enum, pattern"
+      match: "validate > min, max, enum и pattern"
+      hint: "Для строки и массива min/max сравнивают length, для числа - значение; проверяйте каждое правило отдельно."
+    - id: "array-items"
+      title: "Элементы массива (скрытый)"
+      match: "validate > элементы массива*"
+      hidden: true
+      hint: "Рекурсивно проверяйте items с именем поля `${field}[${index}]`; ошибки самого массива идут раньше ошибок элементов."
+    - id: "all-errors"
+      title: "Все ошибки и порядок (скрытый)"
+      match: "validate > возвращаются все ошибки*"
+      hidden: true
+      hint: "Сначала цикл по полям схемы, потом по Object.keys(body) для неизвестных; не останавливайтесь на первой ошибке."
+    - id: "invalid-body"
+      title: "Тело не объект (скрытый)"
+      match: "validate > тело не объект*"
+      hidden: true
+      hint: "isPlainObject: не null, typeof \"object\" и не массив. Единственная ошибка с field \"\"."
+    - id: "dangerous"
+      title: "Опасные имена полей (скрытый)"
+      match: "validate > опасные имена*"
+      hidden: true
+      hint: "Только Object.hasOwn(body, field) и Object.hasOwn(schema, key): toString, constructor и __proto__ не должны считаться присутствующими."
+    - id: "mw-422"
+      title: "422 в общем формате"
+      match: "validateBody > ошибки*"
+      hint: "res.status(422).json({ error: { code, message, details: { errors } } }) и return."
+    - id: "mw-pass"
+      title: "Успешный запрос (скрытый)"
+      match: "validateBody > корректное тело доходит*"
+      hidden: true
+      hint: "Нет ошибок - next()."
+    - id: "mw-no-body"
+      title: "Нет разобранного тела (скрытый)"
+      match: "validateBody > запрос без разобранного тела*"
+      hidden: true
+      hint: "req.body без парсера - undefined: validate вернёт invalid_body, middleware ответит 422."

@@ -232,10 +232,12 @@ tracks:
     kind: framework
     title: Django
     description: >-
-      Полнофункциональный веб-фреймворк на Python: ORM и миграции, маршрутизация, представления и шаблоны, формы, административная панель,
-      аутентификация, middleware. Предполагает знание Python и основ HTTP.
+      Полнофункциональный веб-фреймворк на Python. Курс «Django: основы» (Django 6.1): архитектура и маршрутизация, модели и ORM (QuerySet, N+1), представления и шаблоны,
+      формы и валидация, аутентификация и права, middleware, JSON API без DRF и тестирование. Упражнения проверяются в процессе через django.test.Client, без сервера.
+      Административная панель, миграции как файлы, Django REST Framework и развёртывание пока не входят.
     languageId: python
-    status: planned
+    status: available
+    courses: [django-fundamentals]
   - id: fastapi
     kind: framework
     title: FastAPI
@@ -296,9 +298,12 @@ tracks:
     title: Express
     description: >-
       Минималистичный веб-фреймворк для Node.js: маршрутизация, цепочки middleware, обработка запросов и ошибок, отдача статических файлов.
-      Структура приложения остаётся на усмотрение разработчика.
+      Структура приложения остаётся на усмотрение разработчика. Доступен курс «Express: основы» (Express 5: маршрутизация, middleware, роутеры,
+      обработка ошибок, проверка данных и защитные настройки, проектирование REST API, тесты через light-my-request). Шаблонизаторы, базы данных,
+      аутентификация и развёртывание пока не входят. Проверки упражнений используют npm-пакеты курсов (устанавливаются один раз по запросу).
     languageId: javascript
-    status: planned
+    status: available
+    courses: [express-fundamentals]
   - id: fastify
     kind: framework
     title: Fastify

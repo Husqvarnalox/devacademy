@@ -1,0 +1,151 @@
+id: django.fundamentals.middleware-and-lifecycle
+title: Middleware, сигналы и жизненный цикл запроса
+goal: Писать middleware с правильным порядком и обработкой исключений, различать роль middleware и сигналов и объяснять путь запроса от сервера до ответа.
+difficulty: medium
+estimatedMinutes: 90
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [django.fundamentals.architecture-and-routing, django.fundamentals.authentication-and-permissions]
+related: [django.fundamentals.views-and-templates]
+next: [django.fundamentals.json-apis-and-testing]
+objectives:
+  - Описывать middleware как класс с get_response и __call__ и объяснять порядок прохождения запроса и ответа по списку MIDDLEWARE.
+  - Добавлять идентификатор запроса и запись в журнал доступа, не храня данные запроса в объекте middleware.
+  - Превращать необработанные исключения представления в ответ через process_exception и понимать, что внешние слои видят уже готовый ответ.
+  - Подписываться на сигнал request_finished и объяснять, чем сигнал отличается от middleware.
+masteryCriteria:
+  - Вы предсказываете порядок вывода цепочки из трёх слоёв, не запуская код.
+  - Вы пишете middleware, которое проверяет входной идентификатор, и тестом показываете обработку допустимого, недопустимого и слишком длинного значения.
+  - Вы объясняете, почему журнал доступа должен стоять снаружи слоя, обрабатывающего ошибки.
+  - Вы называете случаи, где нужен сигнал, и случаи, где нужен middleware.
+tags: [django, middleware, signals, request-lifecycle, request-id, access-log]
+facts:
+  - kind: internals
+    text: >-
+      Middleware в Django - фабрика, получающая get_response и возвращающая вызываемый объект; запрос проходит слои по порядку списка MIDDLEWARE, ответ - в обратном. Каждый слой оборачивается так, что исключение
+      превращается в ответ внутри слоя, поэтому внешний слой всегда получает ответ, а не исключение. Хук process_exception вызывается при исключении представления до этого преобразования.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/http/middleware/
+      - https://docs.djangoproject.com/en/6.1/ref/middleware/
+  - kind: internals
+    text: >-
+      Сигнал request_finished отправляется после того, как ответ закрыт, то есть уже после работы всех слоёв; got_request_exception отправляется при необработанном исключении. Приёмники сигналов вызываются синхронно
+      в том же потоке, поэтому медленный приёмник замедляет запрос.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/signals/
+      - https://docs.djangoproject.com/en/6.1/topics/signals/
+  - kind: misconception
+    text: >-
+      «Данные запроса можно держать в self middleware». Объект middleware создаётся один раз при старте обработчика и обслуживает все запросы, в том числе параллельные потоки; состояние запроса принадлежит
+      объекту request.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/http/middleware/
+  - kind: security
+    text: >-
+      Заголовки запроса контролирует клиент. Идентификатор, взятый из X-Request-ID и записанный в журнал, нужно проверять по формату и длине, иначе можно подделать записи журнала или внедрить переводы строк
+      (инъекция в журнал).
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/http/middleware/
+      - https://docs.djangoproject.com/en/6.1/ref/request-response/
+  - kind: real-world
+    text: >-
+      Стандартный набор Django сам построен из middleware: SessionMiddleware, AuthenticationMiddleware, CsrfViewMiddleware, SecurityMiddleware, CommonMiddleware. Для настроек безопасности ответов вроде HSTS есть
+      готовые параметры SecurityMiddleware, их не нужно писать вручную.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/middleware/
+      - https://docs.djangoproject.com/en/6.1/ref/settings/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "MIDDLEWARE = [A, B, C]. В каком порядке выполняется код до и после get_response?"
+      options:
+        - "A, B, C на входе и A, B, C на выходе"
+        - "A, B, C на входе и C, B, A на выходе"
+        - "C, B, A на входе и A, B, C на выходе"
+        - "Порядок не определён"
+      answer: 1
+      explanation: "Запрос идёт сверху вниз по списку, ответ возвращается в обратном порядке."
+    - id: q2
+      type: single
+      prompt: "Что увидит внешний слой, если представление выбросило исключение, а внутренние слои его не обработали?"
+      options:
+        - "Исключение"
+        - "Готовый ответ (например, 500)"
+        - "None"
+        - "Ничего: запрос зависнет"
+      answer: 1
+      explanation: "Каждый слой обёрнут преобразованием исключений в ответ, поэтому внешний слой получает обычный ответ."
+    - id: q3
+      type: single
+      prompt: "Где правильно хранить номер текущего запроса, который нужен представлению?"
+      options:
+        - "В self middleware"
+        - "В глобальной переменной модуля"
+        - "В атрибуте request"
+        - "В settings"
+      answer: 2
+      explanation: "Объект middleware и глобальные переменные общие для всех запросов; данные запроса принадлежат request."
+    - id: q4
+      type: multiple
+      prompt: "Что верно про сигналы Django?"
+      options:
+        - "Приёмник выполняется синхронно в том же потоке"
+        - "Сигнал может заменить ответ представления"
+        - "request_finished отправляется после завершения запроса"
+        - "@receiver подписывает функцию на сигнал"
+      answer: [0, 2, 3]
+      explanation: "Сигналы только уведомляют; изменять ответ может middleware."
+    - id: q5
+      type: single
+      prompt: "Зачем проверять входной X-Request-ID по формату и длине?"
+      options:
+        - "Это ускоряет разбор заголовков"
+        - "Заголовок контролирует клиент, и строка попадает в журнал"
+        - "Django отклоняет любые заголовки X-"
+        - "Без проверки не работает middleware"
+      answer: 1
+      explanation: "Непроверенное значение позволяет подделать записи журнала или внедрить в него лишние строки."
+exercise:
+  id: django.fundamentals.middleware-and-lifecycle.exercise
+  title: Идентификатор запроса и журнал доступа
+  prompt: |
+    В `tracing_app.py` настроены `MIDDLEWARE` (порядок: `RequestIdMiddleware`, `AccessLogMiddleware`, `ErrorJsonMiddleware`), представления `ping`, `boom` (бросает `ValueError`) и `echo`, список `LOG`, список `FINISHED`, шаблон `VALID_ID` и функция `new_request_id()` с детерминированной нумерацией `req-0001`, `req-0002`... Допишите три класса и приёмник сигнала ниже строки «ВАШ КОД».
+
+    * `RequestIdMiddleware`: кладёт `request.request_id` - значение заголовка `X-Request-ID`, если оно целиком подходит под `VALID_ID`, иначе `new_request_id()` (недопустимый заголовок не должен тратить номер впустую: вызывайте генератор только при необходимости). Добавляет к любому ответу заголовок `X-Request-ID` с тем же значением.
+    * `AccessLogMiddleware`: после получения ответа дописывает в `LOG` строку `"<id> <METHOD> <path> <status>"`, например `req-0001 GET /ping/ 200`.
+    * `ErrorJsonMiddleware`: через `process_exception` превращает любое исключение в `JsonResponse({"error": "internal", "request_id": ...}, status=500)`.
+    * Приёмник `request_finished` (`@receiver`): на каждый завершённый запрос добавляет `"finished"` в `FINISHED`.
+
+    Тесты используют `Client(raise_request_exception=False)`.
+  entryFile: tracing_app.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Шаблон слоя: `def __init__(self, get_response): self.get_response = get_response` и `def __call__(self, request): ...; response = self.get_response(request); ...; return response`. Код до вызова выполняется на пути вниз, после - на пути вверх."
+    - "Идентификатор: `incoming = request.headers.get('X-Request-ID', '')`; `request.request_id = incoming if VALID_ID.fullmatch(incoming) else new_request_id()`. `fullmatch` проверяет всю строку; длиннее 36 символов - недопустимо. Заголовок ответа: `response['X-Request-ID'] = request.request_id`."
+    - "Журнал: в `AccessLogMiddleware.__call__` сначала `response = self.get_response(request)`, затем `LOG.append(f'{request.request_id} {request.method} {request.path} {response.status_code}')`. Он стоит снаружи `ErrorJsonMiddleware`, поэтому видит уже статус 500."
+    - "`process_exception(self, request, exception)` возвращает `JsonResponse(...)`; при ответе из этого хука ошибка считается обработанной. Приёмник: `@receiver(request_finished)` над функцией `def on_finished(sender, **kwargs): FINISHED.append('finished')`."
+  tests:
+    - id: generated-ids
+      title: Сгенерированные идентификаторы
+      hint: "Первый запрос получает req-0001, второй req-0002; заголовок X-Request-ID у ответа, request.request_id виден представлению."
+    - id: incoming-id
+      title: Входной идентификатор
+      hint: "Допустимый (буквы, цифры, дефис, до 36 символов) сохраняется; недопустимый или слишком длинный заменяется. Генератор вызывайте только в ветке замены."
+    - id: access-log
+      title: Журнал доступа
+      hint: "Запись появляется после ответа и содержит id, метод, путь и статус: 'req-0001 GET /ping/ 200'."
+    - id: error-json
+      title: Исключение в JSON (скрытый)
+      hidden: true
+      hint: "process_exception возвращает JSON 500 с request_id; заголовок X-Request-ID есть и у такого ответа; журнал содержит статус 500."
+    - id: signal-finished
+      title: Сигнал request_finished (скрытый)
+      hidden: true
+      hint: "Один 'finished' на каждый запрос, включая запрос с ошибкой. Не забудьте декоратор @receiver(request_finished)."
+    - id: edge-cases
+      title: 404 и HEAD (скрытый)
+      hint: "Middleware работает и для неизвестных путей: 404 получает идентификатор и попадает в журнал. HEAD логируется как HEAD."
+      hidden: true

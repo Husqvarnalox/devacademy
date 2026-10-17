@@ -1,0 +1,57 @@
+id: express-fundamentals
+version: 1.0.0
+title: "Express: основы"
+description: >-
+  Курс по Express 5 для тех, кто прошёл «JavaScript: основы языка» и «Node.js: платформа и встроенные модули». Семь уроков: устройство
+  Express и маршруты, цепочки middleware, роутеры и структура приложения, обработка ошибок и единый формат ответа об ошибке,
+  проверка входных данных и безопасные настройки по умолчанию (заголовки, CORS, ограничение частоты, флаги cookie), проектирование
+  REST API (коды статуса, пагинация, фильтры, идемпотентность, ETag) и тестирование приложения на Vitest. Все упражнения проверяются
+  настоящими Express и Vitest в песочнице без сети: запросы подаются прямо в приложение через light-my-request, порт не открывается.
+  Для этого один раз нужно установить пакеты курсов (Настройки - Среды выполнения). Базы данных, аутентификация через библиотеки,
+  шаблонизаторы, WebSocket, TypeScript и развёртывание в курс не входят.
+languageId: javascript
+level: 2
+track: express
+requires: [javascript-fundamentals, nodejs-fundamentals]
+lessons:
+  - 01-express-architecture
+  - 02-middleware
+  - 03-routers-and-structure
+  - 04-error-handling
+  - 05-validation-and-security
+  - 06-rest-api-design
+  - 07-testing-express
+framework:
+  id: express
+  version: "5.3.x"
+  docs:
+    - https://expressjs.com/
+    - https://expressjs.com/en/5x/api/
+    - https://expressjs.com/en/guide/migrating-5.html
+    - https://github.com/fastify/light-my-request
+    - https://vitest.dev/
+  compatibility: "Express 5.3.0 (по документации требует Node.js >= 18); Node.js >= 22.13 для окружения курсов (Vitest 5.0.5); light-my-request 6.8.0 подаёт запросы в приложение без сокетов. Версии зафиксированы в tools/node-content/package-lock.json. Только Express 5 и модули ESM в упражнениях."
+  deprecated:
+    - feature: "app.del(), req.param(name), req.acceptsCharset/Encoding/Language (в единственном числе)"
+      status: removed
+      note: "В Express 5 эти методы удалены. Используйте app.delete(), явное чтение req.params, req.body или req.query и req.acceptsCharsets/Encodings/Languages."
+    - feature: "res.json(obj, status), res.jsonp(obj, status), res.send(obj, status), res.send(status), res.redirect('back')"
+      status: removed
+      note: "Сначала задают статус цепочкой: res.status(201).json(obj); для одного кода есть res.sendStatus(code); возврат на предыдущую страницу - res.redirect(req.get('Referrer') || '/'). Метод res.sendfile заменён на res.sendFile."
+    - feature: "Синтаксис путей: '/*', '/:id?', '/[a|b]/:x' (регулярные символы)"
+      status: changed
+      note: "Путь разбирает path-to-regexp 8: подстановка должна иметь имя ('/*splat'), необязательная часть записывается в фигурных скобках ('/:file{.:ext}'), символы ()[]?+! зарезервированы, регулярные выражения внутри строки не поддерживаются."
+    - feature: "Необработанные отклонения промисов в обработчиках"
+      status: changed
+      note: "В Express 4 асинхронный обработчик без try/catch оставлял запрос без ответа. В Express 5 отклонённый промис, возвращённый обработчиком или middleware, передаётся в обработчик ошибок как next(err)."
+    - feature: "req.body, req.query, req.params, express.urlencoded, express.static"
+      status: changed
+      note: "req.body равен undefined, пока тело не разобрано (в Express 4 был {}); req.query - getter с простым разбором строки запроса; req.params без совпавших частей их не содержит; express.urlencoded по умолчанию extended: false; express.static по умолчанию не отдаёт файлы и каталоги с точкой в имени (dotfiles: 'ignore')."
+  migrationNotes: |
+    **Express 4 -> 5 (что важно для кода курса).**
+
+    * Асинхронные обработчики можно писать как `async (req, res) => { ... }` без `try/catch`: отклонение попадает в middleware ошибок.
+    * Старые пути вида `'/*'` и `'/:id?'` не работают: используйте `'/*splat'` (или `'/{*splat}'`, если нужен и корень) и `'/:file{.:ext}'`.
+    * `req.body` без `express.json()` равен `undefined`, а не `{}`: проверяйте это явно.
+    * Новая мажорная версия Express требует нового издания курса: примеры не обновляются «молча».
+    * Сверяйтесь с официальным руководством по миграции: https://expressjs.com/en/guide/migrating-5.html

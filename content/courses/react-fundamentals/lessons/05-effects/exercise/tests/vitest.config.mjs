@@ -6,6 +6,7 @@ export default defineConfig({
   cacheDir: ".cache/vite",
   oxc: { jsx: { runtime: "automatic" } },
   test: {
+    fsModuleCache: false, // кэш преобразованных модулей по умолчанию пишется в node_modules, а он доступен только для чтения
     environment: "jsdom",
     globals: true, // нужно Testing Library для автоматической очистки DOM между тестами
     include: ["tests/**/*.test.jsx"],

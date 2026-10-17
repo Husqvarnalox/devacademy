@@ -1,0 +1,159 @@
+id: django.fundamentals.architecture-and-routing
+title: Архитектура Django, настройки и маршрутизация
+goal: Собрать минимальный проект Django в одном файле, понимать путь запроса через URLconf к представлению и ответу и разбирать адреса конвертерами путей.
+difficulty: easy
+estimatedMinutes: 75
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [python.advanced.decorators, python.advanced.classes-and-objects]
+related: [django.fundamentals.views-and-templates, fastapi.fundamentals.why-fastapi-and-asgi]
+next: [django.fundamentals.models-and-orm]
+objectives:
+  - Объяснять схему MTV и роли URLconf, представления, модели, шаблона и настроек в обработке одного запроса.
+  - Настраивать проект программно (settings.configure, django.setup) и собирать однофайловый проект, который проверяется через django.test.Client без сервера и сети.
+  - Писать маршруты с path(), встроенными конвертерами (str, int, slug, uuid, path) и собственным конвертером с register_converter.
+  - Давать маршрутам имена и получать адреса через reverse вместо жёстко прописанных строк.
+  - Возвращать HttpResponse с нужным статусом и типом содержимого и ограничивать методы декораторами require_GET и require_http_methods.
+masteryCriteria:
+  - Вы пишете проект из одного файла, в котором Client получает 200 на нужный адрес и 404 на несовпавший.
+  - Вы объясняете, почему маршрут с конвертером int не совпадает с «abc» и почему порядок маршрутов важен.
+  - Вы пишете конвертер месяца и проверяете в обе стороны (адрес -> значение, значение -> адрес).
+  - Вы называете причину, по которой код до settings.configure() не может импортировать модели.
+tags: [django, mtv, settings, urlconf, routing, converters, httpresponse, testclient]
+facts:
+  - kind: internals
+    text: >-
+      Django называет свою схему MTV: Model, Template, View. Роль «контроллера» MVC выполняет само представление-функция и фреймворк (URLconf), а «представлением» MVC в Django служит шаблон. Авторы в FAQ
+      объясняют, что названия - вопрос терминологии, а разделение ответственностей такое же.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/faq/general/
+      - https://docs.djangoproject.com/en/6.1/intro/overview/
+  - kind: internals
+    text: >-
+      settings.configure() позволяет использовать Django без файла настроек и без переменной DJANGO_SETTINGS_MODULE: настройки передаются аргументами, имена только в верхнем регистре, вызвать configure можно один
+      раз (повтор даёт RuntimeError), а django.setup() после него заполняет реестр приложений. Документация отмечает, что такой способ подходит для встраивания Django в более крупный проект или скрипт.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/settings/
+      - https://docs.djangoproject.com/en/6.1/ref/applications/
+  - kind: internals
+    text: >-
+      Маршруты проверяются по порядку, побеждает первое совпадение. Встроенные конвертеры: str, int, slug, uuid, path; собственный - класс с regex, to_python и to_url, зарегистрированный register_converter.
+      to_url используется при reverse, поэтому конвертер работает в обе стороны.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/http/urls/
+      - https://docs.djangoproject.com/en/6.1/ref/urls/
+  - kind: historical
+    text: >-
+      Django 6.1 перешёл на календарное версионирование (DEP 20): релизы, которые планировались как 7.0 и 7.1, теперь называются Django 2028 и Django 2029, а классы предупреждений об устаревании
+      переименованы (RemovedInDjango70Warning стал RemovedInDjango2028Warning). Django 6.1 поддерживает Python 3.12, 3.13 и 3.14.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/releases/6.1/
+      - https://docs.djangoproject.com/en/6.1/internals/release-process/
+  - kind: real-world
+    text: >-
+      django.test.Client вызывает полный стек обработчика (middleware, URLconf, представление) в том же процессе без сети и сервера. Он подставляет хост testserver, поэтому при DEBUG=False этот хост должен быть
+      в ALLOWED_HOSTS. Именно так проверяются упражнения этого курса.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/testing/tools/
+      - https://docs.djangoproject.com/en/6.1/ref/settings/
+  - kind: misconception
+    text: >-
+      «startproject обязателен для запуска Django». На деле структура проекта - соглашение: достаточно настроек, URLconf и представлений, а manage.py и settings.py - обёртки над теми же вызовами. Для реальных проектов
+      структуру startproject стоит оставить, она привычна всей команде.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/intro/tutorial01/
+      - https://docs.djangoproject.com/en/6.1/topics/settings/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Что в схеме MTV Django соответствует «контроллеру» из MVC?"
+      options:
+        - "Модель"
+        - "Шаблон"
+        - "Представление (view) вместе с URLconf, который выбирает его"
+        - "Файл settings.py"
+      answer: 2
+      explanation: "Представление принимает запрос и решает, что вернуть; URLconf выбирает нужное представление. Шаблон в Django отвечает за отображение, то есть ближе к «представлению» MVC."
+    - id: q2
+      type: multiple
+      prompt: "Какие адреса совпадут с маршрутом path('archive/<int:year>/', ...)?"
+      options:
+        - "archive/2024/"
+        - "archive/abc/"
+        - "archive/0/"
+        - "archive/-1/"
+      answer: [0, 2]
+      explanation: "int принимает только неотрицательные целые (цифры). «abc» и «-1» не совпадут, Django ответит 404."
+    - id: q3
+      type: single
+      prompt: "Почему в однофайловом проекте строку from django.db import models нельзя поставить выше settings.configure()?"
+      options:
+        - "Это только вопрос стиля"
+        - "Импорт моделей читает настройки и реестр приложений, которые ещё не настроены"
+        - "Модуль models появляется только после запуска сервера"
+        - "Потому что configure() удаляет все импорты"
+      answer: 1
+      explanation: "Базовый класс модели обращается к реестру приложений и настройкам при создании класса; без configure() и setup() будет ImproperlyConfigured или AppRegistryNotReady."
+    - id: q4
+      type: single
+      prompt: "Какую функцию используют, чтобы получить адрес по имени маршрута и аргументам?"
+      options:
+        - "resolve"
+        - "reverse"
+        - "redirect_to"
+        - "path"
+      answer: 1
+      explanation: "reverse('name', kwargs=...) строит адрес; resolve делает обратное - по адресу находит представление и аргументы."
+    - id: q5
+      type: short
+      prompt: "Как называется декоратор из django.views.decorators.http, после которого представление отвечает 405 на любой метод, кроме GET? (имя функции)"
+      answer: ["require_GET", "require_http_methods", "require_safe"]
+      explanation: "require_GET (или require_http_methods(['GET'])) возвращает 405 Method Not Allowed с заголовком Allow."
+exercise:
+  id: django.fundamentals.architecture-and-routing.exercise
+  title: Маршруты с конвертерами и обратное разрешение
+  prompt: |
+    Файл `routing_app.py` - целый проект Django: блок «каркас» настраивает Django в коде (`settings.configure`, `django.setup`), а `ROOT_URLCONF` указывает на сам модуль. Не меняйте каркас; ваша часть - ниже строки «ВАШ КОД». Реализуйте:
+
+    * `MonthConverter` для `<month:...>`: `regex` совпадает ровно с двумя цифрами `01`-`12`; `to_python("07")` даёт `7` (int); `to_url(7)` даёт `"07"`. (`register_converter` уже вызван.)
+    * Представления; каждое возвращает `text(...)` - ответ 200 с типом `text/plain`:
+      * `home` -> `home`; допускает только GET (декоратор `require_GET` уже стоит; POST даёт 405);
+      * `hello(name)` -> `Hello, <name>!`;
+      * `archive(year, month)` -> `archive 2024-03` (месяц из двух цифр);
+      * `file_view(subpath)` -> `file: <subpath>`;
+      * `user_detail(uid)` -> `user <uuid>`.
+    * `urlpatterns` (с именами): `""` - `home`; `hello/<str:name>/` - `hello`; `archive/<int:year>/<month:month>/` - `post-archive`; `files/<path:subpath>` (без слеша в конце) - `file`; `users/<uuid:uid>/` - `user-detail`.
+
+    Всё остальное - 404. Проверка идёт через `django.test.Client`, сервер не запускается.
+  entryFile: routing_app.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Маршрут записывается как `path('hello/<str:name>/', hello, name='hello')`; список `urlpatterns` читается сверху вниз, побеждает первое совпадение. Конвертер `str` не захватывает `/`, а `path` захватывает."
+    - "У конвертера `regex` - строка без якорей: `0[1-9]|1[0-2]` (Django сам оборачивает её в группу). `to_python` получает строку из адреса, `to_url` - значение Python и возвращает строку для адреса: `'%02d' % value`."
+    - "Представления просто `return text(f'...')`. Для месяца: `f'archive {year}-{month:02d}'`. Параметры адреса приходят именованными аргументами, имена должны совпадать с теми, что в маршруте (`name`, `year`, `month`, `subpath`, `uid`)."
+    - "Полный список: `[path('', home, name='home'), path('hello/<str:name>/', hello, name='hello'), path('archive/<int:year>/<month:month>/', archive, name='post-archive'), path('files/<path:subpath>', file_view, name='file'), path('users/<uuid:uid>/', user_detail, name='user-detail')]`."
+  tests:
+    - id: home-and-hello
+      title: Главная и приветствие
+      hint: "home -> 'home' с типом text/plain; hello -> 'Hello, <name>!'; сегмент str не содержит слеша, поэтому /hello/a/b/ - 404."
+    - id: archive-converter
+      title: Конвертер месяца в маршруте архива
+      hint: "Маршрут archive/<int:year>/<month:month>/; в ответе 'archive 2024-03', месяц форматируется двумя цифрами."
+    - id: reverse-names
+      title: Имена маршрутов и reverse
+      hint: "Имена: home, hello, post-archive, file, user-detail. Для post-archive reverse использует to_url, который вернёт '03'."
+    - id: path-and-uuid
+      title: Конвертеры path и uuid (скрытый)
+      hidden: true
+      hint: "path захватывает слеши ('docs/2024/report.txt'); uuid принимает только каноничный UUID в нижнем регистре и передаёт в представление объект UUID."
+    - id: unmatched-and-405
+      title: Несовпавшие адреса и запрещённые методы (скрытый)
+      hidden: true
+      hint: "Месяц 00, 13 или из одной цифры не совпадает с regex (404). POST на home даёт 405 с Allow: GET - за это отвечает require_GET."
+    - id: month-converter-unit
+      title: Конвертер месяца как класс (скрытый)
+      hidden: true
+      hint: "regex должен принимать только 01-09, 10-12 целиком (fullmatch); to_python возвращает int, to_url - строку из двух цифр."

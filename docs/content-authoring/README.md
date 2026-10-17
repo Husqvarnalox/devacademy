@@ -343,6 +343,11 @@ nothing is installed globally), after which `make validate-content` passes `--py
 `requires` with that environment's interpreter (bin/python or Scripts/python.exe) and checks the Python version and packages against it;
 without the flag they only produce a warning ("requires packages ...; pass --python-env"). `devacademy python-env-check --python-env <dir>`
 lists every requirement found in the content and whether the environment satisfies it.
+
+Framework courses pin their package in `tools/python-dev-requirements.txt` (for example `Django==6.1.2` for `django-fundamentals`,
+`fastapi` for the FastAPI course). Django exercises need no server or manage.py: the learner file calls `settings.configure(...)`
+and `django.setup()` (SQLite `:memory:`, the app is an `AppConfig` subclass defined in the same file, tables are created with
+`connection.schema_editor().create_model`) and the harness drives views through `django.test.Client`.
 ## npm packages for JavaScript exercises (React, Vitest, Testing Library)
 
 ```yaml
@@ -361,6 +366,11 @@ runner links `node_modules` read-only into the sandboxed work directory (writes 
 cache inside the work directory (`cacheDir: ".cache/vite"` in `vitest.config.mjs`) and never installs anything. Learner files may not live
 under `node_modules`. `vitest.config.mjs` for React: `oxc: { jsx: { runtime: "automatic" } }`, `test: { environment: "jsdom", globals: true,
 include: ["tests/**/*.test.jsx"] }` (globals only so Testing Library cleans up between tests; jest-dom is not installed).
+Express courses (`express-fundamentals`) pin `express` (5.x) and `light-my-request` in the same environment and use `npmPackages: [vitest, express,
+light-my-request]`. Requests are injected into the app function without opening a port: supertest was rejected because its `listen(0)` is denied
+by the no-network sandbox (EPERM), while light-my-request works under it. `vitest.config.mjs` for them: `test: { environment: "node",
+fsModuleCache: false, include: ["tests/**/*.test.mjs"] }` (`fsModuleCache: false` stops Vitest from creating `node_modules/.vitest-cache`, which is
+read-only at grading time).
 Allowed Vitest flags are an allowlist (`--reporter` junit/default/verbose/dot, `--outputFile`, `--config`, `--pool`, `--environment`,
 `--testTimeout`, `--maxWorkers`, `--no-file-parallelism`, `--silent`, `--passWithNoTests`, `--globals`); watch, ui, browser, coverage and update
 flags are rejected. The validator requires every package the tool needs to be in `npmPackages`. Theory samples of a lesson with such an

@@ -1,0 +1,156 @@
+id: django.fundamentals.authentication-and-permissions
+title: Аутентификация, права и группы
+goal: Создавать пользователей с хешированными паролями, реализовывать вход и выход через сессию, выдавать права напрямую и через группы и защищать представления, различая ответы 302 и 403.
+difficulty: medium
+estimatedMinutes: 100
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [django.fundamentals.forms-and-validation, django.fundamentals.views-and-templates]
+related: [security.fundamentals.password-storage, security.fundamentals.sessions-csrf-and-cookies]
+next: [django.fundamentals.middleware-and-lifecycle]
+objectives:
+  - Создавать пользователей через create_user/set_password и объяснять формат строки пароля алгоритм$итерации$соль$хеш.
+  - Реализовывать вход и выход через authenticate, login, logout и объяснять, что для этого нужны сессии и AuthenticationMiddleware.
+  - Выдавать права пользователю и группе, проверять их через has_perm и знать про кэш прав и суперпользователя.
+  - Защищать представления login_required и permission_required, различая перенаправление на вход (302) и отказ (403).
+masteryCriteria:
+  - Вы показываете, что пароль в базе не совпадает с введённым, и разбираете его строку на части.
+  - Вы пишете сквозной тест входа и выхода, который проверяет статусы до входа, после входа и после выхода.
+  - Вы отличаете аноним/вошедший без права/вошедший с правом тремя разными ответами.
+  - Вы объясняете, почему права проверяют через has_perm, а не через is_staff или имя группы.
+tags: [django, auth, permissions, groups, login, password-hashing, pbkdf2, sessions]
+facts:
+  - kind: internals
+    text: >-
+      Хеш пароля Django хранится одной строкой вида алгоритм$итерации$соль$хеш; по умолчанию используется PBKDF2 с SHA-256, а число итераций Django периодически увеличивает между версиями. Старые хеши продолжают
+      проверяться, а при успешном входе при необходимости перехешируются с новыми параметрами. Строка, начинающаяся с "!", означает непригодный для входа пароль.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/auth/passwords/
+      - https://docs.djangoproject.com/en/6.1/topics/auth/customizing/
+  - kind: internals
+    text: >-
+      login() сохраняет в сессии идентификатор пользователя, имя бэкенда и хеш-проверку пароля сессии и меняет ключ сессии. Благодаря хешу сессии смена пароля делает недействительными остальные сессии пользователя.
+      Для работы request.user нужны SessionMiddleware и AuthenticationMiddleware, причём в таком порядке.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/auth/default/
+      - https://docs.djangoproject.com/en/6.1/topics/http/sessions/
+  - kind: misconception
+    text: >-
+      «is_staff означает, что пользователю можно всё». Флаг лишь допускает в административный сайт. Доступ к действиям определяется правами (has_perm), а полный доступ без явных прав есть только у активного
+      суперпользователя (is_superuser).
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/auth/default/
+      - https://docs.djangoproject.com/en/6.1/ref/contrib/auth/
+  - kind: performance
+    text: >-
+      Проверка прав кэшируется на объекте пользователя: первый has_perm делает запросы к базе, повторные берут кэш. После изменения прав или групп объект нужно загрузить заново (в следующем запросе это происходит
+      само). Медленный хеш пароля - намеренное свойство, поэтому в тестах время экономят через client.force_login, а не ослабляют PASSWORD_HASHERS.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/auth/default/
+      - https://docs.djangoproject.com/en/6.1/topics/testing/tools/
+  - kind: security
+    text: >-
+      login_required направляет анонима на LOGIN_URL с параметром next; permission_required с raise_exception=True отвечает 403 вошедшему без права вместо бесконечного перенаправления на вход. Адрес next перед
+      использованием нужно проверять (url_has_allowed_host_and_scheme), иначе вход становится открытым перенаправлением.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/auth/default/
+      - https://docs.djangoproject.com/en/6.1/ref/utils/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Почему два пользователя с одинаковым паролем имеют разные строки пароля в базе?"
+      options:
+        - "Django шифрует пароль ключом SECRET_KEY"
+        - "В каждую строку входит случайная соль"
+        - "Хеш зависит от времени входа"
+        - "Это ошибка конфигурации"
+      answer: 1
+      explanation: "Формат алгоритм$итерации$соль$хеш: соль случайна для каждого пароля, поэтому строки различаются, а check_password всё равно проверяет."
+    - id: q2
+      type: single
+      prompt: "Что вернёт @permission_required('app.perm', raise_exception=True) вошедшему пользователю без права?"
+      options:
+        - "302 на страницу входа"
+        - "403"
+        - "404"
+        - "200 с пустой страницей"
+      answer: 1
+      explanation: "С raise_exception=True вместо перенаправления на вход поднимается PermissionDenied, то есть ответ 403."
+    - id: q3
+      type: multiple
+      prompt: "Что нужно для работы login() и request.user?"
+      options:
+        - "SessionMiddleware"
+        - "AuthenticationMiddleware"
+        - "CsrfViewMiddleware"
+        - "django.contrib.sessions в INSTALLED_APPS при хранении сессий в базе"
+      answer: [0, 1, 3]
+      explanation: "Сессии и AuthenticationMiddleware обязательны; CSRF-защита нужна для форм, но не для работы входа."
+    - id: q4
+      type: single
+      prompt: "Как правильно проверить, что пользователю разрешено публиковать статьи?"
+      options:
+        - "user.is_staff"
+        - "user.groups.filter(name='editors').exists()"
+        - "user.has_perm('app.publish_article')"
+        - "user.password"
+      answer: 2
+      explanation: "Права проверяют через has_perm: он учитывает и прямые права, и права групп, и суперпользователя."
+    - id: q5
+      type: single
+      prompt: "Что происходит с has_perm на уже загруженном объекте после добавления пользователя в группу?"
+      options:
+        - "Сразу видит новую группу"
+        - "Может вернуть старый результат из кэша; объект нужно загрузить заново"
+        - "Всегда падает с исключением"
+        - "Права сбрасываются"
+      answer: 1
+      explanation: "Права кэшируются на объекте пользователя; в новом запросе объект загружается заново."
+exercise:
+  id: django.fundamentals.authentication-and-permissions.exercise
+  title: Вход, права и группа редакторов
+  prompt: |
+    В `access_app.py` настроены `django.contrib.auth`, сессии и `AuthenticationMiddleware` (`LOGIN_URL = "/login/"`), создана модель `Article` и право `access.publish_article`. Допишите функции ниже строки «ВАШ КОД».
+
+    * `signup(username, password)` - создаёт и возвращает пользователя с хешированным паролем.
+    * `hash_summary(encoded)` - разбирает строку пароля в `{"algorithm": str, "iterations": int, "salt_length": int}`; если это не четыре части через `$` с числом итераций (например, непригодный пароль `!...` или обычная строка), возвращает `None`.
+    * `make_editors_group()` - группа `editors` с правом `access.publish_article`; повторный вызов не создаёт дубликатов. `add_to_editors(user)` добавляет пользователя в эту группу.
+    * `login_view` - `POST` с `username` и `password`: успех - `200` и JSON `{"username": ...}` и вход через `login`; неверные данные - `401` и `{"error": "invalid credentials"}`; не `POST` - `405`.
+    * `logout_view` - `POST`: выход и ответ `204`; не `POST` - `405`.
+    * `profile` - только для вошедших (`login_required`): JSON `{"username": ..., "is_staff": ...}`.
+    * `publish` - для вошедших с правом `access.publish_article`: `{"published": true}`; аноним получает `302` на вход, вошедший без права - `403`.
+    * `urlpatterns`: `login/`, `logout/`, `profile/`, `publish/`.
+
+    CSRF в этом приложении не включён, чтобы тесты не отвлекались на токены.
+  entryFile: access_app.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "`User.objects.create_user(username=..., password=...)` хеширует пароль; в `user.password` лежит строка `pbkdf2_sha256$итерации$соль$хеш`. Для разбора: `parts = encoded.split('$')`; проверьте `len(parts) == 4` и `parts[1].isdigit()`, иначе `None`."
+    - "Группа: `group, _ = Group.objects.get_or_create(name='editors')`, затем `group.permissions.add(Permission.objects.get(codename='publish_article', content_type__app_label='access'))` (`add` не создаёт дубликатов). Пользователя добавляют через `user.groups.add(group)`."
+    - "Вход: `user = authenticate(request, username=request.POST.get('username', ''), password=request.POST.get('password', ''))`; при `None` - `JsonResponse({...}, status=401)`, иначе `login(request, user)`. Для выхода - `logout(request)` и `JsonResponse({}, status=204)` (или `HttpResponse(status=204)`)."
+    - "Декораторы: `@login_required` поверх `@permission_required('access.publish_article', raise_exception=True)`. Порядок важен: внешний `login_required` отправляет анонима на вход (302), а внутренний даёт вошедшему без права 403."
+  tests:
+    - id: signup-hashing
+      title: Хеширование пароля
+      hint: "create_user: в базе нет открытого пароля, формат pbkdf2_sha256$итерации$соль$хеш, у одинаковых паролей разные строки."
+    - id: login-logout-flow
+      title: Сквозной вход и выход
+      hint: "401 при неверном пароле, 302 на профиль до входа, 200 и cookie sessionid после входа, 204 при выходе, снова 302, GET на login/ - 405."
+    - id: login-required
+      title: Перенаправление анонима
+      hint: "Location должен быть /login/?next=/profile/ - это делает login_required сам."
+    - id: permission-levels
+      title: Аноним, без права, с правом (скрытый)
+      hidden: true
+      hint: "302 для анонима, 403 для вошедшего без права (raise_exception=True), 200 после выдачи права; суперпользователь проходит без явного права."
+    - id: group-permissions
+      title: Права через группу (скрытый)
+      hidden: true
+      hint: "get_or_create не создаёт вторую группу; has_perm учитывает права группы, а новый запрос загружает пользователя заново."
+    - id: hash-summary-edges
+      title: Граничные случаи разбора хеша (скрытый)
+      hidden: true
+      hint: "Непригодный пароль (set_unusable_password) и обычная строка дают None; iterations - целое число; salt_length - длина третьей части."

@@ -1,0 +1,198 @@
+id: django.fundamentals.json-apis-and-testing
+title: JSON API без DRF и тестирование
+goal: Строить небольшой CRUD API на чистом Django с точными статусами и кодами ошибок, добавлять пагинацию и фильтры и тестировать API клиентом Django, включая подсчёт запросов.
+difficulty: hard
+estimatedMinutes: 120
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [django.fundamentals.forms-and-validation, django.fundamentals.middleware-and-lifecycle, django.fundamentals.models-and-orm]
+related: [django.fundamentals.authentication-and-permissions]
+objectives:
+  - "Читать тело JSON безопасно: проверять Content-Type, ловить ошибки разбора и проверять, что корень - объект."
+  - Возвращать JsonResponse с правильными статусами (201 и Location, 204, 400, 404, 405 с Allow, 415) и стабильными кодами ошибок по полям.
+  - Реализовывать пагинацию срезом и фильтрацию списка, ограничивать page_size и сохранять детерминированный порядок.
+  - Тестировать API через Client с content_type="application/json", проверять число запросов через CaptureQueriesContext и знать роль TestCase.
+masteryCriteria:
+  - Вы пишете CRUD для модели и тестом проверяете успех, ошибки проверки, битый JSON, неверный Content-Type, 404 и 405.
+  - Вы реализуете список с фильтрами и страницами, где число запросов не зависит от размера страницы и таблицы.
+  - Вы объясняете, зачем нужен порядок при пагинации и почему count считают после фильтров.
+  - Вы называете случаи, когда для API нужна CSRF-защита, а когда csrf_exempt допустим.
+tags: [django, json, api, crud, pagination, filtering, testing, test-client, drf]
+facts:
+  - kind: internals
+    text: >-
+      JsonResponse сериализует переданный словарь через json.dumps и ставит Content-Type application/json; для значения, не являющегося словарём, нужно safe=False. Тело запроса доступно как request.body, а
+      request.POST заполняется только данными форм, поэтому для JSON он пуст. Декоратор require_http_methods отвечает 405 и ставит заголовок Allow.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/request-response/
+      - https://docs.djangoproject.com/en/6.1/topics/http/decorators/
+  - kind: internals
+    text: >-
+      Срез QuerySet превращается в SQL LIMIT/OFFSET, а len(qs) или цикл по нему загружает всё; count() выполняет один SELECT COUNT. Встроенный класс Paginator делает то же самое и умеет отдавать страницы по
+      номеру, а без явного order_by предупреждает о неупорядоченном списке.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/pagination/
+      - https://docs.djangoproject.com/en/6.1/ref/models/querysets/
+  - kind: misconception
+    text: >-
+      «Для JSON API обязательно нужен Django REST framework». Для небольших API хватает представлений и JsonResponse. DRF добавляет сериализаторы, аутентификацию, права, пагинацию и документацию; это экономит
+      время на больших API, но не заменяет понимания статусов, проверки данных и тестов.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/http/views/
+      - https://www.django-rest-framework.org/
+  - kind: performance
+    text: >-
+      Пагинация ограничивает и работу базы, и размер ответа. Большое значение OFFSET заставляет базу пропускать много строк, поэтому для очень глубоких страниц применяют пагинацию по курсору (по ключу последней
+      записи). Верхний предел page_size защищает сервер от запросов вида page_size=1000000.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/pagination/
+      - https://docs.djangoproject.com/en/6.1/topics/db/optimization/
+  - kind: real-world
+    text: >-
+      Тесты Django, наследующие TestCase, выполняют каждый тест в транзакции и откатывают её, а клиент self.client вызывает обработку запроса напрямую, без сети. CaptureQueriesContext и assertNumQueries фиксируют
+      число запросов и ловят регрессии вроде N+1 при изменении кода.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/testing/overview/
+      - https://docs.djangoproject.com/en/6.1/topics/testing/tools/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Клиент прислал в POST тело '[1, 2]' с Content-Type application/json. Что должен вернуть API, ожидающий объект?"
+      options:
+        - "500, потому что data.get упадёт"
+        - "400: корень JSON - не объект"
+        - "200 с пустым результатом"
+        - "404"
+      answer: 1
+      explanation: "Разбор прошёл, но тип неверный: это ошибка клиента, и тип нужно проверить явно, а не получить 500."
+    - id: q2
+      type: single
+      prompt: "Какой статус и заголовок уместны при успешном создании ресурса?"
+      options:
+        - "200 и Content-Length"
+        - "201 и Location"
+        - "204 и Allow"
+        - "302 и Location"
+      answer: 1
+      explanation: "201 Created сообщает о создании, Location указывает адрес нового ресурса."
+    - id: q3
+      type: single
+      prompt: "Почему при пагинации нужен order_by?"
+      options:
+        - "Без него SQL не выполнится"
+        - "Без порядка записи на границах страниц могут повторяться или теряться"
+        - "Без него не работает COUNT"
+        - "Это требование JSON"
+      answer: 1
+      explanation: "Порядок строк без ORDER BY не гарантирован, поэтому разные страницы могут пересекаться."
+    - id: q4
+      type: multiple
+      prompt: "Что верно про тестирование API через Client?"
+      options:
+        - "Для JSON нужно указывать content_type='application/json'"
+        - "response.json() разбирает тело ответа"
+        - "Для работы нужен запущенный сервер на порту"
+        - "CaptureQueriesContext позволяет проверить число запросов"
+      answer: [0, 1, 3]
+      explanation: "Client вызывает обработку напрямую, сервер и сокет не нужны."
+    - id: q5
+      type: single
+      prompt: "Когда csrf_exempt для API допустим?"
+      options:
+        - "Всегда"
+        - "Когда запросы авторизуются заголовком, а не cookie браузера"
+        - "Когда в API есть пагинация"
+        - "Только в тестах"
+      answer: 1
+      explanation: "CSRF-атака использует автоматическую отправку cookie браузером; без cookie-аутентификации защита от неё не нужна."
+exercise:
+  id: django.fundamentals.json-apis-and-testing.exercise
+  title: CRUD API заметок
+  prompt: |
+    В `notes_api.py` настроены модель `Note` (`title` до 100 символов, `done`) и `serialize(note)`. Допишите четыре функции и маршруты ниже строки «ВАШ КОД».
+
+    * `parse_json(request)` -> `(data, error_response)`: `Content-Type` не `application/json` - ответ `415` и `{"error": "content type must be application/json"}`; невалидный JSON или корень не объект - `400` и `{"error": "invalid json"}`.
+    * `validate(data)` -> `(очищенные_данные, ошибки)`: `title` - непустая строка после `strip` не длиннее 100 символов (коды `required`, `too_long`), `done` - `bool`, по умолчанию `False` (код `invalid`). Все ошибки собираются сразу.
+    * `note_list`: `GET` -> `{"results": [...]}` по возрастанию `id`; `POST` -> `201`, тело `serialize(note)`, заголовок `Location: /notes/<id>/`; ошибки проверки -> `400` и `{"errors": {"поле": "код"}}`; другие методы -> `405`.
+    * `note_detail(request, pk)`: `GET` -> `200`; `PUT` -> полная замена по тем же правилам, `200`; `DELETE` -> `204`; нет записи -> `404` и `{"error": "not found"}`; другие методы -> `405`.
+    * `urlpatterns`: `notes/` (`note-list`) и `notes/<int:pk>/` (`note-detail`).
+
+    CSRF не включён (в приложении нет `CsrfViewMiddleware`), поэтому `csrf_exempt` для тестов не нужен; в реальном API с cookie-сессиями вопрос стоит решать явно.
+  entryFile: notes_api.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Разбор: `request.content_type` содержит тип без параметров. `json.loads(request.body)` кидает `ValueError` (подкласс `json.JSONDecodeError`) на битом теле; затем `isinstance(data, dict)`. Верните пару `(data, None)` или `(None, JsonResponse(..., status=...))`."
+    - "`validate`: `title = data.get('title')`; `if not isinstance(title, str) or not title.strip(): errors['title'] = 'required'`, `elif len(title.strip()) > 100: ... 'too_long'`. `done = data.get('done', False)`; `isinstance(done, bool)`. Верните `(None, errors)` при ошибках."
+    - "`@require_http_methods(['GET', 'POST'])` сам даёт 405 и `Allow`. Для POST: `data, error = parse_json(request)`; `if error: return error`. Создание: `Note.objects.create(**clean)`; `response = JsonResponse(serialize(note), status=201)`; `response['Location'] = f'/notes/{note.pk}/'`."
+    - "Детальный: `Note.objects.get(pk=pk)` в `try/except Note.DoesNotExist` -> 404. DELETE: `note.delete()` и `JsonResponse({}, status=204)`. PUT: те же `parse_json` и `validate`, затем присвойте поля и `note.save()`. Маршруты: `path('notes/<int:pk>/', note_detail, name='note-detail')`."
+  tests:
+    - id: create-and-get
+      title: Создание, чтение и список
+      hint: "201, title без пробелов по краям, Location /notes/<id>/, GET по id и список в порядке id."
+    - id: validation-errors
+      title: Ошибки проверки
+      hint: "Пустой title -> required; длинный title и done='yes' -> обе ошибки сразу; ровно 100 символов допустимо; при ошибках запись не создаётся."
+    - id: update-delete
+      title: PUT, DELETE и 405
+      hint: "PUT заменяет запись целиком и проверяет данные; DELETE -> 204, потом 404; POST на notes/<id>/ -> 405 (require_http_methods)."
+    - id: bad-bodies
+      title: Битые тела запросов (скрытый)
+      hidden: true
+      hint: "Невалидный JSON и JSON-список -> 400 invalid json; Content-Type text/plain -> 415; в базе ничего нет."
+    - id: not-found-and-methods
+      title: 404, Allow и маршрут (скрытый)
+      hidden: true
+      hint: "DELETE несуществующей записи -> 404; DELETE на списке -> 405 с Allow: GET, POST; notes/abc/ не подходит под int-конвертер."
+    - id: unicode-and-empty
+      title: Юникод и пустой список (скрытый)
+      hidden: true
+      hint: "JsonResponse по умолчанию экранирует не-ASCII (\\u...), но response.json() декодирует обратно, поэтому русские заголовки сохраняются."
+challenge:
+  id: django.fundamentals.json-apis-and-testing.challenge
+  title: "Челлендж: пагинация и фильтры списка"
+  prompt: |
+    В `paginated_notes.py` список `GET /notes/` отдаёт все заметки. Реализуйте в `note_list`:
+
+    * фильтры: `?done=true|false` и `?q=<подстрока>` (поиск по `title` без учёта регистра); фильтры комбинируются;
+    * пагинацию: `?page=N` (с 1) и `?page_size=N` (по умолчанию 5, максимум 20);
+    * ответ `{"count": всего после фильтров, "page": N, "pages": число страниц (минимум 1), "results": [...]}` по возрастанию `id`;
+    * `done` не `true`/`false` -> `400` `{"error": "invalid done"}`; `page_size` не целое от 1 до 20 -> `400` `{"error": "invalid page_size"}`;
+    * `page` не целое >= 1 или больше `pages` -> `404` `{"error": "invalid page"}` (первая страница пустой выборки существует);
+    * не больше двух запросов к базе на вызов (COUNT и страница), страница выбирается срезом, а не загрузкой всего.
+  entryFile: paginated_notes.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Начните с фильтров: `qs = Note.objects.all()`; `qs = qs.filter(done=(done == 'true'))` после проверки значения; `qs.filter(title__icontains=q)`. Порядок уже задан в `Meta.ordering`."
+    - "Разбор чисел: `raw.isdigit()` отсекает `abc`, `-1`, `1.5`; затем `int(raw) >= 1`. `page_size > 20` или `< 1` -> 400, а `page` проверяйте после подсчёта страниц."
+    - "`count = qs.count()`; `pages = max(1, -(-count // size))` (деление с округлением вверх); `page > pages` -> 404. Страница: `qs[(page - 1) * size : page * size]`. Это два запроса."
+    - "Результат: `{'count': count, 'page': page, 'pages': pages, 'results': [serialize(n) for n in page_qs]}`. Не вызывайте `len(qs)` и `list(qs)` до среза - это загрузит всю таблицу."
+  tests:
+    - id: pagination
+      title: Страницы и размер
+      hint: "12 записей по 5: страницы 1..3, на последней две записи; page_size=10 даёт 2 страницы."
+    - id: filters
+      title: Фильтры done и q
+      hint: "done=true, done=false, q без учёта регистра и фильтры вместе со страницами; count считается после фильтров."
+    - id: errors
+      title: Ошибки параметров (скрытый)
+      hidden: true
+      hint: "invalid done и invalid page_size -> 400; page=0, -1, x, 4 при трёх страницах -> 404 invalid page."
+    - id: empty-and-limits
+      title: Пустая выборка и пределы (скрытый)
+      hidden: true
+      hint: "Пустая выборка: count 0, page 1, pages 1, results []. page_size=20 допустим; POST -> 405."
+    - id: query-count
+      title: Не больше двух запросов (скрытый)
+      hidden: true
+      hint: "COUNT и срез страницы; сериализация идёт по уже загруженным объектам."
+    - id: slice-not-all
+      title: Срез, а не загрузка всего (скрытый)
+      hidden: true
+      hint: "SQL страницы содержит LIMIT: берите срез QuerySet, а не list(qs)[a:b]."

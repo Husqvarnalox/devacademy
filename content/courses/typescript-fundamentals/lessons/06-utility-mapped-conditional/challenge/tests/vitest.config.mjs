@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   cacheDir: ".cache/vite",
   test: {
+    fsModuleCache: false, // кэш преобразованных модулей по умолчанию пишется в node_modules, а он доступен только для чтения
     environment: "node",
     include: ["tests/**/*.test.ts"],
     testTimeout: 30000,

@@ -1,0 +1,158 @@
+id: django.fundamentals.forms-and-validation
+title: Формы, валидация и защита от CSRF
+goal: Описывать Form и ModelForm, писать проверки отдельных полей и правила между полями с кодами ошибок и включать проверку CSRF, понимая, от чего она защищает.
+difficulty: medium
+estimatedMinutes: 100
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [django.fundamentals.views-and-templates, django.fundamentals.models-and-orm]
+related: [security.fundamentals.sessions-csrf-and-cookies, security.fundamentals.output-encoding-and-xss]
+next: [django.fundamentals.authentication-and-permissions]
+objectives:
+  - Описывать Form и ModelForm с явным списком полей и использовать только cleaned_data после is_valid().
+  - Писать clean_<поле>, clean() и add_error, сообщать об ошибках через ValidationError с кодом и понимать порядок проверок.
+  - Нормализовать ввод (strip, регистр) в clean_<поле> и объяснять, почему проверка уникальности ModelForm видит уже нормализованное значение.
+  - Включать CsrfViewMiddleware, передавать токен полем формы или заголовком, использовать ensure_csrf_cookie и csrf_exempt осознанно и проверять защиту через Client(enforce_csrf_checks=True).
+masteryCriteria:
+  - Вы пишете форму регистрации и проверяете тестом коды ошибок для каждого правила, а не тексты.
+  - Вы показываете, что POST без CSRF-токена получает 403 и ничего не создаёт, а с токеном проходит.
+  - Вы объясняете, чем опасно fields = "__all__" и почему проверка на клиенте не заменяет серверную.
+  - Вы называете случаи, где csrf_exempt допустим, и случаи, где это уязвимость.
+tags: [django, forms, modelform, validation, csrf, cleaned-data, validationerror]
+facts:
+  - kind: internals
+    text: >-
+      Проверка формы идёт в порядке: field.clean() для каждого поля, затем метод clean_<имя>() формы для этого поля, затем форменный clean(). Поле, не прошедшее собственную проверку, не попадает в cleaned_data,
+      поэтому clean() должен учитывать его отсутствие. ValidationError принимает code, а form.errors.get_json_data() отдаёт ошибки вместе с кодами.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/forms/validation/
+      - https://docs.djangoproject.com/en/6.1/ref/forms/api/
+  - kind: internals
+    text: >-
+      ModelForm после проверок полей вызывает проверки модели и validate_unique, поэтому код unique появляется для значения уже после clean_<поле>. Документация предупреждает, что "__all__" и exclude
+      автоматически открывают для ввода новые поля модели, и рекомендует перечислять fields явно.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/forms/modelforms/
+      - https://docs.djangoproject.com/en/6.1/ref/forms/validation/
+  - kind: security
+    text: >-
+      CSRF-защита Django: CsrfViewMiddleware требует для небезопасных методов токен из поля csrfmiddlewaretoken или заголовка (по умолчанию X-CSRFToken), согласованный с секретом в cookie или сессии. Тестовый Client
+      по умолчанию пропускает проверку; режим enforce_csrf_checks=True включает её. Отключение через csrf_exempt допустимо только там, где запрос не авторизуется cookie браузера.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/howto/csrf/
+      - https://docs.djangoproject.com/en/6.1/ref/csrf/
+      - https://docs.djangoproject.com/en/6.1/topics/testing/tools/
+  - kind: misconception
+    text: >-
+      «Атрибуты required, maxlength и pattern в HTML защищают данные». Это подсказки для браузера; запрос можно отправить напрямую (curl, скрипт). Источник истины - серверная проверка формы, а виджеты Django лишь добавляют
+      соответствующие атрибуты для удобства пользователя.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/forms/widgets/
+      - https://docs.djangoproject.com/en/6.1/ref/forms/validation/
+  - kind: real-world
+    text: >-
+      Пароль нельзя хранить как введён: в форме он только проверяется (длина, состав), а сохраняется хеш. В Django для этого есть валидаторы паролей (AUTH_PASSWORD_VALIDATORS) и хеширование в django.contrib.auth;
+      это тема следующего урока.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/auth/passwords/
+      - https://docs.djangoproject.com/en/6.1/topics/auth/default/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "В каком порядке выполняются проверки формы?"
+      options:
+        - "clean() формы, затем clean_<поле>, затем field.clean()"
+        - "field.clean() каждого поля, затем clean_<поле>, затем clean() формы"
+        - "Только clean_<поле>"
+        - "Порядок не определён"
+      answer: 1
+      explanation: "Сначала поле преобразует и проверяет значение, затем ваш clean_<поле>, в конце clean() видит все поля сразу."
+    - id: q2
+      type: single
+      prompt: "Почему в API-ответах и тестах лучше опираться на code ошибки, а не на message?"
+      options:
+        - "Код короче"
+        - "Тексты зависят от языка и могут меняться, а коды - стабильный контракт"
+        - "Message не бывает у ValidationError"
+        - "Коды шифруются"
+      answer: 1
+      explanation: "Сообщения локализуются и переписываются; code ('required', 'unique', ваш собственный) остаётся неизменным."
+    - id: q3
+      type: single
+      prompt: "Что произойдёт при POST без CSRF-токена к представлению под CsrfViewMiddleware?"
+      options:
+        - "Представление выполнится как обычно"
+        - "Ответ 403 до вызова представления"
+        - "Ответ 404"
+        - "Токен создастся автоматически"
+      answer: 1
+      explanation: "Middleware проверяет токен до вызова представления; без него запрос отклоняется."
+    - id: q4
+      type: multiple
+      prompt: "Что правильно сказано о ModelForm?"
+      options:
+        - "fields лучше перечислять явно"
+        - "Проверка unique выполняется для значения после clean_<поле>"
+        - "save() создаёт объект модели"
+        - "Для ModelForm clean_<поле> не работает"
+      answer: [0, 1, 2]
+      explanation: "Список полей защищает от приёма лишних данных; unique проверяется после нормализации; save() создаёт или обновляет объект."
+    - id: q5
+      type: single
+      prompt: "Какой аргумент нужен тестовому Client, чтобы он проверял CSRF так же, как браузер?"
+      options:
+        - "strict=True"
+        - "enforce_csrf_checks=True"
+        - "csrf=True"
+        - "follow=True"
+      answer: 1
+      explanation: "По умолчанию Client пропускает проверку CSRF; enforce_csrf_checks=True включает её."
+exercise:
+  id: django.fundamentals.forms-and-validation.exercise
+  title: Форма регистрации с проверками и CSRF
+  prompt: |
+    В `signup_forms.py` настроен Django: модель `Member` (`username` уникальный до 20 символов, `email`, `age`), `CsrfViewMiddleware` и таблица в памяти. Допишите форму и представление ниже строки «ВАШ КОД».
+
+    **`RegistrationForm(forms.ModelForm)`** - поля `username`, `email`, `age` из модели (список `fields` явный) плюс `password` и `password2` (`PasswordInput`). Правила и коды ошибок:
+
+    * `username`: после `strip` приводится к нижнему регистру и должен подходить под `USERNAME_RE` (иначе код `invalid_username`). Уникальность проверяет сам ModelForm (код `unique`, свою не пишите);
+    * `email`: сохраняется в нижнем регистре;
+    * `age`: меньше 18 - код `too_young`;
+    * `password`: минимум 8 символов (`too_short`) и хотя бы одна цифра (`no_digit`); при нарушении обоих правил в списке обе ошибки, в этом порядке;
+    * `password2` должен совпадать с `password`: иначе ошибка **на поле `password2`** с кодом `password_mismatch` (метод `clean`).
+
+    **`register(request)`**: `GET` - ответ `200` с текстом `register form` и выдача CSRF-cookie (`ensure_csrf_cookie`); `POST` - проверка формы: успех - `201` и JSON `{"id": ..., "username": ...}` (объект сохраняется); ошибка - `400` и JSON `{"errors": {"поле": ["код", ...]}}`; остальные методы - `405`. Маршрут: `register/` с именем `register`. Пароль в базе не сохраняется (в `Member` для него нет поля): это тема следующего урока.
+
+    Тесты используют `Client(enforce_csrf_checks=True)`.
+  entryFile: signup_forms.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Поля `password` и `password2` объявите на уровне класса: `forms.CharField(widget=forms.PasswordInput)`. Внутренний `class Meta: model = Member; fields = ['username', 'email', 'age']`. Правило поля - метод `clean_<имя>`: берёт `self.cleaned_data['имя']`, при нарушении `raise ValidationError('текст', code='код')`, иначе возвращает (нормализованное) значение."
+    - "`clean_username`: `value = self.cleaned_data['username'].strip().lower()`, затем `USERNAME_RE.fullmatch(value)`. Для двух ошибок пароля соберите список: `raise ValidationError([ValidationError('..', code='too_short'), ValidationError('..', code='no_digit')])`. Несовпадение паролей - в `clean()`: `cleaned = super().clean()`; сравнивайте через `cleaned.get(...)`; `self.add_error('password2', ValidationError('..', code='password_mismatch'))`."
+    - "Представление: `@ensure_csrf_cookie` поверх `@require_http_methods(['GET', 'POST'])`. Для POST: `form = RegistrationForm(request.POST)`; при `form.is_valid()` - `member = form.save()` и `JsonResponse({'id': member.pk, 'username': member.username}, status=201)`."
+    - "Ошибки с кодами: `form.errors.get_json_data()` даёт `{поле: [{'message': .., 'code': ..}]}`; преобразуйте: `{f: [e['code'] for e in errs] for f, errs in data.items()}` и верните `JsonResponse({'errors': ...}, status=400)`. Маршрут: `urlpatterns = [path('register/', register, name='register')]`."
+  tests:
+    - id: valid-registration
+      title: Успешная регистрация и нормализация
+      hint: "username '  Alice_1 ' -> 'alice_1' (CharField сам делает strip, lower - в clean_username); email в нижнем регистре; ответ 201 с id и username."
+    - id: field-rules
+      title: Правила полей и коды ошибок
+      hint: "Коды: invalid_username, invalid (от EmailField), too_young, too_short и no_digit (обе, в таком порядке). При ошибках Member не создаётся."
+    - id: password-mismatch
+      title: Совпадение паролей
+      hint: "Ошибка принадлежит полю password2 (add_error в clean) с кодом password_mismatch; отсутствующий password2 даёт required."
+    - id: csrf-enforced
+      title: "CSRF: без токена 403 (скрытый)"
+      hidden: true
+      hint: "Middleware уже подключён. Нужен @ensure_csrf_cookie на представлении, чтобы GET выдавал cookie, иначе клиенту нечем подписать POST."
+    - id: unique-username
+      title: Уникальность без учёта регистра (скрытый)
+      hidden: true
+      hint: "clean_username приводит имя к нижнему регистру, и проверка unique в ModelForm сравнивает уже нормализованное значение: код unique."
+    - id: edge-cases
+      title: Граничные случаи (скрытый)
+      hidden: true
+      hint: "Слишком длинное имя - max_length (до clean_username), нецелый возраст - invalid, пустой POST - required для всех пяти полей, 18 лет допустимо, DELETE - 405."

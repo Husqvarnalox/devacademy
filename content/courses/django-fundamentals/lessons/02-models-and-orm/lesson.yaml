@@ -1,0 +1,199 @@
+id: django.fundamentals.models-and-orm
+title: Модели и ORM, QuerySet и проблема N+1
+goal: Описывать модели, строить ленивые QuerySet с filter, exclude, annotate и aggregate, понимать, что такое миграция, и убирать N+1 с помощью select_related и prefetch_related, проверяя число запросов.
+difficulty: medium
+estimatedMinutes: 110
+requires: { python: ">=3.12", packages: ["Django>=6.1"] }
+prerequisites: [django.fundamentals.architecture-and-routing, databases.sql.joins, databases.sql.aggregation-and-grouping]
+related: [databases.sql.indexes-and-query-plans, databases.sql.sql-injection-and-safe-access]
+next: [django.fundamentals.views-and-templates]
+objectives:
+  - Описывать модели с полями, ForeignKey и related_name и объяснять, зачем нужны миграции и чем schema editor отличается от файлов миграций.
+  - Различать ленивые методы QuerySet (filter, exclude, annotate, order_by) и методы, выполняющие запрос (get, count, exists, aggregate, create), и предсказывать, когда уйдёт запрос.
+  - Выбирать между annotate и aggregate и писать Count/Avg/Sum/Min/Max, включая случаи с пустыми связями и distinct=True.
+  - Находить N+1 и устранять его через select_related, prefetch_related (в том числе Prefetch с queryset) и аннотации.
+  - Считать SQL-запросы через CaptureQueriesContext и закреплять бюджет запросов тестом.
+masteryCriteria:
+  - Вы пишете функцию, которая возвращает ленивый QuerySet и не делает ни одного запроса до обращения к результату.
+  - Вы показываете тестом, что число запросов не растёт с ростом числа строк (1 для select_related, 2 для prefetch_related).
+  - Вы объясняете, почему два Count по разным связям без distinct=True дают завышенные числа.
+  - Вы называете случаи, когда нужны prefetch_related, а не select_related.
+tags: [django, orm, models, queryset, migrations, annotate, aggregate, n-plus-one, select-related, prefetch-related]
+facts:
+  - kind: internals
+    text: >-
+      QuerySet ленивый: создание и цепочка filter/exclude/order_by не обращаются к базе. Запрос выполняется при переборе, срезе с шагом, repr, len(), list(), bool(). После первого вычисления результат
+      кэшируется в этом объекте QuerySet; новый QuerySet (например, после .filter()) снова обращается к базе.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/db/queries/
+      - https://docs.djangoproject.com/en/6.1/ref/models/querysets/
+  - kind: performance
+    text: >-
+      select_related делает один запрос с JOIN и подходит для связей «к одному» (ForeignKey, OneToOne). prefetch_related делает отдельный запрос на связанные объекты и соединяет их в Python, поэтому работает и для
+      «ко многим»; общее число запросов - один плюс число префетчей, независимо от числа строк. Объект Prefetch позволяет задать свой queryset для фильтра и порядка.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/ref/models/querysets/
+      - https://docs.djangoproject.com/en/6.1/topics/db/optimization/
+  - kind: internals
+    text: >-
+      Миграции - это файлы с операциями над схемой (CreateModel, AddField и др.). makemigrations сравнивает модели с текущим состоянием и создаёт такие файлы, migrate применяет их и записывает в таблицу
+      django_migrations. Для каждой операции Django использует schema editor конкретной базы данных; тот же редактор доступен напрямую (connection.schema_editor()) и принимает collect_sql=True, чтобы только собрать SQL.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/migrations/
+      - https://docs.djangoproject.com/en/6.1/ref/schema-editor/
+  - kind: misconception
+    text: >-
+      «ORM защищает от SQL-инъекций автоматически, поэтому о SQL можно не думать». Параметры в filter() передаются как параметры запроса, и это защищает; но raw(), extra(), RawSQL и cursor.execute с подстановкой
+      строк через f-строку или % снова открывают инъекцию. Кроме того, ORM легко порождает неэффективные запросы (N+1), которые видно только по числу SQL-запросов.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/security/
+      - https://docs.djangoproject.com/en/6.1/topics/db/sql/
+  - kind: performance
+    text: >-
+      Для проверки числа запросов в тестах Django есть assertNumQueries (в TestCase) и менеджер контекста CaptureQueriesContext, который записывает выполненные запросы соединения. Для TestCase с DEBUG=False
+      Django включает запись запросов на время контекста автоматически.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/testing/tools/
+      - https://docs.djangoproject.com/en/6.1/ref/models/querysets/
+  - kind: real-world
+    text: >-
+      Агрегации по нескольким связям в одном annotate дают перемножение строк из-за соединений. Документация рекомендует в таких случаях использовать Count(..., distinct=True) или выполнять отдельные подзапросы.
+    sources:
+      - https://docs.djangoproject.com/en/6.1/topics/db/aggregation/
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: "Сколько запросов выполнит строка qs = Book.objects.filter(price__gt=10).exclude(title='x').order_by('title') без дальнейших действий?"
+      options:
+        - "0"
+        - "1"
+        - "3"
+        - "Зависит от числа строк"
+      answer: 0
+      explanation: "QuerySet ленивый: запрос уходит при переборе, len(), list(), индексе и подобных обращениях."
+    - id: q2
+      type: multiple
+      prompt: "Какие из этих вызовов выполняют SQL-запрос сразу?"
+      options:
+        - "Book.objects.filter(price__gt=10)"
+        - "Book.objects.count()"
+        - "Book.objects.get(pk=1)"
+        - "Book.objects.order_by('title')"
+        - "Book.objects.aggregate(Sum('price'))"
+      answer: [1, 2, 4]
+      explanation: "count, get и aggregate возвращают не QuerySet, а значение, поэтому запрос выполняется сразу. filter и order_by только строят выборку."
+    - id: q3
+      type: single
+      prompt: "Цикл for book in Book.objects.all(): print(book.author.name) при 50 книгах и 50 разных авторах сделает примерно..."
+      options:
+        - "1 запрос"
+        - "2 запроса"
+        - "51 запрос"
+        - "100 запросов"
+      answer: 2
+      explanation: "Один запрос на книги и по одному на автора каждой книги: 1 + 50. Исправление - select_related('author'): один запрос с JOIN."
+    - id: q4
+      type: single
+      prompt: "Что подходит для загрузки всех книг каждого автора (связь «ко многим») за два запроса?"
+      options:
+        - "select_related('books')"
+        - "prefetch_related('books')"
+        - "annotate('books')"
+        - "values('books')"
+      answer: 1
+      explanation: "prefetch_related делает отдельный запрос за связанными строками и соединяет их в Python; select_related работает только для связей «к одному»."
+    - id: q5
+      type: numeric
+      prompt: "Сколько запросов выполнит [a.name for a in Author.objects.prefetch_related('books')], если вы затем перебираете a.books.all() для каждого автора из 100?"
+      answer: 2
+      tolerance: 0
+      explanation: "Один запрос за авторами и один за всеми их книгами, независимо от числа авторов."
+exercise:
+  id: django.fundamentals.models-and-orm.exercise
+  title: Запросы к каталогу книг и их стоимость
+  prompt: |
+    В файле `blog_orm.py` настроен Django (SQLite в памяти) и объявлены модели `Author`, `Book` (с `price` в центах и `year`) и `Review`; таблицы уже созданы через `schema_editor`. Не меняйте каркас; реализуйте функции ниже строки «ВАШ КОД». Тесты проверяют **результат и число SQL-запросов** (его считает `CaptureQueriesContext`).
+
+    * `titles_by_author(name)` - названия книг автора по алфавиту (`list[str]`), один запрос.
+    * `affordable_titles(max_price, exclude_author)` - названия книг с `price <= max_price`, кроме книг автора `exclude_author`, по алфавиту; один запрос.
+    * `author_stats()` - `[(имя, число_книг, средняя_цена_или_None)]` для **всех** авторов (и без книг) по имени; один запрос.
+    * `price_summary()` - словарь `{"count", "min", "max", "total"}` по всем книгам одним запросом (при пустой таблице `count == 0`, остальное `None`).
+    * `cheap_books()` - **ленивый** `QuerySet` книг от дешёвых к дорогим (при равной цене - по `id`); сама функция не должна выполнять запросов.
+    * `book_lines()` - `["<название> (<автор>)"]` по алфавиту названий; ровно **один** запрос при любом числе книг.
+    * `catalog()` - `{имя_автора: [названия по алфавиту]}` для всех авторов (ключи по имени, у автора без книг - пустой список); ровно **два** запроса при любом числе авторов.
+  entryFile: blog_orm.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - "Условия по связи пишутся через двойное подчёркивание: `Book.objects.filter(author__name=name)`. Список названий: `.order_by('title').values_list('title', flat=True)`, оберните в `list(...)`. Для «кроме» используйте `.exclude(author__name=...)`."
+    - "`author_stats`: `Author.objects.annotate(n=Count('books'), avg=Avg('books__price')).order_by('name')`; авторы без книг остаются. `price_summary`: `Book.objects.aggregate(count=Count('id'), min=Min('price'), max=Max('price'), total=Sum('price'))`. `cheap_books`: верните сам QuerySet `Book.objects.order_by('price', 'id')`, не `list(...)`."
+    - "`book_lines`: `Book.objects.select_related('author').order_by('title')` - автор приходит тем же JOIN-запросом, поэтому `book.author.name` в цикле запросов не делает. `catalog`: `Author.objects.order_by('name').prefetch_related(...)`; затем `a.books.all()` берёт предзагруженные объекты."
+    - "Порядок книг внутри автора задаёт `Prefetch('books', queryset=Book.objects.order_by('title'))`: `prefetch_related(Prefetch(...))`. Словарь: `{a.name: [b.title for b in a.books.all()] for a in authors}`. Не вызывайте `.filter()` или `.order_by()` на `a.books` в цикле - это новый запрос на каждого автора."
+  tests:
+    - id: filter-exclude
+      title: filter и exclude, один запрос
+      hint: "titles_by_author и affordable_titles возвращают list названий по алфавиту; каждый делает ровно один запрос."
+    - id: annotate-aggregate
+      title: annotate и aggregate
+      hint: "author_stats возвращает всех авторов, у Cid нет книг: (Cid, 0, None). price_summary - один запрос aggregate; для пустой таблицы count=0, остальное None."
+    - id: lazy-queryset
+      title: Ленивый QuerySet
+      hint: "cheap_books возвращает QuerySet без вычисления: ни одного запроса при создании, один при первом переборе, ноль при повторном; поверх него можно строить filter."
+    - id: select-related
+      title: select_related, один запрос (скрытый)
+      hidden: true
+      hint: "Книги и авторы берутся одним запросом с JOIN: Book.objects.select_related('author')."
+    - id: prefetch-related
+      title: prefetch_related, два запроса (скрытый)
+      hidden: true
+      hint: "Authors + books: два запроса. Порядок книг задайте через Prefetch(queryset=Book.objects.order_by('title')); авторы без книг получают пустой список."
+    - id: query-count-scale
+      title: Число запросов не растёт с данными (скрытый)
+      hidden: true
+      hint: "На большем наборе book_lines по-прежнему 1 запрос, catalog - 2. Если число запросов растёт вместе с данными, в цикле остался N+1."
+challenge:
+  id: django.fundamentals.models-and-orm.challenge
+  title: "Челлендж: исправьте N+1 в отчёте"
+  prompt: |
+    В `nplus1_report.py` две функции возвращают **правильный результат, но с N+1**: на каждую книгу и каждого автора выполняются лишние запросы. Сведите **каждую** функцию к **одному** SQL-запросу, не меняя формат строк.
+
+    * `report_lines()` -> `["<название> | <автор> | reviews=<n> | avg=<средняя оценка с одним знаком после точки или ->"]` по алфавиту названий (для книги без отзывов `reviews=0 | avg=-`).
+    * `author_summary()` -> `["<автор>: <книг> books, <отзывов> reviews"]` по имени автора, включая авторов без книг.
+
+    Подсказка по постановке: нужно `select_related`, `annotate` с `Count`/`Avg` и аккуратность с `distinct=True`, когда агрегируются две связи.
+  entryFile: nplus1_report.py
+  evaluation: harness
+  starter: challenge/starter
+  solution: challenge/solution
+  harness: challenge/harness
+  harnessEntry: check.py
+  hints:
+    - "Сначала посчитайте запросы: в цикле `book.reviews.all()` и `book.author` делают по запросу на книгу. Всё, что можно посчитать в базе (число отзывов, среднюю оценку), считайте аннотацией."
+    - "`Book.objects.select_related('author').annotate(n=Count('reviews'), avg=Avg('reviews__rating')).order_by('title')` - один запрос. Среднее может быть `None` (нет отзывов), форматируйте его отдельно."
+    - "`author_summary`: `Author.objects.annotate(nb=Count('books', distinct=True), nr=Count('books__reviews')).order_by('name')`. Переход через `books__reviews` соединяет две таблицы, и `Count('books')` без `distinct=True` посчитает книгу по разу на каждый отзыв."
+    - "Результат форматируйте уже после запроса, по аннотированным полям (`b.n`, `b.avg`, `a.nb`, `a.nr`). Лишний запрос появляется, как только вы обращаетесь к `b.author` без select_related или к `.count()` внутри цикла."
+  tests:
+    - id: report-lines
+      title: report_lines - правильно и за один запрос
+      hint: "Результат уже верный в starter; задача - один запрос: select_related('author') плюс annotate(Count('reviews'), Avg('reviews__rating'))."
+    - id: author-summary
+      title: author_summary - правильно и за один запрос
+      hint: "annotate на Author: Count('books', distinct=True) и Count('books__reviews'); автор без книг остаётся (LEFT JOIN) с нулями."
+    - id: average-value
+      title: Среднее и бюджет запросов
+      hint: "avg для Gamma (2, 3, 5) равно 3.33, формат .1f даёт 3.3; число запросов - 1."
+    - id: scales-with-data
+      hidden: true
+      title: Запросы не растут с данными (скрытый)
+      hint: "При 20 книгах и 17 книгах у Ann по-прежнему ровно один запрос на функцию."
+    - id: edge-cases
+      hidden: true
+      title: Книга без отзывов и автор без книг (скрытый)
+      hint: "Отзывов нет: Count даёт 0, Avg даёт None -> выводите '-'. Автор без книг остаётся в выборке."
+    - id: join-multiplication
+      hidden: true
+      title: Два JOIN не умножают строки (скрытый)
+      hint: "Count('books') при одновременном Count('books__reviews') считает книгу столько раз, сколько у неё отзывов; нужен distinct=True."

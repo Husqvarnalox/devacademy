@@ -29,7 +29,7 @@ help:
 	@echo "format            apply formatting"
 	@echo "validate-content  validate content + run reference solutions and samples"
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
-	@echo "node-env          npm ci tools/node-content into $(NODEENV) (Vitest, React, Testing Library; DOWNLOADS from npm)"
+	@echo "node-env          npm ci tools/node-content into $(NODEENV) (Vitest, React, Testing Library, Express, light-my-request; DOWNLOADS from npm)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
 	@echo "package           installer(s) for RID=$(RID) on this OS into artifacts/package (.app+.dmg on macOS, AppImage+.deb on Linux)"

@@ -1,0 +1,43 @@
+id: django-fundamentals
+version: 1.0.0
+title: "Django: основы"
+description: >-
+  Курс по созданию веб-приложений на Django для тех, кто прошёл «Python: продвинутый уровень» и «Базы данных и SQL». Семь уроков: архитектура и маршрутизация, модели и ORM
+  (QuerySet, проблема N+1), представления и шаблоны, формы и валидация, аутентификация и права доступа, middleware и жизненный цикл запроса, JSON API без DRF и тестирование.
+  Проект собирается в одном файле (settings.configure + django.setup), база - SQLite в памяти, все упражнения проверяются в процессе через django.test.Client: без сервера, сети и manage.py.
+  Административная панель, миграции как файлы, статические файлы, асинхронные представления, Django REST Framework и развёртывание в курс не входят.
+languageId: python
+level: 3
+track: django
+requires: [python-advanced, databases-sql]
+lessons:
+  - 01-architecture-and-routing
+  - 02-models-and-orm
+  - 03-views-and-templates
+  - 04-forms-and-validation
+  - 05-authentication-and-permissions
+  - 06-middleware-and-lifecycle
+  - 07-json-apis-and-testing
+framework:
+  id: django
+  version: "6.1.x"
+  docs:
+    - https://docs.djangoproject.com/en/6.1/
+    - https://docs.djangoproject.com/en/6.1/releases/6.1/
+    - https://docs.djangoproject.com/en/6.1/topics/testing/
+    - https://www.djangoproject.com/download/
+  compatibility: "Python 3.12-3.14 (Django 6.1; курс проверен на 3.14); Django 6.1.x (проверено 6.1.2); asgiref 3.12, sqlparse 0.6; SQLite в памяти. Это не LTS-ветка: поддержка 6.1 ожидается до апреля 2027 (основная) и декабря 2027 (расширенная), следующий LTS - 6.2."
+  deprecated:
+    - feature: "EMAIL_BACKEND, EMAIL_HOST и остальные EMAIL_*-настройки, mail.get_connection(), аргументы connection, fail_silently, auth_user и auth_password"
+      status: deprecated
+      note: "Django 6.1 вводит словарь настроек MAILERS и mail.mailers; старые настройки работают, но выдают предупреждения об устаревании. Почта в курс не входит."
+    - feature: "Предупреждения RemovedInDjango70Warning / RemovedInDjango71Warning"
+      status: renamed
+      note: "С календарным версионированием (DEP 20) выпуски, планировавшиеся как 7.0 и 7.1, называются Django 2028 и Django 2029; классы предупреждений названы RemovedInDjango2028Warning и RemovedInDjango2029Warning."
+  migrationNotes: |
+    **Что важно при обновлении проекта на Django 6.x.**
+
+    * Запускайте тесты с `python -W error::DeprecationWarning` (и `RemovedInDjango*Warning`), чтобы увидеть устаревшие вызовы до удаления.
+    * Читайте заметки к релизу (`releases/6.1`) и руководство `howto/upgrade-version`: переходите по одной минорной версии и сначала на последний патч текущей.
+    * Не прыгайте через LTS без нужды: для долгоживущих проектов берут LTS-ветки (6.2 ожидается в 2027 году).
+    * Пины курса: `Django==6.1.2` в `tools/python-dev-requirements.txt`; новая мажорная или минорная версия фреймворка требует нового издания курса, примеры не обновляются «молча».

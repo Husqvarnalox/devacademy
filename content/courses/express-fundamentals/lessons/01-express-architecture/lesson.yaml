@@ -1,0 +1,201 @@
+id: "express.fundamentals.architecture"
+title: "Устройство Express 5: приложение, запрос, ответ, маршруты"
+goal: "Объяснить, как Express строится поверх node:http, писать маршруты с параметрами пути и строкой запроса по правилам Express 5 и проверять приложение без сети."
+difficulty: "easy"
+estimatedMinutes: 60
+prerequisites:
+  - "nodejs.fundamentals.http-fundamentals"
+  - "javascript.fundamentals.promises-and-async"
+related:
+  - "express.fundamentals.middleware"
+next:
+  - "express.fundamentals.middleware"
+objectives:
+  - "Объяснить, что приложение Express - функция (req, res), и чем оно отличается от ручного обработчика node:http."
+  - "Описать путь запроса по стеку обработчиков и роль встроенного обработчика 404."
+  - "Писать маршруты с параметрами пути, необязательными частями и именованной подстановкой в синтаксисе Express 5."
+  - "Безопасно читать req.query: отличать строку от массива, проверять значения и числа."
+  - "Перечислить главные отличия Express 5 от Express 4: пути, async-обработчики, req.body, удалённые сигнатуры."
+masteryCriteria:
+  - "Вы возвращаете ответ ровно один раз (return после раннего ответа) и задаёте статус цепочкой res.status(...).json(...)."
+  - "Вы не доверяете req.query и req.params: проверяете тип и допустимые значения до использования."
+  - "Вы пишете пути в синтаксисе Express 5 (/*splat, /:name{.:ext}) и знаете, что неизвестный метод даёт 404, а не 405."
+  - "Вы проверяете приложение вызовом как функции, не открывая порт."
+tags:
+  - "express"
+  - "routing"
+  - "http"
+  - "express-5"
+  - "light-my-request"
+facts:
+  - kind: "internals"
+    text: "Приложение Express - функция с сигнатурой (req, res, next), поэтому его можно передать в http.createServer. Метод app.listen - короткая запись http.createServer(app).listen(...). На каждый запрос Express подменяет прототипы req и res своими, расширяющими http.IncomingMessage и http.ServerResponse, и проводит запрос по стеку обработчиков в порядке регистрации."
+    sources:
+      - "https://expressjs.com/en/5x/api/"
+      - "https://nodejs.org/api/http.html#httpcreateserveroptions-requestlistener"
+  - kind: "internals"
+    text: "В Express 5 путь разбирает path-to-regexp 8: подстановка обязана иметь имя ('/*splat', значение в req.params.splat - массив сегментов; '/{*splat}' совпадает и с корнем), необязательная часть записывается в фигурных скобках ('/:file{.:ext}'), символы ()[]?+! зарезервированы, регулярные выражения в строке пути не поддерживаются. Несовпавшие части отсутствуют в req.params, а сам объект создан без прототипа."
+    sources:
+      - "https://expressjs.com/en/guide/migrating-5.html"
+      - "https://expressjs.com/en/guide/routing.html"
+  - kind: "historical"
+    text: "Главное изменение Express 5 для повседневного кода: обработчик, возвращающий промис, при отклонении передаёт значение в middleware ошибок как next(err). В Express 4 необработанное отклонение оставляло запрос без ответа, поэтому код обёртывали в try/catch или в свою функцию-обёртку."
+    sources:
+      - "https://expressjs.com/en/guide/migrating-5.html"
+      - "https://expressjs.com/en/guide/error-handling.html"
+  - kind: "misconception"
+    text: "«Express вернёт 405, если метод не подходит». Нет: если ни один маршрут не совпал по паре «метод + путь», запрос идёт дальше по стеку и заканчивается встроенным 404. Ответ 405 с заголовком Allow приложение формирует само."
+  - kind: "misconception"
+    text: "«req.query.x - всегда строка». Простой разбор строки запроса в Express 5 даёт массив при повторяющемся параметре (?x=1&x=2); вложенные формы вида x[a]=1 не разворачиваются и остаются ключами 'x[a]'. Значения всегда строки: числа нужно приводить и проверять самостоятельно."
+    sources:
+      - "https://expressjs.com/en/guide/migrating-5.html"
+      - "https://expressjs.com/en/5x/api/request#reqquery"
+  - kind: "real-world"
+    text: "Для проверки приложения без сети используется light-my-request (библиотека проекта Fastify): она создаёт искусственные запрос и ответ и вызывает любую функцию (req, res), в том числе приложение Express. Проверка идёт в том же процессе, порт не открывается - это важно и для песочницы упражнений, где сетевые вызовы запрещены."
+    sources:
+      - "https://github.com/fastify/light-my-request"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что возвращает вызов express()?"
+      options:
+        - "Объект HTTP-сервера, уже слушающий порт 3000."
+        - "Функцию (req, res), которую можно передать в http.createServer; порт открывает только listen."
+        - "Промис с готовым приложением."
+        - "Класс, от которого наследуют своё приложение."
+      answer: 1
+      explanation: "Приложение - обычная функция-обработчик. app.listen(3000) равносильно http.createServer(app).listen(3000)."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой путь в Express 5 совпадёт с /files/report и с /files/report.pdf и положит расширение в req.params.ext, если оно есть?"
+      options:
+        - "/files/:name.:ext?"
+        - "/files/:name{.:ext}"
+        - "/files/*"
+        - "/files/[name].[ext]"
+      answer: 1
+      explanation: "В Express 5 необязательная часть записывается в фигурных скобках. Знак ? после параметра и регулярные выражения в строке пути не поддерживаются."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что из перечисленного верно для Express 5?"
+      options:
+        - "Отклонённый промис из async-обработчика передаётся в middleware ошибок."
+        - "Метод res.json(obj, 201) по-прежнему допустим."
+        - "req.body равен undefined, пока тело не разобрано парсером."
+        - "Подстановка /*splat кладёт в req.params.splat массив сегментов."
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Форма res.json(obj, status) удалена: используйте res.status(201).json(obj). Остальные утверждения описывают именно Express 5."
+    - id: "q4"
+      type: "single"
+      prompt: "Клиент отправил POST на путь, для которого есть только GET-маршрут. Что вернёт приложение Express, в котором нет других обработчиков?"
+      options:
+        - "405 Method Not Allowed с заголовком Allow: GET."
+        - "404: маршрут не совпал, и встроенный обработчик отвечает «Cannot POST /путь»."
+        - "500, потому что обработчик не найден."
+        - "200 с пустым телом."
+      answer: 1
+      explanation: "Express не различает «нет пути» и «неподходящий метод». 405 нужно формировать самостоятельно."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется встроенный в Express метод, который отправляет JSON и ставит заголовок Content-Type: application/json? Ответьте в виде res.метод (одним словом после точки)."
+      answer:
+        - "res.json"
+        - "json"
+      explanation: "res.json(obj) сериализует значение и выставляет Content-Type; статус до него задаёт res.status(code)."
+exercise:
+  id: "express.fundamentals.architecture.exercise"
+  title: "Маршруты с параметрами и строкой запроса"
+  prompt: |
+    Нужно написать приложение Express, которое отвечает JSON и проверяется тестами Vitest. Запросы подаются прямо в приложение через `light-my-request`: порт не открывается, сети нет.
+
+    В `src/app.mjs` реализуйте `createApp()` - функцию, возвращающую приложение Express 5:
+
+    | Маршрут | Ответ |
+    |---|---|
+    | `GET /hello/:name?lang=` | `{ "greeting": "Hello, Ann!" }`. Языки `en` (по умолчанию, `Hello`), `ru` (`Привет`), `es` (`Hola`). Любое другое значение `lang`, пустое значение или несколько значений - `400` и `{ "error": "unsupported lang" }` |
+    | `GET /sum?a=&b=` | `{ "sum": 3 }`. Если `a` или `b` отсутствует, пустой, не число или не конечное число - `400` и `{ "error": "a and b must be numbers" }` |
+    | `GET /files/:name{.:ext}` | `{ "name": "report", "ext": "pdf" }`; без расширения `ext` равен `null` |
+    | `GET /static/*splat` | `{ "segments": ["css", "app.css"] }` |
+    | `GET /tags?tag=a&tag=b` | `{ "tags": ["a", "b"] }`; один `tag` - массив из одного элемента, ни одного - `[]` |
+    | всё остальное | `404` и `{ "error": "not found", "path": "<req.path>" }` |
+
+    Подсказки по Express 5: статус задаётся цепочкой `res.status(400).json(...)`, ответ нужно вернуть один раз (`return`), `req.query.tag` может быть строкой или массивом, а ключ `constructor` в `lang` не должен проходить.
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/app.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Каждый маршрут - вызов app.get(путь, (req, res) => { ... }). Ответ JSON: res.json(объект); статус до него: res.status(400).json(...). Обработчик 404 - app.use((req, res) => ...) в самом конце, после всех маршрутов."
+    - "Для /hello сначала достаньте lang = req.query.lang ?? \"en\". Это может быть массив или строка вроде \"constructor\": проверьте typeof lang === \"string\" и Object.hasOwn(GREETINGS, lang) до обращения к таблице. После раннего ответа делайте return."
+    - "Для /sum не пользуйтесь Number(req.query.a) напрямую: Number(\"\") равно 0. Сначала проверьте, что значение - непустая строка, затем Number(...) и Number.isFinite. Для /tags подойдёт [].concat(req.query.tag ?? [])."
+    - "Пути: \"/files/:name{.:ext}\" (необязательная часть в фигурных скобках, req.params.ext может отсутствовать - используйте ?? null) и \"/static/*splat\" (req.params.splat - уже массив сегментов)."
+  tests:
+    - id: "hello-default"
+      title: "hello: приветствие по умолчанию"
+      match: "Маршруты: параметры пути > hello: приветствие по умолчанию"
+      hint: "res.json({ greeting }) ставит JSON-заголовок; язык по умолчанию en."
+    - id: "hello-lang"
+      title: "hello: язык из строки запроса"
+      match: "Маршруты: параметры пути > hello: язык из строки запроса"
+      hint: "Таблица приветствий en/ru/es и чтение req.query.lang."
+    - id: "sum-ok"
+      title: "sum: складывает числа"
+      match: "Маршруты: query и сумма > sum: складывает числа"
+      hint: "Значения query - строки: приведите их к Number до сложения."
+    - id: "not-found"
+      title: "Неизвестный путь: JSON 404"
+      match: "Маршруты: 404 > неизвестный путь*"
+      hint: "Обработчик app.use без пути в конце цепочки ловит всё, что не совпало; req.path не содержит строку запроса."
+    - id: "hello-encoded"
+      title: "hello: процентная запись в имени (скрытый)"
+      match: "Маршруты: параметры пути > hello: имя декодируется*"
+      hidden: true
+      hint: "req.params уже декодированы Express; ничего декодировать вручную не нужно."
+    - id: "hello-bad-lang"
+      title: "hello: неизвестный язык (скрытый)"
+      match: "Маршруты: параметры пути > hello: неизвестный язык*"
+      hidden: true
+      hint: "Проверьте typeof lang === \"string\" и Object.hasOwn: значения constructor, пустая строка и массив тоже недопустимы."
+    - id: "sum-bad"
+      title: "sum: плохие параметры (скрытый)"
+      match: "Маршруты: query и сумма > sum: плохие параметры*"
+      hidden: true
+      hint: "Пустая строка, отсутствие параметра, массив и Infinity - всё это 400."
+    - id: "tags"
+      title: "tags: повторяющийся параметр (скрытый)"
+      match: "Маршруты: query и сумма > tags*"
+      hidden: true
+      hint: "Один tag - строка, несколько - массив, ни одного - undefined: приведите всё к массиву."
+    - id: "files"
+      title: "files: необязательное расширение (скрытый)"
+      match: "Маршруты: синтаксис путей Express 5 > files*"
+      hidden: true
+      hint: "Путь /files/:name{.:ext}; если ext нет, его нет и в req.params."
+    - id: "static"
+      title: "static: именованная подстановка (скрытый)"
+      match: "Маршруты: синтаксис путей Express 5 > static*"
+      hidden: true
+      hint: "Путь /static/*splat; req.params.splat уже массив."
+    - id: "method-404"
+      title: "Неподходящий метод даёт 404 (скрытый)"
+      match: "Маршруты: 404 > неподходящий метод*"
+      hidden: true
+      hint: "Не добавляйте обработчики для POST: Express сам не вернёт 405, а завершит запрос вашим обработчиком 404."

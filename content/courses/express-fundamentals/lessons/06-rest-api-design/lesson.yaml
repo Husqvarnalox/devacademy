@@ -1,0 +1,273 @@
+id: "express.fundamentals.rest-api"
+title: "Проектирование REST API"
+goal: "Проектировать HTTP API на Express вокруг ресурсов: методы и статусы, идемпотентность PUT и DELETE, пагинация, фильтры, 405 с Allow и условные запросы с ETag."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "express.fundamentals.error-handling"
+related:
+  - "system-design.fundamentals.consistency-and-idempotency"
+  - "express.fundamentals.validation-security"
+next:
+  - "express.fundamentals.testing"
+objectives:
+  - "Выбирать адреса-существительные и методы HTTP для операций над ресурсом и использовать подходящие статусы (201 с Location, 204, 404, 405 с Allow, 400/422)."
+  - "Объяснять идемпотентность GET, PUT, DELETE и неидемпотентность POST и её значение для повторных запросов."
+  - "Реализовывать список с фильтрами и пагинацией limit/offset, проверять параметры и возвращать 400 при ошибках."
+  - "Реализовывать PUT как полную замену без создания несуществующего ресурса."
+  - "Объяснять ETag, If-None-Match (304) и If-Match (412) и их сравнение."
+masteryCriteria:
+  - "Ваши статусы соответствуют смыслу результата, а не равны 200 для всего."
+  - "Список имеет определённый порядок, ограниченный limit и проверку параметров."
+  - "Повторный PUT и DELETE не ломают состояние приложения."
+  - "Вы не берёте идентификатор ресурса из тела запроса."
+tags:
+  - "express"
+  - "rest"
+  - "api-design"
+  - "http-status"
+  - "pagination"
+  - "etag"
+facts:
+  - kind: "internals"
+    text: "Методы GET, PUT и DELETE определены в HTTP как идемпотентные (повторение запроса даёт то же состояние на сервере), а POST - нет. Идемпотентность описывает эффект на состояние, поэтому повторный DELETE может вернуть другой статус (например, 404), не нарушая её."
+    sources:
+      - "https://www.rfc-editor.org/rfc/rfc9110.html#name-idempotent-methods"
+      - "https://developer.mozilla.org/en-US/docs/Glossary/Idempotent"
+  - kind: "internals"
+    text: "Ответ 405 Method Not Allowed обязан содержать заголовок Allow со списком методов, поддерживаемых ресурсом. Ответ 201 Created обычно сопровождается заголовком Location с адресом созданного ресурса."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/405"
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/201"
+  - kind: "internals"
+    text: "По умолчанию Express вычисляет слабый ETag для ответов res.send и res.json (настройка etag равна weak) и отвечает 304, если запрос содержит совпадающий If-None-Match. Настройка app.set(\"etag\", false) отключает это."
+    sources:
+      - "https://expressjs.com/en/5x/api/application#appset"
+      - "https://expressjs.com/en/5x/api/response#resjson"
+  - kind: "internals"
+    text: "If-None-Match использует слабое сравнение ETag (префикс W/ не учитывается) и принимает список тегов или значение *; If-Match использует сильное сравнение, и при несовпадении сервер отвечает 412 Precondition Failed. Так реализуют оптимистичную блокировку и избегают потерянных обновлений."
+    sources:
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/If-None-Match"
+      - "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/If-Match"
+  - kind: "misconception"
+    text: "«PUT - это обновить некоторые поля». PUT заменяет представление ресурса целиком, поэтому отсутствующие в теле поля не сохраняются. Частичное изменение выражают методом PATCH, а идемпотентность PUT следует именно из полной замены."
+  - kind: "real-world"
+    text: "Пагинация смещением (offset/limit) проста, но при вставках и удалениях между запросами записи повторяются или пропускаются, а большие смещения дороги для базы данных; для лент и больших наборов обычно используют курсорную пагинацию."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой ответ правильно завершает успешное создание ресурса методом POST /tasks?"
+      options:
+        - "200 и пустое тело."
+        - "201 Created с заголовком Location на новый ресурс."
+        - "204 No Content."
+        - "302 Found."
+      answer: 1
+      explanation: "201 сообщает, что ресурс создан, а Location сообщает его адрес."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие методы идемпотентны?"
+      options:
+        - "GET"
+        - "PUT"
+        - "DELETE"
+        - "POST"
+      answer:
+        - 0
+        - 1
+        - 2
+      explanation: "POST повторно создаёт новую запись, поэтому его повтор после обрыва связи небезопасен без дополнительных мер."
+    - id: "q3"
+      type: "single"
+      prompt: "Что обязан содержать ответ 405 Method Not Allowed?"
+      options:
+        - "Заголовок Allow со списком допустимых методов."
+        - "Заголовок Location."
+        - "Заголовок Retry-After."
+        - "Тело с трассировкой."
+      answer: 0
+      explanation: "Клиент должен узнать, какие методы поддерживает адрес."
+    - id: "q4"
+      type: "single"
+      prompt: "Клиент отправил PUT /tasks/5 с If-Match: \"v1\", но задача уже изменена и её ETag равен \"v2\". Что ответит сервер?"
+      options:
+        - "200 и применит изменение."
+        - "304 Not Modified."
+        - "412 Precondition Failed."
+        - "404 Not Found."
+      answer: 2
+      explanation: "Условие If-Match не выполнено: версия на сервере другая. Это защита от потерянного обновления."
+    - id: "q5"
+      type: "short"
+      prompt: "Каким статусом отвечает GET с совпавшим If-None-Match, когда ресурс не изменился (три цифры)?"
+      answer:
+        - "304"
+      explanation: "304 Not Modified возвращается без тела: клиент использует свою копию."
+exercise:
+  id: "express.fundamentals.rest-api.exercise"
+  title: "CRUD задач в памяти"
+  prompt: |
+    Реализуйте REST-ресурс «задачи» в `src/app.mjs`: `createApp()` возвращает приложение с состоянием внутри. Заготовка уже подключает `express.json()`, общий 404 и обработчик ошибок парсера. Нужно добавить маршруты:
+
+    * `POST /tasks` - создание (`201`, `Location`, тело задачи; `400 validation_failed` при неверном теле);
+    * `GET /tasks` - список с фильтрами `done`, `q` и пагинацией `limit` (1-50, по умолчанию 10) и `offset` (по умолчанию 0): ответ `{ items, total, limit, offset }`, `400 invalid_query` при неверных параметрах;
+    * `GET /tasks/:id`, `PUT /tasks/:id` (полная замена, без создания), `DELETE /tasks/:id` (`204`, повтор - `404`);
+    * `405 method_not_allowed` с заголовком `Allow` для остальных методов на `/tasks` и `/tasks/:id`.
+
+    Подробный контракт (форматы, коды ошибок, правила для идентификаторов) описан комментарием в начале функции `createApp`. Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/app.mjs"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Состояние (Map и счётчик id) создайте внутри createApp. Маршруты: app.route(\"/tasks\").get(...).post(...).all(405) и app.route(\"/tasks/:id\").get(...).put(...).delete(...).all(405) - до обработчика 404."
+    - "Функция checkTask(body, { requireDone }) избавит от дублирования: для POST поле done необязательно, для PUT обязательно. Лишние поля (в том числе id) просто не копируйте в задачу."
+    - "Параметры списка проверяйте строго: typeof value === \"string\" и /^\\d+$/, затем диапазон. Фильтруйте, потом считайте total, потом делайте slice(offset, offset + limit)."
+    - "Для 404 по неверному id: /^[1-9]\\d*$/.test(req.params.id) перед Number(). Для методов, которых нет у адреса, отвечайте 405: res.set(\"Allow\", \"GET, PUT, DELETE\")."
+  tests:
+    - id: "create"
+      title: "Создание задачи"
+      match: "Создание > POST создаёт задачу*"
+      hint: "res.status(201).location(`/tasks/${id}`).json(task); id выдаются подряд с 1."
+    - id: "create-invalid"
+      title: "Некорректное тело (скрытый)"
+      match: "Создание > некорректное тело*"
+      hidden: true
+      hint: "title: строка 1-100 символов, не пустая после trim; done - boolean. Ответ 400 validation_failed."
+    - id: "read"
+      title: "Задача по id и 404"
+      match: "Чтение и список > GET по id*"
+      hint: "/^[1-9]\\d*$/ до Number(): \"abc\", \"0\", \"1.5\" и \"-1\" дают 404 task_not_found."
+    - id: "filters"
+      title: "Фильтры done и q (скрытый)"
+      match: "Чтение и список > фильтры*"
+      hidden: true
+      hint: "done сравнивайте со строками \"true\" и \"false\"; q - toLowerCase().includes(...)."
+    - id: "pagination"
+      title: "Пагинация"
+      match: "Чтение и список > пагинация*"
+      hint: "slice(offset, offset + limit); total считается после фильтров и до пагинации."
+    - id: "bad-query"
+      title: "Неверные параметры (скрытый)"
+      match: "Чтение и список > неверные параметры*"
+      hidden: true
+      hint: "Повторяющиеся параметры приходят массивом: проверяйте typeof === \"string\" и шаблон /^\\d+$/."
+    - id: "put"
+      title: "PUT заменяет целиком"
+      match: "PUT и DELETE > PUT заменяет*"
+      hint: "id берётся из адреса, а не из тела; повторный такой же PUT даёт тот же результат."
+    - id: "put-errors"
+      title: "PUT: 400 и 404 (скрытый)"
+      match: "PUT и DELETE > PUT с неполным телом*"
+      hidden: true
+      hint: "Для PUT обязательны и title, и done; для несуществующего id ответ 404 и никакой записи."
+    - id: "delete"
+      title: "DELETE и идентификаторы (скрытый)"
+      match: "PUT и DELETE > DELETE*"
+      hidden: true
+      hint: "res.status(204).end(); счётчик id не уменьшается после удаления."
+    - id: "405"
+      title: "405 с Allow (скрытый)"
+      match: "Методы и ошибки > неподдерживаемый метод*"
+      hidden: true
+      hint: "app.route(path).get(...).post(...).all(...): all срабатывает только для остальных методов; res.set(\"Allow\", ...)."
+    - id: "errors"
+      title: "Ошибки JSON и 404 (скрытый)"
+      match: "Методы и ошибки > неверный JSON*"
+      hidden: true
+      hint: "Ошибка парсера уже обрабатывается в заготовке; проверьте, что маршруты стоят до 404-обработчика."
+    - id: "isolation"
+      title: "Приложения независимы (скрытый)"
+      match: "Методы и ошибки > два приложения*"
+      hidden: true
+      hint: "Map и счётчик id создавайте внутри createApp(), а не на уровне модуля."
+challenge:
+  id: "express.fundamentals.rest-api.challenge"
+  title: "Условные запросы: ETag, If-None-Match и If-Match"
+  prompt: |
+    Приложение «задачи» в `src/app.mjs` уже готово и использует функции из `src/etag.mjs`, которые нужно написать. Автоматические слабые ETag Express в нём отключены (`app.set("etag", false)`).
+
+    * `etagOf(value)` - строгий ETag: первые 16 шестнадцатеричных символов SHA-1 от `JSON.stringify(value)` в двойных кавычках.
+    * `ifNoneMatch(header, etag)` - слабое сравнение: без префикса `W/`; `*` совпадает всегда; список тегов через запятую; отсутствие заголовка - `false`.
+    * `ifMatch(header, etag)` - сильное сравнение: слабые теги не совпадают, `*` совпадает, отсутствие заголовка - `true` (условия нет).
+    * `sendConditional(req, res, body)` - ставит `ETag`; для `GET` и `HEAD` при совпадении `If-None-Match` отвечает `304` без тела, иначе `res.json(body)`.
+
+    Приложение использует `sendConditional` для `GET /tasks` и `GET /tasks/:id`, а `ifMatch` проверяет в `PUT /tasks/:id` (`412 precondition_failed`). Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "javascript"
+  entryFile: "src/etag.mjs"
+  starter: "challenge/starter"
+  solution: "challenge/solution"
+  tests_dir: "challenge/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "express", "light-my-request"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Список тегов: header.split(\",\").map((tag) => tag.trim()). Для слабого сравнения у каждого тега уберите ведущее W/: tag.startsWith(\"W/\") ? tag.slice(2) : tag."
+    - "ifMatch отличается от ifNoneMatch тем, что сравнение строгое: tag === etag и tag не начинается с W/. Значение undefined здесь означает «условия нет» (true), а там - «не совпало» (false)."
+    - "sendConditional: const etag = etagOf(body); res.set(\"ETag\", etag); затем проверка метода (GET или HEAD) и ifNoneMatch(req.get(\"If-None-Match\"), etag); при совпадении res.status(304).end()."
+    - "Тег зависит только от тела: JSON.stringify учитывает порядок ключей, поэтому один и тот же объект всегда даёт один и тот же тег."
+  tests:
+    - id: "etag-of"
+      title: "etagOf"
+      match: "Функции условных заголовков > etagOf*"
+      hint: "createHash(\"sha1\").update(JSON.stringify(value)).digest(\"hex\").slice(0, 16), обернуть в двойные кавычки."
+    - id: "if-none-match"
+      title: "ifNoneMatch"
+      match: "Функции условных заголовков > ifNoneMatch*"
+      hint: "Уберите префикс W/ у обоих тегов; \"*\" - всегда true; список разделяется запятыми."
+    - id: "if-match"
+      title: "ifMatch (скрытый)"
+      match: "Функции условных заголовков > ifMatch*"
+      hidden: true
+      hint: "Теги с W/ не совпадают никогда; отсутствие заголовка (undefined) - условие выполнено."
+    - id: "get-304"
+      title: "Условный GET - 304"
+      match: "Условный GET > GET отдаёт ETag*"
+      hint: "sendConditional: res.set(\"ETag\", tag); при совпадении res.status(304).end()."
+    - id: "forms"
+      title: "Формы If-None-Match (скрытый)"
+      match: "Условный GET > другие формы*"
+      hidden: true
+      hint: "\"*\", список и слабый тег должны давать 304, чужой тег - 200."
+    - id: "changed"
+      title: "Тег меняется после PUT (скрытый)"
+      match: "Условный GET > после изменения*"
+      hidden: true
+      hint: "ETag вычисляется от тела ответа: изменилось тело - изменился тег."
+    - id: "list"
+      title: "ETag у списка (скрытый)"
+      match: "Условный GET > список задач*"
+      hidden: true
+      hint: "Тот же sendConditional подходит и для списка."
+    - id: "errors"
+      title: "Ошибки без ETag (скрытый)"
+      match: "Условный GET > ошибки не получают*"
+      hidden: true
+      hint: "ETag ставит только sendConditional и успешные ответы приложения."
+    - id: "if-match-put"
+      title: "Условный PUT (скрытый)"
+      match: "Условный PUT > If-Match*"
+      hidden: true
+      hint: "ifMatch(req.get(\"If-Match\"), etagOf(текущая задача)); false - 412 precondition_failed."
