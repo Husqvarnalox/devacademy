@@ -39,6 +39,9 @@ public class ViewSmokeTests
 
         await Helpers.CompleteOnboardingAsync(host);
         Settle(window);
+        Assert.NotNull(window.GetVisualDescendants().OfType<DashboardView>().SingleOrDefault());
+        await host.Main.ShowCatalogAsync();
+        Settle(window);
         Assert.NotNull(window.GetVisualDescendants().OfType<CatalogView>().SingleOrDefault());
 
         await host.Main.OpenCourseAsync(Helpers.CourseId);

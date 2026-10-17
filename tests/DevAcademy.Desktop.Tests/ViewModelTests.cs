@@ -27,13 +27,15 @@ public class ViewModelTests
     }
 
     [Fact]
-    public async Task Finishing_onboarding_persists_the_profile_and_opens_the_catalog_next_time()
+    public async Task Finishing_onboarding_persists_the_profile_and_opens_the_dashboard_next_time()
     {
         var dir = Path.Combine(Path.GetTempPath(), "devacademy-ui-" + Guid.NewGuid().ToString("N"));
         using (var host = new TestHost(dir))
         {
             await Helpers.CompleteOnboardingAsync(host);
-            Assert.IsType<CatalogViewModel>(host.Main.Current);
+            Assert.IsType<DashboardViewModel>(host.Main.Current);
+            Assert.True(host.Main.IsDashboardSection);
+            Assert.False(host.Main.IsCatalogSection);
             var profile = await host.Services.Settings.GetProfileAsync();
             Assert.NotNull(profile);
             Assert.Contains(Helpers.CourseId, profile!.EnrolledCourseIds);
@@ -41,7 +43,8 @@ public class ViewModelTests
         using (var again = new TestHost(dir))
         {
             await again.Main.InitializeAsync();
-            Assert.IsType<CatalogViewModel>(again.Main.Current);
+            Assert.IsType<DashboardViewModel>(again.Main.Current);
+            Assert.True(again.Main.IsDashboardSection);
         }
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         Directory.Delete(dir, true);

@@ -82,6 +82,9 @@ public sealed partial class ProblemsViewModel : ObservableObject
         await LoadAsync();
     }
 
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private Task ResetFiltersAsync() => ApplyFiltersAsync(null, null);
+
     public async Task LoadAsync()
     {
         var rows = await _s.Problems.ListAsync(SelectedDifficulty.Value, SelectedSolved.Value);

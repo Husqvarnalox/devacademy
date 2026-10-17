@@ -6,28 +6,28 @@
              x:Class="DevAcademy.Desktop.Views.ComparisonView"
              x:DataType="vm:ComparisonViewModel">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-    <StackPanel MaxWidth="1400" Margin="24,20" Spacing="14" HorizontalAlignment="Stretch">
-      <Button Content="{loc:T Roadmap_Back}" Command="{Binding BackCommand}" Classes="flat" HorizontalAlignment="Left" Padding="0" />
+    <StackPanel MaxWidth="1040" Margin="32,32,32,48" Spacing="24" HorizontalAlignment="Stretch">
+      <Button Content="{loc:T Roadmap_Back}" Command="{Binding BackCommand}" Classes="link" HorizontalAlignment="Left" />
       <TextBlock Text="{Binding Title}" Classes="h1" TextWrapping="Wrap" />
       <StackPanel Spacing="4" IsVisible="{Binding IsNarrow}">
-        <TextBlock Text="{loc:T Comparison_PickSubject}" Classes="caption" />
+        <TextBlock Text="{loc:T Comparison_PickSubject}" Classes="label" />
         <ComboBox Name="SubjectPicker" ItemsSource="{Binding Subjects}" SelectedItem="{Binding SelectedSubject}"
                   HorizontalAlignment="Stretch" AutomationProperties.Name="{loc:T Comparison_PickSubject}" />
       </StackPanel>
       <!-- The grid itself is built in code (criteria rows x subject columns); see ComparisonView.axaml.cs. -->
       <Grid Name="TheGrid" />
-      <Border Classes="panel" Padding="14">
-        <StackPanel Spacing="6">
+      <Border Classes="panel" Padding="16">
+        <StackPanel Spacing="8">
           <TextBlock Text="{loc:T Comparison_Verdict}" Classes="h3" />
           <md:MarkdownViewer Markdown="{Binding VerdictGuidance}" LinkCommand="{Binding OpenLinkCommand}" />
         </StackPanel>
       </Border>
-      <StackPanel Spacing="2">
+      <StackPanel Spacing="8">
         <TextBlock Text="{loc:T Comparison_Sources}" Classes="h3" />
         <ItemsControl ItemsSource="{Binding Sources}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="x:String">
-              <Button Content="{Binding}" Classes="flat" Padding="0" HorizontalAlignment="Left"
+              <Button Content="{Binding}" Classes="link" HorizontalAlignment="Left"
                       Command="{Binding $parent[UserControl].((vm:ComparisonViewModel)DataContext).OpenLinkCommand}" CommandParameter="{Binding}" />
             </DataTemplate>
           </ItemsControl.ItemTemplate>

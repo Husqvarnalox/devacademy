@@ -5,44 +5,56 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.KMeansView"
              x:DataType="vm:KMeansViewModel">
-  <Border Classes="panel" Padding="12">
-    <StackPanel Spacing="10">
-      <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+  <Border Classes="panel" Padding="16">
+    <StackPanel Spacing="16">
+      <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="12">
         <TextBlock Text="{loc:T Km_Title}" Classes="h3" VerticalAlignment="Center" />
         <ComboBox Grid.Column="1" Name="InitBox" ItemsSource="{Binding Inits}" SelectedItem="{Binding SelectedInit}" MinWidth="150"
                   AutomationProperties.Name="{loc:T Km_Init}" />
         <TextBlock Grid.Column="2" Text="{Binding PositionText}" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" />
       </Grid>
 
-      <ctl:KMeansPlotControl Name="Plot" Frame="{Binding Frame}" Height="300" AutomationProperties.Name="{loc:T Km_Plot}" />
-      <TextBlock Text="{loc:T Km_PlotHint}" Classes="caption" TextWrapping="Wrap" />
-
-      <TextBlock Name="StatusLine" Text="{Binding StatusText}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding DetailText}" Classes="caption" TextWrapping="Wrap" />
-      <TextBlock Name="ResultText" Text="{Binding ResultText}" Classes="success" TextWrapping="Wrap" IsVisible="{Binding HasResult}" />
-
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
-        <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
-        <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
-        <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
-        <TextBlock Text="{loc:T Viz_Speed}" Classes="caption" VerticalAlignment="Center" Margin="12,0,0,0" />
-        <Slider Name="SpeedSlider" Minimum="1" Maximum="10" Value="{Binding Speed}" Width="140" VerticalAlignment="Center"
-                AutomationProperties.Name="{loc:T Viz_Speed}" />
+      <StackPanel Spacing="8">
+        <ctl:KMeansPlotControl Name="Plot" Frame="{Binding Frame}" Height="300" AutomationProperties.Name="{loc:T Km_Plot}" />
+        <TextBlock Text="{loc:T Km_PlotHint}" Classes="caption secondary" TextWrapping="Wrap" />
       </StackPanel>
 
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-        <TextBlock Text="{loc:T Km_K}" VerticalAlignment="Center" />
-        <Slider Grid.Column="1" Name="KSlider" Minimum="2" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding K}"
-                AutomationProperties.Name="{loc:T Km_K}" />
-        <TextBlock Grid.Column="2" Name="KText" Text="{Binding KText}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center" MinWidth="70" />
-      </Grid>
-      <Grid ColumnDefinitions="Auto,120,Auto" ColumnSpacing="8">
-        <TextBlock Text="{loc:T Km_Seed}" VerticalAlignment="Center" />
-        <TextBox Grid.Column="1" Name="SeedBox" Text="{Binding SeedText}" FontFamily="{StaticResource MonoFont}" AutomationProperties.Name="{loc:T Km_Seed}" />
-        <Button Grid.Column="2" Content="{loc:T Viz_Apply}" Command="{Binding ApplySeedCommand}" />
-      </Grid>
-      <TextBlock Name="ErrorText" Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+      <StackPanel Spacing="4">
+        <TextBlock Name="StatusLine" Text="{Binding StatusText}" Classes="body" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding DetailText}" Classes="caption" TextWrapping="Wrap" />
+        <TextBlock Name="ResultText" Text="{Binding ResultText}" Classes="success" TextWrapping="Wrap" IsVisible="{Binding HasResult}" />
+      </StackPanel>
+
+      <StackPanel Spacing="16" HorizontalAlignment="Left" Width="480">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
+          <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
+          <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
+          <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Viz_Speed}" Classes="label" />
+            <TextBlock Grid.Column="1" Text="{Binding Speed, StringFormat='{}{0:0}'}" Classes="caption mono" />
+          </Grid>
+          <Slider Name="SpeedSlider" Minimum="1" Maximum="10" Value="{Binding Speed}" AutomationProperties.Name="{loc:T Viz_Speed}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Km_K}" Classes="label" />
+            <TextBlock Name="KText" Grid.Column="1" Text="{Binding KText}" Classes="caption mono" />
+          </Grid>
+          <Slider Name="KSlider" Minimum="2" Maximum="6" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding K}" AutomationProperties.Name="{loc:T Km_K}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="{loc:T Km_Seed}" Classes="label" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Name="SeedBox" Text="{Binding SeedText}" Classes="mono" Width="96" AutomationProperties.Name="{loc:T Km_Seed}" />
+            <Button Content="{loc:T Viz_Apply}" Command="{Binding ApplySeedCommand}" />
+          </StackPanel>
+        </StackPanel>
+        <TextBlock Name="ErrorText" Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+      </StackPanel>
     </StackPanel>
   </Border>
 </UserControl>

@@ -29,7 +29,7 @@ public sealed class LossChartControl : Control
         base.Render(context);
         if (Frame is not { } frame) return;
         var steps = frame.Trace.Steps;
-        var r = new Rect(34, 6, Math.Max(10, Bounds.Width - 42), Math.Max(10, Bounds.Height - 26));
+        var r = new Rect(64, 6, Math.Max(10, Bounds.Width - 72), Math.Max(10, Bounds.Height - 26));
         IBrush axis = Brush("MutedText", "#6A6A64");
         IBrush line = Brush("AccentText", "#2563A8");
         IBrush current = Brush("DangerBrush", "#B3261E");
@@ -45,7 +45,7 @@ public sealed class LossChartControl : Control
         int total = Math.Max(1, steps.Count - 1);
         Point Map(int k, double loss) => new(r.X + (double)k / total * r.Width, r.Bottom - (Math.Clamp(T(loss), lo, hi) - lo) / (hi - lo) * r.Height);
 
-        context.DrawRectangle(null, new Pen(axis, 1), r);
+        context.DrawRectangle(Brush("SurfaceBrush", "#FFFFFF"), new Pen(Brush("LineBrush", "#E2DED5"), 1), r);
         var pen = new Pen(line, 1.8);
         Point? prev = null;
         for (int k = 0; k <= frame.Position; k++)
@@ -59,9 +59,9 @@ public sealed class LossChartControl : Control
 
         string top = log ? $"10^{hi:0.#}" : hi.ToString("0.##", CultureInfo.InvariantCulture);
         string bottom = log ? $"10^{lo:0.#}" : lo.ToString("0.##", CultureInfo.InvariantCulture);
-        context.DrawText(new FormattedText(top, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 10, axis), new Point(2, r.Y));
-        context.DrawText(new FormattedText(bottom, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 10, axis), new Point(2, r.Bottom - 12));
-        context.DrawText(new FormattedText("0", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 10, axis), new Point(r.X, r.Bottom + 3));
-        context.DrawText(new FormattedText(total.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 10, axis), new Point(r.Right - 20, r.Bottom + 3));
+        context.DrawText(new FormattedText(top, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 12, axis), new Point(2, r.Y));
+        context.DrawText(new FormattedText(bottom, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 12, axis), new Point(2, r.Bottom - 14));
+        context.DrawText(new FormattedText("0", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 12, axis), new Point(r.X, r.Bottom + 3));
+        context.DrawText(new FormattedText(total.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, typeface, 12, axis), new Point(r.Right - 28, r.Bottom + 3));
     }
 }

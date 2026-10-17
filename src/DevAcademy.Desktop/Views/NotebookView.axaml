@@ -27,8 +27,8 @@
         <WrapPanel.Styles>
           <Style Selector="WrapPanel > Button"><Setter Property="Margin" Value="0,2,4,2" /></Style>
         </WrapPanel.Styles>
-        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
-        <TextBlock Text="{loc:T Nb_Environment}" Classes="caption" VerticalAlignment="Center" Margin="0,0,6,0" />
+        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <TextBlock Text="{loc:T Nb_Environment}" Classes="caption" VerticalAlignment="Center" Margin="0,0,8,0" />
         <ComboBox Name="EnvBox" ItemsSource="{Binding Environments}" SelectedItem="{Binding SelectedEnvironment}" MinWidth="180" Margin="0,2,12,2"
                   AutomationProperties.Name="{loc:T Nb_Environment}" />
         <Button Name="RunButton" Content="{loc:T Nb_RunCell}" Command="{Binding RunSelectedCommand}" Classes="primary" ToolTip.Tip="Ctrl/Cmd+Enter" />
@@ -42,13 +42,13 @@
         <Button Content="{loc:T Nb_Down}" Command="{Binding MoveDownCommand}" />
         <Button Content="{loc:T Nb_Delete}" Command="{Binding DeleteCellCommand}" />
         <Button Content="{loc:T Ws_Save}" Command="{Binding SaveCommand}" />
-        <TextBlock Name="KernelStateText" Text="{Binding StateText}" Classes="caption" VerticalAlignment="Center" Margin="8,0,6,0" />
+        <TextBlock Name="KernelStateText" Text="{Binding StateText}" Classes="caption" VerticalAlignment="Center" Margin="8,0,8,0" />
         <ProgressBar IsIndeterminate="True" Width="60" IsVisible="{Binding IsKernelBusy}" />
       </WrapPanel>
     </Border>
 
     <!-- Notices -->
-    <Border Grid.Row="1" Padding="10,4" Background="{DynamicResource SubtleBrush}">
+    <Border Grid.Row="1" Padding="12,4" Background="{DynamicResource SubtleBrush}">
       <StackPanel Spacing="4">
         <TextBlock Name="SandboxText" Text="{Binding SandboxWarning}" Classes="caption warn" TextWrapping="Wrap" />
         <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap"
@@ -68,7 +68,7 @@
 
     <!-- Cells + side panel -->
     <Grid Grid.Row="2" ColumnDefinitions="*,4,300">
-      <ScrollViewer Name="CellScroll" HorizontalScrollBarVisibility="Disabled" Padding="10,8">
+      <ScrollViewer Name="CellScroll" HorizontalScrollBarVisibility="Disabled" Padding="12,8">
         <ItemsControl ItemsSource="{Binding Cells}" Name="CellList">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="nb:NotebookCellViewModel">
@@ -77,10 +77,10 @@
                   <StackPanel Spacing="2">
                     <TextBlock Text="{Binding Label}" Classes="mono muted" IsVisible="{Binding IsCode}" />
                     <TextBlock Text="{Binding TypeLabel}" Classes="caption" />
-                    <Button Content="{loc:T Nb_Edit}" Classes="flat" Padding="2,0" FontSize="11" IsVisible="{Binding ShowRendered}" Click="OnToggleEdit" />
-                    <Button Content="{loc:T Nb_Render}" Classes="flat" Padding="2,0" FontSize="11" IsVisible="{Binding IsEditingMarkdown}" Click="OnToggleEdit" />
+                    <Button Content="{loc:T Nb_Edit}" Classes="flat" Padding="2,0" IsVisible="{Binding ShowRendered}" Click="OnToggleEdit" />
+                    <Button Content="{loc:T Nb_Render}" Classes="flat" Padding="2,0" IsVisible="{Binding IsEditingMarkdown}" Click="OnToggleEdit" />
                   </StackPanel>
-                  <StackPanel Grid.Column="1" Spacing="6">
+                  <StackPanel Grid.Column="1" Spacing="8">
                     <ctl:CodeEditorControl Text="{Binding Source, Mode=TwoWay}" FileName="{Binding EditorFileName}" Height="{Binding EditorHeight}"
                                            IsVisible="{Binding ShowEditor}" />
                     <Border Classes="codeout" IsVisible="{Binding ShowRendered}" Padding="8,4" DoubleTapped="OnRenderedDoubleTapped">
@@ -122,7 +122,7 @@
                 <ItemsControl ItemsSource="{Binding Variables}" Name="VariableList">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="nbk:VariableInfo">
-                      <Border Padding="2,3" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource LineBrush}">
+                      <Border Padding="2,4" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource LineBrush}">
                         <StackPanel>
                           <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="{Binding Name}" Classes="mono" FontWeight="SemiBold" />

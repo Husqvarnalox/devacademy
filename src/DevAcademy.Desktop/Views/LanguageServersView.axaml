@@ -4,9 +4,9 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.LanguageServersView"
              x:DataType="vm:LanguageServersViewModel">
-  <Border Classes="panel" Padding="14,12">
-    <StackPanel Spacing="10">
-      <TextBlock Text="{loc:T Settings_LspTitle}" Classes="h3" />
+  <Border Classes="panel" Padding="16">
+    <StackPanel Spacing="12">
+      <TextBlock Text="{loc:T Settings_LspTitle}" Classes="h2" />
       <TextBlock Text="{loc:T Settings_LspIntro}" Classes="muted" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" Spacing="12">
         <CheckBox Content="{loc:T Settings_LspEnabled}" IsChecked="{Binding Enabled}" />
@@ -16,17 +16,17 @@
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:LanguageServerRowViewModel">
             <Border Padding="0,8" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource LineBrush}">
-              <StackPanel Spacing="3">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                  <TextBlock Text="{Binding Language}" FontWeight="SemiBold" Classes="mono" />
-                  <TextBlock Text="{Binding Server}" VerticalAlignment="Center" />
-                  <Border Classes="badge"><TextBlock Text="{Binding State}" FontSize="12" /></Border>
+              <StackPanel Spacing="4">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Text="{Binding Language}" FontWeight="SemiBold" Classes="mono" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Server}" Classes="secondary" VerticalAlignment="Center" />
+                  <Border Classes="badge"><TextBlock Text="{Binding State}" /></Border>
                   <TextBlock Text="{Binding Version}" Classes="caption" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Text="{Binding Path}" Classes="caption mono" TextWrapping="Wrap" IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <TextBox Text="{Binding OverrideCommand}" PlaceholderText="{loc:T Settings_LspOverrideHint}" MinWidth="320" FontSize="12"
+                  <TextBox Text="{Binding OverrideCommand}" PlaceholderText="{loc:T Settings_LspOverrideHint}" MinWidth="320"
                            AutomationProperties.Name="{loc:T Settings_LspOverride}" />
                   <Button Content="{loc:T Settings_LspSave}" Command="{Binding SaveOverrideCommand}" />
                   <Button Content="{loc:T Settings_LspInstall}" Command="{Binding InstallCommand}" IsVisible="{Binding CanInstall}" />

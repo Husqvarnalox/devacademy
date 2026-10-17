@@ -4,7 +4,13 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.QuizView"
              x:DataType="vm:QuizViewModel">
-  <StackPanel Spacing="14">
+  <StackPanel Spacing="16">
+    <StackPanel.Styles>
+      <!-- graded answers are locked, not dimmed: keep full text contrast -->
+      <Style Selector="RadioButton:disabled /template/ ContentPresenter#PART_ContentPresenter, CheckBox:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+      </Style>
+    </StackPanel.Styles>
     <StackPanel Spacing="2">
       <TextBlock Text="{loc:T Quiz_Title}" Classes="h2" />
       <TextBlock Text="{Binding ThresholdText}" Classes="small secondary" />
@@ -13,10 +19,10 @@
     <ItemsControl ItemsSource="{Binding Questions}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="vm:QuizQuestionViewModel">
-          <Border Classes="panel" Padding="14,12" Margin="0,0,0,10">
+          <Border Classes="panel" Padding="16,12" Margin="0,0,0,12">
             <StackPanel Spacing="8">
               <TextBlock Text="{Binding Number, StringFormat='{}{0}.'}" Classes="overline" />
-              <SelectableTextBlock Text="{Binding Prompt}" TextWrapping="Wrap" FontSize="15" />
+              <SelectableTextBlock Text="{Binding Prompt}" TextWrapping="Wrap" Classes="reading" />
               <TextBlock Text="{Binding HintText}" Classes="caption" />
               <ItemsControl ItemsSource="{Binding SingleOptions}" IsVisible="{Binding IsSingle}">
                 <ItemsControl.ItemTemplate>

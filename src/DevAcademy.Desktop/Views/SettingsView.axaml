@@ -5,18 +5,20 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
-  <TabControl Margin="32,16" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
+  <Grid RowDefinitions="Auto,*" Margin="32,32,32,0">
+  <TextBlock Text="{loc:T Nav_Settings}" Classes="h1" Margin="0,0,0,16" />
+  <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
     <TabItem Header="{loc:T Settings_General}">
       <ScrollViewer>
-        <StackPanel MaxWidth="720" Spacing="22" Margin="0,12" HorizontalAlignment="Left">
+        <StackPanel MaxWidth="720" Spacing="24" Margin="0,16,0,32" HorizontalAlignment="Left">
           <StackPanel Spacing="8">
-            <TextBlock Text="{loc:T Settings_Theme}" Classes="h3" />
+            <TextBlock Text="{loc:T Settings_Theme}" Classes="label" />
             <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding SelectedTheme}" MinWidth="200"
                       AutomationProperties.Name="{loc:T Settings_Theme}">
               <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
             </ComboBox>
           </StackPanel>
-          <StackPanel Spacing="10">
+          <StackPanel Spacing="12">
             <TextBlock Text="{loc:T Settings_Profile}" Classes="h3" />
             <views:ProfileEditorView DataContext="{Binding Profile}" />
             <StackPanel Orientation="Horizontal" Spacing="12">
@@ -30,7 +32,7 @@
 
     <TabItem Header="{loc:T Settings_Runtimes}">
       <ScrollViewer>
-        <StackPanel MaxWidth="900" Spacing="12" Margin="0,12" HorizontalAlignment="Left">
+        <StackPanel MaxWidth="900" Spacing="12" Margin="0,16,0,32" HorizontalAlignment="Left">
           <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Content="{loc:T Runtimes_Refresh}" Command="{Binding DetectRuntimesCommand}" />
             <TextBlock Text="{loc:T Runtimes_Detecting}" Classes="muted" VerticalAlignment="Center" IsVisible="{Binding IsDetecting}" />
@@ -38,11 +40,11 @@
           <ItemsControl ItemsSource="{Binding Runtimes}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:RuntimeRowViewModel">
-                <Border Classes="panel" Padding="14,10" Margin="0,0,0,8">
-                  <StackPanel Spacing="3">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                      <TextBlock Text="{Binding Language}" FontWeight="SemiBold" Classes="mono" />
-                      <Border Classes="badge"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+                <Border Classes="panel" Padding="16" Margin="0,0,0,8">
+                  <StackPanel Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                      <TextBlock Text="{Binding Language}" FontWeight="SemiBold" Classes="mono" VerticalAlignment="Center" />
+                      <Border Classes="badge"><TextBlock Text="{Binding Status}" /></Border>
                       <TextBlock Text="{Binding Version}" Classes="caption" VerticalAlignment="Center" />
                     </StackPanel>
                     <TextBlock Text="{Binding Path}" Classes="caption mono" TextWrapping="Wrap" IsVisible="{Binding Path, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
@@ -54,7 +56,7 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <Border Classes="panel" Padding="14,12">
+          <Border Classes="panel" Padding="16">
             <StackPanel Spacing="8">
               <TextBlock Text="{loc:T Types_Title}" Classes="h3" />
               <TextBlock Text="{loc:T Types_Description}" Classes="muted" TextWrapping="Wrap" />
@@ -77,23 +79,23 @@
 
     <TabItem Header="{loc:T Settings_Data}">
       <ScrollViewer>
-        <StackPanel MaxWidth="720" Spacing="18" Margin="0,12" HorizontalAlignment="Left">
+        <StackPanel MaxWidth="720" Spacing="16" Margin="0,16,0,32" HorizontalAlignment="Left">
           <StackPanel Spacing="2">
             <TextBlock Text="{loc:T Data_Location}" Classes="caption" />
             <SelectableTextBlock Text="{Binding DataDir}" Classes="mono" TextWrapping="Wrap" />
           </StackPanel>
-          <StackPanel Spacing="6">
+          <StackPanel Spacing="8">
             <TextBlock Text="{loc:T Data_ExportHeader}" Classes="h3" />
             <TextBlock Text="{loc:T Data_ExportNote}" Classes="muted" TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="12">
               <Button Content="{loc:T Data_Export}" Command="{Binding ExportCommand}" />
               <Button Content="{loc:T Data_Import}" Command="{Binding ImportCommand}" />
             </StackPanel>
           </StackPanel>
-          <StackPanel Spacing="6">
+          <StackPanel Spacing="8">
             <TextBlock Text="{loc:T Data_BackupHeader}" Classes="h3" />
             <TextBlock Text="{loc:T Data_BackupNote}" Classes="muted" TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="12">
               <Button Content="{loc:T Data_Backup}" Command="{Binding BackupCommand}" />
               <Button Content="{loc:T Data_Restore}" Command="{Binding RestoreCommand}" />
             </StackPanel>
@@ -108,9 +110,9 @@
     </TabItem>
     <TabItem Header="{loc:T Settings_About}">
       <ScrollViewer>
-        <StackPanel MaxWidth="720" Spacing="10" Margin="0,12" HorizontalAlignment="Left">
+        <StackPanel MaxWidth="720" Spacing="12" Margin="0,16,0,32" HorizontalAlignment="Left">
           <TextBlock Text="DevAcademy" Classes="h2" />
-          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="6">
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="8">
             <TextBlock Grid.Row="0" Text="{loc:T About_Version}" Classes="caption" />
             <SelectableTextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AboutVersion}" Classes="mono" />
             <TextBlock Grid.Row="1" Text="{loc:T About_Commit}" Classes="caption" />
@@ -129,4 +131,5 @@
       </ScrollViewer>
     </TabItem>
   </TabControl>
+  </Grid>
 </UserControl>

@@ -47,6 +47,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\Fonts\*.ttf" />
+    <EmbeddedResource Include="Assets\Themes\*.json" LogicalName="DevAcademy.Themes.%(Filename)%(Extension)" />
     <EmbeddedResource Update="Resources\Strings.resx">
       <Generator></Generator>
     </EmbeddedResource>

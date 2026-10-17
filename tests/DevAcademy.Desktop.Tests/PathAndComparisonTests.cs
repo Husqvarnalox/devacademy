@@ -49,13 +49,13 @@ public class PathViewModelTests
     }
 
     [Fact]
-    public async Task Choosing_no_route_goes_to_the_catalog_and_follows_nothing()
+    public async Task Choosing_no_route_goes_to_the_dashboard_and_follows_nothing()
     {
         using var host = Host();
         var onboarding = await OnboardingAsync(host);
         onboarding.Editor.SelectLanguage(onboarding.Editor.Languages.Single(l => l.Track.Id == "python"));
         await onboarding.FinishCommand.ExecuteAsync(null);
-        Assert.IsType<CatalogViewModel>(host.Main.Current);
+        Assert.IsType<DashboardViewModel>(host.Main.Current);
         Assert.Empty(await host.Services.Path.GetFollowedPathIdsAsync());
     }
 

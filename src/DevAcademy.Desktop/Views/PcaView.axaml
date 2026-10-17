@@ -5,25 +5,31 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.PcaView"
              x:DataType="vm:PcaViewModel">
-  <Border Classes="panel" Padding="12">
-    <StackPanel Spacing="10">
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+  <Border Classes="panel" Padding="16">
+    <StackPanel Spacing="16">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
         <TextBlock Text="{loc:T Pca_Title}" Classes="h3" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Text="{Binding PositionText}" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" />
       </Grid>
 
-      <ctl:PcaPlotControl Name="Plot" Frame="{Binding Frame}" Height="300" AutomationProperties.Name="{loc:T Pca_Plot}" />
-      <TextBlock Text="{loc:T Pca_PlotHint}" Classes="caption" TextWrapping="Wrap" />
+      <StackPanel Spacing="8">
+        <ctl:PcaPlotControl Name="Plot" Frame="{Binding Frame}" Height="300" AutomationProperties.Name="{loc:T Pca_Plot}" />
+        <TextBlock Text="{loc:T Pca_PlotHint}" Classes="caption secondary" TextWrapping="Wrap" />
+      </StackPanel>
 
-      <TextBlock Name="StageTitle" Text="{Binding StatusText}" Classes="h3" />
-      <TextBlock Name="StageDetail" Text="{Binding DetailText}" TextWrapping="Wrap" />
-      <TextBlock Name="VarianceLine" Text="{Binding VarianceText}" Classes="caption" FontFamily="{StaticResource MonoFont}" TextWrapping="Wrap" />
+      <StackPanel Spacing="4">
+        <TextBlock Name="StageTitle" Text="{Binding StatusText}" Classes="h3" />
+        <TextBlock Name="StageDetail" Text="{Binding DetailText}" Classes="body" TextWrapping="Wrap" />
+        <TextBlock Name="VarianceLine" Text="{Binding VarianceText}" Classes="caption mono" TextWrapping="Wrap" />
+      </StackPanel>
 
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
-        <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
-        <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
-        <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
+      <StackPanel Spacing="16" HorizontalAlignment="Left" Width="480">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
+          <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
+          <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
+          <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
+        </StackPanel>
       </StackPanel>
     </StackPanel>
   </Border>

@@ -138,6 +138,7 @@ public sealed class GradientPlotControl : Control
         IBrush pathBrush = Brush("AccentText", "#2563A8");
         IBrush current = Brush("DangerBrush", "#B3261E");
         IBrush minimum = Brush("SuccessBrush", "#2E7D32");
+        IBrush halo = Brush("SurfaceBrush", "#FFFFFF");
         var typeface = new Typeface(FontFamily.Default);
 
         using (context.PushClip(r))
@@ -171,7 +172,7 @@ public sealed class GradientPlotControl : Control
 
             // Path: segments between consecutive trace steps, drawn only up to the current position.
             var line = new Pen(pathBrush, 1.8);
-            var white = new Pen(Brushes.White, 3.4);
+            var white = new Pen(halo, 3.4);
             Point? last = null;
             for (int k = 0; k <= frame.Position; k++)
             {
@@ -183,13 +184,13 @@ public sealed class GradientPlotControl : Control
                     context.DrawLine(white, q, p);
                     context.DrawLine(line, q, p);
                 }
-                context.DrawEllipse(pathBrush, new Pen(Brushes.White, 1), p, 3, 3);
+                context.DrawEllipse(pathBrush, new Pen(halo, 1), p, 3, 3);
                 last = p;
             }
-            if (last is { } cur) context.DrawEllipse(current, new Pen(Brushes.White, 1.5), cur, 6, 6);
+            if (last is { } cur) context.DrawEllipse(current, new Pen(halo, 1.5), cur, 6, 6);
         }
 
-        context.DrawRectangle(null, new Pen(axis, 1), r);
+        context.DrawRectangle(null, new Pen(Brush("LineBrush", "#E2DED5"), 1), r);
         DrawLabel(context, typeface, axis, f.Bounds.XMin.ToString("0.#", CultureInfo.InvariantCulture), new Point(r.X, r.Bottom + 4));
         DrawLabel(context, typeface, axis, f.Bounds.XMax.ToString("0.#", CultureInfo.InvariantCulture), new Point(r.Right - 18, r.Bottom + 4));
         if (f.Dimension > 1)

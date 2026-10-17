@@ -53,7 +53,7 @@ public sealed partial class OnboardingViewModel : ObservableObject
             await _s.Path.SetFollowedAsync(pathId, true);
             await _nav.OpenPathAsync(pathId);
         }
-        else await _nav.ShowCatalogAsync();
+        else await _nav.ShowDashboardAsync();
     }
 
     private bool CanFinish() => Editor.HasLanguage;

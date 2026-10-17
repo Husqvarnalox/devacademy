@@ -54,7 +54,7 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
     public bool HasUnsavedProjectChanges => _projects?.HasUnsavedChanges == true;
     public bool ShowNavigation => Current is not (null or OnboardingViewModel);
 
-    /// <summary>Applies the saved theme and opens onboarding (first launch) or the catalog.</summary>
+    /// <summary>Applies the saved theme and opens onboarding (first launch) or the dashboard (Главная).</summary>
     public async Task InitializeAsync()
     {
         try
@@ -71,7 +71,7 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
             {
                 await SwitchAsync(new OnboardingViewModel(services, this), Section.None);
             }
-            else await ShowCatalogAsync();
+            else await ShowDashboardAsync();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

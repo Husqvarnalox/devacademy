@@ -39,6 +39,7 @@ public sealed class CodeEditorControl : ContentControl
     private TextMate.Installation? _textMate;
     private RegistryOptions? _registry;
     private bool _syncing;
+    private readonly BracketMatchRenderer _brackets;
 
     static CodeEditorControl()
     {
@@ -79,6 +80,8 @@ public sealed class CodeEditorControl : ContentControl
         try { _search = SearchPanel.Install(_editor); }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Search panel unavailable: {ex.Message}"); }
         _popups = new LspPopups(_editor.TextArea.TextView);
+        _brackets = new BracketMatchRenderer(_editor.TextArea);
+        _editor.TextArea.TextView.BackgroundRenderers.Add(_brackets);
         _executionRenderer = new ExecutionLineRenderer(() => DebugTarget, () => BrushFor("DebugLineBrush") ?? new SolidColorBrush(Color.FromArgb(70, 255, 213, 0)));
         _editor.TextArea.TextView.BackgroundRenderers.Add(_executionRenderer);
         _editor.TextArea.TextView.DocumentChanged += (_, _) => WatchDocument();
@@ -257,8 +260,10 @@ public sealed class CodeEditorControl : ContentControl
         if (_textMate is not null) return;
         try
         {
+            // The registry supplies grammars only; token colours come from the app's own themes (SyntaxThemes).
             _registry = new RegistryOptions(IsDark ? ThemeName.DarkPlus : ThemeName.LightPlus);
             _textMate = _editor.InstallTextMate(_registry);
+            _textMate.SetTheme(SyntaxThemes.For(IsDark));
             ApplyChrome();
         }
         catch (Exception ex)
@@ -271,7 +276,8 @@ public sealed class CodeEditorControl : ContentControl
 
     /// <summary>
     /// The TextMate theme paints its own editor background; the app's tokens win so the editor sits in the page:
-    /// background = Surface, current line = SurfaceSunken, gutter text = TextMuted. Token colours stay VS Code's (familiar to developers).
+    /// background = Surface, current line = SurfaceSunken, gutter text = TextMuted, caret = Text, selection = Selection,
+    /// matching brackets = Line. Token colours come from <see cref="SyntaxThemes"/>.
     /// </summary>
     private void ApplyChrome()
     {
@@ -283,6 +289,17 @@ public sealed class CodeEditorControl : ContentControl
             _editor.TextArea.TextView.CurrentLineBackground = sunken;
             _editor.TextArea.TextView.CurrentLineBorder = new Pen(Brushes.Transparent, 0);
         }
+        if (BrushFor("TextBrush") is { } caret) _editor.TextArea.Caret.CaretBrush = caret;
+        if (BrushFor("SelectionBrush") is { } selection)
+        {
+            _editor.TextArea.SelectionBrush = selection;
+            _editor.TextArea.SelectionForeground = null;
+            _editor.TextArea.SelectionBorder = null;
+            _editor.TextArea.SelectionCornerRadius = 0;
+        }
+        _brackets.Fill = BrushFor("LineBrush");
+        _brackets.Outline = BrushFor("LineStrongBrush") is { } strong ? new Pen(strong, 1) : null;
+        _editor.TextArea.TextView.InvalidateLayer(AvaloniaEdit.Rendering.KnownLayer.Selection);
         if (this.TryFindResource("MonoFont", ActualThemeVariant, out var mono) && mono is FontFamily ff) _editor.FontFamily = ff;
     }
 
@@ -293,7 +310,7 @@ public sealed class CodeEditorControl : ContentControl
         if (_textMate is null || _registry is null) return;
         try
         {
-            _textMate.SetTheme(_registry.LoadTheme(IsDark ? ThemeName.DarkPlus : ThemeName.LightPlus));
+            _textMate.SetTheme(SyntaxThemes.For(IsDark));
             ApplyChrome();
             Dispatcher.UIThread.Post(ApplyChrome, DispatcherPriority.Background);
         }

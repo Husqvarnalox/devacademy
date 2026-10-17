@@ -4,9 +4,9 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.MlAccelerationView"
              x:DataType="vm:MlAccelerationViewModel">
-  <Border Classes="panel" Padding="14,12">
-    <StackPanel Spacing="10">
-      <TextBlock Text="{loc:T Ml_Title}" Classes="h3" />
+  <Border Classes="panel" Padding="16">
+    <StackPanel Spacing="12">
+      <TextBlock Text="{loc:T Ml_Title}" Classes="h2" />
       <TextBlock Text="{loc:T Ml_Description}" Classes="muted" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" Spacing="12">
         <Button Content="{loc:T Runtimes_Refresh}" Command="{Binding DetectCommand}" />
@@ -16,10 +16,10 @@
       <ItemsControl Name="HardwareList" ItemsSource="{Binding Hardware}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:CapabilityRow">
-            <StackPanel Spacing="1" Margin="0,0,0,6">
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                <Border Classes="badge"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+            <StackPanel Spacing="1" Margin="0,0,0,8">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{Binding Title}" Classes="h3" />
+                <Border Classes="badge"><TextBlock Text="{Binding Status}" /></Border>
               </StackPanel>
               <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" />
             </StackPanel>
@@ -27,8 +27,8 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
 
-      <Separator />
-      <TextBlock Text="{loc:T Ml_ProbeHeader}" FontWeight="SemiBold" />
+      <Border Classes="hairline" />
+      <TextBlock Text="{loc:T Ml_ProbeHeader}" Classes="h3" />
       <TextBlock Text="{loc:T Ml_ProbeNote}" Classes="muted" TextWrapping="Wrap" />
       <TextBlock Text="{loc:T Py_NoEnvironments}" Classes="muted" IsVisible="{Binding !HasEnvironments}" />
       <StackPanel Orientation="Horizontal" Spacing="8">
@@ -39,10 +39,10 @@
       <ItemsControl Name="FrameworkList" ItemsSource="{Binding Frameworks}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:CapabilityRow">
-            <StackPanel Spacing="1" Margin="0,0,0,6">
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                <Border Classes="badge"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+            <StackPanel Spacing="1" Margin="0,0,0,8">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{Binding Title}" Classes="h3" />
+                <Border Classes="badge"><TextBlock Text="{Binding Status}" /></Border>
               </StackPanel>
               <TextBlock Text="{Binding Message}" Classes="caption" TextWrapping="Wrap" />
             </StackPanel>

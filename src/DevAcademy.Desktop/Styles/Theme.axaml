@@ -127,7 +127,7 @@
   <Style Selector="Border.badge.danger TextBlock"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></Style>
 
   <!-- ================= Buttons ================= -->
-  <Style Selector="Button">
+  <Style Selector="Button, ToggleButton">
     <Setter Property="MinHeight" Value="32" />
     <Setter Property="Padding" Value="12,0" />
     <Setter Property="FontWeight" Value="Medium" />
@@ -333,6 +333,7 @@
   <Style Selector="Button.tile:disabled /template/ ContentPresenter#PART_ContentPresenter"><Setter Property="Opacity" Value="0.6" /></Style>
 
   <!-- Radio-style choice list (ListBox.choices): selected = AccentSubtle + accent border -->
+  <Style Selector="ListBox.choices, ListBox.segmented"><Setter Property="AutoScrollToSelectedItem" Value="False" /></Style>
   <Style Selector="ListBox.choices"><Setter Property="Background" Value="Transparent" /><Setter Property="Padding" Value="0" /></Style>
   <Style Selector="ListBox.choices > ListBoxItem">
     <Setter Property="Padding" Value="16,10" />
@@ -392,6 +393,7 @@
   <Style Selector="CheckBox, RadioButton"><Setter Property="MinHeight" Value="28" /></Style>
 
   <!-- ================= Progress / lists / tabs ================= -->
+  <Style Selector="Slider:horizontal"><Setter Property="MinHeight" Value="24" /></Style>
   <Style Selector="ProgressBar">
     <Setter Property="MinHeight" Value="4" /><Setter Property="Height" Value="4" /><Setter Property="CornerRadius" Value="2" />
     <Setter Property="Background" Value="{DynamicResource LineStrongBrush}" />
@@ -406,7 +408,15 @@
     <Setter Property="MinHeight" Value="32" />
     <Setter Property="Padding" Value="12,0" />
   </Style>
+  <Style Selector="ListBox"><Setter Property="Background" Value="Transparent" /></Style>
   <Style Selector="ListBoxItem"><Setter Property="CornerRadius" Value="6" /></Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+  <Style Selector="ListBoxItem:pointerover:not(:selected) /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceSunkenBrush}" />
+  </Style>
   <Style Selector="Expander"><Setter Property="CornerRadius" Value="6" /></Style>
   <Style Selector="ToolTip">
     <Setter Property="FontSize" Value="12" />
@@ -424,5 +434,24 @@
   <Style Selector="Border.kbd TextBlock">
     <Setter Property="FontFamily" Value="{StaticResource MonoFont}" /><Setter Property="FontSize" Value="11" />
     <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+
+  <!-- ================= Keyboard focus =================
+       One ring everywhere: 2px Accent, radius 6, shown only for keyboard navigation (Avalonia raises the adorner on Tab/arrow focus,
+       never on pointer focus). Default is a 2px outset; rows, nav items, tabs and tiles use an inset ring because their
+       containers clip (ClipToBounds / list panels). -->
+  <Style Selector="Button, ToggleButton, CheckBox, RadioButton, ToggleSwitch, ComboBox, TextBox, ListBoxItem, TabItem, MenuItem">
+    <Setter Property="FocusAdorner">
+      <FocusAdornerTemplate>
+        <Border Margin="-2" BorderThickness="2" CornerRadius="8" BorderBrush="{DynamicResource AccentBrush}" IsHitTestVisible="False" />
+      </FocusAdornerTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Button.row, Button.navitem, Button.tab, Button.tile, Button.link, ListBoxItem, TabItem, MenuItem, Button.quiet">
+    <Setter Property="FocusAdorner">
+      <FocusAdornerTemplate>
+        <Border Margin="0" BorderThickness="2" CornerRadius="6" BorderBrush="{DynamicResource AccentBrush}" IsHitTestVisible="False" />
+      </FocusAdornerTemplate>
+    </Setter>
   </Style>
 </Styles>

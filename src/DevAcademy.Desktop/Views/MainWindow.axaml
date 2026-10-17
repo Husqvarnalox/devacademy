@@ -11,35 +11,15 @@
     <!-- Sidebar -->
     <Border Grid.Column="0" Name="Sidebar" Width="{Binding SidebarWidth}" IsVisible="{Binding ShowNavigation}"
             Background="{DynamicResource SurfaceSunkenBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0">
-      <DockPanel Margin="8,12,8,8">
+      <DockPanel Margin="8,12,8,8" LastChildFill="False">
         <!-- Wordmark -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8,4,0,20" Height="24">
           <TextBlock Text="›_" FontFamily="{StaticResource MonoFont}" FontWeight="Medium" FontSize="15" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
           <TextBlock Text="DevAcademy" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
         </StackPanel>
 
-        <!-- Bottom: settings + collapse toggle -->
-        <StackPanel DockPanel.Dock="Bottom" Spacing="2">
-          <Button Classes="navitem topnav" Command="{Binding ShowSettingsCommand}" Classes.current="{Binding IsSettingsSection}"
-                  ToolTip.Tip="{loc:T Nav_Settings}" AutomationProperties.Name="{loc:T Nav_Settings}">
-            <Grid ColumnDefinitions="Auto,Auto,*">
-              <Border Classes="marker" Margin="0,0,0,0" />
-              <ctl:Icon Grid.Column="1" Kind="sliders" Margin="11,0,10,0" />
-              <TextBlock Grid.Column="2" Text="{loc:T Nav_Settings}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
-            </Grid>
-          </Button>
-          <Button Classes="navitem topnav" Command="{Binding ToggleSidebarCommand}" ToolTip.Tip="{loc:T Nav_ToggleSidebar}"
-                  AutomationProperties.Name="{loc:T Nav_ToggleSidebar}">
-            <Grid ColumnDefinitions="Auto,Auto,*">
-              <Border Classes="marker" />
-              <ctl:Icon Grid.Column="1" Kind="panel-left" Margin="11,0,10,0" />
-              <TextBlock Grid.Column="2" Text="{loc:T Nav_ToggleSidebar}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
-            </Grid>
-          </Button>
-        </StackPanel>
-
         <!-- Learning group -->
-        <StackPanel Spacing="2">
+        <StackPanel DockPanel.Dock="Top" Spacing="2">
           <TextBlock Classes="overline" Text="{loc:TU Nav_Group_Learning}" Margin="10,0,0,6" IsVisible="{Binding IsSidebarExpanded}" />
           <Button Classes="navitem topnav" Command="{Binding ShowDashboardCommand}" Classes.current="{Binding IsDashboardSection}"
                   ToolTip.Tip="{loc:T Nav_Dashboard}" AutomationProperties.Name="{loc:T Nav_Dashboard}">
@@ -71,6 +51,26 @@
               <Border Classes="marker" />
               <ctl:Icon Grid.Column="1" Kind="folder" Margin="11,0,10,0" />
               <TextBlock Grid.Column="2" Text="{loc:T Nav_Projects}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+        </StackPanel>
+
+        <!-- Bottom: settings + collapse toggle -->
+        <StackPanel DockPanel.Dock="Bottom" Spacing="2">
+          <Button Classes="navitem topnav" Command="{Binding ShowSettingsCommand}" Classes.current="{Binding IsSettingsSection}"
+                  ToolTip.Tip="{loc:T Nav_Settings}" AutomationProperties.Name="{loc:T Nav_Settings}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" Margin="0,0,0,0" />
+              <ctl:Icon Grid.Column="1" Kind="sliders" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_Settings}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+          <Button Classes="navitem topnav" Command="{Binding ToggleSidebarCommand}" ToolTip.Tip="{loc:T Nav_ToggleSidebar}"
+                  AutomationProperties.Name="{loc:T Nav_ToggleSidebar}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" />
+              <ctl:Icon Grid.Column="1" Kind="panel-left" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_ToggleSidebar}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
             </Grid>
           </Button>
         </StackPanel>

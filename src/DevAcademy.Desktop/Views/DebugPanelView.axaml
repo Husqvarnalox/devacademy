@@ -6,7 +6,7 @@
              x:DataType="vm:DebugViewModel">
   <UserControl.DataTemplates>
     <TreeDataTemplate DataType="vm:VariableNode" ItemsSource="{Binding Children}">
-      <StackPanel Orientation="Horizontal" Spacing="6" ToolTip.Tip="{Binding Tooltip}">
+      <StackPanel Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding Tooltip}">
         <TextBlock Text="…" Classes="muted" IsVisible="{Binding IsPlaceholder}" />
         <TextBlock Text="{Binding Name}" Classes="mono" FontWeight="SemiBold" IsVisible="{Binding !IsPlaceholder}" />
         <TextBlock Text="=" Classes="mono muted" IsVisible="{Binding Value, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
@@ -16,7 +16,7 @@
   </UserControl.DataTemplates>
   <Grid RowDefinitions="Auto,Auto,*" Name="Root">
     <!-- Toolbar -->
-    <Border Grid.Row="0" Classes="bar" Padding="6,4">
+    <Border Grid.Row="0" Classes="bar" Padding="8,4">
       <StackPanel Spacing="4">
         <StackPanel Orientation="Horizontal" Spacing="4">
           <Button Content="▶" Command="{Binding StartOrContinueCommand}" Classes="primary" IsEnabled="{Binding IsAvailable}"
@@ -81,7 +81,7 @@
       <Border Name="WatchSection" Grid.Row="2" Classes="panel" Padding="0" Margin="0,2,0,0">
         <Grid RowDefinitions="Auto,Auto,*">
           <TextBlock Text="{loc:T Dbg_Watch}" Classes="caption" Margin="8,4" />
-          <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="6,0,6,4">
+          <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="8,0,8,4">
             <TextBox Name="WatchBox" Text="{Binding WatchInput}" PlaceholderText="{loc:T Dbg_WatchHint}" FontFamily="{StaticResource MonoFont}"
                      AutomationProperties.Name="{loc:T Dbg_Watch}" />
             <Button Grid.Column="1" Content="+" Command="{Binding AddWatchCommand}" Margin="4,0,0,0" AutomationProperties.Name="{loc:T Dbg_AddWatch}" />
@@ -118,7 +118,7 @@
             </ItemsControl>
           </ScrollViewer>
           <TextBox Grid.Row="2" Name="ReplBox" Text="{Binding ReplInput}" PlaceholderText="{loc:T Dbg_ReplHint}" FontFamily="{StaticResource MonoFont}"
-                   Margin="6,4" AutomationProperties.Name="{loc:T Dbg_Console}" />
+                   Margin="8,4" AutomationProperties.Name="{loc:T Dbg_Console}" />
         </Grid>
       </Border>
     </Grid>

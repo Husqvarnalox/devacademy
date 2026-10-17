@@ -97,7 +97,7 @@ public class EndToEndTests
         using (var host = new TestHost(dir))
         {
             await host.Main.InitializeAsync();
-            Assert.IsType<CatalogViewModel>(host.Main.Current);   // profile persisted: no onboarding
+            Assert.IsType<DashboardViewModel>(host.Main.Current);   // profile persisted: no onboarding
             Assert.Equal(LessonState.Completed, (await host.LearningPath.GetLessonStatusAsync(firstId))!.State);
             Assert.Equal(LessonState.Available, (await host.LearningPath.GetLessonStatusAsync(secondId))!.State);
             await host.Main.OpenCourseAsync(Helpers.CourseId);

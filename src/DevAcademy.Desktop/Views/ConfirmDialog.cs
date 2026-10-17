@@ -17,7 +17,7 @@ public sealed class ConfirmDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
         var confirm = new Button { Content = confirmText, MinWidth = 96 };
-        confirm.Classes.Add("accent");
+        confirm.Classes.Add("primary");
         confirm.Click += (_, _) => Close(true);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         if (showCancel)
@@ -30,11 +30,11 @@ public sealed class ConfirmDialog : Window
 
         Content = new StackPanel
         {
-            Margin = new Thickness(20),
+            Margin = new Thickness(24),
             Spacing = 16,
             Children =
             {
-                new TextBlock { Text = title, FontSize = 17, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = title, Classes = { "h2" }, TextWrapping = TextWrapping.Wrap },
                 new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
                 buttons,
             },

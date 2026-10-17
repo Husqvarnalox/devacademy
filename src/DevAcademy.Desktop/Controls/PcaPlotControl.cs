@@ -76,7 +76,7 @@ public sealed class PcaPlotControl : Control
         }
         var map = PlotMap.Fit(extent, rect);
 
-        context.DrawRectangle(null, new Pen(line, 1), rect);
+        context.DrawRectangle(panel, new Pen(line, 1), rect);
 
         if (step.AxesOrigin is { } o2)
         {

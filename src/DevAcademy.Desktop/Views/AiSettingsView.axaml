@@ -5,10 +5,10 @@
              x:Class="DevAcademy.Desktop.Views.AiSettingsView"
              x:DataType="vm:AiSettingsViewModel">
   <ScrollViewer>
-    <StackPanel MaxWidth="980" Spacing="20" Margin="0,12,12,24" HorizontalAlignment="Left">
+    <StackPanel MaxWidth="980" Spacing="24" Margin="0,12,12,24" HorizontalAlignment="Left">
 
       <!-- What leaves the machine -->
-      <Border Classes="panel" Padding="14,10">
+      <Border Classes="callout">
         <StackPanel Spacing="4">
           <TextBlock Text="{loc:T Ai_NoticeTitle}" Classes="h3" />
           <TextBlock Text="{Binding Notice}" Classes="muted" TextWrapping="Wrap" />
@@ -16,7 +16,7 @@
       </Border>
 
       <!-- Global switch -->
-      <StackPanel Spacing="6">
+      <StackPanel Spacing="8">
         <ToggleSwitch IsChecked="{Binding IsEnabled}" OnContent="{loc:T Ai_Enable}" OffContent="{loc:T Ai_Enable}"
                       AutomationProperties.Name="{loc:T Ai_Enable}" />
         <TextBlock Text="{loc:T Ai_EnableNote}" Classes="caption" TextWrapping="Wrap" />
@@ -43,12 +43,12 @@
           <ContentControl Grid.Column="1" Content="{Binding SelectedProvider}">
             <ContentControl.ContentTemplate>
               <DataTemplate x:DataType="vm:AiProviderViewModel">
-                <Border Classes="panel" Padding="16,12">
-                  <StackPanel Spacing="10">
-                    <TextBlock Text="{Binding Name}" Classes="h3" />
+                <Border Classes="panel" Padding="16">
+                  <StackPanel Spacing="16">
+                    <TextBlock Text="{Binding Name}" Classes="h2" />
 
                     <StackPanel Spacing="4" IsVisible="{Binding IsCompatible}">
-                      <TextBlock Text="{loc:T Ai_BaseUrl}" Classes="caption" />
+                      <TextBlock Text="{loc:T Ai_BaseUrl}" Classes="label" />
                       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <TextBox Text="{Binding BaseUrl}" PlaceholderText="http://localhost:11434/v1" AutomationProperties.Name="{loc:T Ai_BaseUrl}" />
                         <Button Grid.Column="1" Content="{loc:T Ai_BaseUrlApply}" Command="{Binding ApplyBaseUrlCommand}" />
@@ -58,7 +58,7 @@
 
                     <!-- API key: write-only -->
                     <StackPanel Spacing="4">
-                      <TextBlock Text="{loc:T Ai_ApiKey}" Classes="caption" />
+                      <TextBlock Text="{loc:T Ai_ApiKey}" Classes="label" />
                       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                         <TextBox Text="{Binding ApiKeyInput}" PasswordChar="●" PlaceholderText="{loc:T Ai_KeyPlaceholder}"
                                  IsEnabled="{Binding SecretStoreAvailable}" AutomationProperties.Name="{loc:T Ai_ApiKey}" />
@@ -78,14 +78,14 @@
 
                     <!-- Models -->
                     <StackPanel Spacing="4">
-                      <TextBlock Text="{loc:T Ai_Models}" Classes="h3" />
+                      <TextBlock Text="{loc:T Ai_Models}" Classes="h3" Margin="0,0,0,4" />
                       <TextBlock Text="{Binding CacheText}" Classes="caption" />
                       <Grid ColumnDefinitions="2.2*,1.6*,1.2*,2.6*,1.5*" ColumnSpacing="8" Margin="12,0,12,0" IsVisible="{Binding HasModels}">
-                        <TextBlock Text="{loc:T Ai_ColId}" Classes="caption" />
-                        <TextBlock Grid.Column="1" Text="{loc:T Ai_ColName}" Classes="caption" />
-                        <TextBlock Grid.Column="2" Text="{loc:T Ai_ColContext}" Classes="caption" />
-                        <TextBlock Grid.Column="3" Text="{loc:T Ai_ColCaps}" Classes="caption" />
-                        <TextBlock Grid.Column="4" Text="{loc:T Ai_ColPrice}" Classes="caption" />
+                        <TextBlock Text="{loc:T Ai_ColId}" Classes="caption" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="1" Text="{loc:T Ai_ColName}" Classes="caption" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="2" Text="{loc:T Ai_ColContext}" Classes="caption" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="3" Text="{loc:T Ai_ColCaps}" Classes="caption" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="4" Text="{loc:T Ai_ColPrice}" Classes="caption" TextWrapping="Wrap" />
                       </Grid>
                       <ListBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}" MaxHeight="240" IsVisible="{Binding HasModels}"
                                AutomationProperties.Name="{loc:T Ai_Models}">
@@ -106,7 +106,7 @@
 
                     <!-- Manual model id -->
                     <StackPanel Spacing="4">
-                      <TextBlock Text="{loc:T Ai_CustomModel}" Classes="caption" />
+                      <TextBlock Text="{loc:T Ai_CustomModel}" Classes="label" />
                       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <TextBox Text="{Binding CustomModelId}" PlaceholderText="{loc:T Ai_CustomModelHint}" AutomationProperties.Name="{loc:T Ai_CustomModel}" />
                         <Button Grid.Column="1" Content="{loc:T Ai_TestModel}" Command="{Binding TestModelCommand}" />
@@ -128,13 +128,13 @@
         <ItemsControl ItemsSource="{Binding Assignments}">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:AssignmentRowViewModel">
-              <Grid ColumnDefinitions="190,240,*" ColumnSpacing="10" Margin="0,0,0,6">
-                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding ProviderChoices}" SelectedItem="{Binding SelectedProvider}" HorizontalAlignment="Stretch"
+              <Grid ColumnDefinitions="240,*" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="4" Margin="0,0,0,16">
+                <TextBlock Grid.ColumnSpan="2" Text="{Binding Label}" Classes="label" TextWrapping="Wrap" />
+                <ComboBox Grid.Row="1" ItemsSource="{Binding ProviderChoices}" SelectedItem="{Binding SelectedProvider}" HorizontalAlignment="Stretch"
                           AutomationProperties.Name="{Binding Label}">
                   <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
                 </ComboBox>
-                <AutoCompleteBox Grid.Column="2" Text="{Binding ModelId}" ItemsSource="{Binding Suggestions}" FilterMode="Contains" MinimumPrefixLength="0"
+                <AutoCompleteBox Grid.Row="1" Grid.Column="1" Text="{Binding ModelId}" ItemsSource="{Binding Suggestions}" FilterMode="Contains" MinimumPrefixLength="0"
                                  IsEnabled="{Binding HasProvider}" PlaceholderText="{loc:T Ai_ModelId}" AutomationProperties.Name="{loc:T Ai_ModelId}" />
               </Grid>
             </DataTemplate>
@@ -151,14 +151,20 @@
         <TextBlock Text="{loc:T Ai_ContextLimits}" Classes="h2" />
         <CheckBox IsChecked="{Binding AllowCode}" Content="{loc:T Ai_AllowCode}" />
         <TextBlock Text="{loc:T Ai_AllowCodeNote}" Classes="caption" TextWrapping="Wrap" />
-        <Grid ColumnDefinitions="Auto,160" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6" HorizontalAlignment="Left">
-          <TextBlock Text="{loc:T Ai_MaxTokens}" VerticalAlignment="Center" />
-          <TextBox Grid.Column="1" Text="{Binding MaxOutputTokensText}" PlaceholderText="{loc:T Ai_Default}" AutomationProperties.Name="{loc:T Ai_MaxTokens}" />
-          <TextBlock Grid.Row="1" Text="{loc:T Ai_MonthlyLimit}" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MonthlyLimitText}" PlaceholderText="{loc:T Ai_NoLimit}" AutomationProperties.Name="{loc:T Ai_MonthlyLimit}" />
-          <TextBlock Grid.Row="2" Text="{loc:T Ai_SessionLimit}" VerticalAlignment="Center" />
-          <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SessionLimitText}" PlaceholderText="{loc:T Ai_NoLimit}" AutomationProperties.Name="{loc:T Ai_SessionLimit}" />
-        </Grid>
+        <StackPanel Spacing="16" HorizontalAlignment="Left" Width="240">
+          <StackPanel Spacing="4">
+            <TextBlock Text="{loc:T Ai_MaxTokens}" Classes="label" />
+            <TextBox Text="{Binding MaxOutputTokensText}" PlaceholderText="{loc:T Ai_Default}" AutomationProperties.Name="{loc:T Ai_MaxTokens}" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{loc:T Ai_MonthlyLimit}" Classes="label" />
+            <TextBox Text="{Binding MonthlyLimitText}" PlaceholderText="{loc:T Ai_NoLimit}" AutomationProperties.Name="{loc:T Ai_MonthlyLimit}" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{loc:T Ai_SessionLimit}" Classes="label" />
+            <TextBox Text="{Binding SessionLimitText}" PlaceholderText="{loc:T Ai_NoLimit}" AutomationProperties.Name="{loc:T Ai_SessionLimit}" />
+          </StackPanel>
+        </StackPanel>
         <TextBlock Text="{loc:T Ai_LimitNote}" Classes="caption" TextWrapping="Wrap" />
         <StackPanel Orientation="Horizontal" Spacing="12">
           <Button Content="{loc:T Common_Save}" Command="{Binding SaveLimitsCommand}" Classes="primary" />
@@ -175,7 +181,7 @@
           <Button Content="{loc:T Ai_ClearHistory}" Command="{Binding ClearHistoryCommand}" />
           <TextBlock Text="{Binding HistoryMessage}" Classes="caption" VerticalAlignment="Center" />
         </StackPanel>
-        <Border Classes="panel" Padding="12,8" IsVisible="{Binding HasHistory}">
+        <Border Classes="panel" Padding="16,12" IsVisible="{Binding HasHistory}">
           <StackPanel Spacing="4">
             <Grid ColumnDefinitions="1.4*,1*,1.8*,1.2*,0.9*,0.9*,1*" ColumnSpacing="8">
               <TextBlock Text="{loc:T Ai_HColTime}" Classes="caption" />
@@ -190,13 +196,13 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:HistoryRowViewModel">
                   <Grid ColumnDefinitions="1.4*,1*,1.8*,1.2*,0.9*,0.9*,1*" ColumnSpacing="8" Margin="0,2">
-                    <TextBlock Text="{Binding Time}" FontSize="12" />
-                    <TextBlock Grid.Column="1" Text="{Binding Provider}" FontSize="12" TextWrapping="Wrap" />
-                    <TextBlock Grid.Column="2" Text="{Binding Model}" Classes="mono" FontSize="12" TextWrapping="Wrap" />
-                    <TextBlock Grid.Column="3" Text="{Binding Scenario}" FontSize="12" TextWrapping="Wrap" />
-                    <TextBlock Grid.Column="4" Text="{Binding Tokens}" FontSize="12" />
-                    <TextBlock Grid.Column="5" Text="{Binding Cost}" FontSize="12" />
-                    <TextBlock Grid.Column="6" Text="{Binding Status}" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Text="{Binding Time}" />
+                    <TextBlock Classes="caption" Grid.Column="1" Text="{Binding Provider}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="2" Text="{Binding Model}" Classes="mono caption" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Grid.Column="3" Text="{Binding Scenario}" TextWrapping="Wrap" />
+                    <TextBlock Classes="caption" Grid.Column="4" Text="{Binding Tokens}" />
+                    <TextBlock Classes="caption" Grid.Column="5" Text="{Binding Cost}" />
+                    <TextBlock Classes="caption" Grid.Column="6" Text="{Binding Status}" TextWrapping="Wrap" />
                   </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

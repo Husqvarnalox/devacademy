@@ -5,9 +5,9 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.GradientDescentView"
              x:DataType="vm:GradientDescentViewModel">
-  <Border Classes="panel" Padding="12">
-    <StackPanel Spacing="10">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="10">
+  <Border Classes="panel" Padding="16">
+    <StackPanel Spacing="16">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="12">
         <TextBlock Text="{loc:T Gd_Title}" Classes="h3" VerticalAlignment="Center" />
         <ComboBox Grid.Column="1" Name="FunctionBox" ItemsSource="{Binding Functions}" SelectedItem="{Binding SelectedFunction}" MinWidth="190"
                   AutomationProperties.Name="{loc:T Gd_Function}" />
@@ -15,51 +15,68 @@
                   AutomationProperties.Name="{loc:T Gd_Optimizer}" />
         <TextBlock Grid.Column="3" Text="{Binding PositionText}" Classes="caption" HorizontalAlignment="Right" VerticalAlignment="Center" />
       </Grid>
-      <TextBlock Text="{Binding FormulaText}" Classes="caption" FontFamily="{StaticResource MonoFont}" />
+      <TextBlock Text="{Binding FormulaText}" Classes="caption mono" />
 
-      <ctl:GradientPlotControl Name="Plot" Frame="{Binding Frame}" Height="260" AutomationProperties.Name="{loc:T Gd_Plot}" />
-      <TextBlock Text="{loc:T Gd_PlotHint}" Classes="caption" TextWrapping="Wrap" />
-      <TextBlock Text="{loc:T Gd_LossChart}" Classes="caption" />
-      <ctl:LossChartControl Name="LossChart" Frame="{Binding Frame}" Height="120" AutomationProperties.Name="{loc:T Gd_LossChart}" />
-
-      <TextBlock Name="StatusLine" Text="{Binding StatusText}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding DetailText}" Classes="caption" FontFamily="{StaticResource MonoFont}" TextWrapping="Wrap" />
-
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
-        <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
-        <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
-        <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
-        <TextBlock Text="{loc:T Viz_Speed}" Classes="caption" VerticalAlignment="Center" Margin="12,0,0,0" />
-        <Slider Name="SpeedSlider" Minimum="1" Maximum="60" Value="{Binding Speed}" Width="140" VerticalAlignment="Center"
-                AutomationProperties.Name="{loc:T Viz_Speed}" />
+      <StackPanel Spacing="8">
+        <ctl:GradientPlotControl Name="Plot" Frame="{Binding Frame}" Height="260" AutomationProperties.Name="{loc:T Gd_Plot}" />
+        <TextBlock Text="{loc:T Gd_PlotHint}" Classes="caption secondary" TextWrapping="Wrap" />
+      </StackPanel>
+      <StackPanel Spacing="8">
+        <TextBlock Text="{loc:T Gd_LossChart}" Classes="label" />
+        <ctl:LossChartControl Name="LossChart" Frame="{Binding Frame}" Height="128" AutomationProperties.Name="{loc:T Gd_LossChart}" />
       </StackPanel>
 
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-        <TextBlock Text="{loc:T Gd_LearningRate}" VerticalAlignment="Center" />
-        <Slider Grid.Column="1" Name="LrSlider" Minimum="-4" Maximum="1" Value="{Binding LogLearningRate}" AutomationProperties.Name="{loc:T Gd_LearningRate}" />
-        <TextBlock Grid.Column="2" Name="LrText" Text="{Binding LearningRateText}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center" MinWidth="110" />
-      </Grid>
-      <TextBlock Text="{Binding HintText}" Classes="caption" TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-        <TextBlock Text="{loc:T Gd_Steps}" VerticalAlignment="Center" />
-        <Slider Grid.Column="1" Name="StepsSlider" Minimum="10" Maximum="1000" Value="{Binding Steps}" AutomationProperties.Name="{loc:T Gd_Steps}" />
-        <TextBlock Grid.Column="2" Text="{Binding StepsText}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center" MinWidth="110" />
-      </Grid>
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" IsVisible="{Binding IsQuadratic}">
-        <TextBlock Text="{loc:T Gd_Conditioning}" VerticalAlignment="Center" />
-        <Slider Grid.Column="1" Name="ConditioningSlider" Minimum="1" Maximum="100" Value="{Binding Conditioning}" AutomationProperties.Name="{loc:T Gd_Conditioning}" />
-        <TextBlock Grid.Column="2" Text="{Binding Conditioning, StringFormat='κ = {0:0.#}'}" FontFamily="{StaticResource MonoFont}" VerticalAlignment="Center" MinWidth="110" />
-      </Grid>
+      <StackPanel Spacing="4">
+        <TextBlock Name="StatusLine" Text="{Binding StatusText}" Classes="body" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding DetailText}" Classes="caption mono" TextWrapping="Wrap" />
+      </StackPanel>
 
-      <Grid ColumnDefinitions="Auto,100,Auto,100,Auto" ColumnSpacing="8">
-        <TextBlock Text="{loc:T Gd_Start}" VerticalAlignment="Center" />
-        <TextBox Grid.Column="1" Name="StartXBox" Text="{Binding StartXText}" FontFamily="{StaticResource MonoFont}" AutomationProperties.Name="x" />
-        <TextBlock Grid.Column="2" Text="y" VerticalAlignment="Center" IsVisible="{Binding IsTwoDimensional}" />
-        <TextBox Grid.Column="3" Name="StartYBox" Text="{Binding StartYText}" FontFamily="{StaticResource MonoFont}" IsVisible="{Binding IsTwoDimensional}" AutomationProperties.Name="y" />
-        <Button Grid.Column="4" Content="{loc:T Viz_Apply}" Command="{Binding ApplyStartCommand}" />
-      </Grid>
-      <TextBlock Name="ErrorText" Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+      <StackPanel Spacing="16" HorizontalAlignment="Left" Width="480">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
+          <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
+          <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
+          <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Viz_Speed}" Classes="label" />
+            <TextBlock Grid.Column="1" Text="{Binding Speed, StringFormat='{}{0:0}'}" Classes="caption mono" />
+          </Grid>
+          <Slider Name="SpeedSlider" Minimum="1" Maximum="60" Value="{Binding Speed}" AutomationProperties.Name="{loc:T Viz_Speed}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Gd_LearningRate}" Classes="label" />
+            <TextBlock Name="LrText" Grid.Column="1" Text="{Binding LearningRateText}" Classes="caption mono" />
+          </Grid>
+          <Slider Name="LrSlider" Minimum="-4" Maximum="1" Value="{Binding LogLearningRate}" AutomationProperties.Name="{loc:T Gd_LearningRate}" />
+        </StackPanel>
+        <TextBlock Text="{Binding HintText}" Classes="caption secondary" TextWrapping="Wrap" />
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Gd_Steps}" Classes="label" />
+            <TextBlock Grid.Column="1" Text="{Binding StepsText}" Classes="caption mono" />
+          </Grid>
+          <Slider Name="StepsSlider" Minimum="10" Maximum="1000" Value="{Binding Steps}" AutomationProperties.Name="{loc:T Gd_Steps}" />
+        </StackPanel>
+        <StackPanel Spacing="4" IsVisible="{Binding IsQuadratic}">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{loc:T Gd_Conditioning}" Classes="label" />
+            <TextBlock Grid.Column="1" Text="{Binding Conditioning, StringFormat='κ = {0:0.#}'}" Classes="caption mono" />
+          </Grid>
+          <Slider Name="ConditioningSlider" Minimum="1" Maximum="100" Value="{Binding Conditioning}" AutomationProperties.Name="{loc:T Gd_Conditioning}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="{loc:T Gd_Start}" Classes="label" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBox Name="StartXBox" Text="{Binding StartXText}" Classes="mono" Width="96" PlaceholderText="x" AutomationProperties.Name="x" />
+            <TextBox Name="StartYBox" Text="{Binding StartYText}" Classes="mono" Width="96" PlaceholderText="y" IsVisible="{Binding IsTwoDimensional}" AutomationProperties.Name="y" />
+            <Button Content="{loc:T Viz_Apply}" Command="{Binding ApplyStartCommand}" />
+          </StackPanel>
+        </StackPanel>
+        <TextBlock Name="ErrorText" Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" IsVisible="{Binding HasError}" />
+      </StackPanel>
     </StackPanel>
   </Border>
 </UserControl>

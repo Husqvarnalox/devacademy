@@ -27,17 +27,17 @@ public sealed class PromptDialog : Window
             box.SelectionEnd = dot > 0 ? dot : initial.Length;
         };
         var ok = new Button { Content = confirmText, MinWidth = 96 };
-        ok.Classes.Add("accent");
+        ok.Classes.Add("primary");
         ok.Click += (_, _) => Close(box.Text);
         var cancel = new Button { Content = cancelText, MinWidth = 96 };
         cancel.Click += (_, _) => Close(null);
         Content = new StackPanel
         {
-            Margin = new Thickness(20),
-            Spacing = 12,
+            Margin = new Thickness(24),
+            Spacing = 16,
             Children =
             {
-                new TextBlock { Text = title, FontSize = 17, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = title, Classes = { "h2" }, TextWrapping = TextWrapping.Wrap },
                 new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
                 box,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right, Children = { cancel, ok } },
@@ -67,17 +67,17 @@ public sealed class ChoiceDialog : Window
         {
             var index = i;
             var b = new Button { Content = options[i], MinWidth = 96 };
-            if (i == 0) b.Classes.Add("accent");
+            if (i == 0) b.Classes.Add("primary");
             b.Click += (_, _) => Close(index);
             buttons.Children.Add(b);
         }
         Content = new StackPanel
         {
-            Margin = new Thickness(20),
+            Margin = new Thickness(24),
             Spacing = 16,
             Children =
             {
-                new TextBlock { Text = title, FontSize = 17, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = title, Classes = { "h2" }, TextWrapping = TextWrapping.Wrap },
                 new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
                 buttons,
             },

@@ -252,6 +252,7 @@
   <data name="Problems_Solved" xml:space="preserve"><value>Решена</value></data>
   <data name="Problems_Unsolved" xml:space="preserve"><value>Не решена</value></data>
   <data name="Problems_Count" xml:space="preserve"><value>Задач: {0}</value></data>
+  <data name="Problems_ResetFilters" xml:space="preserve"><value>Сбросить фильтры</value></data>
   <data name="Problems_Empty" xml:space="preserve"><value>Нет задач с такими фильтрами.</value></data>
   <data name="Problems_Open" xml:space="preserve"><value>Открыть</value></data>
   <data name="Lang_Label" xml:space="preserve"><value>Язык</value></data>
@@ -318,7 +319,7 @@
   <data name="Gd_Steps" xml:space="preserve"><value>Шагов</value></data>
   <data name="Gd_StepsValue" xml:space="preserve"><value>{0} шагов</value></data>
   <data name="Gd_Conditioning" xml:space="preserve"><value>Обусловленность</value></data>
-  <data name="Gd_Start" xml:space="preserve"><value>Старт: x</value></data>
+  <data name="Gd_Start" xml:space="preserve"><value>Начальная точка (x, y)</value></data>
   <data name="Gd_ErrStart" xml:space="preserve"><value>Координаты — числа не больше {0} по модулю.</value></data>
   <data name="Gd_Detail" xml:space="preserve"><value>шаг {0}: параметры ({1}), потери {2}, норма градиента {3}</value></data>
   <data name="Gd_StatusRunning" xml:space="preserve"><value>Идёт спуск.</value></data>

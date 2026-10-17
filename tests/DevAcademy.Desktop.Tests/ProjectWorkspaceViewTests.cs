@@ -15,7 +15,7 @@ namespace DevAcademy.Desktop.Tests;
 [Collection(DevAcademy.Desktop.Tests.Support.BindingCaptureCollection.Name)]
 public class ProjectWorkspaceViewTests
 {
-    private static string MakeProject()
+    internal static string MakeProject()
     {
         var dir = Path.Combine(Path.GetTempPath(), "da-view-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(dir, "src"));

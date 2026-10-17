@@ -41,7 +41,30 @@ IBM Plex Sans (UI, three weights: Regular, Medium, SemiBold) and IBM Plex Mono (
 - Icons: `<c:Icon Kind=...>` with Lucide geometries in `Styles/Icons.axaml`, stroked with the inherited foreground.
 
 ## Editor
-Editor background is Surface, current line SurfaceSunken, gutter TextMuted. Syntax token colors stay the familiar TextMate Light+/Dark+ palette.
+Editor background is Surface (Light `#FFFFFF`, Dark `#1E1D1A`), current line SurfaceSunken, gutter TextMuted, caret Text, selection `SelectionBrush` (Light `#D8E9E6`, Dark `#1F3532`), matching brackets a subtle outline. Syntax colours come from two embedded TextMate themes (`Assets/Themes/devacademy-{light,dark}.json`, loaded by `Controls/SyntaxThemes.cs`, switched at runtime with the app theme). Read-only code blocks use the same highlighter.
+
+| Role | Light | Dark |
+| --- | --- | --- |
+| text / parameter | `#1D1C1A` (17.0) | `#ECE9E3` (13.9) |
+| comment (italic) | `#6B665D` (5.7) | `#9D988E` (5.9) |
+| keyword, tag | `#0B5F8A` (7.0) | `#7FB4D8` (7.6) |
+| string | `#2A7239` (5.9) | `#9CCB8A` (9.1) |
+| number | `#9A4A00` (6.3) | `#E0A764` (7.9) |
+| function, attribute | `#6B4E16` (7.7) | `#E6D49A` (11.4) |
+| type | `#0E6A64` (6.4) | `#6CC6BD` (8.4) |
+| constant.language | `#A4373A` (6.6) | `#E8908A` (7.1) |
+| punctuation | `#57534C` (7.6) | `#B7B2A8` (8.0) |
+| invalid (underline) | `#B3261E` (6.5) | `#F08A80` (6.9) |
+
+Ratios are against the editor background; every colour also stays at or above 4.5:1 on the current line and on the selection (`SyntaxThemeTests` enforces it).
+
+## Keyboard focus
+- One ring everywhere: 2px Accent, shown only for keyboard focus (`:focus-visible`), never on mouse clicks. Controls with their own border (buttons, inputs, tiles, rows) get an outset ring with a 2px gap; items that fill their container (sidebar rows, tabs, list rows, expander header) get an inset ring.
+- Covered: buttons, sidebar navigation, list rows, catalog tiles, onboarding choice rows/tiles, tabs, TextBox, ComboBox, CheckBox, RadioButton, ToggleSwitch, Expander header, the menu button.
+- Tab order is visual order: sidebar (Learning group, then settings and collapse), then content top to bottom.
+
+## Landing
+The default screen after onboarding and on every start with a profile is Главная (the dashboard); the sidebar marks it active. The catalog stays one click away.
 
 ## Do
 - Use one primary button per view; use ghost for the rest.

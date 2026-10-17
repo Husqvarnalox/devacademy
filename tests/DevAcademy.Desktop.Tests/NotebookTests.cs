@@ -127,7 +127,7 @@ internal sealed class FakeKernelService : INotebookKernelService
 [Collection(BindingCaptureCollection.Name)]
 public class NotebookTests
 {
-    private static string MakeProject(out string interpreter)
+    internal static string MakeProject(out string interpreter)
     {
         var dir = Path.Combine(Path.GetTempPath(), "da-nb-" + Guid.NewGuid().ToString("N"));
         var bin = Path.Combine(dir, ".venv", OperatingSystem.IsWindows() ? "Scripts" : "bin");
@@ -389,7 +389,7 @@ public class NotebookTests
 
     // ------------------------------------------------------------------ rendering
 
-    private static string PngBase64()
+    internal static string PngBase64()
     {
         using var bmp = new WriteableBitmap(new PixelSize(200, 90), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
         using (var fb = bmp.Lock())

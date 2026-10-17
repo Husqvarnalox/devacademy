@@ -56,10 +56,10 @@ public sealed class KMeansPlotControl : Control
         var rect = new Rect(Pad, Pad, Math.Max(10, Bounds.Width - 2 * Pad), Math.Max(10, Bounds.Height - 2 * Pad));
         IBrush line = Brush("LineBrush", "#DCDCD7");
         IBrush muted = Brush("MutedText", "#6A6A64");
-        IBrush ink = Brush("SystemControlForegroundBaseHighBrush", "#1B1B1B");
+        IBrush ink = Brush("TextBrush", "#1D1C1A");
         var map = PlotMap.Fit(trace.Points, rect);
 
-        context.DrawRectangle(null, new Pen(line, 1), rect);
+        context.DrawRectangle(Brush("SurfaceBrush", "#FFFFFF"), new Pen(line, 1), rect);
 
         // Trail: positions the centroids had in the initial frame and after each update step up to this frame.
         var path = trace.Steps.Take(frame.Position + 1).Where(s => s.Phase != KMeansPhase.Assign).ToList();

@@ -24,14 +24,14 @@
   </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,Auto,*,Auto,260">
     <!-- Toolbar -->
-    <Border Grid.Row="0" Classes="bar" Padding="10,6">
-      <Grid ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+    <Border Grid.Row="0" Classes="bar" Padding="12,8">
+      <WrapPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,0">
           <Button Content="{loc:T Ws_CloseProject}" Command="{Binding CloseProjectCommand}" Classes="flat" />
-          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding Root}" Classes="caption mono" VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" MaxWidth="160" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding Root}" Classes="caption mono" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis" />
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
           <Button Content="{loc:T Ws_Save}" Command="{Binding SaveCommand}" />
           <Button Content="{loc:T Nb_Close}" Command="{Binding CloseNotebookFromUiCommand}" IsVisible="{Binding HasNotebook}" />
           <Button Content="{loc:T Ws_Split}" Command="{Binding ToggleSplitCommand}" />
@@ -43,9 +43,9 @@
                   ToolTip.Tip="{Binding Debug.AdapterText}" />
           <ToggleButton Content="{loc:T Dbg_Panel}" IsChecked="{Binding ShowDebugPanel, Mode=TwoWay}" />
         </StackPanel>
-      </Grid>
+      </WrapPanel>
     </Border>
-    <Border Grid.Row="1" Padding="10,4" Background="{DynamicResource SubtleBrush}">
+    <Border Grid.Row="1" Padding="12,4" Background="{DynamicResource SubtleBrush}">
       <StackPanel Spacing="4">
         <TextBlock Text="{loc:T Ws_NoSandbox}" Classes="caption warn" TextWrapping="Wrap" />
         <TextBlock Name="DebugUnavailableText" Text="{Binding Debug.AdapterText}" Classes="caption" TextWrapping="Wrap" IsVisible="{Binding !Debug.IsAvailable}" />
@@ -85,9 +85,9 @@
         <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding HasLsp}">
           <Button Name="LspStatusButton" Padding="0" Background="Transparent" BorderThickness="0" Command="{Binding LspHelpCommand}"
                   ToolTip.Tip="{Binding LspStatus.Tooltip}">
-            <TextBlock Text="{Binding LspStatus.Text}" FontSize="12" Classes.warn="{Binding LspStatus.NeedsHelp}" Classes.danger="{Binding LspStatus.IsError}" />
+            <TextBlock Classes="caption" Text="{Binding LspStatus.Text}" Classes.warn="{Binding LspStatus.NeedsHelp}" Classes.danger="{Binding LspStatus.IsError}" />
           </Button>
-          <Button Name="ProblemsButton" Padding="6,0" Background="Transparent" BorderThickness="0" Content="{Binding ProblemsHeader}" FontSize="12">
+          <Button Name="ProblemsButton" Padding="8,0" Background="Transparent" BorderThickness="0" Content="{Binding ProblemsHeader}">
             <Button.Flyout>
               <Flyout Placement="BottomEdgeAlignedLeft">
                 <ScrollViewer MaxHeight="320" MinWidth="360">
@@ -96,7 +96,7 @@
                     <ItemsControl ItemsSource="{Binding Problems}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="lsp:ProblemItemViewModel">
-                          <Button Padding="4,3" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                          <Button Padding="4,4" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                   Command="{Binding $parent[ItemsControl].((vm:ProjectWorkspaceViewModel)DataContext).OpenProblemCommand}" CommandParameter="{Binding}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                               <TextBlock Text="{Binding Glyph}" Classes.danger="{Binding IsError}" Classes.warn="{Binding IsWarning}" />
@@ -118,7 +118,7 @@
 
     <!-- Explorer + editors -->
     <Grid Grid.Row="2" ColumnDefinitions="260,4,*,Auto">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="6">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="8">
         <WrapPanel Orientation="Horizontal">
           <Button Content="{loc:T Ws_NewFileShort}" Command="{Binding NewFileCommand}" Classes="flat" ToolTip.Tip="{loc:T Ws_NewFile}" />
           <Button Content="{loc:T Nb_NewShort}" Command="{Binding NewNotebookCommand}" Classes="flat" ToolTip.Tip="{loc:T Nb_NewTitle}" />
@@ -127,7 +127,7 @@
           <Button Content="{loc:T Ws_Delete}" Command="{Binding DeleteCommand}" Classes="flat" IsEnabled="{Binding Explorer.HasSelection}" />
           <Button Content="{loc:T Ws_Refresh}" Command="{Binding RefreshExplorerCommand}" Classes="flat" />
         </WrapPanel>
-        <CheckBox Grid.Row="1" Content="{loc:T Ws_ShowIgnored}" ToolTip.Tip="{loc:T Ws_ShowIgnoredHint}" IsChecked="{Binding Explorer.ShowIgnored}" FontSize="12" />
+        <CheckBox Grid.Row="1" Content="{loc:T Ws_ShowIgnored}" ToolTip.Tip="{loc:T Ws_ShowIgnoredHint}" IsChecked="{Binding Explorer.ShowIgnored}" />
         <TextBox Grid.Row="2" Name="FileQueryBox" Text="{Binding Search.FileQuery}" PlaceholderText="{loc:T Ws_FileSearch}" Margin="0,2" />
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,2">
           <TextBox Name="TextQueryBox" Text="{Binding Search.TextQuery}" PlaceholderText="{loc:T Ws_TextSearch}" />
@@ -153,7 +153,7 @@
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="vm:SearchHitItem">
                   <StackPanel>
-                    <TextBlock Text="{Binding Display}" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption" Text="{Binding Display}" FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Preview}" Classes="caption mono" TextTrimming="CharacterEllipsis" />
                   </StackPanel>
                 </DataTemplate>
@@ -161,7 +161,7 @@
             </ListBox>
             <ListBox Grid.Row="1" ItemsSource="{Binding Search.FileResults}" Name="FileHits" IsVisible="{Binding !ShowTextHits}">
               <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" FontSize="12" /></DataTemplate>
+                <DataTemplate x:DataType="x:String"><TextBlock Classes="caption" Text="{Binding}" /></DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
           </Grid>
@@ -217,9 +217,9 @@
 
     <!-- Terminal panel -->
     <Grid Grid.Row="4" RowDefinitions="Auto,*">
-      <Border Classes="bar" Padding="6,2">
+      <Border Classes="bar" Padding="8,2">
         <Grid ColumnDefinitions="*,Auto">
-          <StackPanel Orientation="Horizontal" Spacing="6">
+          <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="{loc:T Ws_Terminal}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <ListBox ItemsSource="{Binding Terminals}" SelectedItem="{Binding ActiveTerminal}" MaxHeight="34">
               <ListBox.ItemsPanel>

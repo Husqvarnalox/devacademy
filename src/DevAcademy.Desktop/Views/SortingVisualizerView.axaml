@@ -6,8 +6,8 @@
              x:Class="DevAcademy.Desktop.Views.SortingVisualizerView"
              x:DataType="vm:SortingVisualizerViewModel">
   <Border Classes="panel" Padding="12">
-    <StackPanel Spacing="10">
-      <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10">
+    <StackPanel Spacing="12">
+      <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="12">
         <TextBlock Text="{loc:T Viz_Title}" Classes="h3" VerticalAlignment="Center" />
         <ComboBox Grid.Column="1" Name="AlgorithmBox" ItemsSource="{Binding Algorithms}" SelectedItem="{Binding SelectedAlgorithm}" MinWidth="170"
                   AutomationProperties.Name="{loc:T Viz_Algorithm}" />
@@ -23,7 +23,7 @@
         <TextBlock Text="{Binding WritesText}" Classes="caption" />
       </StackPanel>
 
-      <StackPanel Orientation="Horizontal" Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="8">
         <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
         <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
         <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
@@ -33,7 +33,7 @@
                 AutomationProperties.Name="{loc:T Viz_Speed}" />
       </StackPanel>
 
-      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBox Name="InputBox" Text="{Binding InputText}" FontFamily="{StaticResource MonoFont}" PlaceholderText="{loc:T Viz_InputHint}"
                  AutomationProperties.Name="{loc:T Viz_Input}" />
         <Button Grid.Column="1" Content="{loc:T Viz_Apply}" Command="{Binding ApplyInputCommand}" />
