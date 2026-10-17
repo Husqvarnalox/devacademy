@@ -89,7 +89,7 @@ public class ResolverTests
         var r = new AdapterResolver(Cache(), probe: Probe(_ => new ProbeResult(0, "")));
         var s = await r.GetStatusAsync(DebugAdapterRegistry.ForLanguage("python")!, new DebugEnvironment(null), default);
         Assert.Equal(AdapterState.Unavailable, s.State);
-        Assert.Contains("окружение", s.Message);
+        Assert.Contains("environment", s.Message);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class ResolverTests
         var s = await r.GetStatusAsync(DebugAdapterRegistry.ForLanguage("python")!, new DebugEnvironment(py), default);
         Assert.Equal(AdapterState.Unavailable, s.State);
         Assert.Null(s.Plan);
-        Assert.Contains("системный", s.Message);
+        Assert.Contains("system Python", s.Message);
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public class ResolverTests
         {
             Assert.Equal(AdapterState.Unavailable, s.State);
             Assert.Null(s.Plan);
-            Assert.Contains("не проверялось", s.Message);
+            Assert.Contains("has not been tested", s.Message);
             return;
         }
         Assert.Equal(AdapterState.NotInstalled, s.State);

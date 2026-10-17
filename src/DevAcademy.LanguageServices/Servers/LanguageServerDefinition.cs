@@ -17,6 +17,9 @@ public sealed record LanguageServerDefinition(
     string InstallHint)
 {
     public bool IsNpmInstallable => NpmPackages.Count > 0;
+
+    /// <summary><see cref="InstallHint"/> as translatable text.</summary>
+    public DevAcademy.Domain.LocalizedText InstallHintText => EngineMessages.InstallHint(Id, InstallHint);
 }
 
 public static class LanguageServerRegistry

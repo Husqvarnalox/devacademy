@@ -23,13 +23,14 @@ internal static class EvaluatorSupport
     /// <summary>Maps a failed preparation (compile error, runtime missing, ...) to a report.</summary>
     public static EvaluationReport FromPreparationFailure(ExecutionResult failure)
     {
-        var detail = failure.CompileOutput.Length > 0 ? failure.CompileOutput : failure.Message ?? failure.Stderr;
+        var text = failure.CompileOutput.Length > 0 ? LocalizedText.Literal(Tail(failure.CompileOutput))
+            : failure.MessageText ?? LocalizedText.Literal(Tail(failure.Message ?? failure.Stderr));
         var verdict = failure.Status switch
         {
             ExecutionStatus.CompileError => Verdict.CompileError,
             ExecutionStatus.RuntimeMissing => Verdict.RuntimeMissing,
             _ => Verdict.Error,
         };
-        return new EvaluationReport(verdict, [], failure.Duration, failure.AppliedIsolation, Tail(detail));
+        return new EvaluationReport(verdict, [], failure.Duration, failure.AppliedIsolation, text.Fallback, MessageText: text);
     }
 }

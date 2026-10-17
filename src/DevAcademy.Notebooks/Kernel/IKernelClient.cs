@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using DevAcademy.Domain;
 using DevAcademy.Notebooks.Nbformat;
 
 namespace DevAcademy.Notebooks.Kernel;
@@ -28,7 +29,12 @@ public sealed record ExecuteResult(string Status, int? ExecutionCount, string? E
     public bool IsOk => Status == "ok";
 }
 
-public sealed class KernelDeadException(string message) : Exception(message);
+public sealed class KernelDeadException(string message, LocalizedText? text = null) : Exception(message), ILocalizedMessage
+{
+    public KernelDeadException(LocalizedText text) : this(text.Fallback, text) { }
+
+    public LocalizedText Text { get; } = text ?? LocalizedText.Literal(message);
+}
 
 /// <summary>A running Jupyter kernel, as seen by the notebook UI. Implemented by <see cref="KernelSession"/>; tests substitute fakes.</summary>
 public interface IKernelClient : IAsyncDisposable
@@ -36,6 +42,8 @@ public interface IKernelClient : IAsyncDisposable
     KernelState State { get; }
     /// <summary>Why the kernel is dead (process exit code, lost heartbeat...), or null.</summary>
     string? DeadReason { get; }
+    /// <summary>Translatable twin of <see cref="DeadReason"/>; null when none was recorded.</summary>
+    LocalizedText? DeadReasonText => null;
     event Action<KernelState>? StateChanged;
 
     Task StartAsync(CancellationToken ct);

@@ -15,7 +15,7 @@
         <TextBlock Text="{Binding ProgressText}" Classes="mono" Margin="0,8,0,0" />
         <TextBlock Text="{Binding CreditedText}" Classes="small success" IsVisible="{Binding HasCredited}" />
         <TextBlock Text="{Binding KnownText}" Classes="small success" IsVisible="{Binding HasKnown}" />
-        <Button Classes="ghost" Content="{Binding FollowText}" Command="{Binding ToggleFollowCommand}" HorizontalAlignment="Left" />
+        <Button Classes="link" Content="{Binding FollowText}" Command="{Binding ToggleFollowCommand}" HorizontalAlignment="Left" />
       </StackPanel>
 
       <Border Classes="panel" Padding="16">

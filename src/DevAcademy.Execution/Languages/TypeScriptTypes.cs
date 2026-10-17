@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Execution;
 
@@ -14,7 +15,10 @@ internal static class TypeScriptTypes
         File.Exists(Path.Combine(TypeRoot(cacheDirectory), "node", "index.d.ts"));
 }
 
-public sealed record ProvisionResult(bool Success, string Output);
+public sealed record ProvisionResult(bool Success, string Output, LocalizedText? OutputText = null)
+{
+    public static ProvisionResult Failure(LocalizedText message) => new(false, message.Fallback, message);
+}
 
 /// <summary>
 /// Installs @types/node into the runner cache so tsc can type-check. This downloads third-party code from the npm registry,
@@ -27,9 +31,9 @@ public static class TypeScriptTypesProvisioner
     {
         RuntimeStatus node = await NodeProbe.DetectAsync("typescript", ct).ConfigureAwait(false);
         if (node.Availability != RuntimeAvailability.Available || !Version.TryParse(node.Version, out Version? nv))
-            return new ProvisionResult(false, "Node.js is not available.");
+            return ProvisionResult.Failure(EngineMessages.NodeUnavailable());
         if (ToolLocator.Find("npm") is not { } npm)
-            return new ProvisionResult(false, "npm was not found on PATH.");
+            return ProvisionResult.Failure(EngineMessages.NpmNotFound());
 
         string dir = TypeScriptTypes.Directory(cacheDirectory);
         System.IO.Directory.CreateDirectory(dir);
@@ -63,7 +67,7 @@ public static class TypeScriptTypesProvisioner
         {
             try { p.Kill(true); } catch (InvalidOperationException) { }
             ct.ThrowIfCancellationRequested();
-            return new ProvisionResult(false, "npm install timed out.");
+            return ProvisionResult.Failure(EngineMessages.NpmTimedOut());
         }
     }
 }

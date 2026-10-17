@@ -2,6 +2,10 @@
 
   <!-- Jupyter messaging protocol client + .ipynb (nbformat v4). No UI types, no third-party packages (ZMTP 3.0 is implemented here). -->
   <ItemGroup>
+    <ProjectReference Include="..\DevAcademy.Domain\DevAcademy.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="DevAcademy.Notebooks.Tests" />
   </ItemGroup>
 

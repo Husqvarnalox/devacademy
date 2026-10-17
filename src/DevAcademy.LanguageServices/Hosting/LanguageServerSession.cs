@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DevAcademy.Domain;
 using DevAcademy.LanguageServices.JsonRpc;
 using DevAcademy.LanguageServices.Protocol;
 using DevAcademy.LanguageServices.Servers;
@@ -17,9 +18,13 @@ public sealed record ServerStatus(
     string? Executable,
     string? Message,
     int RestartCount,
-    string InstallHint)
+    string InstallHint,
+    LocalizedText? MessageText = null)
 {
     public bool IsUsable => State == ServerState.Ready;
+
+    /// <summary><see cref="InstallHint"/> as translatable text.</summary>
+    public LocalizedText InstallHintText => EngineMessages.InstallHint(DefinitionId, InstallHint);
 }
 
 /// <summary>
@@ -61,10 +66,10 @@ public sealed class LanguageServerSession : IAsyncDisposable
     public event Action<LanguageServerSession>? StatusChanged;
     internal event Action<LanguageServerSession>? Idle;
 
-    private void SetStatus(ServerState state, string? message = null, int? restarts = null, string? version = null)
+    private void SetStatus(ServerState state, LocalizedText? message = null, int? restarts = null, string? version = null)
     {
         lock (_gate)
-            _status = _status with { State = state, Message = message, RestartCount = restarts ?? _status.RestartCount, Version = version ?? _status.Version };
+            _status = _status with { State = state, Message = message?.Fallback, MessageText = message, RestartCount = restarts ?? _status.RestartCount, Version = version ?? _status.Version };
         StatusChanged?.Invoke(this);
     }
 
@@ -107,21 +112,21 @@ public sealed class LanguageServerSession : IAsyncDisposable
         int failures = 0;
         while (!_stopping)
         {
-            string? failure;
+            LocalizedText? failure;
             var startedAt = DateTime.UtcNow;
             try { failure = await RunOnceAsync().ConfigureAwait(false); }
             catch (OperationCanceledException) when (_stopping) { break; }
-            catch (Exception ex) { failure = ex.Message; }
+            catch (Exception ex) { failure = LocalizedText.Literal(ex.Message); }
             if (_stopping) break;
             if (DateTime.UtcNow - startedAt > TimeSpan.FromSeconds(30)) failures = 0; // it ran fine for a while: not a crash loop
 
             foreach (var d in _docs.Values) { d.Detach(); d.ClearDiagnostics(); }
             string tail = _process?.StderrTail.Trim() ?? "";
-            string detail = failure ?? "the server process exited";
-            if (tail.Length > 0) detail += ": " + tail[^Math.Min(300, tail.Length)..];
+            var detail = failure ?? EngineMessages.ProcessExited();
+            if (tail.Length > 0) detail = LocalizedText.Join(": ", detail, LocalizedText.Literal(tail[^Math.Min(300, tail.Length)..]));
             if (failures >= _o.MaxRestarts)
             {
-                SetStatus(ServerState.Error, $"crashed {failures + 1} times; {detail}");
+                SetStatus(ServerState.Error, EngineMessages.Crashed(failures + 1, detail));
                 return;
             }
             TimeSpan delay = _o.RestartDelays[Math.Min(failures, _o.RestartDelays.Count - 1)];
@@ -133,7 +138,7 @@ public sealed class LanguageServerSession : IAsyncDisposable
     }
 
     /// <summary>Runs one server process to its end. Returns the failure reason, or null when it ended without an error to report.</summary>
-    private async Task<string?> RunOnceAsync()
+    private async Task<LocalizedText?> RunOnceAsync()
     {
         if (Status.State != ServerState.Restarting) SetStatus(ServerState.Starting);
         IServerProcess proc = await _o.Launcher.LaunchAsync(_server, Root, _o.Locator.ChildPath(), _cts.Token).ConfigureAwait(false);
@@ -148,16 +153,16 @@ public sealed class LanguageServerSession : IAsyncDisposable
             {
                 init.CancelAfter(_o.InitializeTimeout);
                 try { await client.InitializeAsync(Definition.InitializationOptions, init.Token).ConfigureAwait(false); }
-                catch (OperationCanceledException) when (!_cts.IsCancellationRequested) { return "initialize timed out"; }
-                catch (IOException) { return "the server exited during initialize"; }
-                catch (RpcException ex) { return "initialize failed: " + ex.Message; }
+                catch (OperationCanceledException) when (!_cts.IsCancellationRequested) { return EngineMessages.InitTimeout(); }
+                catch (IOException) { return EngineMessages.ExitedDuringInit(); }
+                catch (RpcException ex) { return EngineMessages.InitFailed(ex.Message); }
             }
             _client = client;
             SetStatus(ServerState.Ready, null, version: client.Capabilities.ServerVersion);
             foreach (var d in _docs.Values) OpenInvoked(d, client);
 
             await Task.WhenAny(client.Closed, proc.Exited).ConfigureAwait(false);
-            return _stopping ? null : "the server process exited unexpectedly";
+            return _stopping ? null : EngineMessages.ExitedUnexpectedly();
         }
         finally
         {

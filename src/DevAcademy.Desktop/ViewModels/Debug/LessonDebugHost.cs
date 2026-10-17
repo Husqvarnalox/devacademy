@@ -66,7 +66,7 @@ internal sealed class LessonDebugHost(ExerciseSessionViewModel session, AppServi
         if (!built.Success || built.Executable is null)
         {
             services.Debug.CleanupRunDirectory(dir);
-            return new DebugPreparation(null, Loc.T("Dbg_BuildFailed") + "\n" + built.Output, null, paths);
+            return new DebugPreparation(null, Loc.T("Dbg_BuildFailed") + "\n" + Loc.Of(built.OutputText, built.Output), null, paths);
         }
         return new DebugPreparation(new DebugLaunch(built.Executable, dir, [], RunArguments: built.RunArguments), null, dir, paths);
     }

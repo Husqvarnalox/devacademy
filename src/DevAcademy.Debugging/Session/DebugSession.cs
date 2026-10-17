@@ -82,7 +82,7 @@ public sealed class DebugSession : IAsyncDisposable
             var launch = _client.LaunchAsync(_options.Launch, ct);
             // Adapters differ: some send `initialized` right after initialize, some after launch. A launch that already answered is also fine.
             var first = await Task.WhenAny(_initialized.Task, launch, _conn.Closed, _process.Exited, Task.Delay(TimeSpan.FromSeconds(30), ct)).ConfigureAwait(false);
-            if (first == _conn.Closed || first == _process.Exited) throw new DapException("The debug adapter stopped during startup. " + _process.LogTail.Trim());
+            if (first == _conn.Closed || first == _process.Exited) throw new DapException(EngineMessages.AdapterStopped(_process.LogTail.Trim()));
             if (launch.IsFaulted) await launch.ConfigureAwait(false);
 
             foreach (var (path, list) in SnapshotBreakpoints())
@@ -140,7 +140,7 @@ public sealed class DebugSession : IAsyncDisposable
         await client.InitializeAsync(_options.Adapter.Id, CancellationToken.None, true).ConfigureAwait(false);
         var request = attach ? client.AttachAsync(config) : client.LaunchAsync(config);
         var first = await Task.WhenAny(ready.Task, request, conn.Closed, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
-        if (first == conn.Closed) throw new DapException("The debug session closed during startup.");
+        if (first == conn.Closed) throw new DapException(EngineMessages.SessionClosed());
         if (request.IsFaulted) await request.ConfigureAwait(false);
         foreach (var (path, list) in SnapshotBreakpoints())
             await SendBreakpointsAsync(path, list, CancellationToken.None).ConfigureAwait(false);

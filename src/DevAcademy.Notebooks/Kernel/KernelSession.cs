@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json.Nodes;
+using DevAcademy.Domain;
 using DevAcademy.Notebooks.Nbformat;
 using DevAcademy.Notebooks.Protocol;
 using DevAcademy.Notebooks.Transport;
@@ -32,11 +33,13 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
     private Instance? _current;
     private KernelState _state = KernelState.NotStarted;
     private string? _deadReason;
+    private LocalizedText? _deadReasonText;
     private int _dropped;
     private bool _disposed;
 
     public KernelState State { get { lock (_gate) return _state; } }
     public string? DeadReason { get { lock (_gate) return _deadReason; } }
+    public LocalizedText? DeadReasonText { get { lock (_gate) return _deadReasonText; } }
     public event Action<KernelState>? StateChanged;
 
     /// <summary>Messages dropped because their signature was wrong or they were malformed.</summary>
@@ -46,14 +49,15 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
     /// <summary>The kernel_info_reply content of the running kernel (implementation, language_info, protocol_version).</summary>
     public JsonObject? KernelInfo => _current?.Info;
 
-    private void SetState(KernelState state, string? deadReason = null)
+    private void SetState(KernelState state, LocalizedText? deadReason = null)
     {
         lock (_gate)
         {
             if (_state == state && deadReason is null) return;
             if (_disposed && state != KernelState.Stopped) return;
             _state = state;
-            _deadReason = state == KernelState.Dead ? deadReason : null;
+            _deadReasonText = state == KernelState.Dead ? deadReason : null;
+            _deadReason = _deadReasonText?.Fallback;
         }
         StateChanged?.Invoke(state);
     }
@@ -97,15 +101,11 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
         SetState(KernelState.Idle);
     }
 
-    private static string DescribeFailure(Instance i, bool cancelled)
+    private static LocalizedText DescribeFailure(Instance i, bool cancelled)
     {
-        if (cancelled) return "cancelled";
-        var sb = new StringBuilder();
-        if (i.Process.HasExited) sb.Append($"Процесс ядра завершился при запуске (код {i.Process.ExitCode}).");
-        else sb.Append("Ядро не ответило вовремя.");
-        var tail = i.Process.StderrTail.Trim();
-        if (tail.Length > 0) sb.Append('\n').Append(tail.Length > 1500 ? tail[^1500..] : tail);
-        return sb.ToString();
+        if (cancelled) return LocalizedText.Literal("cancelled");
+        var head = i.Process.HasExited ? EngineMessages.KernelStartExited(i.Process.ExitCode ?? -1) : EngineMessages.KernelNoResponse();
+        return WithTail(head, i.Process.StderrTail);
     }
 
     private async Task ConnectAsync(Instance i, CancellationToken ct)
@@ -190,7 +190,7 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
     private async Task DisposeInstanceAsync(Instance i, bool kill)
     {
         i.Stopping = true;
-        i.FailAll(new KernelDeadException("Ядро остановлено."));
+        i.FailAll(new KernelDeadException(EngineMessages.KernelStopped()));
         i.Cts.Cancel();
         if (kill && !i.Process.HasExited)
         {
@@ -211,10 +211,16 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
         try { i.ProcessGone.Cancel(); }
         catch (ObjectDisposedException) { return; }
         if (i.Stopping) return;
-        MarkDead(i, $"Процесс ядра завершился (код {i.Process.ExitCode})." + (i.Process.StderrTail.Trim() is { Length: > 0 } t ? "\n" + (t.Length > 1500 ? t[^1500..] : t) : ""));
+        MarkDead(i, WithTail(EngineMessages.KernelExited(i.Process.ExitCode ?? -1), i.Process.StderrTail));
     }
 
-    private void MarkDead(Instance i, string reason)
+    private static LocalizedText WithTail(LocalizedText head, string stderrTail)
+    {
+        var tail = stderrTail.Trim();
+        return tail.Length == 0 ? head : LocalizedText.Join("\n", head, LocalizedText.Literal(tail.Length > 1500 ? tail[^1500..] : tail));
+    }
+
+    private void MarkDead(Instance i, LocalizedText reason)
     {
         if (i.Stopping || !ReferenceEquals(_current, i)) return;
         if (State is KernelState.Dead or KernelState.Stopped or KernelState.Restarting) return;
@@ -227,7 +233,7 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
     public async Task<ExecuteResult> ExecuteAsync(string code, ExecuteOptions? options, Action<KernelEvent>? onEvent, CancellationToken ct)
     {
         var i = _current ?? throw new InvalidOperationException("The kernel is not started.");
-        if (State is KernelState.Dead) throw new KernelDeadException(DeadReason ?? "Ядро остановлено.");
+        if (State is KernelState.Dead) throw new KernelDeadException(DeadReasonText ?? EngineMessages.KernelStopped());
         options ??= new ExecuteOptions();
         var request = JupyterMessage.ExecuteRequest(i.SessionId, code, options.Silent, options.StoreHistory, options.AllowStdin, options.UserExpressions);
         var pending = new PendingExecute(onEvent);
@@ -368,7 +374,7 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
         catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException) { }
         catch (Exception ex) when (ex is ZmtpException or IOException)
         {
-            if (!i.Stopping) MarkDead(i, $"Соединение с ядром потеряно ({channel}): {ex.Message}");
+            if (!i.Stopping) MarkDead(i, EngineMessages.KernelConnectionLost(channel, ex.Message));
         }
     }
 
@@ -397,7 +403,7 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
                     if (i.Hb is not null) { await i.Hb.DisposeAsync().ConfigureAwait(false); i.Hb = null; } // a REQ socket cannot resend: start over
                     if (misses >= _options.MaxMissedHeartbeats || i.Process.HasExited)
                     {
-                        MarkDead(i, i.Process.HasExited ? "Процесс ядра завершился." : "Ядро не отвечает (потеряны сигналы heartbeat).");
+                        MarkDead(i, i.Process.HasExited ? EngineMessages.KernelExited() : EngineMessages.KernelHeartbeat());
                         return;
                     }
                 }

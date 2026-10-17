@@ -20,9 +20,9 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
         IsolationLevel isolation, CancellationToken ct, PythonRunSelection? python = null, NodeRunSelection? node = null, GoRunSelection? go = null, NuGetRunSelection? nuget = null, MavenRunSelection? maven = null)
     {
         if (exercise.Command is not { } spec)
-            return EvaluationReport.Failure(Verdict.Error, $"Content error: exercise '{exercise.Id}' has no command", isolation);
+            return EvaluationReport.Failure(Verdict.Error, EngineMessages.NoCommand(exercise.Id), isolation);
         if (CommandPolicy.Resolve(exercise.LanguageId, spec, out var argv) is { } problem)
-            return EvaluationReport.Failure(Verdict.Error, $"Content error: {problem}", isolation);
+            return EvaluationReport.Failure(Verdict.Error, EngineMessages.ContentError(problem), isolation);
 
         // Test files win over learner files at the same path, and the learner cannot pre-create the report file.
         var prefix = spec.TestsTarget == "." ? "" : spec.TestsTarget.TrimEnd('/') + "/";
@@ -38,8 +38,11 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
         var limits = ResourceLimits.DefaultCommand with { MaxMemoryBytes = spec.UsesNodeTool ? NodeToolMemoryBytes : ResourceLimits.DefaultCommand.MaxMemoryBytes, WallTimeout = TimeSpan.FromSeconds(seconds) };
         var result = await program.RunAsync(null, limits, ct);
         if (result.Status is ExecutionStatus.RuntimeMissing or ExecutionStatus.InternalError or ExecutionStatus.Cancelled)
+        {
+            var infra = result.MessageText ?? LocalizedText.Literal(result.Message ?? result.Status.ToString());
             return new EvaluationReport(result.Status == ExecutionStatus.RuntimeMissing ? Verdict.RuntimeMissing : Verdict.Error,
-                [], result.Duration, result.AppliedIsolation, result.Message ?? result.Status.ToString());
+                [], result.Duration, result.AppliedIsolation, infra.Fallback, MessageText: infra);
+        }
 
         var reportText = spec.ReportFile is null ? result.Stdout : program.TryReadFile(spec.ReportFile, MaxReportBytes);
         var parsed = reportText is null ? null : spec.Report switch
@@ -56,10 +59,15 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
             // No report, a reported build failure, or nothing declared ran while the tool failed: the code did not even get to run its tests.
             var failed = result.ExitCode != 0;
             if (parsed is { BuildFailed: true } || (parsed is null && failed) || (!anyDeclaredRan && failed))
-                return new EvaluationReport(Verdict.CompileError, [], result.Duration, result.AppliedIsolation,
-                    BuildOutput(parsed, result, program.WorkingDirectory), exercise.LanguageId);
+            {
+                var build = BuildOutput(parsed, result, program.WorkingDirectory);
+                return new EvaluationReport(Verdict.CompileError, [], result.Duration, result.AppliedIsolation, build.Fallback, exercise.LanguageId, build);
+            }
             if (parsed is null)
-                return new EvaluationReport(Verdict.Error, [], result.Duration, result.AppliedIsolation, "The test tool produced no report", exercise.LanguageId);
+            {
+                var none = EngineMessages.NoReport();
+                return new EvaluationReport(Verdict.Error, [], result.Duration, result.AppliedIsolation, none.Fallback, exercise.LanguageId, none);
+            }
         }
 
         var cases = new List<CaseResult>();
@@ -72,34 +80,35 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
 
         var allPassed = cases.Count > 0 && cases.All(c => c.Passed);
         var status = allPassed && result.Status == ExecutionStatus.Success ? Verdict.Passed : Verdict.Failed;
-        string? overall = result.Status switch
+        LocalizedText? overall = result.Status switch
         {
-            ExecutionStatus.Timeout => $"Time limit exceeded ({seconds} s)",
-            ExecutionStatus.MemoryLimitExceeded => "Memory limit exceeded",
-            ExecutionStatus.OutputLimitExceeded => "Output limit exceeded",
-            ExecutionStatus.RuntimeError when allPassed => "All declared tests passed, but the test command exited with an error (a test outside the declared list failed?)",
+            ExecutionStatus.Timeout => EngineMessages.TimeLimitSeconds(seconds),
+            ExecutionStatus.MemoryLimitExceeded => EngineMessages.MemoryLimit(),
+            ExecutionStatus.OutputLimitExceeded => EngineMessages.OutputLimit(),
+            ExecutionStatus.RuntimeError when allPassed => EngineMessages.DeclaredPassed(),
             _ => null,
         };
-        return new EvaluationReport(status, cases, result.Duration, result.AppliedIsolation, overall, exercise.LanguageId);
+        return new EvaluationReport(status, cases, result.Duration, result.AppliedIsolation, overall?.Fallback, exercise.LanguageId, overall);
     }
 
     private static CaseResult Judge(TestCase test, IReadOnlyList<ReportedTest> reported, string title, ExecutionStatus run, string workDir)
     {
         var matches = CommandCaseMatcher.Select(reported, test.Match);
-        string? why = null;
-        if (matches.Count == 0) why = run is ExecutionStatus.Success or ExecutionStatus.RuntimeError ? "тест не был запущен" : $"тест не был запущен ({run})";
+        LocalizedText? why = null;
+        if (matches.Count == 0) why = run is ExecutionStatus.Success or ExecutionStatus.RuntimeError ? EngineMessages.TestNotRun() : EngineMessages.TestNotRun(run.ToString());
         else if (matches.FirstOrDefault(m => m.Outcome == ReportedOutcome.Failed) is { } bad)
-            why = test.Hidden ? "Hidden test failed" : bad.Message is { Length: > 0 } m ? EvaluatorSupport.Tail(Sanitize(m, workDir)) : "тест не пройден";
-        else if (matches.Any(m => m.Outcome == ReportedOutcome.Skipped)) why = "тест пропущен (skip/todo не засчитывается)";
+            why = test.Hidden ? EngineMessages.HiddenFailed()
+                : bad.Message is { Length: > 0 } m ? LocalizedText.Literal(EvaluatorSupport.Tail(Sanitize(m, workDir))) : EngineMessages.TestFailed();
+        else if (matches.Any(m => m.Outcome == ReportedOutcome.Skipped)) why = EngineMessages.TestSkipped();
 
         if (why is null) return new CaseResult(test.Id, title, test.Hidden, true, null, null);
         var message = test.Hidden
-            ? (string.IsNullOrWhiteSpace(test.Hint) ? why : $"{why}. Hint: {test.Hint}")
-            : string.Join("\n", new[] { why, test.Hint }.Where(s => !string.IsNullOrWhiteSpace(s)));
-        return new CaseResult(test.Id, title, test.Hidden, false, message, null);
+            ? EngineMessages.Hinted(why, test.Hint)
+            : LocalizedText.Join("\n", why, string.IsNullOrWhiteSpace(test.Hint) ? null : LocalizedText.Literal(test.Hint));
+        return new CaseResult(test.Id, title, test.Hidden, false, message.Fallback, null, MessageText: message);
     }
 
-    private static string BuildOutput(ParsedReport? parsed, ExecutionResult result, string workDir)
+    private static LocalizedText BuildOutput(ParsedReport? parsed, ExecutionResult result, string workDir)
     {
         var parts = new List<string>();
         if (parsed?.BuildOutput is { } build) parts.Add(build);
@@ -109,8 +118,8 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
             if (result.Stdout.Trim().Length > 0 && !result.Stdout.TrimStart().StartsWith('{') && !result.Stdout.TrimStart().StartsWith('<')) parts.Add(result.Stdout);
         if (parts.Count == 0 && parsed is not null)
             parts.AddRange(parsed.Tests.Where(t => t.Outcome == ReportedOutcome.Failed && t.Message is not null).Select(t => $"{t.Name}: {t.Message}"));
-        if (parts.Count == 0) parts.Add($"The test command failed ({result.Status}, exit code {result.ExitCode?.ToString() ?? "none"}) and produced no output");
-        return EvaluatorSupport.Tail(Sanitize(string.Join("\n", parts), workDir));
+        if (parts.Count == 0) return EngineMessages.CommandFailed(result.Status.ToString(), result.ExitCode?.ToString() ?? "none");
+        return LocalizedText.Literal(EvaluatorSupport.Tail(Sanitize(string.Join("\n", parts), workDir)));
     }
 
     /// <summary>Hides the random work directory in messages ("file:///tmp/devacademy-run-.../src/x.js" becomes "src/x.js").</summary>

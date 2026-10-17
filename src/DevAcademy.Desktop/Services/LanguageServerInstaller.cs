@@ -17,14 +17,14 @@ public static class LanguageServerInstaller
         if (plan is null)
         {
             var key = def.NpmPackages.Count > 0 ? "Lsp_ManualInstallNoNpm" : "Lsp_ManualInstall";
-            await s.Dialogs.ShowMessageAsync(Loc.T("Lsp_HowToInstallTitle"), Loc.F(key, def.DisplayName, def.InstallHint));
+            await s.Dialogs.ShowMessageAsync(Loc.T("Lsp_HowToInstallTitle"), Loc.F(key, def.DisplayName, Loc.Of(def.InstallHintText)));
             return false;
         }
         var ok = await s.Dialogs.ConfirmAsync(Loc.T("Lsp_HowToInstallTitle"), Loc.F("Lsp_InstallConfirm", plan.Display), Loc.T("Lsp_InstallButton"));
         if (!ok) return false;
         var result = await s.Language.InstallAsync(def, plan);
         await s.Dialogs.ShowMessageAsync(Loc.T("Lsp_HowToInstallTitle"),
-            result.Success ? Loc.F("Lsp_InstallDone", def.DisplayName) : Loc.F("Lsp_InstallFailed", def.DisplayName, Tail(result.Output)));
+            result.Success ? Loc.F("Lsp_InstallDone", def.DisplayName) : Loc.F("Lsp_InstallFailed", def.DisplayName, Tail(Loc.Of(result.OutputText, result.Output))));
         return result.Success;
     }
 

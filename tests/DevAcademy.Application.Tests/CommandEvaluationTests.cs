@@ -229,7 +229,7 @@ public class CommandEvaluatorTests
         Assert.Equal(Verdict.Failed, report.Status);
         Assert.True(report.Cases[0].Passed);
         Assert.False(report.Cases[1].Passed);
-        Assert.Contains("тест не был запущен", report.Cases[1].Message);
+        Assert.Contains("the test was not run", report.Cases[1].Message);
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class CommandEvaluatorTests
     {
         var report = await Run(Runner(Done(), Junit(("alpha", null), ("beta", "skip"))));
         Assert.Equal(Verdict.Failed, report.Status);
-        Assert.Contains("пропущен", report.Cases[1].Message);
+        Assert.Contains("skipped", report.Cases[1].Message);
     }
 
     [Fact]

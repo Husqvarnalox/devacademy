@@ -1,12 +1,16 @@
 using System.Diagnostics;
 using System.Text;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Notebooks.Kernel;
 
 /// <summary>The exact command that installing the kernel would run; shown to the user before anything is executed.</summary>
 public sealed record KernelInstallPlan(string FileName, IReadOnlyList<string> Arguments, string CommandLine, string EnvironmentDirectory);
 
-public sealed record KernelInstallResult(bool Ok, string? Error);
+public sealed record KernelInstallResult(bool Ok, string? Error, LocalizedText? ErrorText = null)
+{
+    public static KernelInstallResult Fail(LocalizedText error) => new(false, error.Fallback, error);
+}
 
 /// <summary>
 /// Checks for and installs <c>ipykernel</c> in a Python virtual environment. Installation happens only when <see cref="InstallAsync"/> is
@@ -49,9 +53,10 @@ public static class KernelProvisioner
 
     public static async Task<KernelInstallResult> InstallAsync(KernelInstallPlan plan, Action<string> onLine, CancellationToken ct)
     {
-        if (!IsVirtualEnvironment(plan.FileName)) return new(false, "Установка допускается только в виртуальное окружение.");
+        if (!IsVirtualEnvironment(plan.FileName)) return KernelInstallResult.Fail(EngineMessages.InstallVenvOnly());
         var r = await RunAsync(plan.FileName, plan.Arguments, TimeSpan.FromMinutes(10), onLine, ct).ConfigureAwait(false);
-        return r.ExitCode == 0 ? new(true, null) : new(false, r.TimedOut ? "Установка не завершилась за 10 минут." : $"pip завершился с кодом {r.ExitCode}.\n{Tail(r.Stderr.Length > 0 ? r.Stderr : r.Stdout)}");
+        return r.ExitCode == 0 ? new(true, null)
+            : KernelInstallResult.Fail(r.TimedOut ? EngineMessages.InstallTimeout() : EngineMessages.PipFailed(r.ExitCode, Tail(r.Stderr.Length > 0 ? r.Stderr : r.Stdout)));
     }
 
     private static string Tail(string s) => s.Length > 1500 ? s[^1500..] : s;

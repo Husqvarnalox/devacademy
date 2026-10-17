@@ -1,3 +1,5 @@
+using DevAcademy.Domain;
+
 namespace DevAcademy.Execution;
 
 // Shared contracts of the Code Execution Engine. See RUNTIME_ARCHITECTURE.md.
@@ -70,9 +72,15 @@ public sealed record ExecutionResult(
     TimeSpan Duration,
     long? PeakMemoryBytes,
     IsolationLevel AppliedIsolation,
-    string? Message = null)
+    string? Message = null,
+    /// <summary>The same message as a translatable value; <see cref="Message"/> is its English fallback. Null when there is no message.</summary>
+    LocalizedText? MessageText = null)
 {
     public bool IsSuccess => Status == ExecutionStatus.Success;
+
+    /// <summary>Copy with <paramref name="text"/> as the message (both the English string and the translatable value); null clears it.</summary>
+    public ExecutionResult WithMessage(LocalizedText? text) =>
+        this with { Message = text is { Fallback.Length: > 0 } ? text.Fallback : null, MessageText = text is { Fallback.Length: > 0 } ? text : null };
 }
 
 /// <summary>Description of one process to launch. Paths in Args may be relative to WorkingDirectory.</summary>
@@ -98,7 +106,21 @@ public sealed record RuntimeStatus(
     string? Notes,
     string? InstallHint,
     /// <summary>Non-null when the runtime works but something degrades the result (e.g. type-checking skipped); surfaced in ExecutionResult.Message.</summary>
-    string? Warning = null);
+    string? Warning = null,
+    /// <summary>Translatable forms of <see cref="Notes"/>, <see cref="InstallHint"/> and <see cref="Warning"/>; the strings are their English fallbacks. Set them through the With* methods.</summary>
+    LocalizedText? NotesText = null,
+    LocalizedText? InstallHintText = null,
+    LocalizedText? WarningText = null)
+{
+    public RuntimeStatus WithNotes(LocalizedText? text) => this with { Notes = text?.Fallback, NotesText = text };
+    public RuntimeStatus WithInstallHint(LocalizedText? text) => this with { InstallHint = text?.Fallback, InstallHintText = text };
+    public RuntimeStatus WithWarning(LocalizedText? text) => this with { Warning = text?.Fallback, WarningText = text };
+
+    /// <summary><see cref="NotesText"/>, or the plain <see cref="Notes"/> as verbatim text; null when there are none.</summary>
+    public LocalizedText? NotesMessage => NotesText ?? (string.IsNullOrWhiteSpace(Notes) ? null : LocalizedText.Literal(Notes));
+    public LocalizedText? InstallHintMessage => InstallHintText ?? (string.IsNullOrWhiteSpace(InstallHint) ? null : LocalizedText.Literal(InstallHint));
+    public LocalizedText? WarningMessage => WarningText ?? (string.IsNullOrWhiteSpace(Warning) ? null : LocalizedText.Literal(Warning));
+}
 
 /// <summary>
 /// A language adapter that can run its own test tool. The executable is always the adapter's tool (argv[0] must equal

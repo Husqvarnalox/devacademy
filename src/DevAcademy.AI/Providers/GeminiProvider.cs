@@ -135,7 +135,7 @@ public sealed class GeminiProvider : HttpModelProvider
     private AiProviderException? BlockedPrompt(JsonElement root, string apiKey)
     {
         var reason = Obj(root, "promptFeedback") is { } pf ? Str(pf, "blockReason") : null;
-        return reason is null ? null : new AiProviderException(AiErrorKind.BadRequest, ProviderId, Scrub($"The prompt was blocked by the provider ({reason}).", apiKey));
+        return reason is null ? null : new AiProviderException(AiErrorKind.BadRequest, ProviderId, EngineMessages.PromptBlocked(Scrub(reason, apiKey)));
     }
 
     public override async Task<CompletionResult> CreateCompletionAsync(CompletionRequest request, CancellationToken ct = default)

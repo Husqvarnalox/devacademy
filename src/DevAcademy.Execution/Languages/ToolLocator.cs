@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Execution;
 
@@ -100,8 +101,8 @@ internal static class ToolLocator
         }
     }
 
-    public static RuntimeStatus Missing(string languageId, string what, string hint) =>
-        new(languageId, RuntimeAvailability.Missing, null, null, $"{what} was not found on PATH.", hint);
+    public static RuntimeStatus Missing(string languageId, LocalizedText notes, LocalizedText hint) =>
+        new RuntimeStatus(languageId, RuntimeAvailability.Missing, null, null, null, null).WithNotes(notes).WithInstallHint(hint);
 
     public static IEnumerable<string> FilesWithExtensions(string dir, params string[] extensions) =>
         Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)

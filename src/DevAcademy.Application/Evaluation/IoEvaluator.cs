@@ -19,7 +19,7 @@ public sealed class IoEvaluator(ICodeRunner runner) : IExerciseEvaluator
         var applied = isolation;
         var total = TimeSpan.Zero;
         Verdict? infrastructure = null;
-        string? infrastructureMessage = null;
+        LocalizedText? infrastructureMessage = null;
         var hiddenOrdinal = 0;
 
         foreach (var test in exercise.Tests)
@@ -32,13 +32,13 @@ public sealed class IoEvaluator(ICodeRunner runner) : IExerciseEvaluator
             if (result.Status is ExecutionStatus.RuntimeMissing or ExecutionStatus.InternalError or ExecutionStatus.Cancelled)
             {
                 infrastructure ??= result.Status == ExecutionStatus.RuntimeMissing ? Verdict.RuntimeMissing : Verdict.Error;
-                infrastructureMessage ??= result.Message ?? result.Status.ToString();
+                infrastructureMessage ??= result.MessageText ?? LocalizedText.Literal(result.Message ?? result.Status.ToString());
                 continue;
             }
             cases.Add(Judge(test, result, EvaluatorSupport.DisplayTitle(test, hiddenOrdinal)));
         }
 
-        if (infrastructure is { } v) return new EvaluationReport(v, [], total, applied, infrastructureMessage);
+        if (infrastructure is { } v) return new EvaluationReport(v, [], total, applied, infrastructureMessage?.Fallback, MessageText: infrastructureMessage);
         var status = cases.Count > 0 && cases.All(c => c.Passed) ? Verdict.Passed : Verdict.Failed;
         return new EvaluationReport(status, cases, total, applied, LanguageId: exercise.LanguageId);
     }
@@ -49,25 +49,26 @@ public sealed class IoEvaluator(ICodeRunner runner) : IExerciseEvaluator
         var passed = result.Status == ExecutionStatus.Success
             && OutputComparer.AreEqual(expected, result.Stdout, test.Compare, test.Tolerance);
 
-        string? message = null;
+        LocalizedText? message = null;
         if (!passed)
         {
             var status = result.Status switch
             {
-                ExecutionStatus.Success => "Output does not match the expected output",
-                ExecutionStatus.RuntimeError => "The program crashed or exited with an error",
-                ExecutionStatus.Timeout => "Time limit exceeded",
-                ExecutionStatus.MemoryLimitExceeded => "Memory limit exceeded",
-                ExecutionStatus.OutputLimitExceeded => "Output limit exceeded",
-                _ => result.Status.ToString(),
+                ExecutionStatus.Success => EngineMessages.OutputMismatch(),
+                ExecutionStatus.RuntimeError => EngineMessages.Crashed(),
+                ExecutionStatus.Timeout => EngineMessages.TimeLimit(),
+                ExecutionStatus.MemoryLimitExceeded => EngineMessages.MemoryLimit(),
+                ExecutionStatus.OutputLimitExceeded => EngineMessages.OutputLimit(),
+                _ => LocalizedText.Literal(result.Status.ToString()),
             };
             message = test.Hidden
-                ? (string.IsNullOrWhiteSpace(test.Hint) ? status : $"{status}. Hint: {test.Hint}")
-                : string.Join("\n", new[] { status, test.Hint, result.Stderr.Length > 0 ? EvaluatorSupport.Tail(result.Stderr) : null }
-                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+                ? EngineMessages.Hinted(status, test.Hint)
+                : LocalizedText.Join("\n", status,
+                    string.IsNullOrWhiteSpace(test.Hint) ? null : LocalizedText.Literal(test.Hint),
+                    result.Stderr.Length > 0 ? LocalizedText.Literal(EvaluatorSupport.Tail(result.Stderr)) : null);
         }
 
         var detail = test.Hidden ? null : new CaseDetail(test.Stdin, test.Expected, result.Stdout);
-        return new CaseResult(test.Id, title, test.Hidden, passed, message, detail, result.Duration);
+        return new CaseResult(test.Id, title, test.Hidden, passed, message?.Fallback, detail, result.Duration, message);
     }
 }

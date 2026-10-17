@@ -10,7 +10,7 @@ public static class NotebookStore
     public static async Task<NotebookDocument> LoadAsync(string path, CancellationToken ct = default)
     {
         var info = new FileInfo(path);
-        if (info.Length > MaxBytes) throw new NotebookFormatException($"The notebook is larger than {MaxBytes / (1024 * 1024)} MB.");
+        if (info.Length > MaxBytes) throw new NotebookFormatException(EngineMessages.TooLarge(MaxBytes / (1024 * 1024)));
         var text = await File.ReadAllTextAsync(path, new UTF8Encoding(false), ct).ConfigureAwait(false);
         return NotebookSerializer.Parse(text);
     }

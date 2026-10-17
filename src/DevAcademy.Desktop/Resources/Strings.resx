@@ -1012,4 +1012,165 @@
   <data name="Catalog_Featured" xml:space="preserve"><value>Ваш маршрут</value></data>
   <data name="Catalog_AllPaths" xml:space="preserve"><value>Все маршруты ({0})</value></data>
   <data name="Catalog_PathsIntro" xml:space="preserve"><value>Маршрут — готовая последовательность курсов под цель. Откройте подходящий и нажмите «Сделать основным»: он появится здесь и на главной.</value></data>
+  <data name="Engine_Ai_ConnectionLost" xml:space="preserve"><value>Соединение потеряно во время потоковой передачи: {0}</value></data>
+  <data name="Engine_Ai_EmptyKey" xml:space="preserve"><value>API-ключ пуст.</value></data>
+  <data name="Engine_Ai_InvalidJson" xml:space="preserve"><value>Провайдер вернул ответ, который не является корректным JSON.</value></data>
+  <data name="Engine_Ai_NetworkError" xml:space="preserve"><value>Сетевая ошибка: {0}</value></data>
+  <data name="Engine_Ai_PromptBlocked" xml:space="preserve"><value>Запрос заблокирован провайдером ({0}).</value></data>
+  <data name="Engine_Ai_RequestTimedOut" xml:space="preserve"><value>Запрос к провайдеру не уложился по времени.</value></data>
+  <data name="Engine_Ai_StreamEnded" xml:space="preserve"><value>Поток оборвался до завершения ответа.</value></data>
+  <data name="Engine_Debug_AdapterFailed" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="Engine_Debug_AdapterStopped" xml:space="preserve"><value>Адаптер отладки остановился при запуске. {0}</value></data>
+  <data name="Engine_Debug_CompilerFailed" xml:space="preserve"><value>Компилятор завершился с ошибкой.</value></data>
+  <data name="Engine_Debug_DebugpyNoVenv" xml:space="preserve"><value>debugpy не установлен, а выбранный интерпретатор не относится к виртуальному окружению. В системный Python приложение ничего не устанавливает: создайте .venv или управляемое окружение.</value></data>
+  <data name="Engine_Debug_DebugpyNotInstalled" xml:space="preserve"><value>debugpy не установлен в выбранном окружении.</value></data>
+  <data name="Engine_Debug_DelveNoGo" xml:space="preserve"><value>dlv не найден, и Go не установлен: установите Go (https://go.dev/dl/), затем Delve.</value></data>
+  <data name="Engine_Debug_DelveNotInstalled" xml:space="preserve"><value>Delve (dlv) не установлен.</value></data>
+  <data name="Engine_Debug_DotNetMissing" xml:space="preserve"><value>Не найден .NET SDK: он нужен и для сборки программы, и для отладчика (https://dotnet.microsoft.com/download).</value></data>
+  <data name="Engine_Debug_Hint_Debugpy" xml:space="preserve"><value>pip install debugpy в выбранное виртуальное окружение</value></data>
+  <data name="Engine_Debug_Hint_Java" xml:space="preserve"><value>JDK 17+ с модулем jdk.jdi: адаптер поставляется с приложением в виде исходника и компилируется локально через javac (без загрузки)</value></data>
+  <data name="Engine_Debug_Hint_JsDebug" xml:space="preserve"><value>Node.js и vscode-js-debug {0} из релизов GitHub (с проверкой контрольной суммы)</value></data>
+  <data name="Engine_Debug_Hint_Lldb" xml:space="preserve"><value>macOS: xcode-select --install (lldb-dap входит в Xcode / Command Line Tools). Linux: apt install lldb. Windows: установите LLVM.</value></data>
+  <data name="Engine_Debug_Hint_NetCoreDbg" xml:space="preserve"><value>netcoredbg {0} (Samsung, MIT) из релизов GitHub (с проверкой контрольной суммы); автоматически ставится только на macOS arm64</value></data>
+  <data name="Engine_Debug_JavaNotBuilt" xml:space="preserve"><value>Отладчик Java ещё не собран.</value></data>
+  <data name="Engine_Debug_JdkNotFound" xml:space="preserve"><value>JDK не найден. {0}</value></data>
+  <data name="Engine_Debug_JsDebugNotInstalled" xml:space="preserve"><value>vscode-js-debug {0} не установлен.</value></data>
+  <data name="Engine_Debug_JsDebugWindows" xml:space="preserve"><value>vscode-js-debug не установлен. Автоматическая установка на Windows не проверялась: распакуйте {0} (sha256 {1}) в {2}.</value></data>
+  <data name="Engine_Debug_LldbNotFound" xml:space="preserve"><value>lldb-dap не найден. {0}</value></data>
+  <data name="Engine_Debug_NetCoreDbgManual" xml:space="preserve"><value>Автоматическая установка netcoredbg проверена только на macOS arm64. На этой платформе скачайте релиз с https://github.com/Samsung/netcoredbg/releases (Linux x64/arm64 и Windows x64 есть в {0}; macOS x64 — в 3.1.3-1062) и распакуйте его в {1} так, чтобы появился {2}. Это не проверялось.</value></data>
+  <data name="Engine_Debug_NetCoreDbgNotInstalled" xml:space="preserve"><value>netcoredbg {0} не установлен.</value></data>
+  <data name="Engine_Debug_NoBuild" xml:space="preserve"><value>Для «{0}» нет отладочной сборки.</value></data>
+  <data name="Engine_Debug_NoDebugger" xml:space="preserve"><value>Для этого языка отладчик пока не поддерживается.</value></data>
+  <data name="Engine_Debug_NoJdi" xml:space="preserve"><value>В установленной Java нет модуля jdk.jdi (нужна полная JDK, не JRE): без него отладчик Java не собрать.</value></data>
+  <data name="Engine_Debug_NoPythonEnvironment" xml:space="preserve"><value>Выберите окружение Python (виртуальное окружение проекта или управляемое окружение): отладчик debugpy ставится только в него.</value></data>
+  <data name="Engine_Debug_NodeMissing" xml:space="preserve"><value>Node.js не найден: он нужен и для запуска программы, и для отладчика (https://nodejs.org/).</value></data>
+  <data name="Engine_Debug_SessionClosed" xml:space="preserve"><value>Сеанс отладки закрылся при запуске.</value></data>
+  <data name="Engine_Debug_UnknownAdapter" xml:space="preserve"><value>Неизвестный адаптер отладки.</value></data>
+  <data name="Engine_Eval_CommandFailedNoOutput" xml:space="preserve"><value>Тестовая команда завершилась с ошибкой ({0}, код выхода {1}) и ничего не вывела</value></data>
+  <data name="Engine_Eval_ContentError" xml:space="preserve"><value>Ошибка контента: {0}</value></data>
+  <data name="Engine_Eval_Crashed" xml:space="preserve"><value>Программа аварийно завершилась или вышла с ошибкой</value></data>
+  <data name="Engine_Eval_DeclaredPassedButFailed" xml:space="preserve"><value>Все заявленные тесты пройдены, но тестовая команда завершилась с ошибкой (упал тест вне списка?)</value></data>
+  <data name="Engine_Eval_HarnessCollision" xml:space="preserve"><value>Ошибка контента: файл теста «{0}» совпадает с файлом ученика</value></data>
+  <data name="Engine_Eval_HiddenFailed" xml:space="preserve"><value>Скрытый тест не пройден</value></data>
+  <data name="Engine_Eval_Hinted" xml:space="preserve"><value>{0}. Подсказка: {1}</value></data>
+  <data name="Engine_Eval_MemoryLimit" xml:space="preserve"><value>Превышен лимит памяти</value></data>
+  <data name="Engine_Eval_NoCommand" xml:space="preserve"><value>Ошибка контента: у упражнения «{0}» нет команды</value></data>
+  <data name="Engine_Eval_NoHarnessEntry" xml:space="preserve"><value>Ошибка контента: у упражнения «{0}» не задан harnessEntry</value></data>
+  <data name="Engine_Eval_NoReport" xml:space="preserve"><value>Тестовый инструмент не создал отчёт</value></data>
+  <data name="Engine_Eval_NotReported" xml:space="preserve"><value>тест не отчитался</value></data>
+  <data name="Engine_Eval_NotReportedStatus" xml:space="preserve"><value>тест не отчитался ({0})</value></data>
+  <data name="Engine_Eval_OutputLimit" xml:space="preserve"><value>Превышен лимит вывода</value></data>
+  <data name="Engine_Eval_OutputMismatch" xml:space="preserve"><value>Вывод не совпадает с ожидаемым</value></data>
+  <data name="Engine_Eval_ProcessEnded" xml:space="preserve"><value>Все тесты сообщили об успехе, но процесс завершился со статусом {0}</value></data>
+  <data name="Engine_Eval_TestFailed" xml:space="preserve"><value>тест не пройден</value></data>
+  <data name="Engine_Eval_TestNotRun" xml:space="preserve"><value>тест не был запущен</value></data>
+  <data name="Engine_Eval_TestNotRunStatus" xml:space="preserve"><value>тест не был запущен ({0})</value></data>
+  <data name="Engine_Eval_TestSkipped" xml:space="preserve"><value>тест пропущен (skip/todo не засчитывается)</value></data>
+  <data name="Engine_Eval_TimeLimit" xml:space="preserve"><value>Превышен лимит времени</value></data>
+  <data name="Engine_Eval_TimeLimitSeconds" xml:space="preserve"><value>Превышен лимит времени ({0} с)</value></data>
+  <data name="Engine_Hint_Cpp" xml:space="preserve"><value>Установите компилятор C++: macOS: xcode-select --install; Debian/Ubuntu: apt install g++; Windows: https://visualstudio.microsoft.com/downloads/ или MSYS2.</value></data>
+  <data name="Engine_Hint_DotNet" xml:space="preserve"><value>Установите .NET 10 SDK с https://dotnet.microsoft.com/download (macOS: brew install --cask dotnet-sdk; Debian/Ubuntu: apt install dotnet-sdk-10.0).</value></data>
+  <data name="Engine_Hint_Go" xml:space="preserve"><value>Установите Go с https://go.dev/dl/ (macOS: brew install go; Debian/Ubuntu: apt install golang).</value></data>
+  <data name="Engine_Hint_GoWorking" xml:space="preserve"><value>Установите Go с https://go.dev/dl/.</value></data>
+  <data name="Engine_Hint_Jdk" xml:space="preserve"><value>Установите JDK 17 или новее с https://adoptium.net/ (macOS: brew install openjdk; Debian/Ubuntu: apt install default-jdk).</value></data>
+  <data name="Engine_Hint_Kotlin" xml:space="preserve"><value>https://kotlinlang.org/docs/command-line.html (нужен ещё JDK).</value></data>
+  <data name="Engine_Hint_Node" xml:space="preserve"><value>Установите Node.js с https://nodejs.org/ (macOS: brew install node; Debian/Ubuntu: apt install nodejs).</value></data>
+  <data name="Engine_Hint_Php" xml:space="preserve"><value>Установите PHP 8 с https://www.php.net/downloads (macOS: brew install php; Debian/Ubuntu: apt install php-cli).</value></data>
+  <data name="Engine_Hint_Python" xml:space="preserve"><value>Установите Python 3 с https://www.python.org/downloads/ (macOS: brew install python; Debian/Ubuntu: apt install python3).</value></data>
+  <data name="Engine_Hint_Rust" xml:space="preserve"><value>https://rustup.rs</value></data>
+  <data name="Engine_Hint_Tsc" xml:space="preserve"><value>Для проверки типов установите компилятор TypeScript: npm install -g typescript (https://www.typescriptlang.org/download).</value></data>
+  <data name="Engine_Isolation_ContainerUnsupported" xml:space="preserve"><value>Изоляция в контейнере для {0} не поддерживается.</value></data>
+  <data name="Engine_Isolation_DockerImageMissing" xml:space="preserve"><value>Образ Docker «{0}» не найден локально (docker pull {0}).</value></data>
+  <data name="Engine_Isolation_DockerNotFound" xml:space="preserve"><value>Исполняемый файл docker не найден.</value></data>
+  <data name="Engine_Isolation_FallbackDisabled" xml:space="preserve"><value>Переход на другой уровень изоляции отключён.</value></data>
+  <data name="Engine_Isolation_GoCache" xml:space="preserve"><value>Выбран кеш модулей Go, поэтому запуск идёт в песочнице ОС (OsSandbox), а не в контейнере.</value></data>
+  <data name="Engine_Isolation_MavenFolder" xml:space="preserve"><value>Выбрана папка jar-файлов Maven, поэтому запуск идёт в песочнице ОС (OsSandbox), а не в контейнере.</value></data>
+  <data name="Engine_Isolation_NoSandbox" xml:space="preserve"><value>Не удалось выбрать песочницу.</value></data>
+  <data name="Engine_Isolation_NodeEnv" xml:space="preserve"><value>Выбрано окружение Node, поэтому запуск идёт в песочнице ОС (OsSandbox), а не в контейнере.</value></data>
+  <data name="Engine_Isolation_NuGetFolder" xml:space="preserve"><value>Выбрана папка пакетов NuGet, поэтому запуск идёт в песочнице ОС (OsSandbox), а не в контейнере.</value></data>
+  <data name="Engine_Isolation_PythonEnv" xml:space="preserve"><value>Выбрано окружение Python, поэтому запуск идёт в песочнице ОС (OsSandbox), а не в контейнере.</value></data>
+  <data name="Engine_Isolation_TestCommand" xml:space="preserve"><value>Тестовая команда выполняется на хосте, поэтому запуск идёт в песочнице ОС (OsSandbox), а не в контейнере.</value></data>
+  <data name="Engine_Isolation_Unavailable" xml:space="preserve"><value>Изоляция {0} недоступна на этом компьютере.</value></data>
+  <data name="Engine_Lsp_Crashed" xml:space="preserve"><value>сервер аварийно завершался {0} раз(а); {1}</value></data>
+  <data name="Engine_Lsp_ExitedDuringInit" xml:space="preserve"><value>сервер завершился во время инициализации</value></data>
+  <data name="Engine_Lsp_ExitedUnexpectedly" xml:space="preserve"><value>процесс сервера неожиданно завершился</value></data>
+  <data name="Engine_Lsp_Hint_clangd" xml:space="preserve"><value>macOS: xcode-select --install (или brew install llvm). Linux: apt install clangd. Windows: установите LLVM.</value></data>
+  <data name="Engine_Lsp_Hint_jdtls" xml:space="preserve"><value>brew install jdtls (или скачайте Eclipse JDT Language Server)</value></data>
+  <data name="Engine_Lsp_Hint_pyright" xml:space="preserve"><value>npm install pyright (или pip install basedpyright)</value></data>
+  <data name="Engine_Lsp_InitFailed" xml:space="preserve"><value>инициализация не удалась: {0}</value></data>
+  <data name="Engine_Lsp_InitTimeout" xml:space="preserve"><value>инициализация не завершилась вовремя</value></data>
+  <data name="Engine_Lsp_NoServerDefined" xml:space="preserve"><value>языковой сервер для этого языка не задан</value></data>
+  <data name="Engine_Lsp_NpmTimedOut" xml:space="preserve"><value>npm install не завершился за отведённое время.</value></data>
+  <data name="Engine_Lsp_ProcessExited" xml:space="preserve"><value>процесс сервера завершился</value></data>
+  <data name="Engine_Nb_CellStructure" xml:space="preserve"><value>Неожиданная структура ячейки: {0}</value></data>
+  <data name="Engine_Nb_HtmlNote" xml:space="preserve"><value>HTML не отображается; показан текст.</value></data>
+  <data name="Engine_Nb_InstallTimeout" xml:space="preserve"><value>Установка не завершилась за 10 минут.</value></data>
+  <data name="Engine_Nb_InstallVenvOnly" xml:space="preserve"><value>Установка допускается только в виртуальное окружение.</value></data>
+  <data name="Engine_Nb_InvalidJson" xml:space="preserve"><value>Файл не является корректным JSON: {0}</value></data>
+  <data name="Engine_Nb_KernelConnectionLost" xml:space="preserve"><value>Соединение с ядром потеряно ({0}): {1}</value></data>
+  <data name="Engine_Nb_KernelExited" xml:space="preserve"><value>Процесс ядра завершился (код {0}).</value></data>
+  <data name="Engine_Nb_KernelExitedPlain" xml:space="preserve"><value>Процесс ядра завершился.</value></data>
+  <data name="Engine_Nb_KernelHeartbeat" xml:space="preserve"><value>Ядро не отвечает (потеряны сигналы heartbeat).</value></data>
+  <data name="Engine_Nb_KernelNoResponse" xml:space="preserve"><value>Ядро не ответило вовремя.</value></data>
+  <data name="Engine_Nb_KernelStartExited" xml:space="preserve"><value>Процесс ядра завершился при запуске (код {0}).</value></data>
+  <data name="Engine_Nb_KernelStopped" xml:space="preserve"><value>Ядро остановлено.</value></data>
+  <data name="Engine_Nb_NoOutputType" xml:space="preserve"><value>У вывода нет output_type.</value></data>
+  <data name="Engine_Nb_NotIpynb" xml:space="preserve"><value>Это не файл .ipynb: нет поля «nbformat».</value></data>
+  <data name="Engine_Nb_NotJsonObject" xml:space="preserve"><value>Это не JSON-объект.</value></data>
+  <data name="Engine_Nb_NotNotebook" xml:space="preserve"><value>Файл не является ноутбуком (верхний уровень не объект).</value></data>
+  <data name="Engine_Nb_OnlyV4" xml:space="preserve"><value>Поддерживается только nbformat 4 (в этом файле nbformat {0}); сначала преобразуйте его через nbconvert.</value></data>
+  <data name="Engine_Nb_PipFailed" xml:space="preserve"><value>pip завершился с кодом {0}.
+{1}</value></data>
+  <data name="Engine_Nb_TooLarge" xml:space="preserve"><value>Ноутбук больше {0} МБ.</value></data>
+  <data name="Engine_Nb_UnknownCellType" xml:space="preserve"><value>Неизвестный cell_type «{0}».</value></data>
+  <data name="Engine_Nb_UnsupportedFormat" xml:space="preserve"><value>[{0}: формат не поддерживается]</value></data>
+  <data name="Engine_Provision_NodeUnavailable" xml:space="preserve"><value>Node.js недоступен.</value></data>
+  <data name="Engine_Provision_NpmNotFound" xml:space="preserve"><value>npm не найден в PATH.</value></data>
+  <data name="Engine_Provision_NpmTimedOut" xml:space="preserve"><value>npm install не завершился за отведённое время.</value></data>
+  <data name="Engine_Run_CancelledWhileWaiting" xml:space="preserve"><value>Отменено в ожидании компиляции.</value></data>
+  <data name="Engine_Run_CommandNotAllowed" xml:space="preserve"><value>Команда «{0}» не разрешена для {1} (разрешена только «{2}»).</value></data>
+  <data name="Engine_Run_CompileCancelled" xml:space="preserve"><value>Компиляция: отменена.</value></data>
+  <data name="Engine_Run_CompileMemory" xml:space="preserve"><value>Компиляция: превышен лимит памяти.</value></data>
+  <data name="Engine_Run_CompileOutput" xml:space="preserve"><value>Компиляция: превышен лимит вывода.</value></data>
+  <data name="Engine_Run_CompileStartFailed" xml:space="preserve"><value>Не удалось запустить компиляцию: {0}</value></data>
+  <data name="Engine_Run_CompileTimeout" xml:space="preserve"><value>Компиляция: превышено время.</value></data>
+  <data name="Engine_Run_GoCacheWritable" xml:space="preserve"><value>Кеш модулей Go находится в области, доступной песочнице для записи, и не может быть подключён только для чтения.</value></data>
+  <data name="Engine_Run_GoNoModules" xml:space="preserve"><value>В кеше модулей Go «{0}» нет загруженных модулей (выполните `make go-env` или установите пакеты курсов в Настройках).</value></data>
+  <data name="Engine_Run_GoOnlyGo" xml:space="preserve"><value>Кеш модулей Go применим только к Go.</value></data>
+  <data name="Engine_Run_MavenNoJars" xml:space="preserve"><value>В папке jar-файлов Maven «{0}» нет jar-файлов (выполните `make maven-env` или установите библиотеки курсов в Настройках).</value></data>
+  <data name="Engine_Run_MavenOnlyJava" xml:space="preserve"><value>Папка jar-файлов Maven применима только к Java.</value></data>
+  <data name="Engine_Run_MavenWritable" xml:space="preserve"><value>Папка jar-файлов Maven находится в области, доступной песочнице для записи, и не может быть подключена только для чтения.</value></data>
+  <data name="Engine_Run_NoTestCommand" xml:space="preserve"><value>Для {0} запуск тестовой команды не поддерживается.</value></data>
+  <data name="Engine_Run_NodeEnvWritable" xml:space="preserve"><value>Окружение Node находится в области, доступной песочнице для записи, и не может быть подключено только для чтения.</value></data>
+  <data name="Engine_Run_NodeLinkFailed" xml:space="preserve"><value>Не удалось подключить окружение Node к рабочей папке: {0}</value></data>
+  <data name="Engine_Run_NodeNoModules" xml:space="preserve"><value>В окружении Node «{0}» нет node_modules (выполните `make node-env` или установите пакеты курсов в Настройках).</value></data>
+  <data name="Engine_Run_NodeOnlyJs" xml:space="preserve"><value>Окружение Node применимо только к JavaScript и TypeScript.</value></data>
+  <data name="Engine_Run_NuGetNoPackages" xml:space="preserve"><value>В папке пакетов NuGet «{0}» нет восстановленных пакетов (выполните `make nuget-env` или установите пакеты курсов в Настройках).</value></data>
+  <data name="Engine_Run_NuGetOnlyCSharp" xml:space="preserve"><value>Папка пакетов NuGet применима только к C#.</value></data>
+  <data name="Engine_Run_NuGetWritable" xml:space="preserve"><value>Папка пакетов NuGet находится в области, доступной песочнице для записи, и не может быть подключена только для чтения.</value></data>
+  <data name="Engine_Run_PythonEnvMissing" xml:space="preserve"><value>Выбранное окружение Python «{0}» не существует.</value></data>
+  <data name="Engine_Run_PythonEnvWritable" xml:space="preserve"><value>Выбранное окружение Python находится в области, доступной песочнице для записи, и не может быть подключено только для чтения.</value></data>
+  <data name="Engine_Run_PythonNoInterpreter" xml:space="preserve"><value>В выбранном окружении Python нет интерпретатора по пути «{0}».</value></data>
+  <data name="Engine_Run_RuntimeUnavailable" xml:space="preserve"><value>{0} недоступен: {1}</value></data>
+  <data name="Engine_Run_StartFailed" xml:space="preserve"><value>Не удалось запустить программу: {0}</value></data>
+  <data name="Engine_Run_UnknownLanguage" xml:space="preserve"><value>Неизвестный язык «{0}».</value></data>
+  <data name="Engine_Runtime_CSharpNotes" xml:space="preserve"><value>Компилируется только файл точки входа (file-based app). Если среди файлов ровно один .csproj, собирается весь проект.</value></data>
+  <data name="Engine_Runtime_CSharpUnsupported" xml:space="preserve"><value>Для file-based приложений нужен .NET SDK 10 или новее.</value></data>
+  <data name="Engine_Runtime_CppNotFound" xml:space="preserve"><value>clang++ или g++ не найдены в PATH.</value></data>
+  <data name="Engine_Runtime_JdkNotFound" xml:space="preserve"><value>java и javac (JDK) не найдены в PATH.</value></data>
+  <data name="Engine_Runtime_JdkNotWorking" xml:space="preserve"><value>Работающий JDK в PATH не найден.</value></data>
+  <data name="Engine_Runtime_KotlinCoroutines" xml:space="preserve"><value>kotlinx.coroutines: доступен (jar поставляется вместе с kotlinc).</value></data>
+  <data name="Engine_Runtime_KotlinNeedsJdk" xml:space="preserve"><value>Работающий java в PATH не найден (для kotlinc нужен JDK).</value></data>
+  <data name="Engine_Runtime_KotlinNoCoroutines" xml:space="preserve"><value>kotlinx.coroutines: не найден рядом с kotlinc (программы могут использовать только стандартную библиотеку).</value></data>
+  <data name="Engine_Runtime_NodeTooOldForTs" xml:space="preserve"><value>Node.js {0} не умеет запускать TypeScript напрямую: нужен Node.js 22.6 или новее.</value></data>
+  <data name="Engine_Runtime_PackageManagerMissing" xml:space="preserve"><value>{0} (не найден)</value></data>
+  <data name="Engine_Runtime_PackageManagers" xml:space="preserve"><value>Менеджеры пакетов: {0}.</value></data>
+  <data name="Engine_Runtime_ToolNotFound" xml:space="preserve"><value>{0} не найден в PATH.</value></data>
+  <data name="Engine_Runtime_ToolNotWorking" xml:space="preserve"><value>Работающий {0} в PATH не найден.</value></data>
+  <data name="Engine_Runtime_TsCheckerEnabled" xml:space="preserve"><value>Проверка типов через tsc ({0}) включена.</value></data>
+  <data name="Engine_Runtime_TsNoChecker" xml:space="preserve"><value>Проверка типов НЕДОСТУПНА (tsc не найден): ошибки типов показаны не будут.</value></data>
+  <data name="Engine_Runtime_TsNoCheckerWarning" xml:space="preserve"><value>проверка типов недоступна: tsc не установлен</value></data>
+  <data name="Engine_Runtime_TsNoTypes" xml:space="preserve"><value>{0} найден, но проверка типов недоступна: не подготовлен @types/node.</value></data>
+  <data name="Engine_Runtime_TsNoTypesWarning" xml:space="preserve"><value>проверка типов недоступна: не подготовлен @types/node</value></data>
+  <data name="Engine_Runtime_TsStripping" xml:space="preserve"><value>Запуск через удаление типов в Node (без enum и namespace).</value></data>
 </root>

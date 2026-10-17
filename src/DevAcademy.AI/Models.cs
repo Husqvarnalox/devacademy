@@ -85,9 +85,15 @@ public enum AiErrorKind
     ProviderUnavailable, BadRequest, Network, Timeout,
 }
 
-public sealed class AiProviderException(AiErrorKind kind, string providerId, string message, int? httpStatus = null, Exception? inner = null)
-    : Exception(message, inner)
+public sealed class AiProviderException(AiErrorKind kind, string providerId, string message, int? httpStatus = null, Exception? inner = null, DevAcademy.Domain.LocalizedText? text = null)
+    : Exception(message, inner), DevAcademy.Domain.ILocalizedMessage
 {
+    public AiProviderException(AiErrorKind kind, string providerId, DevAcademy.Domain.LocalizedText text, int? httpStatus = null, Exception? inner = null)
+        : this(kind, providerId, text.Fallback, httpStatus, inner, text) { }
+
+    /// <summary>Translatable twin of the message; provider-returned messages are verbatim text.</summary>
+    public DevAcademy.Domain.LocalizedText Text { get; } = text ?? DevAcademy.Domain.LocalizedText.Literal(message);
+
     public AiErrorKind Kind { get; } = kind;
     public string ProviderId { get; } = providerId;
     public int? HttpStatus { get; } = httpStatus;

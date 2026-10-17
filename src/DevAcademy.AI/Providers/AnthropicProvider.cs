@@ -157,6 +157,6 @@ public sealed class AnthropicProvider : HttpModelProvider
             }
         }
         if (!finished)
-            throw new AiProviderException(AiErrorKind.Network, ProviderId, "The stream ended before the response was complete.");
+            throw new AiProviderException(AiErrorKind.Network, ProviderId, EngineMessages.StreamEnded());
     }
 }

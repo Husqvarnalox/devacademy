@@ -500,7 +500,7 @@ public sealed partial class ProjectWorkspaceViewModel : ObservableObject, IDispo
         try { doc = await NotebookStore.LoadAsync(fullPath); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotebookFormatException)
         {
-            Status = Loc.F("Nb_OpenFailed", Path.GetFileName(fullPath), ex.Message);
+            Status = Loc.F("Nb_OpenFailed", Path.GetFileName(fullPath), Loc.Msg(ex));
             return false;
         }
         var nb = new NotebookViewModel(fullPath, doc, _services.Workspace.Notebooks, _services.Dialogs, PythonChoices, ResolveInterpreter, Path.GetDirectoryName(fullPath) ?? Root,

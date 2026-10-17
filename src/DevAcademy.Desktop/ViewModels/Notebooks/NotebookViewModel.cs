@@ -230,7 +230,7 @@ public sealed partial class NotebookViewModel : ObservableObject, IAsyncDisposab
     {
         if (!ReferenceEquals(source, _kernel)) return;
         KernelState = state;
-        if (state == KernelState.Dead) Message = Loc.F("Nb_KernelDied", source.DeadReason ?? "?");
+        if (state == KernelState.Dead) Message = Loc.F("Nb_KernelDied", source.DeadReason is null ? "?" : Loc.Of(source.DeadReasonText, source.DeadReason));
     }
 
     private async Task StopKernelAsync()
@@ -276,7 +276,7 @@ public sealed partial class NotebookViewModel : ObservableObject, IAsyncDisposab
             }
             catch (KernelDeadException ex)
             {
-                Message = Loc.F("Nb_KernelDied", ex.Message);
+                Message = Loc.F("Nb_KernelDied", Loc.Msg(ex));
             }
             catch (OperationCanceledException) when (_cts.IsCancellationRequested)
             {
@@ -429,7 +429,7 @@ public sealed partial class NotebookViewModel : ObservableObject, IAsyncDisposab
                 NeedsInstall = false;
                 Message = Loc.T("Nb_Installed");
             }
-            else Message = Loc.F("Nb_InstallFailed", result.Error ?? "");
+            else Message = Loc.F("Nb_InstallFailed", Loc.Of(result.ErrorText, result.Error));
         }
         catch (OperationCanceledException) { }
         finally { IsInstalling = false; }

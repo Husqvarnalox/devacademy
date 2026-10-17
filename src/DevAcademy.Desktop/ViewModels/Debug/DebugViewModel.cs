@@ -63,7 +63,7 @@ public sealed partial class DebugViewModel : ObservableObject, IDisposable
     public bool IsAvailable => _host.DisabledReason is null && _svc.Supports(_host.LanguageId);
     public bool IsReady => IsAvailable && _adapter.IsReady;
     public bool CanStartNow => IsAvailable && !IsActive && !IsBusy && !IsInstalling;
-    public string AdapterText => _host.DisabledReason is { } r ? r : !_svc.Supports(_host.LanguageId) ? DebugService.NoAdapterMessage(_host.LanguageId) : _adapter.Message;
+    public string AdapterText => _host.DisabledReason is { } r ? r : !_svc.Supports(_host.LanguageId) ? DebugService.NoAdapterMessage(_host.LanguageId) : Loc.Of(_adapter.Text);
     public bool CanInstall => IsAvailable && _adapter is { State: AdapterState.NotInstalled, Plan: not null } && !IsActive && !IsInstalling;
     public string InstallCommandText => _adapter.Plan?.Display ?? "";
     public bool HasBreakpoints => _host.Breakpoints.HasAny;
@@ -127,7 +127,7 @@ public sealed partial class DebugViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            AppendConsole(ex.Message, ConsoleKind.Error);
+            AppendConsole(Loc.Msg(ex), ConsoleKind.Error);
         }
         finally { IsInstalling = false; }
         await RefreshAsync().ConfigureAwait(true);
@@ -180,7 +180,7 @@ public sealed partial class DebugViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cts.IsCancellationRequested)
         {
-            AppendConsole(ex.Message, ConsoleKind.Error);
+            AppendConsole(Loc.Msg(ex), ConsoleKind.Error);
             await StopSessionQuietlyAsync().ConfigureAwait(true);
             EndRun(Loc.T("Dbg_StartFailed"));
         }
@@ -397,7 +397,7 @@ public sealed partial class DebugViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is DapException or ObjectDisposedException or InvalidOperationException or OperationCanceledException)
         {
-            AppendConsole(ex.Message, ConsoleKind.Error);
+            AppendConsole(Loc.Msg(ex), ConsoleKind.Error);
         }
     }
 
@@ -432,7 +432,7 @@ public sealed partial class DebugViewModel : ObservableObject, IDisposable
         try { await action(s).ConfigureAwait(true); }
         catch (Exception ex) when (ex is DapException or ObjectDisposedException or InvalidOperationException)
         {
-            AppendConsole(ex.Message, ConsoleKind.Error);
+            AppendConsole(Loc.Msg(ex), ConsoleKind.Error);
         }
     }
 
@@ -462,7 +462,7 @@ public sealed partial class DebugViewModel : ObservableObject, IDisposable
         try { await s.SetBreakpointsAsync(path, lines).ConfigureAwait(true); }
         catch (Exception ex) when (ex is DapException or ObjectDisposedException or InvalidOperationException or OperationCanceledException)
         {
-            AppendConsole(ex.Message, ConsoleKind.Error);
+            AppendConsole(Loc.Msg(ex), ConsoleKind.Error);
         }
     }
 

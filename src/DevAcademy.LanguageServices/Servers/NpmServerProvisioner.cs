@@ -9,7 +9,7 @@ public sealed record ProvisionPlan(string Executable, IReadOnlyList<string> Args
     public string Display => $"{Path.GetFileName(Executable)} {string.Join(' ', Args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))}";
 }
 
-public sealed record ServerProvisionResult(bool Success, string Output);
+public sealed record ServerProvisionResult(bool Success, string Output, DevAcademy.Domain.LocalizedText? OutputText = null);
 
 /// <summary>
 /// Installs npm-distributed language servers (pyright, typescript-language-server + typescript, intelephense) into the runner
@@ -59,7 +59,7 @@ public static class NpmServerProvisioner
         {
             try { p.Kill(true); } catch (InvalidOperationException) { }
             ct.ThrowIfCancellationRequested();
-            return new ServerProvisionResult(false, "npm install timed out.");
+            return new ServerProvisionResult(false, EngineMessages.NpmTimedOut().Fallback, EngineMessages.NpmTimedOut());
         }
     }
 }

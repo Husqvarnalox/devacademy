@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Execution;
 
@@ -19,7 +20,7 @@ internal sealed class PythonRuntime : IContainerizableRuntime
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
-        const string Hint = "Install Python 3 from https://www.python.org/downloads/ (macOS: brew install python; Debian/Ubuntu: apt install python3).";
+        LocalizedText hint = EngineMessages.PythonHint();
         foreach (string name in new[] { "python3", "python" })
         {
             if (ToolLocator.Find(name) is not { } path) continue;
@@ -27,7 +28,7 @@ internal sealed class PythonRuntime : IContainerizableRuntime
             if (v is not null && v.StartsWith("Python 3", StringComparison.Ordinal))
                 return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v["Python ".Length..], path, null, null);
         }
-        return ToolLocator.Missing(LanguageId, "python3", Hint);
+        return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("python3"), hint);
     }
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status) =>
@@ -69,21 +70,20 @@ internal sealed class JavaScriptRuntime : IContainerizableRuntime, ICommandRunti
 
 internal static class NodeProbe
 {
-    public const string Hint = "Install Node.js from https://nodejs.org/ (macOS: brew install node; Debian/Ubuntu: apt install nodejs).";
+    public static LocalizedText Hint => EngineMessages.NodeHint();
 
     public static async Task<RuntimeStatus> DetectAsync(string languageId, CancellationToken ct)
     {
-        if (ToolLocator.Find("node") is not { } node) return ToolLocator.Missing(languageId, "node", Hint);
+        if (ToolLocator.Find("node") is not { } node) return ToolLocator.Missing(languageId, EngineMessages.ToolNotFound("node"), Hint);
         string? v = await ToolLocator.ProbeAsync(node, ["--version"], ct).ConfigureAwait(false);
-        if (v is null) return ToolLocator.Missing(languageId, "A working node", Hint);
-        string managers = PackageManagerDetector.Describe(await PackageManagerDetector.DetectAsync(ct).ConfigureAwait(false));
-        return new RuntimeStatus(languageId, RuntimeAvailability.Available, v.TrimStart('v'), node, managers, null);
+        if (v is null) return ToolLocator.Missing(languageId, EngineMessages.ToolNotWorking("node"), Hint);
+        LocalizedText managers = PackageManagerDetector.Describe(await PackageManagerDetector.DetectAsync(ct).ConfigureAwait(false));
+        return new RuntimeStatus(languageId, RuntimeAvailability.Available, v.TrimStart('v'), node, null, null).WithNotes(managers);
     }
 }
 
 internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntime, ICommandRuntime, IDebugBuildRuntime
 {
-    private const string TscHint = "Install the TypeScript compiler for type-checking: npm install -g typescript (https://www.typescriptlang.org/download).";
 
     public string LanguageId => "typescript";
     public string DisplayName => "TypeScript";
@@ -94,32 +94,21 @@ internal sealed class TypeScriptRuntime(string cacheDirectory) : ILanguageRuntim
         RuntimeStatus node = await NodeProbe.DetectAsync(LanguageId, ct).ConfigureAwait(false);
         if (node.Availability != RuntimeAvailability.Available) return node;
         if (!Version.TryParse(node.Version, out Version? nv) || nv < new Version(22, 6))
-            return node with
-            {
-                Availability = RuntimeAvailability.Unsupported,
-                Notes = $"Node.js {node.Version} cannot run TypeScript directly; Node.js 22.6 or newer is required.",
-                InstallHint = NodeProbe.Hint,
-            };
+            return node.WithNotes(EngineMessages.NodeTooOldForTs(node.Version!)).WithInstallHint(NodeProbe.Hint) with { Availability = RuntimeAvailability.Unsupported };
 
-        const string Stripping = "Runs via Node type stripping (no enums/namespaces).";
+        LocalizedText stripping = EngineMessages.TsStripping();
         string? tscVersion = ToolLocator.Find("tsc") is { } tsc
             ? await ToolLocator.ProbeAsync(tsc, ["--version"], ct).ConfigureAwait(false)
             : null;
         if (tscVersion is null)
-            return node with
-            {
-                Notes = $"Type-checking is UNAVAILABLE (tsc not found): type errors will not be reported. {Stripping} {node.Notes}",
-                InstallHint = TscHint,
-                Warning = "type-checking unavailable: tsc not installed",
-            };
+            return node.WithNotes(LocalizedText.Join(" ", EngineMessages.TsNoChecker(), stripping, node.NotesMessage))
+                .WithInstallHint(EngineMessages.TscHint())
+                .WithWarning(EngineMessages.TsNoCheckerWarning());
         if (!TypeScriptTypes.IsProvisioned(cacheDirectory))
-            return node with
-            {
-                Notes = $"{tscVersion} found, but type-checking unavailable: @types/node not provisioned. {Stripping} {node.Notes}",
-                InstallHint = null,
-                Warning = "type-checking unavailable: @types/node not provisioned",
-            };
-        return node with { Notes = $"Type-checking with tsc ({tscVersion}) is enabled. {Stripping} {node.Notes}", InstallHint = null };
+            return node.WithNotes(LocalizedText.Join(" ", EngineMessages.TsNoTypes(tscVersion), stripping, node.NotesMessage))
+                .WithInstallHint(null)
+                .WithWarning(EngineMessages.TsNoTypesWarning());
+        return node.WithNotes(LocalizedText.Join(" ", EngineMessages.TsCheckerEnabled(tscVersion), stripping, node.NotesMessage)).WithInstallHint(null);
     }
 
     /// <summary>Test commands run on plain node (Vitest from the node content environment); type-checking is part of the tests.</summary>
@@ -174,12 +163,12 @@ internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, INativ
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
         if (ToolLocator.Find("go") is not { } go)
-            return ToolLocator.Missing(LanguageId, "go", "Install Go from https://go.dev/dl/ (macOS: brew install go; Debian/Ubuntu: apt install golang).");
+            return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("go"), EngineMessages.GoHint());
         string? v = await ToolLocator.ProbeAsync(go, ["version"], ct).ConfigureAwait(false);
         var m = v is null ? null : Regex.Match(v, @"go version go(\S+)");
         return m is { Success: true }
             ? new RuntimeStatus(LanguageId, RuntimeAvailability.Available, m.Groups[1].Value, go, null, null)
-            : ToolLocator.Missing(LanguageId, "A working go", "Install Go from https://go.dev/dl/.");
+            : ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("go"), EngineMessages.GoWorkingHint());
     }
 
     public string CommandTool => "go";
@@ -245,13 +234,13 @@ internal sealed class JavaRuntime : ILanguageRuntime, IDebugBuildRuntime
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
-        const string Hint = "Install a JDK (17+) from https://adoptium.net/ (macOS: brew install openjdk; Debian/Ubuntu: apt install default-jdk).";
+        LocalizedText hint = EngineMessages.JdkHint();
         if (ToolLocator.Find("javac") is not { } javac || ToolLocator.Find("java") is not { } java)
-            return ToolLocator.Missing(LanguageId, "java and javac (a JDK)", Hint);
+            return ToolLocator.Missing(LanguageId, EngineMessages.JdkNotFound(), hint);
         // On macOS /usr/bin/java is a shim that fails without a JDK, hence the probes.
         string? jv = await ToolLocator.ProbeAsync(javac, ["-version"], ct).ConfigureAwait(false);
         string? rv = await ToolLocator.ProbeAsync(java, ["-version"], ct).ConfigureAwait(false);
-        if (jv is null || rv is null) return ToolLocator.Missing(LanguageId, "A working JDK", Hint);
+        if (jv is null || rv is null) return ToolLocator.Missing(LanguageId, EngineMessages.JdkNotWorking(), hint);
         // ExecutablePath is javac; java is resolved again when planning.
         return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, jv.Replace("javac ", ""), javac, null, null);
     }
@@ -316,8 +305,7 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
             string? v = await ToolLocator.ProbeAsync(path, ["--version"], ct).ConfigureAwait(false); // fails for the Xcode shim without Command Line Tools
             if (v is not null) return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null);
         }
-        return ToolLocator.Missing(LanguageId, "clang++ or g++",
-            "Install a C++ compiler: macOS: xcode-select --install; Debian/Ubuntu: apt install g++; Windows: https://visualstudio.microsoft.com/downloads/ or MSYS2.");
+        return ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
     }
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
@@ -349,12 +337,12 @@ internal sealed class RustRuntime : ILanguageRuntime, INativeDebugBuild
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
-        const string Hint = "https://rustup.rs";
+        LocalizedText hint = EngineMessages.RustHint();
         // ToolLocator also searches ~/.cargo/bin, where rustup installs and GUI apps usually have no PATH entry.
-        if (ToolLocator.Find("rustc") is not { } rustc) return ToolLocator.Missing(LanguageId, "rustc", Hint);
+        if (ToolLocator.Find("rustc") is not { } rustc) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("rustc"), hint);
         string? v = await ToolLocator.ProbeAsync(rustc, ["--version"], ct).ConfigureAwait(false);
         return v is null
-            ? ToolLocator.Missing(LanguageId, "A working rustc", Hint)
+            ? ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("rustc"), hint)
             : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v.Replace("rustc ", ""), rustc, null, null);
     }
 
@@ -393,14 +381,14 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
-        const string Hint = "Install the .NET 10 SDK from https://dotnet.microsoft.com/download (macOS: brew install --cask dotnet-sdk; Debian/Ubuntu: apt install dotnet-sdk-10.0).";
+        LocalizedText hint = EngineMessages.DotNetHint();
         string? dotnet = ToolLocator.Find("dotnet");
-        if (dotnet is null) return ToolLocator.Missing(LanguageId, "dotnet", Hint);
+        if (dotnet is null) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("dotnet"), hint);
         string? v = await ToolLocator.ProbeAsync(dotnet, ["--version"], ct).ConfigureAwait(false);
-        if (v is null) return ToolLocator.Missing(LanguageId, "A working dotnet SDK", Hint);
+        if (v is null) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("dotnet SDK"), hint);
         return Version.TryParse(v.Split('-')[0], out Version? ver) && ver.Major >= 10
-            ? new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, dotnet, "Only the entry file is compiled (file-based app), unless the files hold exactly one .csproj (then the project is built).", null)
-            : new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, dotnet, ".NET SDK 10 or newer is required for file-based apps.", Hint);
+            ? new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, dotnet, null, null).WithNotes(EngineMessages.CSharpNotes())
+            : new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, dotnet, null, null).WithNotes(EngineMessages.CSharpUnsupported()).WithInstallHint(hint);
     }
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
@@ -497,18 +485,15 @@ internal sealed class KotlinRuntime : ILanguageRuntime
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
-        const string Hint = "https://kotlinlang.org/docs/command-line.html (also requires a JDK).";
-        if (ToolLocator.Find("kotlinc") is not { } kotlinc) return ToolLocator.Missing(LanguageId, "kotlinc", Hint);
+        LocalizedText hint = EngineMessages.KotlinHint();
+        if (ToolLocator.Find("kotlinc") is not { } kotlinc) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("kotlinc"), hint);
         if (ToolLocator.Find("java") is null || await ToolLocator.ProbeAsync(ToolLocator.Find("java")!, ["-version"], ct).ConfigureAwait(false) is null)
-            return ToolLocator.Missing(LanguageId, "A working java (kotlinc needs a JDK)", Hint);
+            return ToolLocator.Missing(LanguageId, EngineMessages.KotlinNeedsJdk(), hint);
         string? v = await ToolLocator.ProbeAsync(kotlinc, ["-version"], ct).ConfigureAwait(false); // prints to stderr
         return v is null
-            ? ToolLocator.Missing(LanguageId, "A working kotlinc", Hint)
-            : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v.Replace("info: ", ""), kotlinc,
-                FindCoroutinesJar(kotlinc) is null
-                    ? "kotlinx.coroutines: not found next to kotlinc (programs can use only the standard library)."
-                    : "kotlinx.coroutines: available (jar shipped with the kotlinc distribution).",
-                null);
+            ? ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("kotlinc"), hint)
+            : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v.Replace("info: ", ""), kotlinc, null, null)
+                .WithNotes(FindCoroutinesJar(kotlinc) is null ? EngineMessages.KotlinNoCoroutines() : EngineMessages.KotlinCoroutines());
     }
 
     /// <summary>
@@ -568,11 +553,11 @@ internal sealed class PhpRuntime : ILanguageRuntime
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
-        const string Hint = "Install PHP 8 from https://www.php.net/downloads (macOS: brew install php; Debian/Ubuntu: apt install php-cli).";
-        if (ToolLocator.Find("php") is not { } php) return ToolLocator.Missing(LanguageId, "php", Hint);
+        LocalizedText hint = EngineMessages.PhpHint();
+        if (ToolLocator.Find("php") is not { } php) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("php"), hint);
         string? v = await ToolLocator.ProbeAsync(php, ["--version"], ct).ConfigureAwait(false);
         return v is null
-            ? ToolLocator.Missing(LanguageId, "A working php", Hint)
+            ? ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("php"), hint)
             : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, php, null, null);
     }
 

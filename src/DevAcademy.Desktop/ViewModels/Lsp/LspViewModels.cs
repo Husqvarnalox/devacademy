@@ -27,14 +27,14 @@ public sealed record LspStatusView(string Text, string Tooltip, bool IsVisible, 
     {
         if (def is null || string.IsNullOrEmpty(s.DefinitionId)) return None;
         var name = s.DisplayName;
-        var tip = s.Message ?? Loc.T("Lsp_StatusTip");
+        var tip = s.Message is null ? Loc.T("Lsp_StatusTip") : Loc.Of(s.MessageText, s.Message);
         return s.State switch
         {
             ServerState.Ready => new(Loc.F("Lsp_Ready", name), tip, true, false, false, def),
             ServerState.Starting => new(Loc.F("Lsp_Starting", name), tip, true, false, false, def),
             ServerState.Restarting => new(Loc.F("Lsp_Restarting", name), tip, true, false, true, def),
             ServerState.Error => new(Loc.F("Lsp_Error", name), tip, true, false, true, def),
-            ServerState.NotInstalled => new(Loc.F("Lsp_NotInstalled", name), s.InstallHint, true, true, false, def),
+            ServerState.NotInstalled => new(Loc.F("Lsp_NotInstalled", name), Loc.Of(s.InstallHintText), true, true, false, def),
             ServerState.Disabled => new(Loc.T("Lsp_Disabled"), tip, true, false, false, def),
             _ => new(Loc.F("Lsp_Stopped", name), tip, true, false, false, def),
         };

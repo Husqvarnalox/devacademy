@@ -385,6 +385,28 @@ public class ScreenshotTests
     [AvaloniaTheory]
     [InlineData("Light")]
     [InlineData("Dark")]
+    public async Task Capture_failed_run_time_limit(string theme)
+    {
+        string dir = ShotDir()!;
+        var host = AiKit.CreateHost(new FakeModelProvider());
+        using var _ = host;
+        var window = new MainWindow { DataContext = host.Main, Width = 1440, Height = 900, RequestedThemeVariant = Variant(theme) };
+        window.Show();
+        var ws = await AiKit.OpenExerciseLessonAsync(host);
+        var session = ws.Practice!;
+        session.ConsoleResult = new ConsoleResultViewModel(new ExecutionResult(ExecutionStatus.Timeout, null, "tick 1\ntick 2\n", "", "", TimeSpan.FromSeconds(10), null, IsolationLevel.ProcessLimits));
+        session.OutputTab = ExerciseSessionViewModel.ConsoleTab;
+        Shot(window, dir, theme, "t1-lesson-time-limit-run");
+        session.Report = new TestReportViewModel(DevAcademy.Application.Evaluation.EvaluationReport.Failure(Verdict.Failed,
+            DevAcademy.Application.EngineMessages.TimeLimitSeconds(10), IsolationLevel.ProcessLimits));
+        session.OutputTab = ExerciseSessionViewModel.TestsTab;
+        Shot(window, dir, theme, "t2-lesson-time-limit-tests");
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
     public async Task Capture_quiz_result_states(string theme)
     {
         string dir = ShotDir()!;
@@ -571,6 +593,11 @@ public class ScreenshotTests
         await ws.Debug.EvaluateCommand.ExecuteAsync(null);
         ws.ShowDebugPanel = true;
         Shot(window, dir, theme, "g1-debug-panel");
+        window.Width = 1024; window.Height = 700;
+        Shot(window, dir, theme, "g2-debug-panel-1024");
+        window.Width = 1100; window.Height = 640;
+        Shot(window, dir, theme, "g3-debug-panel-short");
+        window.Width = 1440; window.Height = 900;
         await ws.Debug.StopCommand.ExecuteAsync(null);
         await Util.UntilAsync(() => !ws.Debug.IsActive, "end");
         window.Close();

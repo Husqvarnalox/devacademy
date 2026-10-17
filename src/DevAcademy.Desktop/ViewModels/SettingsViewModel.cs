@@ -20,9 +20,9 @@ public sealed partial class RuntimeRowViewModel : ObservableObject
         IsAvailable = r.Availability == RuntimeAvailability.Available;
         Version = r.Version ?? "";
         Path = r.ExecutablePath ?? "";
-        Notes = string.Join("\n", new[] { r.Notes, r.Warning }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        Notes = string.Join("\n", new[] { Loc.Of(r.NotesMessage), Loc.Of(r.WarningMessage) }.Where(x => !string.IsNullOrWhiteSpace(x)));
         HasWarning = !string.IsNullOrWhiteSpace(r.Warning);
-        InstallHint = IsAvailable ? "" : r.InstallHint ?? "";
+        InstallHint = IsAvailable ? "" : Loc.Of(r.InstallHintMessage);
         var m = Url.Match(InstallHint);
         InstallUrl = m.Success ? m.Value.TrimEnd('.', ',', ')') : null;
         OpenInstallCommand = new AsyncRelayCommand(() => InstallUrl is null ? Task.CompletedTask : openUrl(InstallUrl));
@@ -155,7 +155,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             var result = await TypeScriptTypesProvisioner.ProvisionAsync(_s.ExecutionOptions.CacheDirectory, CancellationToken.None);
-            ProvisionOutput = Loc.T(result.Success ? "Types_Success" : "Types_Failure") + (result.Output.Length > 0 ? "\n" + Tail(result.Output) : "");
+            ProvisionOutput = Loc.T(result.Success ? "Types_Success" : "Types_Failure") + (result.Output.Length > 0 ? "\n" + Tail(Loc.Of(result.OutputText, result.Output)) : "");
             await DetectRuntimesAsync();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

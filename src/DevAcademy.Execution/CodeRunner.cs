@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Execution;
 
@@ -52,81 +53,81 @@ public sealed class CodeRunner : ICodeRunner
         if (request.EntryFile is not null) ValidateRelativePath(request.EntryFile);
 
         if (!_runtimes.TryGetValue(request.LanguageId, out ILanguageRuntime? runtime))
-            return Failed(request.LanguageId, ExecutionStatus.InternalError, $"Unknown language '{request.LanguageId}'.", IsolationLevel.ProcessLimits);
+            return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.UnknownLanguage(request.LanguageId), IsolationLevel.ProcessLimits);
         if (request.EntryFile is null) entry = runtime.DefaultEntryFile;
 
         RuntimeStatus status = await DetectCachedAsync(runtime, ct).ConfigureAwait(false);
-        var notes = new List<string>();
-        if (status.Warning is not null) notes.Add(status.Warning);
+        var notes = new List<LocalizedText>();
+        if (status.WarningMessage is { } warning) notes.Add(warning);
 
         IsolationLevel requestedLevel = request.Isolation;
         string[]? readOnly = null;
         if (request.Python is { } py && runtime.LanguageId == "python")
         {
-            string? problem = CheckPythonSelection(py);
+            LocalizedText? problem = CheckPythonSelection(py);
             if (problem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, problem, IsolationLevel.ProcessLimits);
-            status = status with { Availability = RuntimeAvailability.Available, ExecutablePath = py.InterpreterPath, Notes = null, InstallHint = null };
+            status = (status with { Availability = RuntimeAvailability.Available, ExecutablePath = py.InterpreterPath }).WithNotes(null).WithInstallHint(null);
             readOnly = [Path.GetFullPath(py.EnvironmentPath)];
             // The environment is on the host, so a container (which has its own Python) cannot use it.
             if (requestedLevel == IsolationLevel.Container)
             {
                 requestedLevel = IsolationLevel.OsSandbox;
-                notes.Add("A Python environment is selected, so the run uses OsSandbox instead of a container.");
+                notes.Add(EngineMessages.PythonUsesOsSandbox());
             }
         }
         string? nodeModules = null;
         if (request.Node is { } nodeEnv)
         {
             if (runtime.LanguageId is not ("javascript" or "typescript"))
-                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A node environment only applies to JavaScript and TypeScript.", IsolationLevel.ProcessLimits);
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.NodeOnlyJs(), IsolationLevel.ProcessLimits);
             foreach (SourceFile f in request.Files)
                 if (f.Path.Split('/', '\\')[0] == "node_modules")
                     throw new ArgumentException($"File path '{f.Path}' is inside node_modules, which is provided by the node environment.", nameof(request));
-            string? nodeProblem = CheckNodeSelection(nodeEnv, out nodeModules);
+            LocalizedText? nodeProblem = CheckNodeSelection(nodeEnv, out nodeModules);
             if (nodeProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, nodeProblem, IsolationLevel.ProcessLimits);
             if (requestedLevel == IsolationLevel.Container)
             {
                 requestedLevel = IsolationLevel.OsSandbox;
-                notes.Add("A node environment is selected, so the run uses OsSandbox instead of a container.");
+                notes.Add(EngineMessages.NodeUsesOsSandbox());
             }
         }
         string? goModCache = null;
         if (request.Go is { } goEnv)
         {
             if (runtime.LanguageId != "go")
-                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A Go module cache only applies to Go.", IsolationLevel.ProcessLimits);
-            string? goProblem = CheckGoSelection(goEnv, out goModCache);
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.GoOnlyGo(), IsolationLevel.ProcessLimits);
+            LocalizedText? goProblem = CheckGoSelection(goEnv, out goModCache);
             if (goProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, goProblem, IsolationLevel.ProcessLimits);
             if (requestedLevel == IsolationLevel.Container)
             {
                 requestedLevel = IsolationLevel.OsSandbox;
-                notes.Add("A Go module cache is selected, so the run uses OsSandbox instead of a container.");
+                notes.Add(EngineMessages.GoUsesOsSandbox());
             }
         }
         string? nugetPackages = null;
         if (request.NuGet is { } nugetEnv)
         {
             if (runtime.LanguageId != "csharp")
-                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A NuGet packages folder only applies to C#.", IsolationLevel.ProcessLimits);
-            string? nugetProblem = CheckNuGetSelection(nugetEnv, out nugetPackages);
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.NuGetOnlyCSharp(), IsolationLevel.ProcessLimits);
+            LocalizedText? nugetProblem = CheckNuGetSelection(nugetEnv, out nugetPackages);
             if (nugetProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, nugetProblem, IsolationLevel.ProcessLimits);
             if (requestedLevel == IsolationLevel.Container)
             {
                 requestedLevel = IsolationLevel.OsSandbox;
-                notes.Add("A NuGet packages folder is selected, so the run uses OsSandbox instead of a container.");
+                notes.Add(EngineMessages.NuGetUsesOsSandbox());
             }
         }
         string? mavenLib = null;
         if (request.Maven is { } mavenEnv)
         {
             if (runtime is not JavaRuntime)
-                return Failed(request.LanguageId, ExecutionStatus.InternalError, "A Maven jar folder only applies to Java.", IsolationLevel.ProcessLimits);
-            string? mavenProblem = CheckMavenSelection(mavenEnv, out mavenLib);
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.MavenOnlyJava(), IsolationLevel.ProcessLimits);
+            LocalizedText? mavenProblem = CheckMavenSelection(mavenEnv, out mavenLib);
             if (mavenProblem is not null) return Failed(request.LanguageId, ExecutionStatus.InternalError, mavenProblem, IsolationLevel.ProcessLimits);
             if (requestedLevel == IsolationLevel.Container)
             {
                 requestedLevel = IsolationLevel.OsSandbox;
-                notes.Add("A Maven jar folder is selected, so the run uses OsSandbox instead of a container.");
+                notes.Add(EngineMessages.MavenUsesOsSandbox());
             }
         }
         ICommandRuntime? commandRuntime = null;
@@ -134,30 +135,29 @@ public sealed class CodeRunner : ICodeRunner
         {
             commandRuntime = runtime as ICommandRuntime;
             if (commandRuntime is null)
-                return Failed(request.LanguageId, ExecutionStatus.InternalError, $"{runtime.DisplayName} has no test command support.", IsolationLevel.ProcessLimits);
+                return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.NoTestCommand(runtime.DisplayName), IsolationLevel.ProcessLimits);
             if (argv.Count == 0 || argv[0] != commandRuntime.CommandTool)
                 return Failed(request.LanguageId, ExecutionStatus.InternalError,
-                    $"Command '{(argv.Count == 0 ? "" : argv[0])}' is not allowed for {runtime.DisplayName} (only '{commandRuntime.CommandTool}').", IsolationLevel.ProcessLimits);
+                    EngineMessages.CommandNotAllowed(argv.Count == 0 ? "" : argv[0], runtime.DisplayName, commandRuntime.CommandTool), IsolationLevel.ProcessLimits);
             if (requestedLevel == IsolationLevel.Container)
             {
                 requestedLevel = IsolationLevel.OsSandbox;
-                notes.Add("A test command runs on the host, so the run uses OsSandbox instead of a container.");
+                notes.Add(EngineMessages.CommandUsesOsSandbox());
             }
         }
         (IProcessSandbox? sandbox, bool containerised) = await SelectSandboxAsync(requestedLevel, runtime, notes, ct).ConfigureAwait(false);
         IsolationLevel applied = sandbox?.Level ?? IsolationLevel.ProcessLimits;
         if (sandbox is null)
-            return Failed(request.LanguageId, ExecutionStatus.InternalError, string.Join(" ", notes), applied);
+            return Failed(request.LanguageId, ExecutionStatus.InternalError, LocalizedText.Join(" ", notes), applied);
 
         if (!containerised && status.Availability != RuntimeAvailability.Available)
         {
-            string msg = $"{runtime.DisplayName} is not available: {status.Notes}" + (status.InstallHint is null ? "" : $" {status.InstallHint}");
-            return Failed(request.LanguageId, ExecutionStatus.RuntimeMissing, msg.Trim(), applied);
+            return Failed(request.LanguageId, ExecutionStatus.RuntimeMissing, EngineMessages.RuntimeUnavailable(runtime.DisplayName, status.NotesMessage, status.InstallHintMessage), applied);
         }
 
         Directory.CreateDirectory(_options.CacheDirectory);
         string workDir = CreateWorkDirectory(containerised);
-        var program = new PreparedProgram(this, runtime.LanguageId, workDir, sandbox, applied, string.Join(" ", notes));
+        var program = new PreparedProgram(this, runtime.LanguageId, workDir, sandbox, applied, notes);
         try
         {
             if (nodeModules is not null)
@@ -166,7 +166,7 @@ public sealed class CodeRunner : ICodeRunner
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
                 {
                     await program.DisposeAsync().ConfigureAwait(false);
-                    return Failed(request.LanguageId, ExecutionStatus.InternalError, $"Could not link the node environment into the work directory: {ex.Message}", applied);
+                    return Failed(request.LanguageId, ExecutionStatus.InternalError, EngineMessages.NodeLinkFailed(ex.Message), applied);
                 }
             }
             WriteFiles(workDir, request.Files);
@@ -228,108 +228,108 @@ public sealed class CodeRunner : ICodeRunner
 
     /// <summary>Walks Container, OsSandbox, ProcessLimits downwards from the requested level. Null sandbox means nothing acceptable exists.</summary>
     private async Task<(IProcessSandbox? Sandbox, bool Containerised)> SelectSandboxAsync(
-        IsolationLevel requested, ILanguageRuntime runtime, List<string> notes, CancellationToken ct)
+        IsolationLevel requested, ILanguageRuntime runtime, List<LocalizedText> notes, CancellationToken ct)
     {
         for (IsolationLevel level = requested; level >= IsolationLevel.ProcessLimits; level--)
         {
             // enum order: ProcessLimits(0) < OsSandbox(1) < Container(2)
             IProcessSandbox? sb = _sandboxes.FirstOrDefault(s => s.Level == level);
-            string? problem = null;
+            LocalizedText? problem = null;
             // Support is checked first: it does not depend on the machine, so the reason stays the same whether or not Docker is running.
             if (level == IsolationLevel.Container && !(runtime is IContainerizableRuntime && _options.DockerImages.ContainsKey(runtime.LanguageId)))
-                problem = $"Container isolation is not supported for {runtime.DisplayName}.";
+                problem = EngineMessages.ContainerUnsupported(runtime.DisplayName);
             else if (sb is null || !await sb.IsAvailableAsync(ct).ConfigureAwait(false))
-                problem = $"{level} isolation is not available on this machine.";
+                problem = EngineMessages.IsolationUnavailable(level);
 
             if (problem is null) return (sb, level == IsolationLevel.Container);
             if (!_options.AllowIsolationFallback)
             {
-                notes.Add(problem + " Fallback is disabled.");
+                notes.Add(LocalizedText.Join(" ", problem, EngineMessages.FallbackDisabled()));
                 return (null, false);
             }
             notes.Add(problem);
             if (level == IsolationLevel.ProcessLimits) break;
         }
-        notes.Add("No sandbox could be selected.");
+        notes.Add(EngineMessages.NoSandbox());
         return (null, false);
     }
 
     /// <summary>The environment must exist and must not be somewhere the sandbox makes writable (the run cache), or "read-only" would be meaningless.</summary>
-    private string? CheckPythonSelection(PythonRunSelection py)
+    private LocalizedText? CheckPythonSelection(PythonRunSelection py)
     {
-        if (!File.Exists(py.InterpreterPath)) return $"The selected Python environment has no interpreter at '{py.InterpreterPath}'.";
-        if (!Directory.Exists(py.EnvironmentPath)) return $"The selected Python environment '{py.EnvironmentPath}' does not exist.";
+        if (!File.Exists(py.InterpreterPath)) return EngineMessages.PythonNoInterpreter(py.InterpreterPath);
+        if (!Directory.Exists(py.EnvironmentPath)) return EngineMessages.PythonEnvMissing(py.EnvironmentPath);
         string env = MacSandboxExecSandbox.RealPath(Path.GetFullPath(py.EnvironmentPath)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         foreach (string writable in new[] { _options.CacheDirectory })
         {
             string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(writable)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (env.StartsWith(w, StringComparison.Ordinal))
-                return "The selected Python environment lies inside a writable sandbox area and cannot be mounted read-only.";
+                return EngineMessages.PythonEnvWritable();
         }
         return null;
     }
 
     /// <summary>The environment must contain node_modules and must not be inside a writable sandbox area. On success <paramref name="nodeModules"/> is its real path.</summary>
-    private string? CheckNodeSelection(NodeRunSelection node, out string? nodeModules)
+    private LocalizedText? CheckNodeSelection(NodeRunSelection node, out string? nodeModules)
     {
         nodeModules = null;
         string modules = Path.Combine(Path.GetFullPath(node.EnvironmentPath), "node_modules");
-        if (!Directory.Exists(modules)) return $"The node environment '{node.EnvironmentPath}' has no node_modules (run `make node-env` or install the course packages in Settings).";
+        if (!Directory.Exists(modules)) return EngineMessages.NodeNoModules(node.EnvironmentPath);
         string real = MacSandboxExecSandbox.RealPath(modules).TrimEnd(Path.DirectorySeparatorChar);
         string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
-            return "The node environment lies inside a writable sandbox area and cannot be mounted read-only.";
+            return EngineMessages.NodeEnvWritable();
         nodeModules = real;
         return null;
     }
 
     /// <summary>The module cache must exist, hold downloaded modules (<c>cache/download</c>) and not lie inside a writable sandbox area. On success <paramref name="modCache"/> is its real path.</summary>
-    private string? CheckGoSelection(GoRunSelection go, out string? modCache)
+    private LocalizedText? CheckGoSelection(GoRunSelection go, out string? modCache)
     {
         modCache = null;
         string path = Path.GetFullPath(go.ModCachePath);
         if (!Directory.Exists(Path.Combine(path, "cache", "download")))
-            return $"The Go module cache '{go.ModCachePath}' has no downloaded modules (run `make go-env` or install the course packages in Settings).";
+            return EngineMessages.GoNoModules(go.ModCachePath);
         string real = MacSandboxExecSandbox.RealPath(path).TrimEnd(Path.DirectorySeparatorChar);
         string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
-            return "The Go module cache lies inside a writable sandbox area and cannot be mounted read-only.";
+            return EngineMessages.GoCacheWritable();
         modCache = real;
         return null;
     }
 
     /// <summary>The packages folder must exist, hold restored packages (at least one package directory) and not lie inside a writable sandbox area. On success <paramref name="packages"/> is its real path.</summary>
-    private string? CheckNuGetSelection(NuGetRunSelection nuget, out string? packages)
+    private LocalizedText? CheckNuGetSelection(NuGetRunSelection nuget, out string? packages)
     {
         packages = null;
         string path = Path.GetFullPath(nuget.PackagesPath);
         if (!Directory.Exists(path) || !Directory.EnumerateDirectories(path).Any())
-            return $"The NuGet packages folder '{nuget.PackagesPath}' has no restored packages (run `make nuget-env` or install the course packages in Settings).";
+            return EngineMessages.NuGetNoPackages(nuget.PackagesPath);
         string real = MacSandboxExecSandbox.RealPath(path).TrimEnd(Path.DirectorySeparatorChar);
         string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
-            return "The NuGet packages folder lies inside a writable sandbox area and cannot be mounted read-only.";
+            return EngineMessages.NuGetWritable();
         packages = real;
         return null;
     }
 
     /// <summary>The jar folder must exist, hold at least one jar and not lie inside a writable sandbox area. On success <paramref name="lib"/> is its real path.</summary>
-    private string? CheckMavenSelection(MavenRunSelection maven, out string? lib)
+    private LocalizedText? CheckMavenSelection(MavenRunSelection maven, out string? lib)
     {
         lib = null;
         string path = Path.GetFullPath(maven.LibPath);
         if (!Directory.Exists(path) || !Directory.EnumerateFiles(path, "*.jar").Any())
-            return $"The Maven jar folder '{maven.LibPath}' has no jars (run `make maven-env` or install the course libraries in Settings).";
+            return EngineMessages.MavenNoJars(maven.LibPath);
         string real = MacSandboxExecSandbox.RealPath(path).TrimEnd(Path.DirectorySeparatorChar);
         string w = MacSandboxExecSandbox.RealPath(Path.GetFullPath(_options.CacheDirectory)).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         if ((real + Path.DirectorySeparatorChar).StartsWith(w, StringComparison.Ordinal))
-            return "The Maven jar folder lies inside a writable sandbox area and cannot be mounted read-only.";
+            return EngineMessages.MavenWritable();
         lib = real;
         return null;
     }
 
-    private static IPreparedProgram Failed(string languageId, ExecutionStatus status, string message, IsolationLevel applied) =>
-        new FailedProgram(languageId, new ExecutionResult(status, null, "", "", "", TimeSpan.Zero, null, applied, message));
+    private static IPreparedProgram Failed(string languageId, ExecutionStatus status, LocalizedText message, IsolationLevel applied) =>
+        new FailedProgram(languageId, new ExecutionResult(status, null, "", "", "", TimeSpan.Zero, null, applied).WithMessage(message));
 
     internal static void ValidateRelativePath(string path)
     {
@@ -376,7 +376,7 @@ public sealed class CodeRunner : ICodeRunner
         }
     }
 
-    private static ExecutionResult Map(ProcessOutcome o, string compileOutput, IsolationLevel applied, string? message)
+    private static ExecutionResult Map(ProcessOutcome o, string compileOutput, IsolationLevel applied, LocalizedText? message)
     {
         ExecutionStatus status =
             o.Cancelled ? ExecutionStatus.Cancelled :
@@ -384,7 +384,7 @@ public sealed class CodeRunner : ICodeRunner
             o.MemoryLimitExceeded ? ExecutionStatus.MemoryLimitExceeded :
             o.OutputTruncated ? ExecutionStatus.OutputLimitExceeded :
             o.ExitCode == 0 ? ExecutionStatus.Success : ExecutionStatus.RuntimeError;
-        return new ExecutionResult(status, o.ExitCode, o.Stdout, o.Stderr, compileOutput, o.Duration, o.PeakMemoryBytes, applied, message);
+        return new ExecutionResult(status, o.ExitCode, o.Stdout, o.Stderr, compileOutput, o.Duration, o.PeakMemoryBytes, applied).WithMessage(message);
     }
 
     private async Task<ProcessOutcome> RunLimitedAsync(IProcessSandbox sandbox, ProcessSpec spec, ResourceLimits limits, string? stdin, CancellationToken ct)
@@ -406,7 +406,7 @@ public sealed class CodeRunner : ICodeRunner
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
-    private sealed class PreparedProgram(CodeRunner owner, string languageId, string workDir, IProcessSandbox sandbox, IsolationLevel applied, string notes)
+    private sealed class PreparedProgram(CodeRunner owner, string languageId, string workDir, IProcessSandbox sandbox, IsolationLevel applied, IReadOnlyList<LocalizedText> notes)
         : IPreparedProgram
     {
         private BuildPlan? _plan;
@@ -417,7 +417,7 @@ public sealed class CodeRunner : ICodeRunner
         public ExecutionResult? PreparationFailure { get; private set; }
         public string CompileOutput { get; private set; } = "";
 
-        private string? Message => notes.Length == 0 ? null : notes;
+        private LocalizedText? Message => notes.Count == 0 ? null : LocalizedText.Join(" ", notes);
 
         public async Task CompileAsync(BuildPlan plan, CancellationToken ct)
         {
@@ -429,12 +429,12 @@ public sealed class CodeRunner : ICodeRunner
                 try { o = await owner.RunLimitedAsync(sandbox, step, CompileLimits(step), null, ct).ConfigureAwait(false); }
                 catch (OperationCanceledException)
                 {
-                    Fail(ExecutionStatus.Cancelled, "Cancelled while waiting to compile.");
+                    Fail(ExecutionStatus.Cancelled, EngineMessages.CancelledWhileWaiting());
                     return;
                 }
                 catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
                 {
-                    Fail(ExecutionStatus.InternalError, $"Could not start compile step: {ex.Message}");
+                    Fail(ExecutionStatus.InternalError, EngineMessages.CompileStartFailed(ex));
                     return;
                 }
                 output.Append(o.Stdout).Append(o.Stderr);
@@ -444,7 +444,7 @@ public sealed class CodeRunner : ICodeRunner
                     ExecutionResult r = Map(o, CompileOutput, applied, Message);
                     PreparationFailure = r.Status == ExecutionStatus.RuntimeError
                         ? r with { Status = ExecutionStatus.CompileError }
-                        : r with { Message = $"Compilation: {r.Status}. {Message}".Trim() };
+                        : r.WithMessage(LocalizedText.Join(" ", EngineMessages.CompileStopped(r.Status), Message));
                     return;
                 }
             }
@@ -455,8 +455,8 @@ public sealed class CodeRunner : ICodeRunner
                 ? ResourceLimits.DefaultCompile with { WallTimeout = t }
                 : ResourceLimits.DefaultCompile;
 
-        private void Fail(ExecutionStatus status, string message) =>
-            PreparationFailure = new ExecutionResult(status, null, "", "", CompileOutput, TimeSpan.Zero, null, applied, $"{message} {Message}".Trim());
+        private void Fail(ExecutionStatus status, LocalizedText message) =>
+            PreparationFailure = new ExecutionResult(status, null, "", "", CompileOutput, TimeSpan.Zero, null, applied).WithMessage(LocalizedText.Join(" ", message, Message));
 
         public async Task<ExecutionResult> RunAsync(string? stdin, ResourceLimits limits, CancellationToken ct,
             IReadOnlyDictionary<string, string>? extraEnvironment = null)
@@ -479,12 +479,12 @@ public sealed class CodeRunner : ICodeRunner
             }
             catch (OperationCanceledException)
             {
-                return new ExecutionResult(ExecutionStatus.Cancelled, null, "", "", CompileOutput, TimeSpan.Zero, null, applied, Message);
+                return new ExecutionResult(ExecutionStatus.Cancelled, null, "", "", CompileOutput, TimeSpan.Zero, null, applied).WithMessage(Message);
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or IOException)
             {
-                return new ExecutionResult(ExecutionStatus.InternalError, null, "", "", CompileOutput, TimeSpan.Zero, null, applied,
-                    $"Could not run program: {ex.Message} {Message}".Trim());
+                return new ExecutionResult(ExecutionStatus.InternalError, null, "", "", CompileOutput, TimeSpan.Zero, null, applied)
+                    .WithMessage(LocalizedText.Join(" ", EngineMessages.RunStartFailed(ex), Message));
             }
         }
 

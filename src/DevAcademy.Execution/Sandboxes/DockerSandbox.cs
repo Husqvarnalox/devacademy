@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Execution;
 
@@ -47,7 +48,7 @@ public sealed class DockerSandbox : IProcessSandbox
     {
         if (spec.ContainerImage is null)
             throw new InvalidOperationException("Container isolation needs ProcessSpec.ContainerImage.");
-        string docker = ToolLocator.Find("docker") ?? throw new InvalidOperationException("docker executable not found.");
+        string docker = ToolLocator.Find("docker") ?? throw new LocalizedOperationException(EngineMessages.DockerNotFound());
         string name = "devacademy-" + Guid.NewGuid().ToString("N");
         string workDir = MacSandboxExecSandbox.RealPath(spec.WorkingDirectory);
         var args = BuildArguments(name, workDir, limits, spec);
@@ -59,7 +60,7 @@ public sealed class DockerSandbox : IProcessSandbox
         ProcessOutcome o = await ProcessRunner.RunAsync(launch, limits, stdin, ct).ConfigureAwait(false);
 
         if (o.ExitCode == 125 && o.Stderr.Contains("Unable to find image", StringComparison.Ordinal))
-            throw new InvalidOperationException($"Docker image '{spec.ContainerImage}' is not available locally (docker pull {spec.ContainerImage}).");
+            throw new LocalizedOperationException(EngineMessages.DockerImageMissing(spec.ContainerImage));
         bool oom = o is { ExitCode: 137, TimedOut: false, Cancelled: false, OutputTruncated: false };
         return oom ? o with { MemoryLimitExceeded = true, ExitCode = null } : o;
     }

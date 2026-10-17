@@ -67,7 +67,7 @@ internal sealed class ProjectDebugHost(ProjectWorkspaceViewModel workspace, Debu
         if (!built.Success || built.Executable is null)
         {
             service.CleanupRunDirectory(runDir);
-            return new DebugPreparation(null, Loc.T("Dbg_BuildFailed") + "\n" + built.Output, null, paths);
+            return new DebugPreparation(null, Loc.T("Dbg_BuildFailed") + "\n" + Loc.Of(built.OutputText, built.Output), null, paths);
         }
         return new DebugPreparation(new DebugLaunch(built.Executable, workspace.Root, [], RunArguments: built.RunArguments), null, runDir, paths);
     }

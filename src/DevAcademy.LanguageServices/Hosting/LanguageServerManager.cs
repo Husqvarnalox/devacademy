@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DevAcademy.Domain;
 using DevAcademy.LanguageServices.Servers;
 
 namespace DevAcademy.LanguageServices.Hosting;
@@ -26,7 +27,7 @@ public sealed class LanguageServerManagerOptions
 }
 
 /// <summary>Inventory row for settings: one server definition with where it was found and its last known state.</summary>
-public sealed record ServerInventoryItem(LanguageServerDefinition Definition, string? ExecutablePath, ServerSource? Source, string? OverrideCommand, ServerState State, string? Version, string? Message);
+public sealed record ServerInventoryItem(LanguageServerDefinition Definition, string? ExecutablePath, ServerSource? Source, string? OverrideCommand, ServerState State, string? Version, string? Message, LocalizedText? MessageText = null);
 
 /// <summary>
 /// Owns all server sessions: one per (server definition, root), started lazily by the first document, shared by every tab of
@@ -52,7 +53,7 @@ public sealed class LanguageServerManager : IAsyncDisposable
     {
         var def = DefinitionFor(appLanguage);
         if (def is null)
-            return new ServerStatus("", "", appLanguage, root, ServerState.NotInstalled, null, null, "no language server is defined", 0, "");
+            return new ServerStatus("", "", appLanguage, root, ServerState.NotInstalled, null, null, EngineMessages.NoServerDefined().Fallback, 0, "", EngineMessages.NoServerDefined());
         if (!_o.IsEnabled())
             return new ServerStatus(def.Id, def.DisplayName, appLanguage, root, ServerState.Disabled, null, null, null, 0, def.InstallHint);
         if (_sessions.TryGetValue((def.Id, Path.GetFullPath(root)), out var s)) return s.Status;
@@ -118,7 +119,7 @@ public sealed class LanguageServerManager : IAsyncDisposable
             var live = _sessions.Values.FirstOrDefault(s => s.Definition.Id == def.Id);
             ServerState state = live?.Status.State ?? (resolved is null ? ServerState.NotInstalled : ServerState.Stopped);
             rows.Add(new ServerInventoryItem(def, resolved?.Executable, resolved?.Source, ovr, state,
-                live?.Status.Version ?? _knownVersions.GetValueOrDefault(def.Id), live?.Status.Message));
+                live?.Status.Version ?? _knownVersions.GetValueOrDefault(def.Id), live?.Status.Message, live?.Status.MessageText));
         }
         return rows;
     }

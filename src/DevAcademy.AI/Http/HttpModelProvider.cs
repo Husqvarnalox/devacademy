@@ -80,7 +80,7 @@ public abstract class HttpModelProvider : IModelProvider
     protected void EnsureKey(string apiKey)
     {
         if (RequiresApiKey && string.IsNullOrWhiteSpace(apiKey))
-            throw new AiProviderException(AiErrorKind.InvalidKey, ProviderId, "API key is empty.");
+            throw new AiProviderException(AiErrorKind.InvalidKey, ProviderId, EngineMessages.EmptyKey());
     }
 
     /// <summary>Sends and returns the response only if successful (headers read; body may still be streaming). Otherwise throws a typed exception.</summary>
@@ -93,11 +93,11 @@ public abstract class HttpModelProvider : IModelProvider
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            throw new AiProviderException(AiErrorKind.Timeout, ProviderId, "The request to the provider timed out.");
+            throw new AiProviderException(AiErrorKind.Timeout, ProviderId, EngineMessages.RequestTimedOut());
         }
         catch (HttpRequestException e)
         {
-            throw new AiProviderException(AiErrorKind.Network, ProviderId, Scrub($"Network error: {e.Message}", apiKey), inner: e);
+            throw new AiProviderException(AiErrorKind.Network, ProviderId, EngineMessages.NetworkError(Scrub(e.Message, apiKey)), inner: e);
         }
 
         if (resp.IsSuccessStatusCode) return resp;
@@ -120,11 +120,11 @@ public abstract class HttpModelProvider : IModelProvider
         }
         catch (JsonException e)
         {
-            throw new AiProviderException(AiErrorKind.ProviderUnavailable, ProviderId, "The provider returned a response that is not valid JSON.", inner: e);
+            throw new AiProviderException(AiErrorKind.ProviderUnavailable, ProviderId, EngineMessages.InvalidJson(), inner: e);
         }
         catch (Exception e) when (e is HttpRequestException or IOException)
         {
-            throw new AiProviderException(AiErrorKind.Network, ProviderId, Scrub($"Network error: {e.Message}", apiKey), inner: e);
+            throw new AiProviderException(AiErrorKind.Network, ProviderId, EngineMessages.NetworkError(Scrub(e.Message, apiKey)), inner: e);
         }
     }
 
@@ -181,7 +181,7 @@ public abstract class HttpModelProvider : IModelProvider
                 }
                 catch (Exception ex) when (ex is HttpRequestException or IOException)
                 {
-                    throw new AiProviderException(AiErrorKind.Network, providerId, Scrub($"Connection lost while streaming: {ex.Message}", apiKey), inner: ex);
+                    throw new AiProviderException(AiErrorKind.Network, providerId, EngineMessages.ConnectionLost(Scrub(ex.Message, apiKey)), inner: ex);
                 }
                 yield return e.Current;
             }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+using DevAcademy.Domain;
 using DevAcademy.LanguageServices.Servers;
 
 namespace DevAcademy.Debugging.Adapters;
@@ -11,9 +12,17 @@ public enum AdapterState { Ready, NotInstalled, Unavailable }
 /// Whether a language can be debugged right now. <see cref="Plan"/> is set only for <see cref="AdapterState.NotInstalled"/> when an
 /// install is possible; it is shown to the user and run only after confirmation.
 /// </summary>
-public sealed record AdapterStatus(AdapterState State, string Message, ResolvedAdapter? Adapter = null, ProvisionCommand? Plan = null)
+public sealed record AdapterStatus(AdapterState State, string Message, ResolvedAdapter? Adapter = null, ProvisionCommand? Plan = null,
+    LocalizedText? MessageText = null)
 {
     public bool IsReady => State == AdapterState.Ready;
+
+    /// <summary>The message as translatable text (<see cref="Message"/> stays the English fallback).</summary>
+    public LocalizedText Text => MessageText ?? LocalizedText.Literal(Message);
+
+    public static AdapterStatus Of(AdapterState state, LocalizedText message, ProvisionCommand? plan = null) =>
+        new(state, message.Fallback, Plan: plan, MessageText: message);
+
     public static AdapterStatus Ready(ResolvedAdapter a) => new(AdapterState.Ready, a.Definition.DisplayName + " ✓", a);
 }
 
@@ -83,12 +92,12 @@ public sealed class AdapterResolver
                 AdapterKind.JsDebug => JsDebugStatus(def),
                 AdapterKind.JavaJdi => await JavaStatusAsync(def, ct).ConfigureAwait(false),
                 AdapterKind.NetCoreDbg => NetCoreDbgStatus(def),
-                _ => new AdapterStatus(AdapterState.Unavailable, "Unknown adapter."),
+                _ => AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.UnknownAdapter()),
             };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return new AdapterStatus(AdapterState.Unavailable, $"{def.DisplayName}: {ex.Message}");
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.AdapterFailed(def.DisplayName, ex));
         }
     }
 
@@ -97,7 +106,7 @@ public sealed class AdapterResolver
     private async Task<AdapterStatus> PythonStatusAsync(DebugAdapterDefinition def, DebugEnvironment env, CancellationToken ct)
     {
         if (env.PythonInterpreter is not { Length: > 0 } python || !File.Exists(python))
-            return new AdapterStatus(AdapterState.Unavailable, "Выберите окружение Python (виртуальное окружение проекта или управляемое окружение): отладчик debugpy ставится только в него.");
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.NoPythonEnvironment());
         var probe = await _probe(python, ["-c", "import debugpy"], ct).ConfigureAwait(false);
         if (probe.ExitCode == 0)
             return AdapterStatus.Ready(new ResolvedAdapter(def, python, ["-m", "debugpy.adapter"], new Dictionary<string, string>
@@ -106,9 +115,8 @@ public sealed class AdapterResolver
             }));
         var venv = await _probe(python, ["-c", "import sys; raise SystemExit(0 if sys.prefix != getattr(sys, 'base_prefix', sys.prefix) else 1)"], ct).ConfigureAwait(false);
         if (venv.ExitCode != 0)
-            return new AdapterStatus(AdapterState.Unavailable,
-                "debugpy не установлен, а выбранный интерпретатор не относится к виртуальному окружению. В системный Python приложение ничего не устанавливает: создайте .venv или управляемое окружение.");
-        return new AdapterStatus(AdapterState.NotInstalled, "debugpy не установлен в выбранном окружении.", Plan: PlanPip(python));
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.DebugpyNoVenv());
+        return AdapterStatus.Of(AdapterState.NotInstalled, EngineMessages.DebugpyNotInstalled(), PlanPip(python));
     }
 
     /// <summary><c>python -m pip install debugpy</c>; pip itself refuses to run outside a virtual environment (PIP_REQUIRE_VIRTUALENV).</summary>
@@ -128,7 +136,7 @@ public sealed class AdapterResolver
         }
         exe ??= FindExecutable(def.ExecutableNames, _extraDirs);
         return exe is null
-            ? new AdapterStatus(AdapterState.Unavailable, $"lldb-dap не найден. {def.InstallHint}")
+            ? AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.LldbNotFound(EngineMessages.InstallHint(def)))
             : AdapterStatus.Ready(new ResolvedAdapter(def, exe, [], new Dictionary<string, string>()));
     }
 
@@ -142,8 +150,8 @@ public sealed class AdapterResolver
                 new Regex(@"listening at:\s*(\S+)", RegexOptions.CultureInvariant)));
         string? go = _locator.FindExecutable("go", includeCache: false);
         if (go is null)
-            return new AdapterStatus(AdapterState.Unavailable, "dlv не найден, и Go не установлен: установите Go (https://go.dev/dl/), затем Delve.");
-        return new AdapterStatus(AdapterState.NotInstalled, "Delve (dlv) не установлен.", Plan: PlanDelve(go));
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.DelveNoGo());
+        return AdapterStatus.Of(AdapterState.NotInstalled, EngineMessages.DelveNotInstalled(), PlanDelve(go));
     }
 
     private static Dictionary<string, string> DelveRuntimeEnvironment() => new() { ["GOTOOLCHAIN"] = "local" };
@@ -169,16 +177,16 @@ public sealed class AdapterResolver
     {
         string? node = _locator.FindExecutable("node", includeCache: false);
         if (node is null)
-            return new AdapterStatus(AdapterState.Unavailable, "Node.js не найден: он нужен и для запуска программы, и для отладчика (https://nodejs.org/).");
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.NodeMissing());
         string script = JsDebugServerScript(_cacheDirectory);
         if (File.Exists(script))
             // Port 0: the server picks a free port and prints "Debug server listening at 127.0.0.1:<port>"; it is bound to loopback only.
             return AdapterStatus.Ready(new ResolvedAdapter(def, node, [script, "0", "127.0.0.1"], new Dictionary<string, string>(),
                 new Regex(@"listening at\s+(\S+)", RegexOptions.CultureInvariant)));
         if (OperatingSystem.IsWindows())
-            return new AdapterStatus(AdapterState.Unavailable,
-                $"vscode-js-debug не установлен. Автоматическая установка на Windows не проверялась: распакуйте {DebugAdapterDefinition.JsDebugUrl} (sha256 {DebugAdapterDefinition.JsDebugSha256}) в {JsDebugDirectory(_cacheDirectory)}.");
-        return new AdapterStatus(AdapterState.NotInstalled, $"vscode-js-debug {DebugAdapterDefinition.JsDebugPinnedVersion} не установлен.", Plan: PlanJsDebug());
+            return AdapterStatus.Of(AdapterState.Unavailable,
+                EngineMessages.JsDebugWindows(DebugAdapterDefinition.JsDebugUrl, DebugAdapterDefinition.JsDebugSha256, JsDebugDirectory(_cacheDirectory)));
+        return AdapterStatus.Of(AdapterState.NotInstalled, EngineMessages.JsDebugNotInstalled(DebugAdapterDefinition.JsDebugPinnedVersion), PlanJsDebug());
     }
 
     /// <summary>
@@ -215,12 +223,11 @@ public sealed class AdapterResolver
         if (File.Exists(exe))
             return AdapterStatus.Ready(new ResolvedAdapter(def, exe, ["--interpreter=vscode"], new Dictionary<string, string>()));
         if (_locator.FindExecutable("dotnet", includeCache: false) is null)
-            return new AdapterStatus(AdapterState.Unavailable, "Не найден .NET SDK: он нужен и для сборки программы, и для отладчика (https://dotnet.microsoft.com/download).");
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.DotNetMissing());
         if (OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
-            return new AdapterStatus(AdapterState.NotInstalled, $"netcoredbg {DebugAdapterDefinition.NetCoreDbgVersion} не установлен.", Plan: PlanNetCoreDbg());
-        return new AdapterStatus(AdapterState.Unavailable,
-            "Автоматическая установка netcoredbg проверена только на macOS arm64. На этой платформе скачайте релиз с https://github.com/Samsung/netcoredbg/releases "
-            + $"(Linux x64/arm64 и Windows x64 есть в {DebugAdapterDefinition.NetCoreDbgVersion}; macOS x64 — в 3.1.3-1062) и распакуйте его в {NetCoreDbgDirectory(_cacheDirectory)} так, чтобы появился {NetCoreDbgExecutable(_cacheDirectory)}. Это не проверялось.");
+            return AdapterStatus.Of(AdapterState.NotInstalled, EngineMessages.NetCoreDbgNotInstalled(DebugAdapterDefinition.NetCoreDbgVersion), PlanNetCoreDbg());
+        return AdapterStatus.Of(AdapterState.Unavailable,
+            EngineMessages.NetCoreDbgManual(DebugAdapterDefinition.NetCoreDbgVersion, NetCoreDbgDirectory(_cacheDirectory), NetCoreDbgExecutable(_cacheDirectory)));
     }
 
     /// <summary>Downloads the pinned zip with curl, verifies its SHA-256 and only then unpacks it into the runner cache. Shown to the user before it runs.</summary>
@@ -270,14 +277,14 @@ public sealed class AdapterResolver
         }
         // /usr/bin/java and /usr/bin/javac are shims on macOS that fail without a JDK.
         if (javac is null || java is null || (await _probe(javac, ["-version"], ct).ConfigureAwait(false)).ExitCode != 0)
-            return new AdapterStatus(AdapterState.Unavailable, $"JDK не найден. {def.InstallHint}");
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.JdkNotFound(EngineMessages.InstallHint(def)));
         string classes = JavaAdapterClasses(_cacheDirectory);
         if (File.Exists(Path.Combine(classes, JavaAdapterClass + ".class")))
             return AdapterStatus.Ready(new ResolvedAdapter(def, java, ["-cp", classes, JavaAdapterClass], new Dictionary<string, string>()));
         var modules = await _probe(java, ["--list-modules"], ct).ConfigureAwait(false);
         if (modules.ExitCode != 0 || !modules.Output.Contains("jdk.jdi", StringComparison.Ordinal))
-            return new AdapterStatus(AdapterState.Unavailable, "В установленной Java нет модуля jdk.jdi (нужна полная JDK, не JRE): без него отладчик Java не собрать.");
-        return new AdapterStatus(AdapterState.NotInstalled, "Отладчик Java ещё не собран.", Plan: PlanJava(javac));
+            return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.NoJdi());
+        return AdapterStatus.Of(AdapterState.NotInstalled, EngineMessages.JavaNotBuilt(), PlanJava(javac));
     }
 
     /// <summary>

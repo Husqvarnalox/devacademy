@@ -192,7 +192,7 @@ public class KernelSessionTests
         host.Last!.Crash();
         await Assert.ThrowsAsync<KernelDeadException>(() => running);
         Assert.Equal(KernelState.Dead, s.State);
-        Assert.Contains("завершился", s.DeadReason);
+        Assert.Contains("exited", s.DeadReason);
         await Assert.ThrowsAsync<KernelDeadException>(() => RunAsync(s, "print:x"));
     }
 

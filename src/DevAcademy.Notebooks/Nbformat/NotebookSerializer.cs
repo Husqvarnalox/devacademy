@@ -2,10 +2,14 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Notebooks.Nbformat;
 
-public sealed class NotebookFormatException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed class NotebookFormatException(LocalizedText text, Exception? inner = null) : Exception(text.Fallback, inner), ILocalizedMessage
+{
+    public LocalizedText Text { get; } = text;
+}
 
 /// <summary>
 /// nbformat v4 reader/writer. Mirrors the reference implementation's on-disk conventions (sorted keys, indent 1, multiline strings as
@@ -20,12 +24,12 @@ public static partial class NotebookSerializer
     public static NotebookDocument Parse(string json)
     {
         JsonObject root;
-        try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true })?.AsObject() ?? throw new NotebookFormatException("Not a JSON object."); }
-        catch (JsonException ex) { throw new NotebookFormatException("The file is not valid JSON: " + ex.Message, ex); }
-        catch (InvalidOperationException ex) { throw new NotebookFormatException("The file is not a notebook (top level is not an object).", ex); }
+        try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true })?.AsObject() ?? throw new NotebookFormatException(EngineMessages.NotJsonObject()); }
+        catch (JsonException ex) { throw new NotebookFormatException(EngineMessages.InvalidJson(ex.Message), ex); }
+        catch (InvalidOperationException ex) { throw new NotebookFormatException(EngineMessages.NotNotebook(), ex); }
 
         var major = root["nbformat"]?.GetValue<int>() ?? 0;
-        if (major != 4) throw new NotebookFormatException(major == 0 ? "Not an .ipynb file: no \"nbformat\" field." : $"Only nbformat 4 is supported (this file is nbformat {major}); convert it with nbconvert first.");
+        if (major != 4) throw new NotebookFormatException(major == 0 ? EngineMessages.NotIpynb() : EngineMessages.OnlyV4(major));
 
         var doc = new NotebookDocument
         {
@@ -42,7 +46,7 @@ public static partial class NotebookSerializer
         }
         catch (Exception ex) when (ex is InvalidOperationException or FormatException)
         {
-            throw new NotebookFormatException("A cell has an unexpected structure: " + ex.Message, ex);
+            throw new NotebookFormatException(EngineMessages.CellStructure(ex.Message), ex);
         }
         return doc;
     }
@@ -54,7 +58,7 @@ public static partial class NotebookSerializer
             "code" => CellType.Code,
             "markdown" => CellType.Markdown,
             "raw" => CellType.Raw,
-            var t => throw new NotebookFormatException($"Unknown cell_type '{t}'."),
+            var t => throw new NotebookFormatException(EngineMessages.UnknownCellType(t ?? "")),
         };
         var cell = new NotebookCell
         {
@@ -76,7 +80,7 @@ public static partial class NotebookSerializer
 
     private static NotebookOutput ReadOutput(JsonObject o)
     {
-        var type = o["output_type"]?.GetValue<string>() ?? throw new NotebookFormatException("An output has no output_type.");
+        var type = o["output_type"]?.GetValue<string>() ?? throw new NotebookFormatException(EngineMessages.NoOutputType());
         var output = new NotebookOutput { OutputType = type };
         switch (type)
         {

@@ -14,6 +14,10 @@
       </StackPanel>
     </TreeDataTemplate>
   </UserControl.DataTemplates>
+  <UserControl.Styles>
+    <!-- Fixed row height so the lists can be sized in whole rows (see DebugPanelView.Snap). -->
+    <Style Selector="ListBox#FrameList ListBoxItem"><Setter Property="Height" Value="28" /><Setter Property="MinHeight" Value="28" /><Setter Property="Padding" Value="8,0" /><Setter Property="VerticalContentAlignment" Value="Center" /></Style>
+  </UserControl.Styles>
   <Grid RowDefinitions="Auto,Auto,*" Name="Root">
     <!-- Toolbar -->
     <Border Grid.Row="0" Classes="bar" Padding="8,4">
@@ -46,11 +50,13 @@
     </Border>
 
     <!-- Sections -->
-    <Grid Grid.Row="2" Name="Sections" RowDefinitions="*,2*,*,2*">
+    <ScrollViewer Grid.Row="2" Name="SectionsScroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <Grid Name="Sections" VerticalAlignment="Top" RowDefinitions="*,2*,*,2*">
       <Border Name="StackSection" Grid.Row="0" Classes="panel" Padding="0" Margin="0,2,0,0">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Text="{loc:T Dbg_CallStack}" Classes="caption" Margin="8,4" />
-          <ListBox Grid.Row="1" ItemsSource="{Binding Frames}" SelectedItem="{Binding SelectedFrame}" Background="Transparent" Name="FrameList">
+          <Panel Grid.Row="1" Name="FramePane" ClipToBounds="True">
+          <ListBox VerticalAlignment="Top" ItemsSource="{Binding Frames}" SelectedItem="{Binding SelectedFrame}" Background="Transparent" Name="FrameList">
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:StackFrameItem">
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -60,21 +66,24 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-          <TextBlock Grid.Row="1" Text="{loc:T Dbg_NoStack}" Classes="muted" Margin="8,2" IsVisible="{Binding !Frames.Count}" IsHitTestVisible="False" />
+          <TextBlock Text="{loc:T Dbg_NoStack}" Classes="muted" Margin="8,2" IsVisible="{Binding !Frames.Count}" IsHitTestVisible="False" />
+          </Panel>
         </Grid>
       </Border>
 
       <Border Name="VariablesSection" Grid.Row="1" Classes="panel" Padding="0" Margin="0,2,0,0">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Text="{loc:T Dbg_Variables}" Classes="caption" Margin="8,4" />
-          <TreeView Grid.Row="1" ItemsSource="{Binding Variables}" Name="VariableTree" Background="Transparent">
+          <Panel Grid.Row="1" Name="VariablePane" ClipToBounds="True">
+          <TreeView VerticalAlignment="Top" ItemsSource="{Binding Variables}" Name="VariableTree" Background="Transparent">
             <TreeView.Styles>
               <Style Selector="TreeViewItem" x:DataType="vm:VariableNode">
                 <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
               </Style>
             </TreeView.Styles>
           </TreeView>
-          <TextBlock Grid.Row="1" Text="{loc:T Dbg_NoVariables}" Classes="muted" Margin="8,2" IsVisible="{Binding !Variables.Count}" IsHitTestVisible="False" />
+          <TextBlock Text="{loc:T Dbg_NoVariables}" Classes="muted" Margin="8,2" IsVisible="{Binding !Variables.Count}" IsHitTestVisible="False" />
+          </Panel>
         </Grid>
       </Border>
 
@@ -86,7 +95,8 @@
                      AutomationProperties.Name="{loc:T Dbg_Watch}" />
             <Button Grid.Column="1" Content="+" Command="{Binding AddWatchCommand}" Margin="4,0,0,0" AutomationProperties.Name="{loc:T Dbg_AddWatch}" />
           </Grid>
-          <TreeView Grid.Row="2" ItemsSource="{Binding Watches}" Name="WatchTree" Background="Transparent">
+          <Panel Grid.Row="2" Name="WatchPane" ClipToBounds="True">
+          <TreeView VerticalAlignment="Top" ItemsSource="{Binding Watches}" Name="WatchTree" Background="Transparent">
             <TreeView.Styles>
               <Style Selector="TreeViewItem" x:DataType="vm:VariableNode">
                 <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
@@ -98,6 +108,7 @@
               </ContextMenu>
             </TreeView.ContextMenu>
           </TreeView>
+          </Panel>
         </Grid>
       </Border>
 
@@ -122,5 +133,6 @@
         </Grid>
       </Border>
     </Grid>
+    </ScrollViewer>
   </Grid>
 </UserControl>

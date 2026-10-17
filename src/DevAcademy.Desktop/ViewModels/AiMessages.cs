@@ -9,7 +9,7 @@ public static class AiMessages
 {
     public static string Describe(Exception e) => e switch
     {
-        AiProviderException a => Loc.F("AiError_" + a.Kind, a.Message),
+        AiProviderException a => Loc.F("AiError_" + a.Kind, Loc.Msg(a)),
         TutorRefusedException t => Refusal(t),
         SecretStoreException s => Loc.F("AiError_SecretStore", s.Message),
         OperationCanceledException => Loc.T("AiError_Cancelled"),

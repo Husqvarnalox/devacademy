@@ -1,4 +1,5 @@
 using Avalonia.Media.Imaging;
+using DevAcademy.Desktop.Localization;
 using DevAcademy.Notebooks.Nbformat;
 using DevAcademy.Notebooks.Text;
 
@@ -10,9 +11,10 @@ public sealed class NotebookOutputViewModel
     public NotebookOutputViewModel(OutputPresentation p, string? streamName)
     {
         Kind = p.Kind;
+        var text = Loc.Of(p.TextMessage, p.Text);
         Text = p.Kind is PresentationKind.Text or PresentationKind.Error ? "" : p.Text;
-        Runs = p.Kind is PresentationKind.Text or PresentationKind.Error ? AnsiText.Parse(p.Text) : [];
-        Note = p.Note;
+        Runs = p.Kind is PresentationKind.Text or PresentationKind.Error ? AnsiText.Parse(text) : [];
+        Note = p.Note is null ? null : Loc.Of(p.NoteText, p.Note);
         IsStderr = streamName == "stderr";
         if (p.Kind == PresentationKind.Image && p.ImageBytes is { } bytes)
         {

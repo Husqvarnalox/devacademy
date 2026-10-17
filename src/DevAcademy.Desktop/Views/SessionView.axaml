@@ -10,14 +10,14 @@
   <UserControl.DataTemplates>
     <DataTemplate x:DataType="vm:ConsoleResultViewModel">
       <StackPanel Spacing="8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6">
           <ctl:Icon Kind="circle-check" Stroke="{DynamicResource SuccessBrush}" IsVisible="{Binding IsSuccess}" VerticalAlignment="Center" />
           <ctl:Icon Kind="circle-x" Stroke="{DynamicResource DangerBrush}" IsVisible="{Binding !IsSuccess}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" Classes.success="{Binding IsSuccess}" Classes.danger="{Binding !IsSuccess}" />
           <TextBlock Text="{Binding DurationText}" Classes="small muted mono" VerticalAlignment="Center" />
           <TextBlock Text="{Binding ExitCodeText}" Classes="small muted mono" VerticalAlignment="Center" />
-          <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}"><TextBlock Text="{Binding IsolationBadge}" /></Border>
-        </StackPanel>
+          <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}" ToolTip.Tip="{Binding IsolationBadge}"><TextBlock Text="{Binding IsolationBadge}" TextWrapping="Wrap" /></Border>
+        </WrapPanel>
         <TextBlock Text="{Binding Message}" Classes="warn" TextWrapping="Wrap" IsVisible="{Binding HasMessage}" />
         <StackPanel Spacing="4" IsVisible="{Binding HasCompileOutput}">
           <TextBlock Text="{loc:T Out_Compile}" Classes="overline" />
@@ -35,13 +35,13 @@
     </DataTemplate>
     <DataTemplate x:DataType="vm:TestReportViewModel">
       <StackPanel Spacing="8">
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6">
           <ctl:Icon Kind="circle-check" Stroke="{DynamicResource SuccessBrush}" IsVisible="{Binding IsPassed}" VerticalAlignment="Center" />
           <ctl:Icon Kind="circle-x" Stroke="{DynamicResource DangerBrush}" IsVisible="{Binding !IsPassed}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding Verdict}" FontWeight="SemiBold" Classes.success="{Binding IsPassed}" Classes.danger="{Binding !IsPassed}" />
           <TextBlock Text="{Binding DurationText}" Classes="small muted mono" VerticalAlignment="Center" />
-          <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}"><TextBlock Text="{Binding IsolationBadge}" /></Border>
-        </StackPanel>
+          <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}" ToolTip.Tip="{Binding IsolationBadge}"><TextBlock Text="{Binding IsolationBadge}" TextWrapping="Wrap" /></Border>
+        </WrapPanel>
         <Border Classes="codeout" IsVisible="{Binding HasMessage}"><SelectableTextBlock Text="{Binding Message}" Classes="mono" TextWrapping="Wrap" /></Border>
         <TextBlock Text="{loc:T Tests_DurationNote}" Classes="small muted" TextWrapping="Wrap" IsVisible="{Binding HasCaseDurations}" />
         <Border Classes="panel" ClipToBounds="True" IsVisible="{Binding Cases.Count}">

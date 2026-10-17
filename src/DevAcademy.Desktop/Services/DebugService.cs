@@ -1,5 +1,6 @@
 using Avalonia.Threading;
 using DevAcademy.Debugging.Adapters;
+using DevAcademy.Desktop.Localization;
 using DevAcademy.Execution;
 using DevAcademy.Infrastructure;
 
@@ -40,12 +41,12 @@ public sealed class DebugService
     public static string NoAdapterMessage(string? languageId) =>
         languageId is not null && DebugAdapterRegistry.Planned.TryGetValue(languageId, out var note)
             ? note
-            : "Для этого языка отладчик пока не поддерживается.";
+            : Loc.Of(DevAcademy.Debugging.EngineMessages.NoDebugger());
 
     public async Task<AdapterStatus> GetStatusAsync(string? languageId, string? pythonInterpreter, CancellationToken ct = default)
     {
         var def = languageId is null ? null : DebugAdapterRegistry.ForLanguage(languageId);
-        if (def is null) return new AdapterStatus(AdapterState.Unavailable, NoAdapterMessage(languageId));
+        if (def is null) return AdapterStatus.Of(AdapterState.Unavailable, DevAcademy.Debugging.EngineMessages.NoDebugger());
         return await _resolver.GetStatusAsync(def, new DebugEnvironment(pythonInterpreter), ct).ConfigureAwait(false);
     }
 

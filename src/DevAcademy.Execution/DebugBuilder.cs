@@ -1,3 +1,5 @@
+using DevAcademy.Domain;
+
 namespace DevAcademy.Execution;
 
 /// <summary>
@@ -5,7 +7,12 @@ namespace DevAcademy.Execution;
 /// (<see cref="RunArguments"/> null); runtime languages return the runtime as <see cref="Executable"/> and the rest of the run command
 /// (<c>node main.js</c>, <c>java -cp out Main</c>) in <see cref="RunArguments"/>.
 /// </summary>
-public sealed record DebugBuildResult(bool Success, string Output, string? Executable, string WorkingDirectory, IReadOnlyList<string>? RunArguments = null);
+public sealed record DebugBuildResult(bool Success, string Output, string? Executable, string WorkingDirectory, IReadOnlyList<string>? RunArguments = null,
+    /// <summary>Translatable form of <see cref="Output"/> when the build failed for a reason of our own (compiler output stays verbatim); null otherwise.</summary>
+    LocalizedText? OutputText = null)
+{
+    public static DebugBuildResult Failure(LocalizedText message, string workingDirectory) => new(false, message.Fallback, null, workingDirectory, null, message);
+}
 
 /// <summary>
 /// Builds already-written source files with debug info and without optimisation, ready for a DAP adapter.
@@ -35,10 +42,10 @@ internal sealed class DebugBuilder(IReadOnlyList<ILanguageRuntime> runtimes) : I
     public async Task<DebugBuildResult> BuildAsync(string languageId, string directory, string entryFile, CancellationToken ct, string? sourceDirectory = null)
     {
         if (runtimes.OfType<IDebugBuildRuntime>().FirstOrDefault(r => r.LanguageId == languageId) is not { } runtime)
-            return new DebugBuildResult(false, $"No debug build for '{languageId}'.", null, directory);
+            return DebugBuildResult.Failure(EngineMessages.NoDebugBuild(languageId), directory);
         RuntimeStatus status = await runtime.DetectAsync(ct).ConfigureAwait(false);
         if (status.Availability != RuntimeAvailability.Available)
-            return new DebugBuildResult(false, (status.Notes + " " + status.InstallHint).Trim(), null, directory);
+            return DebugBuildResult.Failure(LocalizedText.Join(" ", status.NotesMessage, status.InstallHintMessage), directory);
 
         Directory.CreateDirectory(Path.Combine(directory, "tmp"));   // the local sandbox points HOME/TMPDIR here
         BuildPlan plan = runtime.CreateDebugPlan(directory, entryFile, status, sourceDirectory);
@@ -48,7 +55,9 @@ internal sealed class DebugBuilder(IReadOnlyList<ILanguageRuntime> runtimes) : I
             ProcessOutcome o = await _sandbox.RunAsync(step, ResourceLimits.DefaultCompile, null, ct).ConfigureAwait(false);
             output.Append(o.Stdout).Append(o.Stderr);
             if (o.ExitCode != 0 || o.TimedOut)
-                return new DebugBuildResult(false, output.Length > 0 ? output.ToString() : "The compiler failed.", null, directory);
+                return output.Length > 0
+                    ? new DebugBuildResult(false, output.ToString(), null, directory)
+                    : DebugBuildResult.Failure(EngineMessages.CompilerFailed(), directory);
         }
         return new DebugBuildResult(true, output.ToString(), plan.Run.FileName, directory, runtime is INativeDebugBuild ? null : plan.Run.Args);
     }

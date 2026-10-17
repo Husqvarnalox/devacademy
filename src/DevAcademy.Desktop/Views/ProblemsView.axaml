@@ -23,7 +23,7 @@
       <Border Classes="panel" Padding="24" IsVisible="{Binding IsEmpty}">
         <StackPanel Spacing="12" HorizontalAlignment="Left">
           <TextBlock Text="{loc:T Problems_Empty}" Classes="secondary" />
-          <Button Content="{loc:T Problems_ResetFilters}" Command="{Binding ResetFiltersCommand}" Classes="ghost" HorizontalAlignment="Left" />
+          <Button Content="{loc:T Problems_ResetFilters}" Command="{Binding ResetFiltersCommand}" Classes="link" HorizontalAlignment="Left" />
         </StackPanel>
       </Border>
       <Border Classes="panel" ClipToBounds="True" IsVisible="{Binding !IsEmpty}">

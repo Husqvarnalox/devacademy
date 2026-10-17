@@ -23,7 +23,7 @@ public sealed partial class LanguageServerRowViewModel : ObservableObject
         State = Loc.T("Lsp_State_" + item.State);
         Path = item.ExecutablePath ?? "";
         Version = item.Version ?? "";
-        Message = item.State == ServerState.NotInstalled ? item.Definition.InstallHint : item.Message ?? "";
+        Message = item.State == ServerState.NotInstalled ? Loc.Of(item.Definition.InstallHintText) : Loc.Of(item.MessageText, item.Message);
         OverrideCommand = item.OverrideCommand ?? "";
         CanInstall = item.State == ServerState.NotInstalled && item.Definition.IsNpmInstallable;
         PrimaryLanguage = item.Definition.Languages[0];

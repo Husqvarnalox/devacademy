@@ -14,8 +14,9 @@ public sealed record CaseDetail(string? Stdin, string? Expected, string? Actual)
 /// Wall time of this test's process, including process start; null when the evaluator cannot measure tests
 /// individually (harness evaluation runs all tests in one process).
 /// </param>
+/// <param name="MessageText">Translatable twin of <paramref name="Message"/> (which stays the English fallback).</param>
 public sealed record CaseResult(string TestId, string Title, bool Hidden, bool Passed, string? Message, CaseDetail? Detail,
-    TimeSpan? Duration = null);
+    TimeSpan? Duration = null, LocalizedText? MessageText = null);
 
 public sealed record EvaluationReport(
     Verdict Status,
@@ -23,13 +24,17 @@ public sealed record EvaluationReport(
     TimeSpan Duration,
     IsolationLevel AppliedIsolation,
     string? Message = null,
-    string? LanguageId = null)
+    string? LanguageId = null,
+    LocalizedText? MessageText = null)
 {
     public int PassedCount => Cases.Count(c => c.Passed);
     public int TotalCount => Cases.Count;
 
     public static EvaluationReport Failure(Verdict status, string message, IsolationLevel isolation) =>
         new(status, [], TimeSpan.Zero, isolation, message);
+
+    public static EvaluationReport Failure(Verdict status, LocalizedText message, IsolationLevel isolation) =>
+        new(status, [], TimeSpan.Zero, isolation, message.Fallback, MessageText: message);
 }
 
 public interface IExerciseEvaluator

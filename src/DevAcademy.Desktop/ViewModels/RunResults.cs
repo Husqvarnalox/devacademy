@@ -15,7 +15,7 @@ public sealed class ConsoleResultViewModel
         Stdout = r.Stdout;
         Stderr = r.Stderr;
         CompileOutput = r.CompileOutput;
-        Message = r.Message;
+        Message = r.Message is null && r.MessageText is null ? null : Loc.Of(r.MessageText, r.Message);
         DurationText = Display.Duration(r.Duration);
         ExitCodeText = r.ExitCode is { } c ? Loc.F("Run_ExitCode", c) : "";
         IsolationBadge = Loc.F("Isolation_Badge", Display.Isolation(r.AppliedIsolation));
@@ -46,7 +46,7 @@ public sealed class TestCaseViewModel
         Title = c.Hidden ? Loc.F("Tests_HiddenTitle", hiddenOrdinal) : c.Title;
         Hidden = c.Hidden;
         Passed = c.Passed;
-        Message = c.Passed ? null : c.Message;
+        Message = c.Passed ? null : c.Message is null && c.MessageText is null ? null : Loc.Of(c.MessageText, c.Message);
         DurationText = c.Duration is { } dur ? Display.Duration(dur) : null;
         if (c.Detail is { } d && !c.Hidden)
         {
@@ -85,7 +85,7 @@ public sealed class TestReportViewModel
             Domain.Verdict.Failed => Loc.F("Tests_Failed", r.PassedCount, r.TotalCount),
             var other => Display.Verdict(other),
         };
-        Message = r.Message;
+        Message = r.Message is null && r.MessageText is null ? null : Loc.Of(r.MessageText, r.Message);
         DurationText = Display.Duration(r.Duration);
         IsolationBadge = Loc.F("Isolation_Badge", Display.Isolation(r.AppliedIsolation));
         IsWeakIsolation = r.AppliedIsolation == IsolationLevel.ProcessLimits;

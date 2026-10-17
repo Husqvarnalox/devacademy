@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DevAcademy.Domain;
 
 namespace DevAcademy.Debugging.Dap;
 
@@ -48,9 +49,14 @@ public sealed record BreakpointEventArgs(string Reason, DapBreakpoint Breakpoint
 public sealed record DapEvent(string Name, JsonElement Body);
 
 /// <summary>Failure of a request (the adapter answered success=false), or of the connection itself.</summary>
-public sealed class DapException(string message, string? command = null) : Exception(message)
+public sealed class DapException(string message, string? command = null, LocalizedText? text = null) : Exception(message), ILocalizedMessage
 {
     public string? Command { get; } = command;
+
+    /// <summary>Translatable message for failures the app itself raises; adapter-reported messages stay verbatim.</summary>
+    public LocalizedText Text { get; } = text ?? LocalizedText.Literal(message);
+
+    public DapException(LocalizedText text, string? command = null) : this(text.Fallback, command, text) { }
 }
 
 /// <summary>Reply to a request sent by the adapter (reverse request). Body is serialized as is.</summary>

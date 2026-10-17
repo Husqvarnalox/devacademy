@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using DevAcademy.Domain;
 using DevAcademy.Notebooks.Nbformat;
 
 namespace DevAcademy.Notebooks.Text;
@@ -8,7 +9,7 @@ namespace DevAcademy.Notebooks.Text;
 public enum PresentationKind { Text, Error, Image, Markdown, Latex, Json }
 
 /// <summary>How one output is shown natively: the richest MIME type we can render without a browser. HTML is never rendered.</summary>
-public sealed record OutputPresentation(PresentationKind Kind, string Text, byte[]? ImageBytes = null, string? Note = null)
+public sealed record OutputPresentation(PresentationKind Kind, string Text, byte[]? ImageBytes = null, string? Note = null, LocalizedText? NoteText = null, LocalizedText? TextMessage = null)
 {
     private static readonly string[] ImageMimes = ["image/png", "image/jpeg"];
 
@@ -32,9 +33,11 @@ public sealed record OutputPresentation(PresentationKind Kind, string Text, byte
         if (o.GetText("text/plain") is { } plain) return new(PresentationKind.Text, plain);
         if (data["application/json"] is { } json) return new(PresentationKind.Json, NotebookSerializer.ToSortedJson(json));
         if (o.GetText("text/html") is { } html)
-            return new(PresentationKind.Text, HtmlToText(html), Note: "HTML не отображается; показан текст.");
+            return new(PresentationKind.Text, HtmlToText(html), Note: EngineMessages.HtmlNote().Fallback, NoteText: EngineMessages.HtmlNote());
         var first = data.FirstOrDefault().Key;
-        return new(PresentationKind.Text, first is null ? "" : $"[{first}: формат не поддерживается]");
+        if (first is null) return new(PresentationKind.Text, "");
+        var unsupported = EngineMessages.UnsupportedFormat(first);
+        return new(PresentationKind.Text, unsupported.Fallback, TextMessage: unsupported);
     }
 
     private static byte[]? TryDecode(string b64)

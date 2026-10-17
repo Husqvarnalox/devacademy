@@ -223,7 +223,7 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     /// <summary>Install hint of the selected language's runtime, shown while it is missing.</summary>
     public string? RuntimeHint => IsRuntimeMissing
         ? _runtimes.TryGetValue(LanguageId, out var r) && !string.IsNullOrWhiteSpace(r.InstallHint)
-            ? Loc.F("Runtime_MissingHint", Display.LanguageName(LanguageId), r.InstallHint)
+            ? Loc.F("Runtime_MissingHint", Display.LanguageName(LanguageId), Loc.Of(r.InstallHintMessage))
             : Loc.F("Runtime_Missing", Display.LanguageName(LanguageId))
         : null;
 

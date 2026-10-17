@@ -1,3 +1,5 @@
+using DevAcademy.Domain;
+
 namespace DevAcademy.Execution;
 
 public sealed record PackageManagerInfo(string Name, string? Version, string? ExecutablePath)
@@ -18,6 +20,6 @@ public static class PackageManagerDetector
             return new PackageManagerInfo(n, v, v is null ? null : path);
         })).ConfigureAwait(false);
 
-    public static string Describe(IEnumerable<PackageManagerInfo> managers) =>
-        "Package managers: " + string.Join(", ", managers.Select(m => m.IsInstalled ? $"{m.Name} {m.Version}" : $"{m.Name} (not found)")) + ".";
+    public static LocalizedText Describe(IEnumerable<PackageManagerInfo> managers) =>
+        EngineMessages.PackageManagers(managers.Select(m => m.IsInstalled ? LocalizedText.Literal($"{m.Name} {m.Version}") : EngineMessages.PackageManagerMissing(m.Name)));
 }
