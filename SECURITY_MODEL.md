@@ -47,6 +47,14 @@ confirmation, outside graded runs, with network access for that single tool proc
 Graded runs request `OsSandbox`; network is denied by default; secrets are never inherited by
 child processes; AI is off until the user configures a provider; telemetry: none.
 
+### Package sets and installation
+
+Nothing is installed implicitly: opening a lesson, running or grading code, and opening Settings never download packages. A package set
+(`content-packages/`, pinned manifests shipped with the app) is installed only after a confirmation dialog that lists the packages with versions, the exact
+command (`npm ci --ignore-scripts --no-audit --no-fund` in the set's own directory, or `pip/uv install -r <pinned file>` into the active managed Python
+environment) and states that the network is needed. Lifecycle scripts are disabled, nothing is global, versions come from lock/pinned files, and set ids are
+validated as path-safe. Removal of a set deletes only its directory and is confirmed. At grading time `node_modules` is read-only inside the sandbox.
+
 ## 5. Out of scope (today)
 
 Protection against a malicious local administrator; kernel/hypervisor escapes; supply-chain

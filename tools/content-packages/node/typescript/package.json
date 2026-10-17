@@ -1,0 +1,15 @@
+{
+  "name": "devacademy-content-typescript",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DevAcademy package set 'typescript': tsc и Vitest для упражнений по TypeScript. Installed only on explicit request into <data dir>/node-content/typescript/ (npm ci --ignore-scripts); nothing is installed globally.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vitest": "5.0.5",
+    "vite": "8.3.4"
+  }
+}

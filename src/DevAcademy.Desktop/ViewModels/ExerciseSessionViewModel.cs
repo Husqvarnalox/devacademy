@@ -198,6 +198,10 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(IsAcceleratorBlocked), nameof(HasEnvironmentNotice), nameof(EnvironmentText)), NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(SubmitCommand))] private string? _acceleratorBlock;
     /// <summary>Informational: runs on CPU / accelerator available (accelerator: optional).</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasEnvironmentNotice), nameof(EnvironmentText))] private string? _environmentNotice;
+    /// <summary>The package set whose (explicit, confirmed) installation would unblock this exercise; null when nothing is missing.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasInstallSet), nameof(InstallSetText), nameof(HasEnvironmentNotice)), NotifyCanExecuteChangedFor(nameof(InstallSetCommand))] private ContentPackageSet? _installSet;
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(InstallSetCommand), nameof(CancelSetInstallCommand))] private bool _isInstallingSet;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasEnvironmentNotice))] private string _installLog = "";
     [ObservableProperty] private EditorFileViewModel? _selectedFile;
     [ObservableProperty] private string _stdin = "";
     [ObservableProperty, NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(SubmitCommand))] private bool _isBusy;
@@ -209,7 +213,9 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CanRevealHint), nameof(HintButtonText))] private int _revealedCount;
 
     public bool IsAcceleratorBlocked => AcceleratorBlock is not null;
-    public bool HasEnvironmentNotice => AcceleratorBlock is not null || EnvironmentNotice is not null;
+    public bool HasEnvironmentNotice => AcceleratorBlock is not null || EnvironmentNotice is not null || InstallSet is not null || InstallLog.Length > 0;
+    public bool HasInstallSet => InstallSet is not null;
+    public string InstallSetText => InstallSet is { } set ? Loc.F("Sets_InstallButton", set.Title) : "";
     public string? EnvironmentText => AcceleratorBlock ?? EnvironmentNotice;
 
     /// <summary>Install hint of the selected language's runtime, shown while it is missing.</summary>
@@ -393,35 +399,93 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     public IReadOnlyList<ExerciseFile> SnapshotFiles() => CurrentFiles();
 
     /// <summary>
-    /// For exercises that declare an accelerator: checks the machine and the active Python environment. "required" and unavailable disables
-    /// Run/Submit with the reason; otherwise a short note says where the exercise will run. Requirements (packages) are checked at run time.
+    /// Checks the exercise's environment without installing anything. A missing course package set is explained and offered as an install button
+    /// (<see cref="InstallSetCommand"/>); an accelerator that is "required" but unavailable disables Run/Submit with the reason; otherwise a short
+    /// note says where the exercise will run.
     /// </summary>
     private async Task RefreshAcceleratorAsync()
     {
         AcceleratorBlock = null;
         EnvironmentNotice = null;
+        InstallSet = null;
         if (Exercise is not null && LanguageId is "javascript" or "typescript" && Exercise.ForVariant(LanguageId).HasNodeRequirements)
         {
-            try { EnvironmentNotice = (await _s.Node.ResolveAsync(Exercise.ForVariant(LanguageId), CancellationToken.None)).BlockedMessage; }
+            try
+            {
+                var plan = await _s.Node.ResolveAsync(Exercise.ForVariant(LanguageId), CancellationToken.None);
+                EnvironmentNotice = plan.BlockedMessage;
+                InstallSet = plan.InstallSet;
+            }
             catch (Exception ex) when (ex is not OperationCanceledException) { EnvironmentNotice = null; }
             return;
         }
         if (Exercise is null || LanguageId != "python") return;
         var variant = Exercise.ForVariant(LanguageId);
-        if (variant.Accelerator == AcceleratorNeed.None) return;
+        if (variant.Accelerator == AcceleratorNeed.None && !variant.HasRequirements) return;
         try
         {
             var plan = await _s.Python.ResolveAsync(variant, CancellationToken.None);
-            // A missing package is reported by the run itself with install instructions; only the accelerator disables the buttons here.
             if (plan.AcceleratorBlocked)
                 AcceleratorBlock = plan.BlockedMessage;
-            else EnvironmentNotice = plan.Notice;
+            else
+            {
+                // Missing packages are explained here and again by the run itself; only the accelerator disables the buttons.
+                EnvironmentNotice = plan.BlockedMessage ?? plan.Notice;
+                InstallSet = plan.InstallSet;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             EnvironmentNotice = null;
         }
     }
+
+    private CancellationTokenSource? _setInstallCts;
+    private readonly System.Text.StringBuilder _setInstallLog = new();
+
+    /// <summary>
+    /// "Установить пакеты: …": shows the packages, the exact command and the network notice, and installs the exercise's set only after a
+    /// confirmation. Declining runs nothing. On success the environment is re-resolved so Run/Submit work.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanInstallSet))]
+    private async Task InstallSetAsync()
+    {
+        if (InstallSet is not { } set) return;
+        _setInstallCts = new CancellationTokenSource();
+        IsInstallingSet = true;
+        _setInstallLog.Clear();
+        InstallLog = "";
+        var ui = SynchronizationContext.Current;
+        void OnLine(string line)
+        {
+            void Append()
+            {
+                _setInstallLog.Append(line).Append('\n');
+                if (_setInstallLog.Length > 30_000) _setInstallLog.Remove(0, _setInstallLog.Length - 30_000);
+                InstallLog = _setInstallLog.ToString();
+            }
+            if (ui is null) Append(); else ui.Post(_ => Append(), null);
+        }
+        try
+        {
+            StatusMessage = Loc.T("Py_Installing");
+            var result = await new PackageSetInstallFlow(_s).InstallAsync(set, OnLine, _setInstallCts.Token);
+            StatusMessage = result.Ok ? Loc.F("Sets_Done", set.Title) : result.Message;
+            if (result.Ok) InstallLog = "";
+            await RefreshAcceleratorAsync();
+        }
+        finally
+        {
+            IsInstallingSet = false;
+            _setInstallCts?.Dispose();
+            _setInstallCts = null;
+        }
+    }
+
+    private bool CanInstallSet() => !IsInstallingSet && InstallSet is not null;
+
+    [RelayCommand(CanExecute = nameof(IsInstallingSet))]
+    private void CancelSetInstall() => _setInstallCts?.Cancel();
 
     private IReadOnlyList<ExerciseFile> CurrentFiles() => Files.Select(f => new ExerciseFile(f.Path, f.Content)).ToList();
 

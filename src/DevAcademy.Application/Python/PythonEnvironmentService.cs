@@ -8,7 +8,8 @@ namespace DevAcademy.Application.Python;
 /// What may happen to an exercise run given its <c>requires</c>/<c>accelerator</c> and the active Python environment.
 /// <see cref="BlockedMessage"/> non-null means "do not run"; <see cref="Python"/> is the environment to run with (null = the system interpreter).
 /// </summary>
-public sealed record ExerciseRunPlan(PythonRunSelection? Python, string? BlockedMessage = null, string? Notice = null, bool AcceleratorBlocked = false)
+public sealed record ExerciseRunPlan(PythonRunSelection? Python, string? BlockedMessage = null, string? Notice = null, bool AcceleratorBlocked = false,
+    ContentPackageSet? InstallSet = null)
 {
     public bool IsBlocked => BlockedMessage is not null;
     public static ExerciseRunPlan Default { get; } = new((PythonRunSelection?)null);
@@ -26,12 +27,15 @@ public interface IExerciseEnvironmentResolver
 /// <summary>
 /// Application face of the Python Environment Manager and the ML Runtime Manager: environments, the active-environment setting,
 /// requirement checks and accelerator gating. Installation is exposed as plan + execute so the UI can ask for consent in between.
+/// An exercise blocked by missing packages points at ITS package set (<see cref="ContentPackageIndex"/>); installing it goes through the same plan +
+/// consent flow, into the active managed environment only.
 /// </summary>
 public sealed class PythonEnvironmentService(
     PythonEnvironmentManager environments,
     PythonInterpreterDetector detector,
     MlRuntimeManager ml,
-    ISettingsRepository settings) : IExerciseEnvironmentResolver
+    ISettingsRepository settings,
+    ContentPackageIndex? packages = null) : IExerciseEnvironmentResolver
 {
     public const string ActiveEnvironmentKey = "python.activeEnvironment";
 
@@ -126,6 +130,22 @@ public sealed class PythonEnvironmentService(
         return (plan, ml.DescribePackages(plan.PackageNames, hw), null);
     }
 
+    /// <summary>
+    /// The command that would install a course package set (its pinned requirements file) into the ACTIVE managed environment. Nothing is executed;
+    /// without an active environment the error says to create one first (the app never creates one by itself).
+    /// </summary>
+    public async Task<(PythonInstallPlan? Plan, IReadOnlyList<PackageAcceleratorNote> Notes, string? Error)> PlanSetInstallAsync(ContentPackageSet set, CancellationToken ct)
+    {
+        ManagedPythonEnvironment? env = await GetActiveAsync(ct).ConfigureAwait(false);
+        if (env is null) return (null, [], NoEnvironmentMessage);
+        string? file = packages?.SourcePath(set);
+        if (file is null || !File.Exists(file)) return (null, [], $"Не найден файл набора content-packages/python/{set.Id}.txt (он поставляется вместе с приложением).");
+        return await PlanInstallAsync(env.Name, PythonInstallRequest.FromRequirements(file), ct).ConfigureAwait(false);
+    }
+
+    private const string NoEnvironmentMessage =
+        "Сначала создайте окружение Python и сделайте его активным (Настройки → Среды выполнения → Python-окружения): приложение не создаёт окружения и не ставит пакеты само.";
+
     public async Task<PythonInstallResult> InstallAsync(PythonInstallPlan plan, Action<string> onLine, CancellationToken ct)
     {
         PythonInstallResult r = await environments.InstallAsync(plan, onLine, ct).ConfigureAwait(false);
@@ -183,7 +203,10 @@ public sealed class PythonEnvironmentService(
                 RequirementChecker.ParsePackages(req).Select(p => p.Name).ToList(), ct).ConfigureAwait(false);
             RequirementCheckResult check = RequirementChecker.Check(req, probe);
             if (!check.Satisfied)
-                return new ExerciseRunPlan(selection, Explain(req, check, env));
+            {
+                ContentPackageSet? set = check.MissingPackages.Count > 0 ? packages?.Resolve(PackageSetLanguage.Python, ContentPackageIndex.RequiredPythonPackages(exercise)).Set : null;
+                return new ExerciseRunPlan(selection, Explain(req, check, env, set), InstallSet: env is not null ? set : null);
+            }
         }
 
         if (exercise.Accelerator != AcceleratorNeed.None)
@@ -200,7 +223,7 @@ public sealed class PythonEnvironmentService(
         return new ExerciseRunPlan(selection, null, notice);
     }
 
-    internal static string Explain(ExerciseRequirements req, RequirementCheckResult check, ManagedPythonEnvironment? env)
+    internal static string Explain(ExerciseRequirements req, RequirementCheckResult check, ManagedPythonEnvironment? env, ContentPackageSet? set = null)
     {
         if (check.ProbeError is not null)
             return $"Не удалось проверить окружение Python: {check.ProbeError}";
@@ -210,8 +233,12 @@ public sealed class PythonEnvironmentService(
         };
         if (check.MissingPackages.Count > 0)
         {
-            string target = env is null ? "создайте окружение и сделайте его активным" : $"окружение «{env.Name}»";
-            lines.Add($"Установите пакеты: Настройки → Среды выполнения → Python-окружения → «Установить пакеты…» ({target}). Приложение ничего не устанавливает само.");
+            if (env is null)
+                lines.Add(NoEnvironmentMessage);
+            else if (set is not null)
+                lines.Add($"Нужен набор пакетов «{set.Title}»: установите его в окружение «{env.Name}» кнопкой ниже (нужна сеть). Приложение ничего не устанавливает само.");
+            else
+                lines.Add($"Установите пакеты: Настройки → Среды выполнения → Python-окружения → «Установить пакеты…» (окружение «{env.Name}»). Приложение ничего не устанавливает само.");
         }
         return string.Join(" ", lines);
     }

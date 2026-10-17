@@ -11,9 +11,10 @@ PYTHON   ?= python3
 PYENV_BIN := $(if $(filter Windows_NT,$(OS)),Scripts,bin)
 # Use the content venv automatically when it exists (otherwise exercises that need packages only warn).
 PYENV_ARG = $(if $(wildcard $(PYENV)),--python-env $(PYENV),)
-# Node content environment: node_modules for React/Vitest exercises, pinned by tools/node-content/package-lock.json.
+# Node content environments: one node_modules per package set under $(NODEENV)/<set>/, pinned by
+# tools/content-packages/node/<set>/package-lock.json (the app installs a set only when the learner asks for it).
 NODEENV  ?= .node-content
-NODEENV_ARG = $(if $(wildcard $(NODEENV)/node_modules),--node-env $(NODEENV),)
+NODEENV_ARG = $(if $(wildcard $(NODEENV)/*/node_modules),--node-env $(NODEENV),)
 
 .PHONY: help setup dev build test test-fast test-runners lint format validate-content \
         python-env node-env runtimes publish package checksums version notices clean
@@ -29,7 +30,7 @@ help:
 	@echo "format            apply formatting"
 	@echo "validate-content  validate content + run reference solutions and samples"
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
-	@echo "node-env          npm ci tools/node-content into $(NODEENV) (Vitest, React, Testing Library, Express, light-my-request; DOWNLOADS from npm)"
+	@echo "node-env          npm ci EVERY tools/content-packages/node set into $(NODEENV)/<set>/ (react, typescript, express; DOWNLOADS from npm)"
 	@echo "runtimes          list language runtimes the app can detect"
 	@echo "publish           self-contained desktop build for RID=$(RID) into artifacts/"
 	@echo "package           installer(s) for RID=$(RID) on this OS into artifacts/package (.app+.dmg on macOS, AppImage+.deb on Linux)"
@@ -79,9 +80,12 @@ python-env:
 
 node-env:
 	@echo "NOTE: this downloads packages from npm into $(NODEENV) (nothing is installed globally; install scripts are disabled)."
-	mkdir -p $(NODEENV)
-	cp tools/node-content/package.json tools/node-content/package-lock.json $(NODEENV)/
-	cd $(NODEENV) && npm ci --ignore-scripts --no-audit --no-fund
+	for d in tools/content-packages/node/*/; do \
+	  id=$$(basename $$d); \
+	  rm -f $(NODEENV)/package.json $(NODEENV)/package-lock.json; \
+	  mkdir -p $(NODEENV)/$$id && cp $$d/package.json $$d/package-lock.json $(NODEENV)/$$id/ && \
+	  (cd $(NODEENV)/$$id && npm ci --ignore-scripts --no-audit --no-fund) || exit 1; \
+	done
 
 runtimes:
 	dotnet run --project $(CLI) -- runtimes
@@ -90,7 +94,7 @@ publish:
 	dotnet publish $(DESKTOP) -c Release -r $(RID) --self-contained true \
 	  -p:PublishSingleFile=true -o artifacts/$(RID)
 	cp -R $(CONTENT) artifacts/$(RID)/content
-	mkdir -p artifacts/$(RID)/node-content && cp tools/node-content/package.json tools/node-content/package-lock.json artifacts/$(RID)/node-content/
+	rm -rf artifacts/$(RID)/content-packages && cp -R tools/content-packages artifacts/$(RID)/content-packages
 	cd artifacts && shasum -a 256 -b $$(find $(RID) -maxdepth 1 -type f) > $(RID).sha256
 
 version:

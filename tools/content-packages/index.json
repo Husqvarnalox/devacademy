@@ -1,0 +1,51 @@
+[
+  {
+    "id": "react",
+    "title": "React и Vitest",
+    "language": "node",
+    "description": "React, Testing Library, jsdom и Vitest: проверка упражнений по React.",
+    "packages": ["react", "react-dom", "@testing-library/react", "@testing-library/dom", "@testing-library/user-event", "jsdom", "vitest", "vite"]
+  },
+  {
+    "id": "typescript",
+    "title": "TypeScript",
+    "language": "node",
+    "description": "tsc и Vitest: проверка типов и тестов в упражнениях по TypeScript.",
+    "packages": ["typescript", "vitest", "vite"]
+  },
+  {
+    "id": "express",
+    "title": "Express",
+    "language": "node",
+    "description": "Express и light-my-request (запросы без сети) с Vitest.",
+    "packages": ["express", "light-my-request", "vitest", "vite"]
+  },
+  {
+    "id": "numpy",
+    "title": "NumPy",
+    "language": "python",
+    "description": "NumPy: массивы, векторизация, линейная алгебра.",
+    "packages": ["numpy"]
+  },
+  {
+    "id": "pandas",
+    "title": "pandas",
+    "language": "python",
+    "description": "pandas вместе с NumPy: таблицы, группировки, слияния.",
+    "packages": ["numpy", "pandas"]
+  },
+  {
+    "id": "fastapi",
+    "title": "FastAPI",
+    "language": "python",
+    "description": "FastAPI, httpx, pydantic и uvicorn: веб-API на Python.",
+    "packages": ["fastapi", "httpx", "pydantic", "uvicorn"]
+  },
+  {
+    "id": "django",
+    "title": "Django",
+    "language": "python",
+    "description": "Django: фреймворк для веб-приложений.",
+    "packages": ["Django"]
+  }
+]

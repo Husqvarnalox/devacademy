@@ -2,15 +2,12 @@
 # `devacademy validate-content --run-solutions --python-env .venv-content` is reproducible.
 # Install with `make python-env` (creates .venv-content; downloads from PyPI).
 # Verified on Python 3.14 / macOS arm64 (all wheels); versions are minimums the content may rely on.
-numpy==2.5.4
-pandas==3.0.6
-fastapi==0.143.2
-httpx==0.28.1
-pydantic==2.14.1
-pytest==9.1.1
-uvicorn==0.54.0
-# Django for the django-fundamentals course (6.1 supports Python 3.12-3.14); asgiref and sqlparse come in as its dependencies.
-Django==6.1.2
+# The pins live in the per-course package sets (content-packages/python/<id>.txt), which the app installs one at a time on request;
+# the developer environment installs all of them.
+-r content-packages/python/numpy.txt
+-r content-packages/python/pandas.txt
+-r content-packages/python/fastapi.txt
+-r content-packages/python/django.txt
 # Jupyter kernel for the notebook workspace's real-kernel integration tests (tests/DevAcademy.Notebooks.Tests); keep in step with
 # KernelProvisioner.PinnedRequirement.
 ipykernel==7.4.0

@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: tools/node-content/package-lock.json
+          cache-dependency-path: tools/content-packages/node/*/package-lock.json
       - run: dotnet restore DevAcademy.slnx
       - run: dotnet build DevAcademy.slnx -c Release --no-restore
       - run: dotnet format whitespace DevAcademy.slnx --verify-no-changes
@@ -63,13 +63,16 @@ jobs:
         run: |
           python -m venv .venv-content
           .venv-content/Scripts/python.exe -m pip install --disable-pip-version-check -r tools/python-dev-requirements.txt
-      # React/Vitest exercises: pinned npm packages in a throwaway directory (install scripts disabled), never global.
+      # React/TypeScript/Express exercises: every package set in a throwaway directory (install scripts disabled), never global.
       - name: Node content environment
         shell: bash
         run: |
-          mkdir -p .node-content
-          cp tools/node-content/package.json tools/node-content/package-lock.json .node-content/
-          (cd .node-content && npm ci --ignore-scripts --no-audit --no-fund)
+          for d in tools/content-packages/node/*/; do
+            id=$(basename "$d")
+            mkdir -p ".node-content/$id"
+            cp "$d/package.json" "$d/package-lock.json" ".node-content/$id/"
+            (cd ".node-content/$id" && npm ci --ignore-scripts --no-audit --no-fund)
+          done
       - name: Check Python environment against content
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- python-env-check --python-env .venv-content --content content
       - name: Validate content (runs reference solutions where toolchains exist)

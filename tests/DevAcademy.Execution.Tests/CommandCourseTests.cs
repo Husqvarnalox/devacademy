@@ -88,9 +88,10 @@ public class CommandCourseTests
     {
         await TestSupport.RequireAsync("javascript");
         var env = NodeEnvironmentService.FindRepositoryEnvironment();
-        if (env is null) Assert.Skip("node content environment not installed (make node-env)");
+        var packages = ContentPackageIndex.TryLoadDefault();
+        if (env is null || packages is null) Assert.Skip("node content environment not installed (make node-env)");
         var ex = Load(lessonId);
-        var service = new ExerciseEvaluationService(TestSupport.Runner, node: new NodeEnvironmentService(new SystemToolRunner(), env));
+        var service = new ExerciseEvaluationService(TestSupport.Runner, node: new NodeEnvironmentService(new SystemToolRunner(), env, packages));
 
         var solved = await service.EvaluateAsync(ex, ex.Solution, CancellationToken.None, IsolationLevel.OsSandbox);
         Assert.True(solved.Status == Verdict.Passed, Describe(solved));

@@ -5,7 +5,9 @@ namespace DevAcademy.Content;
 /// <summary>Static checks over a loaded <see cref="ContentSet"/>. The C# rules here are authoritative.</summary>
 public static class ContentValidator
 {
-    public static IReadOnlyList<ContentDiagnostic> Validate(ContentSet set)
+    /// <param name="packages">The package-set index exercises must be covered by; null looks for the shipped/repository one (a warning when absent).</param>
+    /// <param name="packageSearchStart">Where the default lookup starts (default: the executable's directory).</param>
+    public static IReadOnlyList<ContentDiagnostic> Validate(ContentSet set, ContentPackageIndex? packages = null, string? packageSearchStart = null)
     {
         var d = new List<ContentDiagnostic>();
         void Error(string path, string msg) => d.Add(new(DiagnosticSeverity.Error, path, msg));
@@ -52,6 +54,17 @@ public static class ContentValidator
             }
         }
 
+        var packageIndex = packages;
+        var packageIndexSearched = packages is not null;
+        ContentPackageIndex? PackageIndex()
+        {
+            if (packageIndexSearched) return packageIndex;
+            packageIndexSearched = true;
+            packageIndex = ContentPackageIndex.TryLoadDefault(packageSearchStart);
+            if (packageIndex is null) Warn("content-packages/index.json", "package-set index not found (content-packages next to the executable, or tools/content-packages): coverage of exercise package requirements was not checked");
+            return packageIndex;
+        }
+
         foreach (var lesson in set.Lessons)
         {
             var p = lesson.SourcePath;
@@ -61,8 +74,8 @@ public static class ContentValidator
             CheckAssessment(lesson, set, Error);
             if (lesson.Quiz is { } quiz) CheckQuiz(quiz, p, Error);
             if (lesson.Editorial is not null && lesson.Exercise is null) Error(p, "editorial requires the lesson to have an exercise");
-            if (lesson.Exercise is { } ex) CheckExercise(ex, p, "exercise", Error, Warn);
-            if (lesson.Challenge is { } ch) CheckExercise(ch, p, "challenge", Error, Warn);
+            if (lesson.Exercise is { } ex) { CheckExercise(ex, p, "exercise", Error, Warn); CheckPackageSet(ex, p, "exercise", PackageIndex, Error); }
+            if (lesson.Challenge is { } ch) { CheckExercise(ch, p, "challenge", Error, Warn); CheckPackageSet(ch, p, "challenge", PackageIndex, Error); }
         }
 
         CheckCycles(set, Error);
@@ -308,6 +321,19 @@ public static class ContentValidator
         }
         if (ex.Accelerator == AcceleratorNeed.Required && !(ex.Requires?.Packages.Count > 0))
             warn(path, $"{label}: accelerator 'required' without requires.packages (which framework uses it?)");
+    }
+
+    /// <summary>Every exercise that needs packages must be coverable by ONE package set (the learner installs sets, never single packages).</summary>
+    private static void CheckPackageSet(Exercise ex, string path, string kind, Func<ContentPackageIndex?> index, Action<string, string> error)
+    {
+        var python = ContentPackageIndex.RequiredPythonPackages(ex);
+        var node = ContentPackageIndex.RequiredNodePackages(ex);
+        if (python.Count == 0 && node.Count == 0) return;
+        if (index() is not { } packages) return;
+        var label = $"{kind} '{ex.Id}'";
+        foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node) })
+            if (required.Count > 0 && packages.Resolve(language, required).Error is { } problem)
+                error(path, $"{label}: {problem}");
     }
 
     private static void CheckCycles(ContentSet set, Action<string, string> error)

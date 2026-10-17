@@ -360,13 +360,13 @@ command:
   reportFile: report.xml       # must equal --outputFile
 ```
 
-The packages live in the **node content environment**: `make node-env` runs `npm ci --ignore-scripts` from the pinned
-`tools/node-content/package-lock.json` into the gitignored `.node-content/` (DOWNLOADS from npm; nothing is global). At grading time the
+The packages live in **package sets** (see below): `make node-env` runs `npm ci --ignore-scripts` for EVERY node set from
+`tools/content-packages/node/<set>/package-lock.json` into the gitignored `.node-content/<set>/` (DOWNLOADS from npm; nothing is global). At grading time the
 runner links `node_modules` read-only into the sandboxed work directory (writes are denied by the OS sandbox; there is no network), keeps Vite's
 cache inside the work directory (`cacheDir: ".cache/vite"` in `vitest.config.mjs`) and never installs anything. Learner files may not live
 under `node_modules`. `vitest.config.mjs` for React: `oxc: { jsx: { runtime: "automatic" } }`, `test: { environment: "jsdom", globals: true,
 include: ["tests/**/*.test.jsx"] }` (globals only so Testing Library cleans up between tests; jest-dom is not installed).
-Express courses (`express-fundamentals`) pin `express` (5.x) and `light-my-request` in the same environment and use `npmPackages: [vitest, express,
+Express courses (`express-fundamentals`) pin `express` (5.x) and `light-my-request` in the `express` set and use `npmPackages: [vitest, express,
 light-my-request]`. Requests are injected into the app function without opening a port: supertest was rejected because its `listen(0)` is denied
 by the no-network sandbox (EPERM), while light-my-request works under it. `vitest.config.mjs` for them: `test: { environment: "node",
 fsModuleCache: false, include: ["tests/**/*.test.mjs"] }` (`fsModuleCache: false` stops Vitest from creating `node_modules/.vitest-cache`, which is
@@ -376,9 +376,23 @@ Allowed Vitest flags are an allowlist (`--reporter` junit/default/verbose/dot, `
 flags are rejected. The validator requires every package the tool needs to be in `npmPackages`. Theory samples of a lesson with such an
 exercise run with the same environment (`javascript run` blocks are plain Node scripts, so `require("react")` works and JSX does not).
 
-Validating: `make node-env && make validate-content` (passes `--node-env .node-content`). Without it the exercises are skipped with a
-warning. In the desktop app, Settings -> Runtimes -> "npm-пакеты для курсов" installs the same lock file (confirmation shows the command;
-network operation); exercises show what is missing until then.
+Validating: `make node-env && make validate-content` (passes `--node-env .node-content`, the directory holding the set subdirectories). Without it
+the exercises are skipped with a warning. In the desktop app a blocked lesson offers «Установить пакеты: <набор>», and Settings -> Runtimes
+lists every set with Install/Remove; each install shows the packages, the exact command and that it needs the network, and runs only after a
+confirmation.
+
+### Package sets (`tools/content-packages/`)
+
+A learner's machine downloads only the packages of the library being studied, so packages are grouped into per-course **sets**.
+`index.json` is an array of `{ id, title (Russian), language: python|node, description, packages }` (`id` matches `^[a-z0-9][a-z0-9-]{0,40}$`).
+Node sets are `node/<id>/{package.json,package-lock.json}` (lock generated with `npm install --package-lock-only --ignore-scripts`; shared
+versions must be identical across sets); Python sets are `python/<id>.txt` with pinned requirements. Current sets: node `react`, `typescript`,
+`express`; python `numpy`, `pandas`, `fastapi`, `django`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
+
+An exercise's required packages (`requires.packages` for Python; `requires.npmPackages` plus the package of its command tool for Node) must be
+covered by ONE set of the right language: the smallest covering set wins, ties go to index order. The validator reports an error for an
+exercise no set covers, so when adding a course that needs a new package, add it to an existing set (or create a set) in the same change.
+If the index cannot be found the validator only warns.
 
 Theory can embed the optimiser lab: a fenced block `visualize gradient-descent function=rosenbrock optimizer=adam lr=0.02`
 (all arguments optional; functions `quadratic|rosenbrock|double-well`, optimizers `gd|momentum|adam`).

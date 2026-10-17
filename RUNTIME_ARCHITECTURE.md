@@ -102,7 +102,14 @@ was tried and rejected because libc++ declares `std::print` in C++23, which ADL 
 (the cpp-first-steps value-semantics exercise prints wrong output). `std::expected` therefore stays unavailable;
 the language-service `compile_flags.txt` matches (`-std=c++20 -pthread`).
 
-Not covered by an adapter: any package installation, virtualenvs, multi-file Cargo/Gradle/Maven/npm projects.
+Course packages come in per-course **sets** (`tools/content-packages/`, shipped as `content-packages/` beside the executable; manifests only).
+Node sets are installed by `NodeEnvironmentService` into `<data dir>/node-content/<set>/` via `npm ci --ignore-scripts --no-audit --no-fund` run in that
+set's directory only, after an explicit confirmation showing the command and that the network is needed; a run selects the exercise's set (smallest set
+covering its packages) and mounts only that `node_modules` read-only. Python sets are pinned requirements files installed into the active managed
+environment through `PythonEnvironmentService.PlanSetInstallAsync` (the same plan + consent flow). CLI `--node-env <dir>` takes the directory holding the set
+subdirectories (`make node-env`). The runner itself never installs anything.
+
+Not covered by an adapter: any package installation by the runner, virtualenvs, multi-file Cargo/Gradle/Maven/npm projects.
 A learner's `import numpy` works only if the system interpreter already has it (the sandbox does not provide
 packages; the `-s` flag disables user site-packages).
 

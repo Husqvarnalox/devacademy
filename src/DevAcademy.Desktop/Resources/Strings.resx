@@ -374,16 +374,26 @@
   <data name="Py_InstallCancelled" xml:space="preserve"><value>Установка прервана.</value></data>
   <data name="Py_Error" xml:space="preserve"><value>Ошибка: {0}</value></data>
   <data name="Node_Title" xml:space="preserve"><value>npm-пакеты для курсов</value></data>
-  <data name="Node_Description" xml:space="preserve"><value>Упражнения по React проверяются настоящими Vitest, jsdom и Testing Library. Пакеты ставятся один раз в отдельный каталог (не глобально, скрипты установки отключены) и при проверке доступны только для чтения, без сети.</value></data>
-  <data name="Node_Install" xml:space="preserve"><value>Установить пакеты для курсов (npm ci, нужна сеть)</value></data>
-  <data name="Node_Installed" xml:space="preserve"><value>Пакеты установлены.</value></data>
-  <data name="Node_NotInstalled" xml:space="preserve"><value>Пакеты не установлены: упражнения по React не смогут проверяться.</value></data>
+  <data name="Node_Description" xml:space="preserve"><value>Пакеты ставятся наборами: только для той библиотеки, которую вы решили изучать. Каждая установка — отдельное подтверждённое действие: сначала показывается точная команда, и она требует сети. Набор лежит в своём каталоге (не глобально, скрипты установки отключены) и при проверке доступен только для чтения, без сети.</value></data>
   <data name="Node_NoNode" xml:space="preserve"><value>Node.js не найден: установите Node.js 22 или новее.</value></data>
   <data name="Node_Version" xml:space="preserve"><value>Node.js {0}.</value></data>
   <data name="Node_Missing" xml:space="preserve"><value>(нет)</value></data>
-  <data name="Node_ConfirmTitle" xml:space="preserve"><value>Установить пакеты для курсов</value></data>
-  <data name="Node_ConfirmIntro" xml:space="preserve"><value>Будет выполнена команда:</value></data>
-  <data name="Node_ConfirmNetwork" xml:space="preserve"><value>Пакеты будут скачаны из интернета (реестр npm) — это сетевая операция. Версии зафиксированы в package-lock.json, скрипты установки не запускаются, глобально ничего не ставится.</value></data>
+  <data name="Node_NoSets" xml:space="preserve"><value>Не найден каталог content-packages с описанием наборов пакетов.</value></data>
+  <data name="Sets_Installed" xml:space="preserve"><value>Установлен: {0}</value></data>
+  <data name="Sets_NotInstalled" xml:space="preserve"><value>Не установлен</value></data>
+  <data name="Sets_Install" xml:space="preserve"><value>Установить…</value></data>
+  <data name="Sets_Remove" xml:space="preserve"><value>Удалить…</value></data>
+  <data name="Sets_InstallButton" xml:space="preserve"><value>Установить пакеты: {0}</value></data>
+  <data name="Sets_ConfirmTitle" xml:space="preserve"><value>Установить пакеты: {0}</value></data>
+  <data name="Sets_ConfirmIntro" xml:space="preserve"><value>Набор «{0}» — будут установлены пакеты:</value></data>
+  <data name="Sets_ConfirmCommand" xml:space="preserve"><value>Будет выполнена команда:</value></data>
+  <data name="Sets_NetworkNpm" xml:space="preserve"><value>Нужна сеть: пакеты скачиваются из реестра npm. Версии зафиксированы в package-lock.json, скрипты установки не запускаются, глобально ничего не ставится.</value></data>
+  <data name="Sets_NetworkPypi" xml:space="preserve"><value>Нужна сеть: пакеты скачиваются с PyPI в активное окружение Python «{0}». Глобально ничего не ставится.</value></data>
+  <data name="Sets_RemoveTitle" xml:space="preserve"><value>Удалить пакеты: {0}</value></data>
+  <data name="Sets_RemoveMessage" xml:space="preserve"><value>Будет удалён каталог набора: {0}. Упражнения этого курса не смогут проверяться, пока набор не установлен снова. Сеть не нужна.</value></data>
+  <data name="Sets_RemoveConfirm" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Sets_Removed" xml:space="preserve"><value>Набор «{0}» удалён.</value></data>
+  <data name="Sets_Done" xml:space="preserve"><value>Пакеты набора «{0}» установлены.</value></data>
   <data name="Ml_Title" xml:space="preserve"><value>ML-ускорение</value></data>
   <data name="Ml_Description" xml:space="preserve"><value>Что есть на этой машине и что видят ML-фреймворки. По умолчанию всё считается на CPU; ускоритель нужен только упражнениям, которые его явно требуют.</value></data>
   <data name="Ml_System" xml:space="preserve"><value>{0} · {1} · {2} · ядер: {3} · ОЗУ: {4} ГБ</value></data>

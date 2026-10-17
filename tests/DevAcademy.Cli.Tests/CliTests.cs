@@ -107,12 +107,12 @@ public class ValidateWithRequirementsTests : IDisposable
     public ValidateWithRequirementsTests()
     {
         Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "valid"), Path.Combine(_root, "content"));
-        // The fixture's io exercise now needs a package nobody has; the other lessons are untouched.
+        // The fixture's io exercise now needs a package the test machine may lack, but a shipped set covers; the other lessons are untouched.
         var lesson = Path.Combine(_root, "content", "courses", "py-basics", "lessons", "02-vars", "lesson.yaml");
         var text = File.ReadAllText(lesson);
         const string anchor = "  entryFile: main.py\n  evaluation: io\n";
         Assert.Contains(anchor, text);
-        File.WriteAllText(lesson, text.Replace(anchor, anchor + "  requires: { python: \">=3.12\", packages: [\"devacademy-fake-pkg>=1\"] }\n"));
+        File.WriteAllText(lesson, text.Replace(anchor, anchor + "  requires: { python: \">=3.12\", packages: [\"numpy>=1\"] }\n"));
     }
 
     private static void Copy(string from, string to)
@@ -140,10 +140,10 @@ public class ValidateWithRequirementsTests : IDisposable
     {
         var (_, output, _) = await Run("validate-content", "--content", Content, "--run-solutions");
         Assert.Contains("WARNING", output);
-        Assert.Contains("requires packages devacademy-fake-pkg>=1 and python >=3.12; pass --python-env", output);
+        Assert.Contains("requires packages numpy>=1 and python >=3.12; pass --python-env", output);
         // (the fixture's unrelated harness challenge may fail without a real test runner; only the gated exercise matters here)
         Assert.DoesNotContain(output.Split('\n'), l => l.StartsWith("ERROR", StringComparison.Ordinal) && l.Contains("py.vars.ex1"));
-        Assert.Contains("code samples (python) require packages devacademy-fake-pkg>=1", output);
+        Assert.Contains("code samples (python) require packages numpy>=1", output);
     }
 
     [Fact]
@@ -190,13 +190,13 @@ public class ValidateWithRequirementsTests : IDisposable
         var env = Path.Combine(_root, "venv");
         var python = Path.Combine(env, "bin", "python");
         Directory.CreateDirectory(Path.GetDirectoryName(python)!);
-        // Answers the importlib.metadata probe like a Python 3.14 that has devacademy-fake-pkg 0.5 (too old for ">=1").
-        File.WriteAllText(python, "#!/bin/sh\ncat >/dev/null\necho '{\"version\":\"3.14.0\",\"impl\":\"cpython\",\"installed\":{\"devacademy-fake-pkg\":\"0.5\"}}'\n");
+        // Answers the importlib.metadata probe like a Python 3.14 that has numpy 0.5 (too old for ">=1").
+        File.WriteAllText(python, "#!/bin/sh\ncat >/dev/null\necho '{\"version\":\"3.14.0\",\"impl\":\"cpython\",\"installed\":{\"numpy\":\"0.5\"}}'\n");
         File.SetUnixFileMode(python, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
         var (code, output, _) = await Run("python-env-check", "--content", Content, "--python-env", env);
         Assert.Equal(1, code);
-        Assert.Contains("MISSING devacademy-fake-pkg>=1", output);
+        Assert.Contains("MISSING numpy>=1", output);
         Assert.Contains("installed 0.5", output);
         Assert.Contains("ok      python>=3.12", output);
         Assert.Contains("1 not satisfied", output);

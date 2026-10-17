@@ -24,25 +24,53 @@ internal sealed class ScriptedToolRunner(string? nodeVersion = "22.15.0", bool n
     }
 }
 
+/// <summary>
+/// A package-set index on disk (react: react, react-dom, vitest; typescript: typescript, vitest; python numpy) plus an environment root with the
+/// given (set, package, version) triples installed as <c>&lt;root&gt;/&lt;set&gt;/node_modules/&lt;package&gt;</c>.
+/// </summary>
 public sealed class NodeFixture : IDisposable
 {
     public string Root { get; } = Path.Combine(Path.GetTempPath(), "devacademy-nodeapp-" + Guid.NewGuid().ToString("N"));
     public string Env => Path.Combine(Root, "env");
-    public string Manifest => Path.Combine(Root, "manifest");
+    public string Packages => Path.Combine(Root, "content-packages");
+    public ContentPackageIndex Index { get; }
+    public ContentPackageSet React => Index.Find(PackageSetLanguage.Node, "react")!;
+    public ContentPackageSet TypeScript => Index.Find(PackageSetLanguage.Node, "typescript")!;
 
-    public NodeFixture(params (string Name, string Version)[] installed)
+    public NodeFixture(params (string Set, string Name, string Version)[] installed)
     {
-        Directory.CreateDirectory(Manifest);
-        File.WriteAllText(Path.Combine(Manifest, "package.json"), """{ "name": "c", "dependencies": { "react": "19.3.1" }, "devDependencies": { "vitest": "5.0.5" } }""");
-        File.WriteAllText(Path.Combine(Manifest, "package-lock.json"), "{}");
+        Directory.CreateDirectory(Packages);
+        File.WriteAllText(Path.Combine(Packages, "index.json"), """
+            [
+              { "id": "react", "title": "React", "language": "node", "description": "d", "packages": ["react", "react-dom", "vitest"] },
+              { "id": "typescript", "title": "TypeScript", "language": "node", "description": "d", "packages": ["typescript", "vitest"] },
+              { "id": "numpy", "title": "NumPy", "language": "python", "description": "d", "packages": ["numpy"] }
+            ]
+            """);
+        Manifest("react", """{ "name": "c", "dependencies": { "react": "19.3.1", "react-dom": "19.3.1" }, "devDependencies": { "vitest": "5.0.5" } }""");
+        Manifest("typescript", """{ "name": "c", "devDependencies": { "typescript": "7.0.2", "vitest": "5.0.5" } }""");
+        Directory.CreateDirectory(Path.Combine(Packages, "python"));
+        File.WriteAllText(Path.Combine(Packages, "python", "numpy.txt"), "# c\nnumpy==2.5.4\n");
+        Assert.True(ContentPackageIndex.TryLoad(Packages, out var index, out _));
+        Index = index;
         Directory.CreateDirectory(Env);
-        foreach (var (name, version) in installed)
+        foreach (var (set, name, version) in installed)
         {
-            var dir = Path.Combine(Env, "node_modules", name);
+            var dir = Path.Combine(Env, set, "node_modules", name);
             Directory.CreateDirectory(dir);
             File.WriteAllText(Path.Combine(dir, "package.json"), $$"""{ "name": "{{name}}", "version": "{{version}}" }""");
         }
     }
+
+    private void Manifest(string set, string packageJson)
+    {
+        var dir = Path.Combine(Packages, "node", set);
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "package.json"), packageJson);
+        File.WriteAllText(Path.Combine(dir, "package-lock.json"), "{}");
+    }
+
+    public NodeEnvironmentService Service(IToolRunner? tools = null) => new(tools ?? new ScriptedToolRunner(), Env, Index);
 
     public void Dispose()
     {
@@ -107,84 +135,144 @@ public class NodeEnvironmentServiceTests
     private static readonly string[] Packages = ["vitest", "react"];
 
     [Fact]
-    public async Task MissingEnvironmentPointsToSettingsAndTheMakeTarget()
+    public async Task NotInstalledSetIsNamedAndPointsToSettingsAndTheMakeTarget()
     {
         using var fx = new NodeFixture();
-        Directory.Delete(fx.Env, true);
-        var service = new NodeEnvironmentService(new ScriptedToolRunner(), fx.Env, fx.Manifest);
-        var problem = await service.CheckAsync(new ExerciseRequirements(null, [], ">=22", Packages), [], default);
-        Assert.NotNull(problem);
-        Assert.Contains("Среды выполнения", problem);
-        Assert.Contains("make node-env", problem);
+        var check = await fx.Service().CheckAsync(new ExerciseRequirements(null, [], ">=22", Packages), [], default);
+        Assert.NotNull(check.Problem);
+        Assert.Contains("«React»", check.Problem);
+        Assert.Contains("Среды выполнения", check.Problem);
+        Assert.Contains("make node-env", check.Problem);
+        Assert.Equal(fx.React, check.Set);
     }
 
     [Fact]
     public async Task MissingPackageIsNamed()
     {
-        using var fx = new NodeFixture(("react", "19.3.1"));
-        var service = new NodeEnvironmentService(new ScriptedToolRunner(), fx.Env, fx.Manifest);
-        var problem = await service.CheckAsync(new ExerciseRequirements(null, [], ">=22", Packages), [], default);
-        Assert.Contains("vitest", problem);
-        Assert.DoesNotContain("react,", problem);
+        using var fx = new NodeFixture(("react", "react", "19.3.1"));
+        var check = await fx.Service().CheckAsync(new ExerciseRequirements(null, [], ">=22", Packages), [], default);
+        Assert.Contains("vitest", check.Problem);
+        Assert.DoesNotContain("react,", check.Problem);
+    }
+
+    [Fact]
+    public async Task OnlyTheExercisesOwnSetCounts()
+    {
+        // vitest is installed in the typescript set, but a react exercise must use the react set.
+        using var fx = new NodeFixture(("typescript", "vitest", "5.0.5"), ("typescript", "typescript", "7.0.2"));
+        var react = await fx.Service().CheckAsync(new ExerciseRequirements(null, [], null, Packages), [], default);
+        Assert.Equal(fx.React, react.Set);
+        Assert.Contains("не установлен", react.Problem);
+        var ts = await fx.Service().CheckAsync(new ExerciseRequirements(null, [], null, ["vitest", "typescript"]), [], default);
+        Assert.Null(ts.Problem);
+        Assert.Equal(fx.TypeScript, ts.Set);
+    }
+
+    [Fact]
+    public async Task NoCoveringSetIsAnErrorAndMissingIndexIsExplained()
+    {
+        using var fx = new NodeFixture();
+        var none = await fx.Service().CheckAsync(new ExerciseRequirements(null, [], null, ["react", "typescript"]), [], default);
+        Assert.Contains("ни один набор", none.Problem);
+        Assert.Null(none.Set);
+        var noIndex = await new NodeEnvironmentService(new ScriptedToolRunner(), fx.Env).CheckAsync(new ExerciseRequirements(null, [], null, Packages), [], default);
+        Assert.Contains("content-packages", noIndex.Problem);
     }
 
     [Fact]
     public async Task SatisfiedRequirementsPassAndTooOldNodeFails()
     {
-        using var fx = new NodeFixture(("react", "19.3.1"), ("vitest", "5.0.5"));
+        using var fx = new NodeFixture(("react", "react", "19.3.1"), ("react", "vitest", "5.0.5"));
         var req = new ExerciseRequirements(null, [], ">=22", Packages);
-        Assert.Null(await new NodeEnvironmentService(new ScriptedToolRunner("22.15.0"), fx.Env, fx.Manifest).CheckAsync(req, [], default));
-        var old = await new NodeEnvironmentService(new ScriptedToolRunner("20.11.0"), fx.Env, fx.Manifest).CheckAsync(req, [], default);
-        Assert.Contains("20.11.0", old);
-        var none = await new NodeEnvironmentService(new ScriptedToolRunner(null), fx.Env, fx.Manifest).CheckAsync(req, [], default);
-        Assert.Contains("Node.js", none);
+        Assert.Null((await fx.Service(new ScriptedToolRunner("22.15.0")).CheckAsync(req, [], default)).Problem);
+        var old = await fx.Service(new ScriptedToolRunner("20.11.0")).CheckAsync(req, [], default);
+        Assert.Contains("20.11.0", old.Problem);
+        var none = await fx.Service(new ScriptedToolRunner(null)).CheckAsync(req, [], default);
+        Assert.Contains("Node.js", none.Problem);
     }
 
     [Fact]
-    public async Task InspectReportsDeclaredPackagesWithInstalledVersions()
+    public async Task ResolveMountsOnlyTheExercisesSetAndOffersTheMissingOne()
     {
-        using var fx = new NodeFixture(("react", "19.3.1"));
-        File.Copy(Path.Combine(fx.Manifest, "package.json"), Path.Combine(fx.Env, "package.json"));
-        var status = await new NodeEnvironmentService(new ScriptedToolRunner(), fx.Env, fx.Manifest).InspectAsync(default);
-        Assert.True(status.Installed);
+        using var fx = new NodeFixture(("react", "react", "19.3.1"), ("react", "vitest", "5.0.5"));
+        var service = fx.Service();
+        var ok = await service.ResolveAsync(ReactExercise(), default);
+        Assert.False(ok.IsBlocked);
+        Assert.Equal(Path.Combine(Path.GetFullPath(fx.Env), "react"), ok.Node!.EnvironmentPath);
+
+        using var empty = new NodeFixture();
+        var blocked = await empty.Service().ResolveAsync(ReactExercise(), default);
+        Assert.True(blocked.IsBlocked);
+        Assert.Equal(empty.React, blocked.InstallSet);
+        Assert.Null(blocked.Node);
+    }
+
+    private static Exercise ReactExercise() => new("e", "E", "", "javascript", "main.js", [new("main.js", "")], [new("main.js", "")],
+        EvaluationKind.Io, [], null, [], ["h"], Requires: new ExerciseRequirements(null, [], ">=22", Packages));
+
+    [Fact]
+    public async Task InspectReportsEachSetWithItsInstalledVersions()
+    {
+        using var fx = new NodeFixture(("react", "react", "19.3.1"));
+        var status = await fx.Service().InspectAsync(default);
         Assert.Equal("22.15.0", status.NodeVersion);
-        Assert.Equal("19.3.1", status.Packages.Single(p => p.Name == "react").Version);
-        Assert.Null(status.Packages.Single(p => p.Name == "vitest").Version);
+        var react = status.Sets.Single(s => s.Set.Id == "react");
+        Assert.True(react.Installed);
+        Assert.Equal("19.3.1", react.Packages.Single(p => p.Name == "react").Version);
+        Assert.Null(react.Packages.Single(p => p.Name == "vitest").Version);
+        var ts = status.Sets.Single(s => s.Set.Id == "typescript");
+        Assert.False(ts.Installed);
+        Assert.Empty(ts.Packages);
+        Assert.DoesNotContain(status.Sets, s => s.Set.Language == PackageSetLanguage.Python);
     }
 
     [Fact]
-    public void InstallPlanIsTheExactNpmCiWithoutScripts()
+    public void InstallPlanIsTheExactNpmCiOfOneSetWithoutScripts()
     {
         using var fx = new NodeFixture();
-        var (plan, error) = new NodeEnvironmentService(new ScriptedToolRunner(), fx.Env, fx.Manifest).PlanInstall();
+        var (plan, error) = fx.Service().PlanInstall(fx.React);
         Assert.Null(error);
         Assert.Equal(["ci", "--ignore-scripts", "--no-audit", "--no-fund"], plan!.Args);
         Assert.Contains("npm ci --ignore-scripts", plan.CommandLine);
-        Assert.Equal(Path.GetFullPath(fx.Env), plan.EnvironmentPath);
+        Assert.Equal(Path.Combine(Path.GetFullPath(fx.Env), "react"), plan.EnvironmentPath);
+        Assert.Contains(new PinnedPackage("react", "19.3.1"), plan.Packages);
+        Assert.Contains(new PinnedPackage("vitest", "5.0.5"), plan.Packages);
     }
 
     [Fact]
     public void InstallPlanExplainsMissingNpmAndMissingManifest()
     {
         using var fx = new NodeFixture();
-        Assert.Contains("npm не найден", new NodeEnvironmentService(new ScriptedToolRunner(npm: false), fx.Env, fx.Manifest).PlanInstall().Error);
-        Assert.Contains("node-content", new NodeEnvironmentService(new ScriptedToolRunner(), fx.Env, null).PlanInstall().Error);
+        Assert.Contains("npm не найден", fx.Service(new ScriptedToolRunner(npm: false)).PlanInstall(fx.React).Error);
+        Directory.Delete(Path.Combine(fx.Packages, "node", "react"), true);
+        Assert.Contains("content-packages/node/react", fx.Service().PlanInstall(fx.React).Error);
     }
 
     [Fact]
-    public async Task InstallCopiesTheManifestAndRunsOnlyNpmCiInTheEnvironmentDirectory()
+    public async Task InstallCopiesTheManifestAndRunsOnlyNpmCiInThatSetsDirectory()
     {
         using var fx = new NodeFixture();
-        Directory.Delete(fx.Env, true);
         var tools = new ScriptedToolRunner();
-        var service = new NodeEnvironmentService(tools, fx.Env, fx.Manifest);
+        var service = fx.Service(tools);
         var lines = new List<string>();
-        var result = await service.InstallAsync(service.PlanInstall().Plan!, lines.Add, default);
+        var result = await service.InstallAsync(service.PlanInstall(fx.React).Plan!, lines.Add, default);
         Assert.True(result.Ok);
         Assert.Equal(["/fake/npm ci --ignore-scripts --no-audit --no-fund"], tools.Streaming);
-        Assert.Equal(Path.GetFullPath(fx.Env), tools.WorkingDirectory);
-        Assert.True(File.Exists(Path.Combine(fx.Env, "package-lock.json")));
+        Assert.Equal(Path.Combine(Path.GetFullPath(fx.Env), "react"), tools.WorkingDirectory);
+        Assert.True(File.Exists(Path.Combine(fx.Env, "react", "package-lock.json")));
+        Assert.False(Directory.Exists(Path.Combine(fx.Env, "typescript")));
         Assert.Contains("added 95 packages", lines);
+    }
+
+    [Fact]
+    public void RemoveDeletesOnlyThatSetsDirectory()
+    {
+        using var fx = new NodeFixture(("react", "react", "19.3.1"), ("typescript", "vitest", "5.0.5"));
+        var service = fx.Service();
+        Assert.True(service.RemoveSet(fx.React).Ok);
+        Assert.False(Directory.Exists(Path.Combine(fx.Env, "react")));
+        Assert.True(service.IsInstalled(fx.TypeScript));
+        Assert.True(service.RemoveSet(fx.React).Ok); // already gone is fine
     }
 
     [Fact]
@@ -198,22 +286,35 @@ public class NodeEnvironmentServiceTests
         Assert.False(exercise.NeedsNodeEnvironment);
         Assert.True(exercise.HasNodeRequirements);
 
-        var ok = await new NodeEnvironmentService(new ScriptedToolRunner("22.15.0"), fx.Env, fx.Manifest).ResolveAsync(exercise, default);
+        var ok = await fx.Service(new ScriptedToolRunner("22.15.0")).ResolveAsync(exercise, default);
         Assert.False(ok.IsBlocked);
         Assert.Null(ok.Node);
-        var old = await new NodeEnvironmentService(new ScriptedToolRunner("22.6.0"), fx.Env, fx.Manifest).ResolveAsync(exercise, default);
+        var old = await fx.Service(new ScriptedToolRunner("22.6.0")).ResolveAsync(exercise, default);
         Assert.Contains("Нужен Node.js >=22.7", old.BlockedMessage);
     }
 
     [Fact]
-    public void ManifestIsFoundNextToTheExecutableOrInTheRepository()
+    public void PackageIndexIsFoundNextToTheExecutableOrInTheRepository()
     {
         using var fx = new NodeFixture();
-        Assert.Null(NodeEnvironmentService.FindManifestDirectory(fx.Env));
+        Assert.Null(ContentPackageIndex.FindDirectory(fx.Env));
         var shipped = Path.Combine(fx.Root, "app");
-        Directory.CreateDirectory(Path.Combine(shipped, "node-content"));
-        File.WriteAllText(Path.Combine(shipped, "node-content", "package-lock.json"), "{}");
-        Assert.Equal(Path.Combine(shipped, "node-content"), NodeEnvironmentService.FindManifestDirectory(shipped));
+        Directory.CreateDirectory(Path.Combine(shipped, "content-packages"));
+        File.WriteAllText(Path.Combine(shipped, "content-packages", "index.json"), "[]");
+        Assert.Equal(Path.Combine(shipped, "content-packages"), ContentPackageIndex.FindDirectory(shipped));
+        var repo = Path.Combine(fx.Root, "repo");
+        Directory.CreateDirectory(Path.Combine(repo, "tools", "content-packages"));
+        Directory.CreateDirectory(Path.Combine(repo, "src", "bin"));
+        File.WriteAllText(Path.Combine(repo, "tools", "content-packages", "index.json"), "[]");
+        Assert.Equal(Path.Combine(repo, "tools", "content-packages"), ContentPackageIndex.FindDirectory(Path.Combine(repo, "src", "bin")));
+    }
+
+    [Fact]
+    public void RepositoryEnvironmentNeedsAnInstalledSet()
+    {
+        using var fx = new NodeFixture(("react", "react", "19.3.1"));
+        Assert.True(NodeEnvironmentService.HasInstalledSet(fx.Env));
+        Assert.False(NodeEnvironmentService.HasInstalledSet(Path.Combine(fx.Root, "nothing")));
     }
 }
 

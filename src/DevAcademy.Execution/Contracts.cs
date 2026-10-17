@@ -157,7 +157,7 @@ public sealed record PythonRunSelection(string InterpreterPath, string Environme
 
 /// <summary>
 /// The node content environment for a run: a directory that contains <c>node_modules</c> (installed by <c>npm ci</c> from
-/// <c>tools/node-content</c>). The runner exposes it as <c>node_modules</c> in the work directory through a symbolic link, and the OS
+/// <c>tools/content-packages/node/&lt;set&gt;</c>). The runner exposes it as <c>node_modules</c> in the work directory through a symbolic link, and the OS
 /// sandbox may read but never write it. Nothing is ever installed at run time and there is no network.
 /// </summary>
 public sealed record NodeRunSelection(string EnvironmentPath);

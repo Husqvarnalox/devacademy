@@ -10,17 +10,24 @@
       <TextBlock Text="{loc:T Node_Description}" Classes="muted" TextWrapping="Wrap" />
       <TextBlock Name="NodeStatusText" Text="{Binding StatusText}" TextWrapping="Wrap" />
       <TextBlock Name="NodePathText" Text="{Binding PathText}" Classes="caption" TextWrapping="Wrap" />
-      <ItemsControl Name="NodePackageList" ItemsSource="{Binding Packages}" IsVisible="{Binding HasPackages}">
+      <ItemsControl Name="NodeSetList" ItemsSource="{Binding Sets}">
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="x:String">
-            <TextBlock Text="{Binding}" Classes="caption" />
+          <DataTemplate x:DataType="vm:NodeSetViewModel">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding StatusText}" Classes="caption" TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Content="{loc:T Sets_Install}" Command="{Binding InstallCommand}" />
+                <Button Content="{loc:T Sets_Remove}" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" />
+              </StackPanel>
+            </Grid>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Name="NodeInstallButton" Content="{loc:T Node_Install}" Command="{Binding InstallCommand}" />
-        <Button Name="NodeCancelButton" Content="{loc:T Py_CancelInstall}" Command="{Binding CancelCommand}" />
-      </StackPanel>
+      <Button Name="NodeCancelButton" Content="{loc:T Py_CancelInstall}" Command="{Binding CancelCommand}" IsVisible="{Binding IsInstalling}" />
       <Border Classes="codeout" IsVisible="{Binding InstallLog, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
         <ScrollViewer MaxHeight="220">
           <SelectableTextBlock Name="NodeInstallLogText" Text="{Binding InstallLog}" Classes="mono" TextWrapping="Wrap" />

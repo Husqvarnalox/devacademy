@@ -4,8 +4,11 @@ using DevAcademy.Execution;
 
 namespace DevAcademy.Application.Node;
 
-/// <summary>What may happen to an exercise run given the node content environment. <see cref="BlockedMessage"/> non-null means "do not run".</summary>
-public sealed record NodeRunPlan(NodeRunSelection? Node, string? BlockedMessage = null)
+/// <summary>
+/// What may happen to an exercise run given the node content environment. <see cref="BlockedMessage"/> non-null means "do not run";
+/// <see cref="InstallSet"/> is the package set whose (explicit, confirmed) installation would unblock it.
+/// </summary>
+public sealed record NodeRunPlan(NodeRunSelection? Node, string? BlockedMessage = null, ContentPackageSet? InstallSet = null)
 {
     public bool IsBlocked => BlockedMessage is not null;
     public static NodeRunPlan Default { get; } = new((NodeRunSelection?)null);
@@ -19,99 +22,83 @@ public interface INodeEnvironmentResolver
 
 public sealed record NodePackageInfo(string Name, string? Version);
 
-public sealed record NodeEnvironmentStatus(string Path, bool Installed, string? NodeVersion, IReadOnlyList<NodePackageInfo> Packages, string? ManifestDirectory)
-{
-    public bool HasManifest => ManifestDirectory is not null;
-}
+/// <summary>One package set in the node environment root: installed or not, with the versions found in its <c>node_modules</c>.</summary>
+public sealed record NodeSetStatus(ContentPackageSet Set, string Path, bool Installed, IReadOnlyList<NodePackageInfo> Packages, bool HasManifest);
 
-/// <summary>The exact command of an explicit install; shown to the learner before it runs.</summary>
-public sealed record NodeInstallPlan(string Npm, string ManifestDirectory, string EnvironmentPath, IReadOnlyList<string> Args)
+public sealed record NodeEnvironmentStatus(string Root, string? NodeVersion, IReadOnlyList<NodeSetStatus> Sets);
+
+/// <summary>The exact command of an explicit install of ONE set; shown to the learner (with the pinned packages) before it runs.</summary>
+public sealed record NodeInstallPlan(string Npm, ContentPackageSet Set, string ManifestDirectory, string EnvironmentPath, IReadOnlyList<string> Args, IReadOnlyList<PinnedPackage> Packages)
 {
     public string CommandLine => $"cd {EnvironmentPath} && npm {string.Join(' ', Args)}";
 }
 
 public sealed record NodeInstallResult(bool Ok, bool Cancelled, string? Error);
 
+/// <summary><see cref="Problem"/> null = satisfied; <see cref="Set"/> is the set to install (or repair) when the problem is a missing/incomplete set.</summary>
+public sealed record NodeCheck(string? Problem, ContentPackageSet? Set = null);
+
 /// <summary>
-/// The node content environment: a directory with <c>node_modules</c> installed by <c>npm ci</c> from the committed
-/// <c>tools/node-content/package-lock.json</c>. It is the Node counterpart of the Python content venv: exercises declare
-/// <c>requires: { node, npmPackages }</c>, the check reads each package's <c>package.json</c> (nothing is imported or run), and installation
-/// is an explicit user action that needs the network. At grading time the directory is only exposed read-only (see <see cref="NodeRunSelection"/>).
+/// The node content environment: a root directory with one subdirectory per package set, each holding the <c>node_modules</c> that
+/// <c>npm ci</c> installed from that set's committed <c>package-lock.json</c> (<c>tools/content-packages/node/&lt;id&gt;</c>). Exercises declare
+/// <c>requires: { node, npmPackages }</c>; the check picks the ONE set that covers them, reads that set's package.json files (nothing is imported or
+/// run) and a run mounts only that set's <c>node_modules</c>, read-only (see <see cref="NodeRunSelection"/>). Installing or removing a set is an
+/// explicit user action; the install needs the network and nothing else ever downloads a package.
 /// </summary>
-public sealed class NodeEnvironmentService(IToolRunner tools, string environmentPath, string? manifestDirectory = null) : INodeEnvironmentResolver
+public sealed class NodeEnvironmentService(IToolRunner tools, string environmentRoot, ContentPackageIndex? index = null) : INodeEnvironmentResolver
 {
     public const string ManifestFile = "package.json";
     public const string LockFile = "package-lock.json";
     private static readonly string[] InstallArgs = ["ci", "--ignore-scripts", "--no-audit", "--no-fund"];
 
-    public string EnvironmentPath { get; } = Path.GetFullPath(environmentPath);
-    public string? ManifestDirectory { get; } = manifestDirectory is not null && File.Exists(Path.Combine(manifestDirectory, LockFile)) ? Path.GetFullPath(manifestDirectory) : null;
+    public string EnvironmentRoot { get; } = Path.GetFullPath(environmentRoot);
+    public ContentPackageIndex? Index { get; } = index;
 
-    public NodeRunSelection Selection => new(EnvironmentPath);
+    public IReadOnlyList<ContentPackageSet> Sets => Index?.For(PackageSetLanguage.Node).ToList() ?? [];
 
-    /// <summary>
-    /// Where the pinned manifest lives: <c>node-content</c> next to the executable (published builds), else <c>tools/node-content</c> in a
-    /// parent directory (a repository checkout). Null when neither exists.
-    /// </summary>
-    public static string? FindManifestDirectory(string? startDirectory = null)
-    {
-        var start = startDirectory ?? AppContext.BaseDirectory;
-        var shipped = Path.Combine(start, "node-content");
-        if (File.Exists(Path.Combine(shipped, LockFile))) return shipped;
-        for (var dir = new DirectoryInfo(start); dir is not null; dir = dir.Parent)
-        {
-            var candidate = Path.Combine(dir.FullName, "tools", "node-content");
-            if (File.Exists(Path.Combine(candidate, LockFile))) return candidate;
-        }
-        return null;
-    }
+    public string SetPath(ContentPackageSet set) => Path.Combine(EnvironmentRoot, set.Id);
 
-    /// <summary>A developer checkout's <c>.node-content</c> (made by <c>make node-env</c>), found next to <c>tools/node-content</c>.</summary>
+    public bool IsInstalled(ContentPackageSet set) => Directory.Exists(Path.Combine(SetPath(set), "node_modules"));
+
+    private string? ManifestDirectory(ContentPackageSet set) =>
+        Index?.SourcePath(set) is { } dir && File.Exists(Path.Combine(dir, LockFile)) ? dir : null;
+
+    /// <summary>A developer checkout's <c>.node-content</c> (made by <c>make node-env</c>), found next to <c>tools/content-packages</c>.</summary>
     public static string? FindRepositoryEnvironment(string? startDirectory = null)
     {
-        var manifest = FindManifestDirectory(startDirectory);
-        if (manifest is null) return null;
-        var root = Directory.GetParent(Directory.GetParent(manifest)?.FullName ?? "")?.FullName;
+        var packages = ContentPackageIndex.FindDirectory(startDirectory);
+        if (packages is null) return null;
+        var root = Directory.GetParent(Directory.GetParent(packages)?.FullName ?? "")?.FullName;
         var env = root is null ? null : Path.Combine(root, ".node-content");
-        return env is not null && Directory.Exists(Path.Combine(env, "node_modules")) ? env : null;
+        return env is not null && HasInstalledSet(env) ? env : null;
+    }
+
+    /// <summary>True when any subdirectory of <paramref name="root"/> holds a <c>node_modules</c> (some set is installed there).</summary>
+    public static bool HasInstalledSet(string root)
+    {
+        try { return Directory.Exists(root) && Directory.EnumerateDirectories(root).Any(d => Directory.Exists(Path.Combine(d, "node_modules"))); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
     }
 
     // ---------------------------------------------------------------- inspection
 
     public async Task<NodeEnvironmentStatus> InspectAsync(CancellationToken ct)
     {
-        var modules = Path.Combine(EnvironmentPath, "node_modules");
-        var installed = Directory.Exists(modules);
-        var packages = new List<NodePackageInfo>();
-        if (installed)
-            foreach (var name in DeclaredPackages())
-                packages.Add(new NodePackageInfo(name, ReadVersion(name)));
-        return new NodeEnvironmentStatus(EnvironmentPath, installed, await NodeVersionAsync(ct).ConfigureAwait(false), packages, ManifestDirectory);
-    }
-
-    /// <summary>Top-level packages of the manifest (the environment's own package.json, else the shipped one).</summary>
-    private IEnumerable<string> DeclaredPackages()
-    {
-        foreach (var file in new[] { Path.Combine(EnvironmentPath, ManifestFile), ManifestDirectory is null ? null : Path.Combine(ManifestDirectory, ManifestFile) })
+        var sets = new List<NodeSetStatus>();
+        foreach (var set in Sets)
         {
-            if (file is null || !File.Exists(file)) continue;
-            try
-            {
-                using var doc = JsonDocument.Parse(File.ReadAllText(file));
-                var names = new List<string>();
-                foreach (var section in new[] { "dependencies", "devDependencies" })
-                    if (doc.RootElement.TryGetProperty(section, out var deps) && deps.ValueKind == JsonValueKind.Object)
-                        names.AddRange(deps.EnumerateObject().Select(p => p.Name));
-                return names.Order(StringComparer.Ordinal).ToList();
-            }
-            catch (Exception ex) when (ex is JsonException or IOException) { }
+            var installed = IsInstalled(set);
+            var names = Index!.ReadPins(set).Select(p => p.Name).ToList();
+            if (names.Count == 0) names = [.. set.Packages];
+            var packages = installed ? names.Select(name => new NodePackageInfo(name, ReadVersion(set, name))).ToList() : [];
+            sets.Add(new NodeSetStatus(set, SetPath(set), installed, packages, ManifestDirectory(set) is not null));
         }
-        return [];
+        return new NodeEnvironmentStatus(EnvironmentRoot, await NodeVersionAsync(ct).ConfigureAwait(false), sets);
     }
 
-    private string? ReadVersion(string package)
+    private string? ReadVersion(ContentPackageSet set, string package)
     {
-        var file = Path.Combine(EnvironmentPath, "node_modules", package.Replace('/', Path.DirectorySeparatorChar), ManifestFile);
+        var file = Path.Combine(SetPath(set), "node_modules", package.Replace('/', Path.DirectorySeparatorChar), ManifestFile);
         try
         {
             if (!File.Exists(file)) return null;
@@ -130,18 +117,33 @@ public sealed class NodeEnvironmentService(IToolRunner tools, string environment
 
     // ---------------------------------------------------------------- requirement check
 
-    /// <summary>Null when the environment satisfies <paramref name="requires"/>, otherwise a one-line explanation in Russian with the fix.</summary>
-    public async Task<string?> CheckAsync(ExerciseRequirements? requires, IReadOnlyList<string> extraPackages, CancellationToken ct)
+    private const string Fix = "Установите набор: кнопка в уроке или Настройки → Среды выполнения → Node (нужна сеть; приложение ничего не устанавливает само; из репозитория: make node-env).";
+
+    /// <summary>The set that covers <paramref name="packages"/>, or a one-line explanation in Russian.</summary>
+    public (ContentPackageSet? Set, string? Error) ResolveSet(IReadOnlyCollection<string> packages)
+    {
+        if (Index is not { Sets.Count: > 0 }) return (null, "не найден каталог content-packages с описанием наборов пакетов (он поставляется вместе с приложением и лежит в tools/content-packages репозитория)");
+        var resolution = Index.Resolve(PackageSetLanguage.Node, packages);
+        return (resolution.Set, resolution.Error);
+    }
+
+    /// <summary>Satisfied (<see cref="NodeCheck.Problem"/> null) when the exercise's set is installed with the needed packages and Node.js fits.</summary>
+    public async Task<NodeCheck> CheckAsync(ExerciseRequirements? requires, IReadOnlyList<string> extraPackages, CancellationToken ct)
     {
         var packages = (requires?.Npm ?? []).Concat(extraPackages).Distinct(StringComparer.Ordinal).ToList();
-        var missing = new List<string>();
-        if (!Directory.Exists(Path.Combine(EnvironmentPath, "node_modules")))
-            return $"Для упражнения нужны npm-пакеты ({string.Join(", ", packages)}), но окружение курсов не установлено ({EnvironmentPath}). " + Fix;
-        foreach (var package in packages)
-            if (ReadVersion(package) is null) missing.Add(package);
-        if (missing.Count > 0)
-            return $"В окружении курсов нет пакетов: {string.Join(", ", missing)}. " + Fix;
-        return await CheckNodeVersionAsync(requires?.Node, ct).ConfigureAwait(false);
+        ContentPackageSet? set = null;
+        if (packages.Count > 0)
+        {
+            var (chosen, error) = ResolveSet(packages);
+            if (chosen is null) return new NodeCheck($"Для упражнения нужны npm-пакеты ({string.Join(", ", packages)}), но {error}.");
+            set = chosen;
+            if (!IsInstalled(set))
+                return new NodeCheck($"Для упражнения нужен набор пакетов «{set.Title}» ({string.Join(", ", set.Packages)}), он не установлен ({SetPath(set)}). " + Fix, set);
+            var missing = packages.Where(p => ReadVersion(set, p) is null).ToList();
+            if (missing.Count > 0)
+                return new NodeCheck($"В наборе «{set.Title}» нет пакетов: {string.Join(", ", missing)}. " + Fix, set);
+        }
+        return new NodeCheck(await CheckNodeVersionAsync(requires?.Node, ct).ConfigureAwait(false), set);
     }
 
     /// <summary>Checks only the installed Node.js against a <c>requires.node</c> specifier; needs no node environment.</summary>
@@ -156,8 +158,6 @@ public sealed class NodeEnvironmentService(IToolRunner tools, string environment
         return null;
     }
 
-    private const string Fix = "Настройки → Среды выполнения → «Установить пакеты для курсов (npm ci, нужна сеть)» (из репозитория: make node-env).";
-
     public async Task<NodeRunPlan> ResolveAsync(Exercise exercise, CancellationToken ct)
     {
         if (!exercise.HasNodeRequirements) return NodeRunPlan.Default;
@@ -168,21 +168,21 @@ public sealed class NodeEnvironmentService(IToolRunner tools, string environment
             return versionProblem is null ? NodeRunPlan.Default : new NodeRunPlan(null, versionProblem);
         }
         var tool = exercise.Command?.Tool is { } t ? CommandPolicy.FindNodeTool(exercise.LanguageId, t)?.Package : null;
-        var problem = await CheckAsync(exercise.Requires, tool is null ? [] : [tool], ct).ConfigureAwait(false);
-        return problem is null ? new NodeRunPlan(Selection) : new NodeRunPlan(null, problem);
+        var check = await CheckAsync(exercise.Requires, tool is null ? [] : [tool], ct).ConfigureAwait(false);
+        return check.Problem is null ? new NodeRunPlan(new NodeRunSelection(SetPath(check.Set!))) : new NodeRunPlan(null, check.Problem, check.Set);
     }
 
-    // ---------------------------------------------------------------- explicit install
+    // ---------------------------------------------------------------- explicit install and removal
 
-    /// <summary>The install command, or an explanation why it cannot be built. Nothing runs.</summary>
-    public (NodeInstallPlan? Plan, string? Error) PlanInstall()
+    /// <summary>The install command of one set, or an explanation why it cannot be built. Nothing runs.</summary>
+    public (NodeInstallPlan? Plan, string? Error) PlanInstall(ContentPackageSet set)
     {
-        if (ManifestDirectory is null) return (null, "Не найден каталог node-content с package-lock.json (он поставляется вместе с приложением и лежит в tools/node-content репозитория).");
+        if (ManifestDirectory(set) is not { } manifest) return (null, $"Не найден каталог content-packages/node/{set.Id} с package-lock.json (он поставляется вместе с приложением и лежит в tools/content-packages репозитория).");
         if (tools.Find("npm") is not { } npm) return (null, "npm не найден. Установите Node.js 22 или новее (он включает npm) с https://nodejs.org/.");
-        return (new NodeInstallPlan(npm, ManifestDirectory, EnvironmentPath, InstallArgs), null);
+        return (new NodeInstallPlan(npm, set, manifest, SetPath(set), InstallArgs, Index!.ReadPins(set)), null);
     }
 
-    /// <summary>Copies the pinned manifest and lock into the environment directory and runs <c>npm ci</c> there. This is the only place that uses the network.</summary>
+    /// <summary>Copies the set's pinned manifest and lock into its directory and runs <c>npm ci</c> there. This is the only place that uses the network.</summary>
     public async Task<NodeInstallResult> InstallAsync(NodeInstallPlan plan, Action<string> onLine, CancellationToken ct)
     {
         try
@@ -206,6 +206,21 @@ public sealed class NodeEnvironmentService(IToolRunner tools, string environment
         catch (OperationCanceledException)
         {
             return new NodeInstallResult(false, true, null);
+        }
+    }
+
+    /// <summary>Deletes ONE set's directory (its node_modules and manifest copy) and nothing else. The caller confirms first.</summary>
+    public NodeInstallResult RemoveSet(ContentPackageSet set)
+    {
+        var path = SetPath(set);
+        try
+        {
+            if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
+            return new NodeInstallResult(true, false, null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new NodeInstallResult(false, false, $"Не удалось удалить {path}: {ex.Message}");
         }
     }
 }

@@ -1,0 +1,3 @@
+# DevAcademy package set "numpy": NumPy для курсов по NumPy и классическому ML
+# Installed into the ACTIVE managed Python environment only after an explicit, confirmed action (shows the command; needs network).
+numpy==2.5.4

@@ -1,0 +1,6 @@
+# DevAcademy package set "fastapi": FastAPI, httpx, pydantic и uvicorn
+# Installed into the ACTIVE managed Python environment only after an explicit, confirmed action (shows the command; needs network).
+fastapi==0.143.2
+httpx==0.28.1
+pydantic==2.14.1
+uvicorn==0.54.0

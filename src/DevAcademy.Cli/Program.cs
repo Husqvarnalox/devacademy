@@ -50,12 +50,17 @@ internal static class Cli
                     if (options.NodeEnv is not null)
                     {
                         var full = Path.GetFullPath(options.NodeEnv);
-                        if (!Directory.Exists(Path.Combine(full, "node_modules")))
+                        if (!NodeEnvironmentService.HasInstalledSet(full))
                         {
-                            Console.Error.WriteLine($"error: node environment '{options.NodeEnv}' has no node_modules (run `make node-env`)");
+                            Console.Error.WriteLine($"error: node environment '{options.NodeEnv}' has no installed package sets (a node_modules per set subdirectory; run `make node-env`)");
                             return 2;
                         }
-                        node = new NodeEnvironmentService(new SystemToolRunner(), full);
+                        if (ContentPackageIndex.TryLoadDefault() is not { } packages)
+                        {
+                            Console.Error.WriteLine("error: tools/content-packages/index.json (the package sets) was not found next to the CLI or in a parent directory");
+                            return 2;
+                        }
+                        node = new NodeEnvironmentService(new SystemToolRunner(), full, packages);
                     }
                     return await ValidateAsync(root, options.RunSolutions, manager, selection, node);
                 }
@@ -290,9 +295,9 @@ internal static class Cli
                         warnedSamples = true;
                         continue;
                     }
-                    var nodeProblem = await node.CheckAsync(nodeExercise.Requires, [], CancellationToken.None);
-                    if (nodeProblem is not null) { Add(DiagnosticSeverity.Error, lesson, $"code sample (javascript): {First(nodeProblem)}"); continue; }
-                    sampleNode = node.Selection;
+                    var nodePlan = await node.ResolveAsync(nodeExercise, CancellationToken.None);
+                    if (nodePlan.BlockedMessage is not null) { Add(DiagnosticSeverity.Error, lesson, $"code sample (javascript): {First(nodePlan.BlockedMessage)}"); continue; }
+                    sampleNode = nodePlan.Node;
                 }
                 var file = EntryFileFor(sample.LanguageId);
                 var run = await runner.RunOnceAsync(

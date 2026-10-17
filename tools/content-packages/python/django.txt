@@ -1,0 +1,3 @@
+# DevAcademy package set "django": Django (asgiref и sqlparse ставятся как его зависимости)
+# Installed into the ACTIVE managed Python environment only after an explicit, confirmed action (shows the command; needs network).
+Django==6.1.2

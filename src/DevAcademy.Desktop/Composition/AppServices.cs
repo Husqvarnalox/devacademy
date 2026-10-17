@@ -6,6 +6,7 @@ using DevAcademy.Application.Python;
 using DevAcademy.Application.Services;
 using DevAcademy.Application.Tutor;
 using DevAcademy.Desktop.Services;
+using DevAcademy.Domain;
 using DevAcademy.Execution;
 using DevAcademy.Infrastructure;
 
@@ -42,7 +43,8 @@ public sealed class AppServices(
     WorkspaceServices workspace,
     LanguageIntelligenceService language,
     DebugService debug,
-    NodeEnvironmentService node)
+    NodeEnvironmentService node,
+    ContentPackageIndex packageSets)
 {
     public AppPaths Paths { get; } = paths;
     public IContentRepository Content { get; } = content;
@@ -74,6 +76,7 @@ public sealed class AppServices(
     public LanguageIntelligenceService Language { get; } = language;
     public DebugService Debug { get; } = debug;
     public NodeEnvironmentService Node { get; } = node;
+    public ContentPackageIndex PackageSets { get; } = packageSets;
 
     /// <summary>Delay between the last keystroke and the draft being written.</summary>
     public TimeSpan DraftDelay { get; init; } = TimeSpan.FromMilliseconds(800);

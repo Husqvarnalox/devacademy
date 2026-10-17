@@ -14,10 +14,11 @@ rm -rf "$out/content"
 mkdir -p "$out/content"
 (cd "$root/content" && tar --exclude=./schema -cf - .) | (cd "$out/content" && tar -xf -)
 cp "$root/THIRD-PARTY-NOTICES.md" "$root/LICENSE" "$out/"
-# Pinned npm manifest for course packages (React/Vitest); NodeEnvironmentService looks for node-content/ next to the
-# executable and installs into the app data dir on explicit user action. Only the manifest ships, never node_modules.
-mkdir -p "$out/node-content"
-cp "$root/tools/node-content/package.json" "$root/tools/node-content/package-lock.json" "$out/node-content/"
+# Package-set manifests (index.json, node/<set>/package{,-lock}.json, python/<set>.txt); ContentPackageIndex looks for
+# content-packages/ next to the executable and a set is installed into the app data dir only on explicit user action.
+# Only manifests ship, never node_modules.
+rm -rf "$out/content-packages"
+cp -R "$root/tools/content-packages" "$out/content-packages"
 echo "published $rid -> $out"
 
 # Portability guard (macOS): a distro/Homebrew-built SDK ships its own runtime pack whose single-file host links against

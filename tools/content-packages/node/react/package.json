@@ -1,0 +1,22 @@
+{
+  "name": "devacademy-content-react",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DevAcademy package set 'react': Vitest, React Testing Library и jsdom для упражнений по React. Installed only on explicit request into <data dir>/node-content/react/ (npm ci --ignore-scripts); nothing is installed globally.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/user-event": "14.6.8",
+    "jsdom": "29.1.1",
+    "vitest": "5.0.5",
+    "vite": "8.3.4"
+  }
+}

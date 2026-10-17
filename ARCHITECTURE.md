@@ -275,6 +275,14 @@ probes the env via `importlib.metadata` (nothing is imported); a miss gives `Ver
 Settings instructions, never a wrong answer. A `required` accelerator that is unusable disables Run/Submit
 with an explanation; `optional` only shows a note.
 
+**Package sets.** Packages are installed per library, not wholesale: `tools/content-packages/index.json` (shipped as `content-packages/` next to the
+executable) lists sets (node `react`, `typescript`, `express`; python `numpy`, `pandas`, `fastapi`, `django`). `ContentPackageIndex` (Domain,
+pure) resolves the exercise's required packages to the smallest single set of the right language that covers them; the ContentValidator
+rejects an exercise no set covers. Node sets live in `<data dir>/node-content/<set>/` (`npm ci --ignore-scripts --no-audit --no-fund` in that
+directory only; a run mounts just that set's `node_modules` read-only). A Python set is its pinned requirements file installed through the
+normal plan/consent flow into the ACTIVE managed environment (never auto-created). `ExerciseRunPlan`/`NodeRunPlan` carry `InstallSet` so the lesson
+can offer «Установить пакеты: …»; the dialog lists packages with versions, the exact command and the network notice. Nothing is installed implicitly.
+
 **Run isolation.** A selected env replaces the auto-detected interpreter. The env directory is passed as
 `ReadOnlyPaths`: the macOS profile ends with `(deny file-write* (subpath env))` (last rule wins), bwrap uses
 `--ro-bind`. Container isolation is downgraded to OsSandbox (with a note) because the env is a host path.

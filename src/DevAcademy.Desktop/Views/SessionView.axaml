@@ -99,7 +99,19 @@
       </StackPanel>
     </Border>
     <Border Name="EnvironmentBar" Classes="bar" Padding="8,4" IsVisible="{Binding HasEnvironmentNotice}">
-      <TextBlock Name="EnvironmentNoticeText" Text="{Binding EnvironmentText}" Classes="warn" TextWrapping="Wrap" />
+      <StackPanel Spacing="6">
+        <TextBlock Name="EnvironmentNoticeText" Text="{Binding EnvironmentText}" Classes="warn" TextWrapping="Wrap"
+                   IsVisible="{Binding EnvironmentText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasInstallSet}">
+          <Button Name="InstallSetButton" Content="{Binding InstallSetText}" Command="{Binding InstallSetCommand}" />
+          <Button Name="CancelSetInstallButton" Content="{loc:T Py_CancelInstall}" Command="{Binding CancelSetInstallCommand}" IsVisible="{Binding IsInstallingSet}" />
+        </StackPanel>
+        <Border Classes="codeout" IsVisible="{Binding InstallLog, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+          <ScrollViewer MaxHeight="140">
+            <SelectableTextBlock Name="InstallSetLogText" Text="{Binding InstallLog}" Classes="mono" TextWrapping="Wrap" />
+          </ScrollViewer>
+        </Border>
+      </StackPanel>
     </Border>
     </StackPanel>
 

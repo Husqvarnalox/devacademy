@@ -55,11 +55,13 @@ public static class Bootstrapper
         services.AddSingleton(sp => new PythonEnvironmentManager(sp.GetRequiredService<AppPaths>().PythonEnvsDir, sp.GetRequiredService<IToolRunner>()));
         services.AddSingleton(sp => new PythonInterpreterDetector(sp.GetRequiredService<IToolRunner>()));
         services.AddSingleton(sp => new MlRuntimeManager(sp.GetRequiredService<IToolRunner>()));
+        // The per-course package sets (content-packages/index.json). Reading it installs nothing; an empty index means "not shipped here".
+        services.AddSingleton(_ => ContentPackageIndex.TryLoadDefault() ?? new ContentPackageIndex([]));
         services.AddSingleton<PythonEnvironmentService>();
         services.AddSingleton<IExerciseEnvironmentResolver>(sp => sp.GetRequiredService<PythonEnvironmentService>());
 
         // Node content environment (npm packages for React/Vitest exercises): read-only at grading time, installed only on an explicit action.
-        services.AddSingleton(sp => CreateNodeEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>()));
+        services.AddSingleton(sp => CreateNodeEnvironment(sp.GetRequiredService<IToolRunner>(), sp.GetRequiredService<AppPaths>(), sp.GetRequiredService<ContentPackageIndex>()));
         services.AddSingleton<INodeEnvironmentResolver>(sp => sp.GetRequiredService<NodeEnvironmentService>());
 
         services.AddSingleton<CatalogService>();
@@ -107,16 +109,16 @@ public static class Bootstrapper
     }
 
     /// <summary>
-    /// Environment directory: <c>DEVACADEMY_NODE_ENV</c>, else the app data directory once it holds node_modules, else a developer checkout's
-    /// <c>.node-content</c> (made by <c>make node-env</c>), else the app data directory (where an install will put it).
+    /// Environment root (one subdirectory per installed package set): <c>DEVACADEMY_NODE_ENV</c>, else the app data directory once a set is installed
+    /// there, else a developer checkout's <c>.node-content</c> (made by <c>make node-env</c>), else the app data directory (where an install will put it).
     /// </summary>
-    private static NodeEnvironmentService CreateNodeEnvironment(IToolRunner tools, AppPaths paths)
+    private static NodeEnvironmentService CreateNodeEnvironment(IToolRunner tools, AppPaths paths, ContentPackageIndex packages)
     {
         var fromEnv = Environment.GetEnvironmentVariable("DEVACADEMY_NODE_ENV");
         var env = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv
-            : Directory.Exists(Path.Combine(paths.NodeContentDir, "node_modules")) ? paths.NodeContentDir
+            : NodeEnvironmentService.HasInstalledSet(paths.NodeContentDir) ? paths.NodeContentDir
             : NodeEnvironmentService.FindRepositoryEnvironment() ?? paths.NodeContentDir;
-        return new NodeEnvironmentService(tools, env, NodeEnvironmentService.FindManifestDirectory());
+        return new NodeEnvironmentService(tools, env, packages);
     }
 
     private static ProviderRegistry CreateRegistry(AiHttp http, ISettingsRepository settings)
