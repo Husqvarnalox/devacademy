@@ -5,92 +5,118 @@
              x:Class="DevAcademy.Desktop.Views.DashboardView"
              x:DataType="vm:DashboardViewModel">
   <ScrollViewer>
-    <StackPanel MaxWidth="960" Margin="24,20" Spacing="18" HorizontalAlignment="Stretch">
-      <TextBlock Text="{loc:T Dashboard_Title}" Classes="h1" />
+    <StackPanel MaxWidth="1040" Margin="32,32,32,48" Spacing="32" HorizontalAlignment="Stretch">
 
-      <Border Classes="panel" Padding="16">
-        <StackPanel Spacing="8">
-          <TextBlock Text="{loc:T Dashboard_Courses}" Classes="h3" />
-          <TextBlock Text="{loc:T Dashboard_NoCourses}" Classes="muted" IsVisible="{Binding !HasCourses}" />
-          <ItemsControl ItemsSource="{Binding Courses}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:CourseRowViewModel">
-                <StackPanel Spacing="4" Margin="0,0,0,8">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                    <TextBlock Grid.Column="1" Text="{Binding CountText}" />
-                  </Grid>
-                  <ProgressBar Minimum="0" Maximum="1" Value="{Binding Fraction}" Height="6" ShowProgressText="False" />
-                  <TextBlock Text="{Binding CreditedText}" Classes="caption" IsVisible="{Binding CreditedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                </StackPanel>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+      <!-- Hero: the single next step -->
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding HeroOverline}" Classes="overline" TextTrimming="CharacterEllipsis" />
+        <TextBlock Text="{Binding HeroTitle}" Classes="h1" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding HeroText}" Classes="body secondary" TextWrapping="Wrap" MaxWidth="680" HorizontalAlignment="Left" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Classes="primary large" Content="{Binding HeroPrimaryText}" Command="{Binding HeroPrimaryCommand}" />
+          <Button Classes="ghost large" Content="{loc:T Dashboard_OpenCourse}" Command="{Binding HeroCourseCommand}" IsVisible="{Binding HasHeroCourse}" />
         </StackPanel>
-      </Border>
+      </StackPanel>
 
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
-        <Border Classes="panel" Padding="16">
-          <StackPanel Spacing="6">
-            <TextBlock Text="{loc:T Dashboard_Solved}" Classes="h3" />
+      <Grid ColumnDefinitions="*,320" ColumnSpacing="32">
+        <!-- Left: courses + activity -->
+        <StackPanel Spacing="32">
+          <StackPanel Spacing="12">
+            <TextBlock Text="{loc:T Dashboard_Courses}" Classes="h2" />
+            <TextBlock Text="{loc:T Dashboard_NoCourses}" Classes="secondary" TextWrapping="Wrap" IsVisible="{Binding !HasCourses}" />
+            <Border Classes="panel" IsVisible="{Binding HasCourses}" ClipToBounds="True">
+              <ItemsControl Classes="rows" ItemsSource="{Binding Courses}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CourseRowViewModel">
+                    <Button Classes="row" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch">
+                      <Grid ColumnDefinitions="*,120,96" ColumnSpacing="12">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="{Binding Title}" Classes="h3" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="small muted" Text="{Binding LastActivityText}" />
+                        </StackPanel>
+                        <ProgressBar Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding Fraction}" ShowProgressText="False" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Text="{Binding CountText}" Classes="mono" VerticalAlignment="Center" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="NoWrap" />
+                      </Grid>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="12">
+            <TextBlock Text="{loc:T Dashboard_Submissions}" Classes="h2" />
+            <TextBlock Text="{loc:T Dashboard_NoActivityYet}" Classes="small muted" IsVisible="{Binding !HasActivity}" />
+            <Border Classes="panel" Padding="16" IsVisible="{Binding HasActivity}">
+              <ItemsControl ItemsSource="{Binding Days}" Height="88">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:DayBarViewModel">
+                    <Border Width="12" Height="{Binding Height}" VerticalAlignment="Bottom" CornerRadius="2" ToolTip.Tip="{Binding Tooltip}"
+                            Background="{DynamicResource LineStrongBrush}" Classes.hasvalue="{Binding HasValue}">
+                      <Border.Styles>
+                        <Style Selector="Border.hasvalue"><Setter Property="Background" Value="{DynamicResource TextSecondaryBrush}" /></Style>
+                      </Border.Styles>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Right: reviews + difficulty -->
+        <StackPanel Grid.Column="1" Spacing="32">
+          <StackPanel Spacing="12">
+            <TextBlock Text="{loc:T Dashboard_Reviews}" Classes="h2" />
+            <TextBlock Text="{loc:T Dashboard_ReviewsEmpty}" Classes="small secondary" TextWrapping="Wrap" IsVisible="{Binding !HasReviews}" />
+            <Border Classes="panel" IsVisible="{Binding HasReviews}" ClipToBounds="True">
+              <ItemsControl Classes="rows" ItemsSource="{Binding Reviews}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:RecommendationViewModel">
+                    <Button Classes="row" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch">
+                      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="12" IsVisible="{Binding HasUpNext}">
+            <TextBlock Text="{loc:T Dashboard_Recommendations}" Classes="h2" />
+            <Border Classes="panel" ClipToBounds="True">
+              <ItemsControl Classes="rows" ItemsSource="{Binding UpNext}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:RecommendationViewModel">
+                    <Button Classes="row" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Reason}" Classes="small muted" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="12" IsVisible="{Binding HasSolved}">
+            <TextBlock Text="{loc:T Dashboard_Solved}" Classes="h2" />
             <ItemsControl ItemsSource="{Binding Solved}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:DifficultyRowViewModel">
-                  <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding Label}" /><TextBlock Grid.Column="1" Text="{Binding Count}" FontWeight="SemiBold" /></Grid>
+                  <Grid ColumnDefinitions="88,*,28" Margin="0,0,0,8">
+                    <TextBlock Text="{Binding Label}" Classes="small secondary" VerticalAlignment="Center" />
+                    <ProgressBar Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding Fraction}" ShowProgressText="False" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="{Binding Count}" Classes="mono" HorizontalAlignment="Right" />
+                  </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-        </Border>
-        <Border Grid.Column="1" Classes="panel" Padding="16">
-          <StackPanel Spacing="6">
-            <TextBlock Text="{loc:T Dashboard_Reviews}" Classes="h3" />
-            <TextBlock Text="{Binding DueReviews}" FontSize="32" FontWeight="SemiBold" />
-            <TextBlock Text="{loc:T Dashboard_ReviewsNote}" Classes="caption" TextWrapping="Wrap" />
-          </StackPanel>
-        </Border>
+        </StackPanel>
       </Grid>
-
-      <Border Classes="panel" Padding="16">
-        <StackPanel Spacing="8">
-          <TextBlock Text="{loc:T Dashboard_Submissions}" Classes="h3" />
-          <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{loc:T Dashboard_Total}" Classes="caption" /><TextBlock Text="{Binding TotalSubmissions}" Classes="caption" /></StackPanel>
-          <ItemsControl ItemsSource="{Binding Days}" Height="86">
-            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Bottom" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:DayBarViewModel">
-                <Border Width="14" Height="{Binding Height}" VerticalAlignment="Bottom" CornerRadius="2" ToolTip.Tip="{Binding Tooltip}"
-                        Background="{DynamicResource LineBrush}" Classes.hasvalue="{Binding HasValue}" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </Border>
-
-      <Border Classes="panel" Padding="16">
-        <StackPanel Spacing="8">
-          <TextBlock Text="{loc:T Dashboard_Recommendations}" Classes="h3" />
-          <TextBlock Text="{loc:T Dashboard_NoRecommendations}" Classes="muted" IsVisible="{Binding !HasRecommendations}" />
-          <ItemsControl ItemsSource="{Binding Recommendations}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:RecommendationViewModel">
-                <Border Background="{DynamicResource SubtleBrush}" CornerRadius="4" Padding="12,8" Margin="0,0,0,6">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Spacing="2">
-                      <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Border Classes="badge"><TextBlock Text="{Binding KindText}" FontSize="12" /></Border>
-                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                      </StackPanel>
-                      <TextBlock Text="{Binding Reason}" Classes="caption" TextWrapping="Wrap" />
-                    </StackPanel>
-                    <Button Grid.Column="1" Content="{loc:T Dashboard_Open}" Command="{Binding OpenCommand}" VerticalAlignment="Center" />
-                  </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

@@ -44,6 +44,8 @@ public class ScreenshotTests
 
         await host.Main.InitializeAsync();
         Save("1-onboarding");
+        ((OnboardingViewModel)host.Main.Current!).Editor.SelectLanguage(((OnboardingViewModel)host.Main.Current!).Editor.Languages.First(l => l.IsAvailable));
+        Save("1b-onboarding-selected");
         await Helpers.CompleteOnboardingAsync(host);
         Save("2-catalog");
         await host.Main.OpenCourseAsync(Helpers.CourseId);
@@ -59,6 +61,81 @@ public class ScreenshotTests
         Save("7-dashboard");
         await host.Main.ShowSettingsAsync();
         Save("8-settings");
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public async Task Capture_compact_window_screens(string theme)
+    {
+        string? dir = Environment.GetEnvironmentVariable("DEVACADEMY_SCREENSHOTS");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir), "Set DEVACADEMY_SCREENSHOTS to capture screenshots.");
+        Directory.CreateDirectory(dir!);
+
+        using var host = new TestHost();
+        var window = new MainWindow { DataContext = host.Main, Width = 1024, Height = 700 };
+        window.RequestedThemeVariant = theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
+        window.Show();
+
+        void Save(string name)
+        {
+            Settle();
+            using var frame = window.CaptureRenderedFrame();
+            using var file = File.Create(Path.Combine(dir!, $"{theme.ToLowerInvariant()}-{name}.png"));
+            frame?.Save(file, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        }
+
+        await host.Main.InitializeAsync();
+        await Helpers.CompleteOnboardingAsync(host);
+        Save("c1-catalog-1024");
+        await host.Main.OpenCourseAsync(Helpers.CourseId);
+        Save("c2-roadmap-1024");
+        await host.Main.OpenLessonAsync(Helpers.FirstLessonId(host));
+        Save("c3-lesson-theory-1024");
+        ((LessonWorkspaceViewModel)host.Main.Current!).SelectModeCommand.Execute(LessonMode.Practice);
+        Save("c4-lesson-practice-1024");
+        await host.Main.ShowDashboardAsync();
+        Save("c5-dashboard-1024");
+        window.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public async Task Capture_hub_screens(string theme)
+    {
+        string? dir = Environment.GetEnvironmentVariable("DEVACADEMY_SCREENSHOTS");
+        Assert.SkipWhen(string.IsNullOrEmpty(dir), "Set DEVACADEMY_SCREENSHOTS to capture screenshots.");
+        Directory.CreateDirectory(dir!);
+
+        using var host = new TestHost();
+        var window = new MainWindow { DataContext = host.Main, Width = 1440, Height = 900 };
+        window.RequestedThemeVariant = theme == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
+        window.Show();
+
+        void Save(string name)
+        {
+            Settle();
+            using var frame = window.CaptureRenderedFrame();
+            using var file = File.Create(Path.Combine(dir!, $"{theme.ToLowerInvariant()}-{name}.png"));
+            frame?.Save(file, new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        }
+
+        await host.Main.InitializeAsync();
+        await Helpers.CompleteOnboardingAsync(host);
+        await host.Main.ShowProblemsAsync();
+        Save("h1-problems");
+        await host.Main.ShowProjectsAsync();
+        Save("h2-projects");
+        await host.Main.ShowSettingsAsync();
+        ((SettingsViewModel)host.Main.Current!).SelectedTab = 1;
+        Save("h3-settings-runtimes");
+        ((SettingsViewModel)host.Main.Current!).SelectedTab = 0;
+        Save("h4-settings-general");
+        await host.Main.OpenLessonAsync(Helpers.FirstLessonId(host));
+        ((LessonWorkspaceViewModel)host.Main.Current!).SelectModeCommand.Execute(LessonMode.Quiz);
+        Save("h5-quiz");
         window.Close();
     }
 

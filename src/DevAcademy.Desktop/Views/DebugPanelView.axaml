@@ -19,7 +19,7 @@
     <Border Grid.Row="0" Classes="bar" Padding="6,4">
       <StackPanel Spacing="4">
         <StackPanel Orientation="Horizontal" Spacing="4">
-          <Button Content="▶" Command="{Binding StartOrContinueCommand}" Classes="accent" IsEnabled="{Binding IsAvailable}"
+          <Button Content="▶" Command="{Binding StartOrContinueCommand}" Classes="primary" IsEnabled="{Binding IsAvailable}"
                   ToolTip.Tip="{loc:T Dbg_ContinueTip}" AutomationProperties.Name="{loc:T Dbg_Continue}" />
           <Button Content="↷" Command="{Binding StepOverCommand}" ToolTip.Tip="{loc:T Dbg_StepOverTip}" AutomationProperties.Name="{loc:T Dbg_StepOver}" />
           <Button Content="↓" Command="{Binding StepIntoCommand}" ToolTip.Tip="{loc:T Dbg_StepIntoTip}" AutomationProperties.Name="{loc:T Dbg_StepInto}" />

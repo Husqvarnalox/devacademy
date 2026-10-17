@@ -16,7 +16,7 @@ namespace DevAcademy.Desktop.Markdown;
 
 public sealed record MarkdownTheme(IBrush CodeBackground, IBrush Border, IBrush Muted, IBrush Link, FontFamily Mono)
 {
-    public static FontFamily DefaultMono { get; } = new("Menlo, Consolas, 'DejaVu Sans Mono', monospace");
+    public static FontFamily DefaultMono { get; } = new("avares://DevAcademy.Desktop/Assets/Fonts#IBM Plex Mono, Menlo, Consolas, 'DejaVu Sans Mono', monospace");
 
     public static MarkdownTheme Fallback { get; } = new(
         new SolidColorBrush(Color.Parse("#F2F2F0")), new SolidColorBrush(Color.Parse("#D6D6D2")),
@@ -29,13 +29,14 @@ public sealed class MarkdownRenderOptions
     public Action<string>? OpenLink { get; init; }
     /// <summary>When set, ```lang run blocks get an "open in editor" button.</summary>
     public Action<CodeSampleRequest>? OpenInEditor { get; init; }
-    public double MaxWidth { get; init; } = 760;
+    public double MaxWidth { get; init; } = 680;
 }
 
 /// <summary>Markdig AST to native Avalonia controls (no WebView). Class names (md-*) are stable and used by tests and styles.</summary>
 public static class MarkdownRenderer
 {
     private const double BodySize = 15;
+    private const double BodyLine = 25;
     private static readonly Regex SectionComment = new(@"<!--\s*section:\s*(\w+)\s*-->", RegexOptions.Compiled);
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UsePipeTables().UseAutoLinks().Build();
 
@@ -43,7 +44,7 @@ public static class MarkdownRenderer
     {
         options ??= new MarkdownRenderOptions();
         var doc = Markdig.Markdown.Parse(markdown ?? "", Pipeline);
-        var root = new StackPanel { Spacing = 12, MaxWidth = options.MaxWidth, HorizontalAlignment = HorizontalAlignment.Left };
+        var root = new StackPanel { Spacing = 14, MaxWidth = options.MaxWidth, HorizontalAlignment = HorizontalAlignment.Left };
         root.Classes.Add("md-root");
         foreach (var block in doc) AddBlock(root.Children, block, options);
         return root;
@@ -101,16 +102,17 @@ public static class MarkdownRenderer
 
     private static Control Heading(HeadingBlock h, MarkdownRenderOptions o)
     {
-        var size = h.Level switch { 1 => 28d, 2 => 21d, 3 => 17d, _ => BodySize };
-        var tb = Text(h.Inline, o, "md-h" + Math.Min(h.Level, 4), size);
-        tb.FontWeight = h.Level <= 2 ? FontWeight.SemiBold : FontWeight.SemiBold;
-        tb.Margin = new Thickness(0, h.Level <= 2 ? 12 : 6, 0, 0);
+        // Type scale: h1 22/28, h2 17/24, h3 15/22 (SemiBold); the extra top margin is the heading rhythm.
+        var (size, line) = h.Level switch { 1 => (22d, 28d), 2 => (17d, 24d), _ => (15d, 22d) };
+        var tb = Text(h.Inline, o, "md-h" + Math.Min(h.Level, 4), size, line: line);
+        tb.FontWeight = FontWeight.SemiBold;
+        tb.Margin = new Thickness(0, h.Level <= 2 ? 18 : 8, 0, 0);
         return tb;
     }
 
-    private static SelectableTextBlock Text(ContainerInline? inline, MarkdownRenderOptions o, string cls, double size, string? plain = null)
+    private static SelectableTextBlock Text(ContainerInline? inline, MarkdownRenderOptions o, string cls, double size, string? plain = null, double? line = null)
     {
-        var tb = new SelectableTextBlock { FontSize = size, TextWrapping = TextWrapping.Wrap, LineHeight = Math.Round(size * 1.6) };
+        var tb = new SelectableTextBlock { FontSize = size, TextWrapping = TextWrapping.Wrap, LineHeight = line ?? BodyLine };
         tb.Classes.Add(cls);
         if (plain is not null) tb.Inlines!.Add(new Run(plain));
         else if (inline is not null) AppendInlines(tb.Inlines!, inline, o, false, false);
@@ -133,7 +135,7 @@ public static class MarkdownRenderer
                     var run = new Run(code.Content)
                     {
                         FontFamily = o.Theme.Mono,
-                        FontSize = BodySize - 1,
+                        FontSize = 13,
                         Background = o.Theme.CodeBackground,
                     };
                     target.Add(Styled(run, bold, italic));
@@ -279,19 +281,22 @@ public static class MarkdownRenderer
         var isOutput = lang == "output";
         code = code.TrimEnd('\n', '\r');
 
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(12, 6, 8, 0) };
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), Margin = new Thickness(12, 4, 6, 0), MinHeight = 28 };
         var label = new TextBlock
         {
             Text = isOutput ? Loc.T("Markdown_Output") : lang,
             FontSize = 12,
+            FontWeight = FontWeight.Medium,
             Foreground = o.Theme.Muted,
             VerticalAlignment = VerticalAlignment.Center,
         };
         header.Children.Add(label);
         if (isRun && o.OpenInEditor is { } open)
         {
-            var btn = new Button { Content = Loc.T("Markdown_OpenInEditor"), FontSize = 12, Padding = new Thickness(8, 2) };
+            var btn = new Button { Content = Loc.T("Markdown_OpenInEditor") };
             btn.Classes.Add("md-open-in-editor");
+            btn.Classes.Add("ghost");
+            btn.Classes.Add("compact");
             btn.Click += (_, _) => open(new CodeSampleRequest(lang, code));
             Grid.SetColumn(btn, 1);
             header.Children.Add(btn);
@@ -304,7 +309,7 @@ public static class MarkdownRenderer
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             Content = text,
-            Padding = new Thickness(12, 4, 12, 10),
+            Padding = new Thickness(12, 2, 12, 12),
         };
         var stack = new StackPanel { Children = { header, scroll } };
         var border = new Border
@@ -312,7 +317,7 @@ public static class MarkdownRenderer
             Background = o.Theme.CodeBackground,
             BorderBrush = o.Theme.Border,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(4),
+            CornerRadius = new CornerRadius(6),
             Child = stack,
         };
         border.Classes.Add("md-codeblock");
@@ -331,7 +336,7 @@ public static class MarkdownRenderer
             {
                 Text = list.IsOrdered ? $"{n++}." : "•",
                 FontSize = BodySize,
-                LineHeight = Math.Round(BodySize * 1.6),
+                LineHeight = BodyLine,
                 Foreground = o.Theme.Muted,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 Margin = new Thickness(0, 0, 8, 0),
@@ -351,14 +356,10 @@ public static class MarkdownRenderer
     {
         var inner = new StackPanel { Spacing = 8 };
         foreach (var b in q) AddBlock(inner.Children, b, o);
-        var border = new Border
-        {
-            BorderBrush = o.Theme.Border,
-            BorderThickness = new Thickness(3, 0, 0, 0),
-            Padding = new Thickness(12, 2, 0, 2),
-            Child = inner,
-        };
+        // A callout: tinted surface, no side stripe (see docs/design/DESIGN_SYSTEM.md).
+        var border = new Border { Child = inner };
         border.Classes.Add("md-quote");
+        border.Classes.Add("callout");
         return border;
     }
 
@@ -379,7 +380,7 @@ public static class MarkdownRenderer
                 foreach (var b in cells[c]) AddBlock(inner.Children, b, o);
                 foreach (var tb in inner.Children.OfType<TextBlock>())
                 {
-                    tb.FontSize = BodySize - 1;
+                    tb.FontSize = 14;
                     tb.LineHeight = 20;
                     if (rows[r].IsHeader) tb.FontWeight = FontWeight.SemiBold;
                 }
@@ -387,7 +388,7 @@ public static class MarkdownRenderer
                 {
                     BorderBrush = o.Theme.Border,
                     BorderThickness = new Thickness(c == 0 ? 1 : 0, r == 0 ? 1 : 0, 1, 1),
-                    Padding = new Thickness(8, 4),
+                    Padding = new Thickness(12, 6),
                     Background = rows[r].IsHeader ? o.Theme.CodeBackground : null,
                     Child = inner,
                 };

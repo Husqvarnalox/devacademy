@@ -5,39 +5,39 @@
              x:Class="DevAcademy.Desktop.Views.ProblemsView"
              x:DataType="vm:ProblemsViewModel">
   <ScrollViewer>
-    <StackPanel MaxWidth="960" Margin="24,24" Spacing="16" HorizontalAlignment="Stretch">
-      <TextBlock Text="{loc:T Problems_Title}" Classes="h1" />
+    <StackPanel MaxWidth="1040" Margin="32,32" Spacing="16" HorizontalAlignment="Stretch">
+      <TextBlock Text="{loc:T Problems_Title}" Classes="display" />
       <StackPanel Orientation="Horizontal" Spacing="12">
         <StackPanel Spacing="2">
-          <TextBlock Text="{loc:T Problems_Difficulty}" Classes="caption" />
+          <TextBlock Text="{loc:T Problems_Difficulty}" Classes="small secondary" />
           <ComboBox Name="DifficultyBox" ItemsSource="{Binding DifficultyOptions}" SelectedItem="{Binding SelectedDifficulty}" MinWidth="170"
                     AutomationProperties.Name="{loc:T Problems_Difficulty}" />
         </StackPanel>
         <StackPanel Spacing="2">
-          <TextBlock Text="{loc:T Problems_State}" Classes="caption" />
+          <TextBlock Text="{loc:T Problems_State}" Classes="small secondary" />
           <ComboBox Name="SolvedBox" ItemsSource="{Binding SolvedOptions}" SelectedItem="{Binding SelectedSolved}" MinWidth="170"
                     AutomationProperties.Name="{loc:T Problems_State}" />
         </StackPanel>
-        <TextBlock Text="{Binding CountText}" Classes="caption" VerticalAlignment="Bottom" Margin="0,0,0,8" />
+        <TextBlock Text="{Binding CountText}" Classes="small secondary" VerticalAlignment="Bottom" Margin="0,0,0,8" />
       </StackPanel>
       <TextBlock Text="{loc:T Problems_Empty}" Classes="muted" IsVisible="{Binding IsEmpty}" />
       <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ProblemRowViewModel">
-            <Border Classes="panel" Padding="14,10" Margin="0,0,0,8">
+            <Border Classes="panel" Padding="16,12" Margin="0,0,0,8">
               <Grid ColumnDefinitions="28,*,Auto,Auto" ColumnSpacing="12">
                 <TextBlock Text="{Binding Glyph}" FontWeight="Bold" VerticalAlignment="Center"
                            Classes.success="{Binding Solved}" Classes.muted="{Binding !Solved}" />
                 <StackPanel Grid.Column="1" Spacing="2">
                   <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                  <TextBlock Text="{Binding CourseTitle}" Classes="caption" />
-                  <TextBlock Text="{Binding LanguagesText}" Classes="caption" />
+                  <TextBlock Text="{Binding CourseTitle}" Classes="small secondary" />
+                  <TextBlock Text="{Binding LanguagesText}" Classes="small secondary" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
                   <Border Classes="badge" HorizontalAlignment="Right"><TextBlock Text="{Binding DifficultyText}" FontSize="12" /></Border>
-                  <TextBlock Text="{Binding SolvedText}" Classes="caption" HorizontalAlignment="Right" />
+                  <TextBlock Text="{Binding SolvedText}" Classes="small secondary" HorizontalAlignment="Right" />
                 </StackPanel>
-                <Button Grid.Column="3" Content="{loc:T Problems_Open}" Command="{Binding OpenCommand}" Classes="accent" VerticalAlignment="Center" />
+                <Button Grid.Column="3" Content="{loc:T Problems_Open}" Command="{Binding OpenCommand}" VerticalAlignment="Center" />
               </Grid>
             </Border>
           </DataTemplate>

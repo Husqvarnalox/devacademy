@@ -9,7 +9,10 @@ namespace DevAcademy.Desktop.Views;
 public partial class LessonWorkspaceView : UserControl
 {
     public const double NarrowWidth = 900;
-    private const double NavWidth = 240;
+    private const double NavWidth = 232;
+    /// <summary>Below this width the lesson list starts hidden so theory and editor keep a usable width; the toggle brings it back.</summary>
+    public const double CompactNavWidth = 1100;
+    private bool _navAutoHandled;
 
     private LessonWorkspaceViewModel? _vm;
 
@@ -40,6 +43,11 @@ public partial class LessonWorkspaceView : UserControl
         if (_vm is null || Bounds.Width <= 0) return;
         var narrow = Bounds.Width < NarrowWidth;
         _vm.SetNarrow(narrow);
+        if (!narrow && !_navAutoHandled && Bounds.Width < CompactNavWidth)
+        {
+            _navAutoHandled = true;
+            _vm.IsNavVisible = false;
+        }
 
         var body = this.FindControl<Grid>("Body")!;
         var nav = this.FindControl<Border>("NavPane")!;

@@ -31,7 +31,7 @@
         <TextBlock Text="{loc:T Nb_Environment}" Classes="caption" VerticalAlignment="Center" Margin="0,0,6,0" />
         <ComboBox Name="EnvBox" ItemsSource="{Binding Environments}" SelectedItem="{Binding SelectedEnvironment}" MinWidth="180" Margin="0,2,12,2"
                   AutomationProperties.Name="{loc:T Nb_Environment}" />
-        <Button Name="RunButton" Content="{loc:T Nb_RunCell}" Command="{Binding RunSelectedCommand}" Classes="accent" ToolTip.Tip="Ctrl/Cmd+Enter" />
+        <Button Name="RunButton" Content="{loc:T Nb_RunCell}" Command="{Binding RunSelectedCommand}" Classes="primary" ToolTip.Tip="Ctrl/Cmd+Enter" />
         <Button Name="RunAllButton" Content="{loc:T Nb_RunAll}" Command="{Binding RunAllCommand}" IsEnabled="{Binding !IsRunningAll}" />
         <Button Name="InterruptButton" Content="{loc:T Nb_Interrupt}" Command="{Binding InterruptCommand}" IsEnabled="{Binding CanInterrupt}" />
         <Button Name="RestartButton" Content="{loc:T Nb_Restart}" Command="{Binding RestartCommand}" />

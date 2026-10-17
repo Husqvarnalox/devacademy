@@ -2,31 +2,88 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DevAcademy.Desktop.ViewModels"
         xmlns:loc="using:DevAcademy.Desktop.Localization"
+        xmlns:ctl="using:DevAcademy.Desktop.Controls"
         x:Class="DevAcademy.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="DevAcademy"
-        Width="1280" Height="820" MinWidth="560" MinHeight="480"
-        FontFamily="Inter, $Default">
-  <Grid RowDefinitions="Auto,Auto,*">
-    <Border Grid.Row="0" Classes="bar" IsVisible="{Binding ShowNavigation}" Padding="12,6">
-      <StackPanel Orientation="Horizontal" Spacing="4">
-        <TextBlock Text="DevAcademy" Classes="h3" VerticalAlignment="Center" Margin="0,0,16,0" />
-        <Button Content="{loc:T Nav_Catalog}" Command="{Binding CatalogCommand}" Classes="flat topnav"
-                Classes.active="{Binding IsCatalogSection}" />
-        <Button Content="{loc:T Nav_Problems}" Command="{Binding ShowProblemsCommand}" Classes="flat topnav"
-                Classes.active="{Binding IsProblemsSection}" IsVisible="{Binding HasProblems}" />
-        <Button Content="{loc:T Nav_Projects}" Command="{Binding ShowProjectsCommand}" Classes="flat topnav"
-                Classes.active="{Binding IsProjectsSection}" />
-        <Button Content="{loc:T Nav_Dashboard}" Command="{Binding ShowDashboardCommand}" Classes="flat topnav"
-                Classes.active="{Binding IsDashboardSection}" />
-        <Button Content="{loc:T Nav_Settings}" Command="{Binding ShowSettingsCommand}" Classes="flat topnav"
-                Classes.active="{Binding IsSettingsSection}" />
-      </StackPanel>
+        Width="1280" Height="820" MinWidth="560" MinHeight="480">
+  <Grid ColumnDefinitions="Auto,*">
+    <!-- Sidebar -->
+    <Border Grid.Column="0" Name="Sidebar" Width="{Binding SidebarWidth}" IsVisible="{Binding ShowNavigation}"
+            Background="{DynamicResource SurfaceSunkenBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,1,0">
+      <DockPanel Margin="8,12,8,8">
+        <!-- Wordmark -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8,4,0,20" Height="24">
+          <TextBlock Text="›_" FontFamily="{StaticResource MonoFont}" FontWeight="Medium" FontSize="15" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+          <TextBlock Text="DevAcademy" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+        </StackPanel>
+
+        <!-- Bottom: settings + collapse toggle -->
+        <StackPanel DockPanel.Dock="Bottom" Spacing="2">
+          <Button Classes="navitem topnav" Command="{Binding ShowSettingsCommand}" Classes.current="{Binding IsSettingsSection}"
+                  ToolTip.Tip="{loc:T Nav_Settings}" AutomationProperties.Name="{loc:T Nav_Settings}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" Margin="0,0,0,0" />
+              <ctl:Icon Grid.Column="1" Kind="sliders" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_Settings}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+          <Button Classes="navitem topnav" Command="{Binding ToggleSidebarCommand}" ToolTip.Tip="{loc:T Nav_ToggleSidebar}"
+                  AutomationProperties.Name="{loc:T Nav_ToggleSidebar}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" />
+              <ctl:Icon Grid.Column="1" Kind="panel-left" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_ToggleSidebar}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+        </StackPanel>
+
+        <!-- Learning group -->
+        <StackPanel Spacing="2">
+          <TextBlock Classes="overline" Text="{loc:TU Nav_Group_Learning}" Margin="10,0,0,6" IsVisible="{Binding IsSidebarExpanded}" />
+          <Button Classes="navitem topnav" Command="{Binding ShowDashboardCommand}" Classes.current="{Binding IsDashboardSection}"
+                  ToolTip.Tip="{loc:T Nav_Dashboard}" AutomationProperties.Name="{loc:T Nav_Dashboard}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" />
+              <ctl:Icon Grid.Column="1" Kind="home" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_Dashboard}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+          <Button Classes="navitem topnav" Command="{Binding CatalogCommand}" Classes.current="{Binding IsCatalogSection}"
+                  ToolTip.Tip="{loc:T Nav_Catalog}" AutomationProperties.Name="{loc:T Nav_Catalog}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" />
+              <ctl:Icon Grid.Column="1" Kind="book-open" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_Catalog}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+          <Button Classes="navitem topnav" Command="{Binding ShowProblemsCommand}" Classes.current="{Binding IsProblemsSection}" IsVisible="{Binding HasProblems}"
+                  ToolTip.Tip="{loc:T Nav_Problems}" AutomationProperties.Name="{loc:T Nav_Problems}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" />
+              <ctl:Icon Grid.Column="1" Kind="list-checks" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_Problems}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+          <Button Classes="navitem topnav" Command="{Binding ShowProjectsCommand}" Classes.current="{Binding IsProjectsSection}"
+                  ToolTip.Tip="{loc:T Nav_Projects}" AutomationProperties.Name="{loc:T Nav_Projects}">
+            <Grid ColumnDefinitions="Auto,Auto,*">
+              <Border Classes="marker" />
+              <ctl:Icon Grid.Column="1" Kind="folder" Margin="11,0,10,0" />
+              <TextBlock Grid.Column="2" Text="{loc:T Nav_Projects}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+            </Grid>
+          </Button>
+        </StackPanel>
+      </DockPanel>
     </Border>
-    <Border Grid.Row="1" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Padding="16,8"
-            Background="{DynamicResource SubtleBrush}">
-      <TextBlock Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" />
-    </Border>
-    <ContentControl Grid.Row="2" Content="{Binding Current}" />
+
+    <!-- Content -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,*">
+      <Border Grid.Row="0" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Padding="24,12"
+              Background="{DynamicResource DangerSubtleBrush}">
+        <TextBlock Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" />
+      </Border>
+      <ContentControl Grid.Row="1" Content="{Binding Current}" />
+    </Grid>
   </Grid>
 </Window>

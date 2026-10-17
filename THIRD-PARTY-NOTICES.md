@@ -6,8 +6,9 @@ DevAcademy itself is MIT-licensed (see `LICENSE`). The desktop application bundl
 Full license texts are in the respective packages / upstream repositories.
 
 Not NuGet packages: the .NET runtime (MIT, (c) .NET Foundation and contributors) is bundled in self-contained builds;
-Avalonia UI fonts: Inter (SIL OFL 1.1) via `Avalonia.Fonts.Inter`; TextMate grammars come with `TextMateSharp.Grammars`
-(grammars from VS Code / TextMate bundles, MIT or the grammar's own license, see that package).
+embedded fonts: IBM Plex Sans and IBM Plex Mono (SIL OFL 1.1, (c) IBM Corp.; texts in `src/DevAcademy.Desktop/Assets/Fonts`);
+interface icons: Lucide (ISC License, (c) Lucide Contributors, https://lucide.dev), redrawn in `Styles/Icons.axaml`;
+TextMate grammars come with `TextMateSharp.Grammars` (grammars from VS Code / TextMate bundles, MIT or the grammar's own license, see that package).
 
 | Package | Version | License | Authors | Project |
 |---|---|---|---|---|
@@ -16,7 +17,6 @@ Avalonia UI fonts: Inter (SIL OFL 1.1) via `Avalonia.Fonts.Inter`; TextMate gram
 | Avalonia.AvaloniaEdit | 12.0.0 | MIT | Avalonia Team | — |
 | Avalonia.BuildServices | 11.3.2 | MIT | Avalonia Team | https://avaloniaui.net/ |
 | Avalonia.Desktop | 12.1.4 | MIT | Avalonia Team | https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link |
-| Avalonia.Fonts.Inter | 12.1.4 | MIT | Avalonia Team | https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link |
 | Avalonia.FreeDesktop | 12.1.4 | MIT | Avalonia Team | https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link |
 | Avalonia.FreeDesktop.AtSpi | 12.1.4 | MIT | Avalonia Team | https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link |
 | Avalonia.HarfBuzz | 12.1.4 | MIT | Avalonia Team | https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link |

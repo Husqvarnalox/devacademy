@@ -86,7 +86,7 @@ public sealed class CodeEditorControl : ContentControl
         host.Children.Add(_editor);
         foreach (var p in _popups.All) host.Children.Add(p);
         Content = host;
-        ActualThemeVariantChanged += (_, _) => ApplyTheme();
+        ActualThemeVariantChanged += (_, _) => { ApplyTheme(); ApplyChrome(); };
     }
 
     public TextEditor Editor => _editor;
@@ -225,6 +225,7 @@ public sealed class CodeEditorControl : ContentControl
     {
         base.OnAttachedToVisualTree(e);
         EnsureTextMate();
+        ApplyChrome();
         PushText(Text);
         UpdateGrammar();
         RebuildLsp();
@@ -258,6 +259,7 @@ public sealed class CodeEditorControl : ContentControl
         {
             _registry = new RegistryOptions(IsDark ? ThemeName.DarkPlus : ThemeName.LightPlus);
             _textMate = _editor.InstallTextMate(_registry);
+            ApplyChrome();
         }
         catch (Exception ex)
         {
@@ -267,12 +269,34 @@ public sealed class CodeEditorControl : ContentControl
         }
     }
 
+    /// <summary>
+    /// The TextMate theme paints its own editor background; the app's tokens win so the editor sits in the page:
+    /// background = Surface, current line = SurfaceSunken, gutter text = TextMuted. Token colours stay VS Code's (familiar to developers).
+    /// </summary>
+    private void ApplyChrome()
+    {
+        if (BrushFor("SurfaceBrush") is { } surface) _editor.Background = surface;
+        if (BrushFor("TextBrush") is { } text) _editor.Foreground = text;
+        if (BrushFor("TextMutedBrush") is { } muted) _editor.LineNumbersForeground = muted;
+        if (BrushFor("SurfaceSunkenBrush") is { } sunken)
+        {
+            _editor.TextArea.TextView.CurrentLineBackground = sunken;
+            _editor.TextArea.TextView.CurrentLineBorder = new Pen(Brushes.Transparent, 0);
+        }
+        if (this.TryFindResource("MonoFont", ActualThemeVariant, out var mono) && mono is FontFamily ff) _editor.FontFamily = ff;
+    }
+
     private bool IsDark => ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark;
 
     private void ApplyTheme()
     {
         if (_textMate is null || _registry is null) return;
-        try { _textMate.SetTheme(_registry.LoadTheme(IsDark ? ThemeName.DarkPlus : ThemeName.LightPlus)); }
+        try
+        {
+            _textMate.SetTheme(_registry.LoadTheme(IsDark ? ThemeName.DarkPlus : ThemeName.LightPlus));
+            ApplyChrome();
+            Dispatcher.UIThread.Post(ApplyChrome, DispatcherPriority.Background);
+        }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"TextMate theme failed: {ex.Message}"); }
     }
 

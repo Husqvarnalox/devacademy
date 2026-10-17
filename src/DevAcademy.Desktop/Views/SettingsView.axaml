@@ -5,7 +5,7 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
-  <TabControl Margin="24,16" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
+  <TabControl Margin="32,16" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
     <TabItem Header="{loc:T Settings_General}">
       <ScrollViewer>
         <StackPanel MaxWidth="720" Spacing="22" Margin="0,12" HorizontalAlignment="Left">
@@ -20,7 +20,7 @@
             <TextBlock Text="{loc:T Settings_Profile}" Classes="h3" />
             <views:ProfileEditorView DataContext="{Binding Profile}" />
             <StackPanel Orientation="Horizontal" Spacing="12">
-              <Button Content="{loc:T Common_Save}" Command="{Binding SaveProfileCommand}" Classes="accent" />
+              <Button Content="{loc:T Common_Save}" Command="{Binding SaveProfileCommand}" Classes="primary" />
               <TextBlock Text="{Binding ProfileMessage}" Classes="success" VerticalAlignment="Center" />
             </StackPanel>
           </StackPanel>

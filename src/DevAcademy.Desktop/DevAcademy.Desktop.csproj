@@ -25,7 +25,6 @@
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
-    <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="Avalonia.AvaloniaEdit" />
     <PackageReference Include="AvaloniaEdit.TextMate" />
     <PackageReference Include="TextMateSharp.Grammars" />
@@ -47,6 +46,7 @@
   </Target>
 
   <ItemGroup>
+    <AvaloniaResource Include="Assets\Fonts\*.ttf" />
     <EmbeddedResource Update="Resources\Strings.resx">
       <Generator></Generator>
     </EmbeddedResource>

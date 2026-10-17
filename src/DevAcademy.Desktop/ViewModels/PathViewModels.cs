@@ -28,7 +28,7 @@ public sealed partial class PathCardViewModel : ObservableObject
         Title = plan.Path.Title;
         Description = plan.Path.Description;
         GoalText = Loc.F("Path_Goal", PathDisplay.Goal(plan.Path.Goal));
-        Meta = Loc.F("Catalog_PathMeta", plan.Courses.Count, plan.Items.Count, plan.SatisfiedCount);
+        Meta = Loc.F("Catalog_PathMeta", Loc.Plural(plan.Courses.Count, "курс", "курса", "курсов"), Loc.Plural(plan.Items.Count, "урок", "урока", "уроков"), plan.SatisfiedCount);
         _isFollowed = followed;
     }
 

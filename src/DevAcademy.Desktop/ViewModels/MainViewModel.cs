@@ -15,6 +15,32 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
     [ObservableProperty, NotifyPropertyChangedFor(nameof(IsCatalogSection), nameof(IsProblemsSection), nameof(IsDashboardSection), nameof(IsSettingsSection), nameof(IsProjectsSection))] private Section _section;
     [ObservableProperty] private string? _error;
 
+    // Sidebar: expanded (220 px) or an icon rail (56 px). Collapses by itself in narrow windows and in the lesson
+    // workspace (which needs the width); an explicit toggle wins and is remembered.
+    public const string SidebarKey = "ui.sidebar.collapsed";
+    public const double SidebarExpandedWidth = 220;
+    public const double SidebarRailWidth = 56;
+    private bool? _userCollapsed;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsSidebarCollapsed), nameof(IsSidebarExpanded), nameof(SidebarWidth))] private bool _narrowWindow;
+    public bool IsSidebarCollapsed => _userCollapsed ?? (NarrowWindow || Current is LessonWorkspaceViewModel);
+    public bool IsSidebarExpanded => !IsSidebarCollapsed;
+    public double SidebarWidth => IsSidebarCollapsed ? SidebarRailWidth : SidebarExpandedWidth;
+
+    [RelayCommand]
+    private void ToggleSidebar()
+    {
+        _userCollapsed = !IsSidebarCollapsed;
+        RaiseSidebarChanged();
+        _ = services.Settings.SetAsync(SidebarKey, _userCollapsed.Value ? "1" : "0");
+    }
+
+    private void RaiseSidebarChanged()
+    {
+        OnPropertyChanged(nameof(IsSidebarCollapsed));
+        OnPropertyChanged(nameof(IsSidebarExpanded));
+        OnPropertyChanged(nameof(SidebarWidth));
+    }
+
     public AppServices Services => services;
     public bool IsCatalogSection => Section == Section.Catalog;
     public bool IsProblemsSection => Section == Section.Problems;
@@ -36,6 +62,11 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
             if (await services.Settings.GetAsync(SettingsViewModel.ThemeKey) is { } saved
                 && Enum.TryParse<ThemeChoice>(saved, true, out var theme))
                 services.Theme.Apply(theme);
+            if (await services.Settings.GetAsync(SidebarKey) is { } sidebar)
+            {
+                _userCollapsed = sidebar == "1";
+                RaiseSidebarChanged();
+            }
             if (await services.Settings.GetProfileAsync() is null)
             {
                 await SwitchAsync(new OnboardingViewModel(services, this), Section.None);
@@ -54,6 +85,7 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
         if (Current is ProjectsViewModel pv) await pv.SaveSessionAsync();
         Current = page;
         Section = section;
+        RaiseSidebarChanged();
     }
 
     public async Task ShowCatalogAsync()

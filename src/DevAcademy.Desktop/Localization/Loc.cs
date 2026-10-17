@@ -13,6 +13,14 @@ public static class Loc
 
     public static string F(string key, params object?[] args) => string.Format(CultureInfo.CurrentCulture, T(key), args);
 
+    /// <summary>Russian plural form of a noun: <c>Plural(3, "курс", "курса", "курсов")</c> gives "3 курса".</summary>
+    public static string Plural(int n, string one, string few, string many)
+    {
+        var a = Math.Abs(n);
+        var form = a % 100 is >= 11 and <= 14 ? many : (a % 10) switch { 1 => one, >= 2 and <= 4 => few, _ => many };
+        return $"{n} {form}";
+    }
+
     public static bool Has(string key) => Manager.GetString(key, CultureInfo.InvariantCulture) is not null;
 }
 
@@ -20,4 +28,10 @@ public static class Loc
 public sealed class TExtension(string key) : MarkupExtension
 {
     public override object ProvideValue(IServiceProvider serviceProvider) => Loc.T(key);
+}
+
+/// <summary>Upper-cased variant for section labels (the caption-uppercase style): <c>Text="{loc:TU Nav_Group_Learning}"</c>.</summary>
+public sealed class TUExtension(string key) : MarkupExtension
+{
+    public override object ProvideValue(IServiceProvider serviceProvider) => Loc.T(key).ToUpper(CultureInfo.CurrentUICulture);
 }

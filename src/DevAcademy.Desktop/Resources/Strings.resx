@@ -5,7 +5,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="Catalog_ContentErrors" xml:space="preserve"><value>Ошибок в контенте: {0}. Проблемные курсы пропущены.</value></data>
-  <data name="Catalog_CourseMeta" xml:space="preserve"><value>Уроков: {0} · версия {1}</value></data>
+  <data name="Catalog_CourseMeta" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="Catalog_Empty" xml:space="preserve"><value>Курсы не найдены.</value></data>
   <data name="Catalog_OpenCourse" xml:space="preserve"><value>Открыть курс</value></data>
   <data name="Catalog_Title" xml:space="preserve"><value>Каталог</value></data>
@@ -21,11 +21,11 @@
   <data name="Dashboard_NoRecommendations" xml:space="preserve"><value>Рекомендаций пока нет.</value></data>
   <data name="Dashboard_Open" xml:space="preserve"><value>Открыть</value></data>
   <data name="Dashboard_Recommendations" xml:space="preserve"><value>Что дальше</value></data>
-  <data name="Dashboard_Reviews" xml:space="preserve"><value>Повторения</value></data>
-  <data name="Dashboard_ReviewsNote" xml:space="preserve"><value>Уроки, которые пора повторить</value></data>
+  <data name="Dashboard_Reviews" xml:space="preserve"><value>На повторение</value></data>
+  <data name="Dashboard_ReviewsNote" xml:space="preserve"><value>Эти уроки стоит освежить, пока они не забылись.</value></data>
   <data name="Dashboard_Solved" xml:space="preserve"><value>Решено по сложности</value></data>
-  <data name="Dashboard_Submissions" xml:space="preserve"><value>Отправки за последние дни</value></data>
-  <data name="Dashboard_Title" xml:space="preserve"><value>Дашборд</value></data>
+  <data name="Dashboard_Submissions" xml:space="preserve"><value>Активность за 30 дней</value></data>
+  <data name="Dashboard_Title" xml:space="preserve"><value>Главная</value></data>
   <data name="Dashboard_Total" xml:space="preserve"><value>Всего отправок:</value></data>
   <data name="Data_BackedUp" xml:space="preserve"><value>Резервная копия сохранена: {0}</value></data>
   <data name="Data_Backup" xml:space="preserve"><value>Создать резервную копию</value></data>
@@ -64,11 +64,11 @@
   <data name="Editor_Reset" xml:space="preserve"><value>Сбросить к исходному</value></data>
   <data name="Editor_ResetDone" xml:space="preserve"><value>Код сброшен к исходному</value></data>
   <data name="Editor_Run" xml:space="preserve"><value>Запустить</value></data>
-  <data name="Editor_RunTip" xml:space="preserve"><value>Запустить (Ctrl+Enter)</value></data>
+  <data name="Editor_RunTip" xml:space="preserve"><value>Запустить код и показать вывод (⌘/Ctrl+Enter)</value></data>
   <data name="Editor_Save" xml:space="preserve"><value>Сохранить</value></data>
-  <data name="Editor_SaveTip" xml:space="preserve"><value>Сохранить черновик (Ctrl+S)</value></data>
-  <data name="Editor_Submit" xml:space="preserve"><value>Отправить</value></data>
-  <data name="Editor_SubmitTip" xml:space="preserve"><value>Отправить на проверку (Ctrl+Shift+Enter)</value></data>
+  <data name="Editor_SaveTip" xml:space="preserve"><value>Сохранить черновик (⌘/Ctrl+S)</value></data>
+  <data name="Editor_Submit" xml:space="preserve"><value>Проверить решение</value></data>
+  <data name="Editor_SubmitTip" xml:space="preserve"><value>Запустить проверку: часть тестов скрыта, так код проверяется не только на примерах из условия (⌘/Ctrl+Shift+Enter)</value></data>
   <data name="Error_OpenLink" xml:space="preserve"><value>Не удалось открыть ссылку: {0}</value></data>
   <data name="Error_Quiz" xml:space="preserve"><value>Не удалось проверить тест: {0}</value></data>
   <data name="Error_Run" xml:space="preserve"><value>Ошибка запуска: {0}</value></data>
@@ -94,20 +94,20 @@
   <data name="Isolation_Mac" xml:space="preserve"><value>песочница sandbox-exec</value></data>
   <data name="Isolation_Os" xml:space="preserve"><value>песочница ОС</value></data>
   <data name="Kind_Algorithms" xml:space="preserve"><value>Алгоритмы</value></data>
-  <data name="Kind_ComputerScience" xml:space="preserve"><value>Computer Science</value></data>
+  <data name="Kind_ComputerScience" xml:space="preserve"><value>Компьютерные науки</value></data>
   <data name="Kind_Framework" xml:space="preserve"><value>Фреймворки</value></data>
   <data name="Kind_Language" xml:space="preserve"><value>Языки программирования</value></data>
   <data name="Kind_MachineLearning" xml:space="preserve"><value>Машинное обучение</value></data>
-  <data name="Lesson_BackToCourse" xml:space="preserve"><value>К курсу</value></data>
+  <data name="Lesson_BackToCourse" xml:space="preserve"><value>Вернуться к странице курса</value></data>
   <data name="Lesson_CompletedBy" xml:space="preserve"><value>Пройден: {0}</value></data>
-  <data name="Lesson_Course" xml:space="preserve"><value>Навигация по курсу</value></data>
-  <data name="Lesson_Facts" xml:space="preserve"><value>Факты</value></data>
+  <data name="Lesson_Course" xml:space="preserve"><value>Уроки курса</value></data>
+  <data name="Lesson_Facts" xml:space="preserve"><value>Что важно помнить</value></data>
   <data name="Lesson_JustCompleted" xml:space="preserve"><value>Урок пройден</value></data>
-  <data name="Lesson_MarkRead" xml:space="preserve"><value>Отметить как прочитанное</value></data>
+  <data name="Lesson_MarkRead" xml:space="preserve"><value>Отметить прочитанным</value></data>
   <data name="Lesson_Meta" xml:space="preserve"><value>{0} · ~{1} мин</value></data>
   <data name="Lesson_Next" xml:space="preserve"><value>Следующий урок</value></data>
-  <data name="Lesson_Objectives" xml:space="preserve"><value>Цели урока</value></data>
-  <data name="Lesson_ToggleNav" xml:space="preserve"><value>Показать или скрыть навигацию</value></data>
+  <data name="Lesson_Objectives" xml:space="preserve"><value>Чему вы научитесь</value></data>
+  <data name="Lesson_ToggleNav" xml:space="preserve"><value>Показать или скрыть список уроков</value></data>
   <data name="Level_0" xml:space="preserve"><value>Новичок</value></data>
   <data name="Level_1" xml:space="preserve"><value>Базовый</value></data>
   <data name="Level_2" xml:space="preserve"><value>Средний</value></data>
@@ -122,23 +122,23 @@
   <data name="Mode_Quiz" xml:space="preserve"><value>Тест</value></data>
   <data name="Mode_Theory" xml:space="preserve"><value>Теория</value></data>
   <data name="Nav_Catalog" xml:space="preserve"><value>Каталог</value></data>
-  <data name="Nav_Dashboard" xml:space="preserve"><value>Дашборд</value></data>
+  <data name="Nav_Dashboard" xml:space="preserve"><value>Главная</value></data>
   <data name="Nav_Settings" xml:space="preserve"><value>Настройки</value></data>
   <data name="Onboarding_Depth" xml:space="preserve"><value>Глубина изучения</value></data>
   <data name="Onboarding_Goal" xml:space="preserve"><value>Цель</value></data>
-  <data name="Onboarding_Language" xml:space="preserve"><value>Язык или направление</value></data>
-  <data name="Onboarding_Later" xml:space="preserve"><value>Пропустить</value></data>
+  <data name="Onboarding_Language" xml:space="preserve"><value>Что хотите изучать</value></data>
+  <data name="Onboarding_Later" xml:space="preserve"><value>Настройки можно изменить в любой момент.</value></data>
   <data name="Onboarding_Level" xml:space="preserve"><value>Ваш уровень</value></data>
   <data name="Onboarding_PickLanguage" xml:space="preserve"><value>Выберите доступный язык, чтобы продолжить.</value></data>
-  <data name="Onboarding_Start" xml:space="preserve"><value>Начать</value></data>
+  <data name="Onboarding_Start" xml:space="preserve"><value>Подобрать маршрут</value></data>
   <data name="Onboarding_Subtitle" xml:space="preserve"><value>Расскажите о себе, чтобы мы подобрали маршрут. Всё хранится только на этом компьютере.</value></data>
   <data name="Onboarding_Title" xml:space="preserve"><value>Добро пожаловать в DevAcademy</value></data>
   <data name="Out_Compile" xml:space="preserve"><value>Вывод компилятора</value></data>
   <data name="Out_Console" xml:space="preserve"><value>Консоль</value></data>
   <data name="Out_Hints" xml:space="preserve"><value>Подсказки</value></data>
-  <data name="Out_NoRun" xml:space="preserve"><value>Запустите код, чтобы увидеть вывод.</value></data>
-  <data name="Out_NoSubmit" xml:space="preserve"><value>Отправьте решение, чтобы увидеть результаты тестов.</value></data>
-  <data name="Out_Stdin" xml:space="preserve"><value>Ввод (stdin)</value></data>
+  <data name="Out_NoRun" xml:space="preserve"><value>Нажмите «Запустить» (⌘↵), чтобы увидеть вывод программы.</value></data>
+  <data name="Out_NoSubmit" xml:space="preserve"><value>Нажмите «Проверить решение» (⇧⌘↵), чтобы увидеть результаты тестов.</value></data>
+  <data name="Out_Stdin" xml:space="preserve"><value>Ввод программы (stdin)</value></data>
   <data name="Out_Tests" xml:space="preserve"><value>Тесты</value></data>
   <data name="Practice_HowTo" xml:space="preserve"><value>Напишите решение в редакторе, запустите его и отправьте на проверку.</value></data>
   <data name="Quiz_Answer" xml:space="preserve"><value>Ответ</value></data>
@@ -169,7 +169,7 @@
   <data name="Roadmap_Back" xml:space="preserve"><value>Каталог</value></data>
   <data name="Roadmap_OpenAnyway" xml:space="preserve"><value>Открыть всё равно</value></data>
   <data name="Roadmap_Progress" xml:space="preserve"><value>Пройдено {0} из {1}</value></data>
-  <data name="Roadmap_WhyLocked" xml:space="preserve"><value>Заблокирован: сначала {0}</value></data>
+  <data name="Roadmap_WhyLocked" xml:space="preserve"><value>Сначала пройдите: {0}</value></data>
   <data name="Run_Cancelled" xml:space="preserve"><value>Отменено</value></data>
   <data name="Run_CompileError" xml:space="preserve"><value>Ошибка компиляции</value></data>
   <data name="Run_ExitCode" xml:space="preserve"><value>Код выхода: {0}</value></data>
@@ -724,8 +724,8 @@
   <data name="Ws_Install" xml:space="preserve"><value>Установить</value></data>
   <data name="Ws_ShowIgnoredHint" xml:space="preserve"><value>Показывать .git, node_modules, .venv, target, bin, obj</value></data>
   <data name="Catalog_Paths" xml:space="preserve"><value>Маршруты</value></data>
-  <data name="Catalog_PathMeta" xml:space="preserve"><value>Курсов: {0} · уроков: {1} · пройдено: {2}</value></data>
-  <data name="Catalog_OpenPath" xml:space="preserve"><value>Открыть маршрут</value></data>
+  <data name="Catalog_PathMeta" xml:space="preserve"><value>{0} · {1} · пройдено {2}</value></data>
+  <data name="Catalog_OpenPath" xml:space="preserve"><value>Открыть</value></data>
   <data name="Catalog_Comparisons" xml:space="preserve"><value>Сравнения</value></data>
   <data name="Catalog_OpenComparison" xml:space="preserve"><value>Открыть сравнение</value></data>
   <data name="Onboarding_Paths" xml:space="preserve"><value>Маршрут обучения</value></data>
@@ -742,8 +742,8 @@
   <data name="PathGoal_data" xml:space="preserve"><value>анализ данных</value></data>
   <data name="PathGoal_interview" xml:space="preserve"><value>подготовка к собеседованию</value></data>
   <data name="PathGoal_automation" xml:space="preserve"><value>автоматизация</value></data>
-  <data name="Path_Follow" xml:space="preserve"><value>Вести этот маршрут</value></data>
-  <data name="Path_Unfollow" xml:space="preserve"><value>Перестать вести</value></data>
+  <data name="Path_Follow" xml:space="preserve"><value>Сделать основным</value></data>
+  <data name="Path_Unfollow" xml:space="preserve"><value>Убрать из основных</value></data>
   <data name="Path_LessonCredited" xml:space="preserve"><value>Засчитано по проверке знаний</value></data>
   <data name="Path_LessonKnown" xml:space="preserve"><value>уже освоено</value></data>
   <data name="Path_LessonShared" xml:space="preserve"><value>Общий урок с маршрутами: {0}</value></data>
@@ -809,7 +809,7 @@
 {1}</value></data>
   <data name="Out_Problems" xml:space="preserve"><value>Проблемы</value></data>
   <data name="Out_ProblemsCount" xml:space="preserve"><value>Проблемы ({0})</value></data>
-  <data name="Out_NoProblems" xml:space="preserve"><value>Сервер языка не нашёл проблем.</value></data>
+  <data name="Out_NoProblems" xml:space="preserve"><value>Проблем не найдено.</value></data>
   <data name="Lsp_Format" xml:space="preserve"><value>Форматировать документ (Shift+Alt+F)</value></data>
   <data name="Lsp_StatusTip" xml:space="preserve"><value>Языковой сервер: подсказки, автодополнение и диагностика.</value></data>
   <data name="Settings_LspTitle" xml:space="preserve"><value>Языковые серверы (LSP)</value></data>
@@ -961,4 +961,54 @@
   <data name="Ws_DevStopped" xml:space="preserve"><value>Dev-сервер не запущен</value></data>
   <data name="Ws_DevStarting" xml:space="preserve"><value>Dev-сервер запускается…</value></data>
   <data name="Ws_DevListening" xml:space="preserve"><value>Порт {0}: слушает</value></data>
+  <data name="Nav_Group_Learning" xml:space="preserve"><value>Обучение</value></data>
+  <data name="Nav_ToggleSidebar" xml:space="preserve"><value>Свернуть меню</value></data>
+  <data name="Dashboard_Continue" xml:space="preserve"><value>Продолжить</value></data>
+  <data name="Dashboard_ContinueLesson" xml:space="preserve"><value>Продолжить урок</value></data>
+  <data name="Dashboard_OpenCourse" xml:space="preserve"><value>Открыть курс</value></data>
+  <data name="Dashboard_Start" xml:space="preserve"><value>Начните с маршрута</value></data>
+  <data name="Dashboard_StartTitle" xml:space="preserve"><value>Выберите, что изучать</value></data>
+  <data name="Dashboard_StartText" xml:space="preserve"><value>В каталоге есть готовые маршруты: последовательность курсов к вашей цели. Выберите один, и здесь появится первый урок.</value></data>
+  <data name="Dashboard_OpenCatalog" xml:space="preserve"><value>Открыть каталог</value></data>
+  <data name="Dashboard_NoActivity" xml:space="preserve"><value>ещё не начат</value></data>
+  <data name="Dashboard_Today" xml:space="preserve"><value>сегодня</value></data>
+  <data name="Dashboard_Yesterday" xml:space="preserve"><value>вчера</value></data>
+  <data name="Dashboard_DaysAgo" xml:space="preserve"><value>{0} дн. назад</value></data>
+  <data name="Dashboard_ReviewsEmpty" xml:space="preserve"><value>Пока нечего повторять. Через несколько дней после урока здесь появятся темы, которые стоит освежить: так знания держатся дольше.</value></data>
+  <data name="Dashboard_NoActivityYet" xml:space="preserve"><value>Здесь появится активность после первых отправок</value></data>
+  <data name="Catalog_PathCourses" xml:space="preserve"><value>{0} курс(ов)</value></data>
+  <data name="Catalog_Soon" xml:space="preserve"><value>Скоро</value></data>
+  <data name="Catalog_Lessons" xml:space="preserve"><value>уроков: {0}</value></data>
+  <data name="Catalog_Progress" xml:space="preserve"><value>Пройдено {0} из {1}</value></data>
+  <data name="Catalog_Eyebrow" xml:space="preserve"><value>Учебные материалы</value></data>
+  <data name="Roadmap_StartFirst" xml:space="preserve"><value>Начать с урока {0}</value></data>
+  <data name="Roadmap_ContinueLesson" xml:space="preserve"><value>Продолжить с урока {0}</value></data>
+  <data name="Roadmap_More" xml:space="preserve"><value>Подробнее</value></data>
+  <data name="Roadmap_Less" xml:space="preserve"><value>Свернуть</value></data>
+  <data name="Roadmap_Lessons" xml:space="preserve"><value>Уроки курса</value></data>
+  <data name="Roadmap_Skip" xml:space="preserve"><value>Уже знаете материал?</value></data>
+  <data name="Editor_ResetTip" xml:space="preserve"><value>Сбросить код к исходному состоянию</value></data>
+  <data name="Editor_HintTip" xml:space="preserve"><value>Показать следующую подсказку</value></data>
+  <data name="Dbg_Tip" xml:space="preserve"><value>Пошаговый запуск: можно останавливать программу на строках и смотреть значения переменных (F5)</value></data>
+  <data name="Out_TestsCount" xml:space="preserve"><value>Тесты ({0}/{1})</value></data>
+  <data name="Out_HintsCount" xml:space="preserve"><value>Подсказки ({0}/{1})</value></data>
+  <data name="Out_StdinHint" xml:space="preserve"><value>Если программа читает ввод (input(), Scanner и т. п.), впишите его сюда: одна строка на одно значение.</value></data>
+  <data name="Out_ShowDiff" xml:space="preserve"><value>Ожидалось и получено</value></data>
+  <data name="Lesson_PracticeFor" xml:space="preserve"><value>Практика</value></data>
+  <data name="GoalHint_career" xml:space="preserve"><value>Хочу освоить профессию и подготовить портфолио.</value></data>
+  <data name="GoalHint_study" xml:space="preserve"><value>Нужно для курса, экзамена или университета.</value></data>
+  <data name="GoalHint_hobby" xml:space="preserve"><value>Интересно разобраться, без дедлайнов.</value></data>
+  <data name="GoalHint_interview" xml:space="preserve"><value>Повторить главное и порешать типовые задачи.</value></data>
+  <data name="LevelHint_0" xml:space="preserve"><value>Никогда не программировали.</value></data>
+  <data name="LevelHint_1" xml:space="preserve"><value>Писали простые программы, знаете переменные и циклы.</value></data>
+  <data name="LevelHint_2" xml:space="preserve"><value>Уверенно пишете код, хотите углубиться.</value></data>
+  <data name="LevelHint_3" xml:space="preserve"><value>Работаете с кодом, нужны сложные темы.</value></data>
+  <data name="DepthHint_Quick" xml:space="preserve"><value>Только главное, без лишних подробностей.</value></data>
+  <data name="DepthHint_Standard" xml:space="preserve"><value>Теория и практика в сбалансированном объёме.</value></data>
+  <data name="DepthHint_Deep" xml:space="preserve"><value>Подробно, с дополнительными темами и задачами.</value></data>
+  <data name="Onboarding_Privacy" xml:space="preserve"><value>Всё хранится только на этом компьютере</value></data>
+  <data name="Editor_More" xml:space="preserve"><value>Ещё действия</value></data>
+  <data name="Catalog_Featured" xml:space="preserve"><value>Ваш маршрут</value></data>
+  <data name="Catalog_AllPaths" xml:space="preserve"><value>Все маршруты ({0})</value></data>
+  <data name="Catalog_PathsIntro" xml:space="preserve"><value>Маршрут — готовая последовательность курсов под цель. Откройте подходящий и нажмите «Сделать основным»: он появится здесь и на главной.</value></data>
 </root>

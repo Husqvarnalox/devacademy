@@ -18,6 +18,9 @@ public sealed partial class LessonNavItemViewModel(LessonStatus status, bool isC
     public LessonState State { get; } = status.State;
     public string StateText { get; } = Display.State(status.State);
     public bool IsCurrent { get; } = isCurrent;
+    public bool IsDone { get; } = status.State == LessonState.Completed;
+    public bool IsLocked { get; } = status.State == LessonState.Locked;
+    public bool IsOpenMarker { get; } = !isCurrent && status.State is LessonState.Available or LessonState.InProgress && !isCurrent;
     public string Glyph { get; } = status.State switch
     {
         LessonState.Completed => "✓",
@@ -68,6 +71,7 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
 
     public Lesson Lesson { get; }
     public string Title => Lesson.Title;
+    public string CourseTitle => _s.Content.Current.FindCourse(Lesson.CourseId)?.Title ?? "";
     public string Goal => Lesson.Goal;
     public string TheoryMarkdown => Lesson.Theory.Markdown;
     public IReadOnlyList<string> Objectives { get; }

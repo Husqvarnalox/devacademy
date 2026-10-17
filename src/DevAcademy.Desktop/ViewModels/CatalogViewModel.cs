@@ -12,7 +12,14 @@ public sealed partial class CourseCardViewModel(Course course, int lessonCount, 
     public string Id { get; } = course.Id;
     public string Title { get; } = course.Title;
     public string Description { get; } = course.Description;
-    public string Meta { get; } = Loc.F("Catalog_CourseMeta", lessonCount, course.Version);
+    public string LevelText { get; } = Loc.Has("Level_" + course.Level) ? Loc.T("Level_" + course.Level) : "";
+    public string LessonsText { get; } = Loc.F("Catalog_Lessons", lessonCount);
+    public string Meta { get; } = (Loc.Has("Level_" + course.Level) ? Loc.T("Level_" + course.Level) + " · " : "") + Loc.F("Catalog_Lessons", lessonCount);
+    public int LessonCount { get; } = lessonCount;
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasProgress))] private double _fraction;
+    [ObservableProperty] private string _progressText = "";
+    public bool HasProgress => Fraction > 0;
 
     [RelayCommand]
     private Task OpenAsync() => nav.OpenCourseAsync(Id);
@@ -33,6 +40,7 @@ public sealed class TrackCardViewModel
     public string StatusText => Loc.T(IsAvailable ? "Status_Available" : "Status_Planned");
     public IReadOnlyList<CourseCardViewModel> Courses { get; }
     public bool HasCourses => IsAvailable && Courses.Count > 0;
+    public bool IsPlanned => !IsAvailable;
 }
 
 public sealed class TrackGroupViewModel(TrackKind kind, IReadOnlyList<TrackCardViewModel> tracks)
@@ -70,6 +78,13 @@ public sealed partial class CatalogViewModel : ObservableObject
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasPaths))] private IReadOnlyList<PathCardViewModel> _paths = [];
     public bool HasPaths => Paths.Count > 0;
 
+    /// <summary>The path the learner follows. Nothing is featured otherwise: no path is recommended without a real reason.</summary>
+    public PathCardViewModel? FeaturedPath => Paths.FirstOrDefault(p => p.IsFollowed);
+    public bool HasFeaturedPath => FeaturedPath is not null;
+    /// <summary>Without a followed path the catalog explains what a path is instead.</summary>
+    public bool ShowPathsIntro => !HasFeaturedPath && HasPaths;
+    public string AllPathsTitle => Loc.F("Catalog_AllPaths", Paths.Count);
+
     public IReadOnlyList<ComparisonCardViewModel> Comparisons { get; private set; } = [];
     public bool HasComparisons => Comparisons.Count > 0;
 
@@ -81,6 +96,16 @@ public sealed partial class CatalogViewModel : ObservableObject
         foreach (var p in _s.Content.Current.Paths)
             if (await _s.Path.BuildPathAsync(p.Id) is { } plan) cards.Add(new PathCardViewModel(_s, _nav, plan, followed.Contains(p.Id)));
         Paths = cards;
+        OnPropertyChanged(nameof(FeaturedPath));
+        OnPropertyChanged(nameof(HasFeaturedPath));
+        OnPropertyChanged(nameof(ShowPathsIntro));
+        OnPropertyChanged(nameof(AllPathsTitle));
+        foreach (var card in Groups.SelectMany(g => g.Tracks).SelectMany(t => t.Courses))
+            if (await _s.Path.GetCoursePathAsync(card.Id) is { Total: > 0 } cp && cp.Completed > 0)
+            {
+                card.Fraction = (double)cp.Completed / cp.Total;
+                card.ProgressText = Loc.F("Catalog_Progress", cp.Completed, cp.Total);
+            }
         Comparisons = _s.Content.Current.Comparisons.Select(c => new ComparisonCardViewModel(c, _nav)).ToList();
         OnPropertyChanged(nameof(Comparisons));
         OnPropertyChanged(nameof(HasComparisons));

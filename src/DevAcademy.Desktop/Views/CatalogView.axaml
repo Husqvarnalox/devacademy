@@ -5,87 +5,85 @@
              x:Class="DevAcademy.Desktop.Views.CatalogView"
              x:DataType="vm:CatalogViewModel">
   <ScrollViewer>
-    <StackPanel MaxWidth="960" Margin="24,24" Spacing="20" HorizontalAlignment="Stretch">
-      <TextBlock Text="{loc:T Catalog_Title}" Classes="h1" />
-      <Border Classes="panel" Padding="12" IsVisible="{Binding HasContentWarning}">
-        <TextBlock Text="{Binding ContentWarning}" Classes="warn" TextWrapping="Wrap" />
+    <StackPanel MaxWidth="1040" Margin="32,32,32,48" Spacing="32" HorizontalAlignment="Stretch">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{loc:T Catalog_Eyebrow}" Classes="overline" />
+        <TextBlock Text="{loc:T Catalog_Title}" Classes="display" />
+      </StackPanel>
+
+      <Border Classes="callout warn" IsVisible="{Binding HasContentWarning}">
+        <TextBlock Text="{Binding ContentWarning}" TextWrapping="Wrap" />
       </Border>
-      <TextBlock Text="{loc:T Catalog_Empty}" Classes="muted" IsVisible="{Binding IsEmpty}" />
-      <StackPanel Spacing="8" IsVisible="{Binding HasPaths}">
-        <TextBlock Text="{loc:T Catalog_Paths}" Classes="h2" />
-        <ItemsControl ItemsSource="{Binding Paths}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:PathCardViewModel">
-              <Border Classes="panel" Padding="16" Margin="0,0,0,8">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="3">
-                    <TextBlock Text="{Binding Title}" Classes="h3" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Meta}" Classes="caption" />
-                  </StackPanel>
-                  <StackPanel Grid.Column="1" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center">
-                    <Button Content="{loc:T Catalog_OpenPath}" Command="{Binding OpenCommand}" Classes="accent" />
-                    <Button Content="{Binding FollowText}" Command="{Binding ToggleFollowCommand}" />
-                  </StackPanel>
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
+      <TextBlock Text="{loc:T Catalog_Empty}" Classes="secondary" IsVisible="{Binding IsEmpty}" />
+
+      <!-- Recommended path: one prominent card; everything else lives below or under "All paths" -->
+      <StackPanel Spacing="12" IsVisible="{Binding HasFeaturedPath}">
+        <TextBlock Text="{loc:T Catalog_Featured}" Classes="overline" />
+        <Border Classes="panel" Padding="24" DataContext="{Binding FeaturedPath}" x:DataType="vm:PathCardViewModel">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+            <StackPanel Spacing="6">
+              <TextBlock Text="{Binding Title}" Classes="h1" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Description}" Classes="secondary" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding Meta}" Classes="small muted" Margin="0,4,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+              <Button Classes="primary large" Content="{loc:T Catalog_OpenPath}" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+              <Button Classes="ghost" Content="{Binding FollowText}" Command="{Binding ToggleFollowCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </Border>
       </StackPanel>
-      <StackPanel Spacing="8" IsVisible="{Binding HasComparisons}">
-        <TextBlock Text="{loc:T Catalog_Comparisons}" Classes="h2" />
-        <ItemsControl ItemsSource="{Binding Comparisons}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="vm:ComparisonCardViewModel">
-              <Border Classes="panel" Padding="16" Margin="0,0,0,8">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Spacing="3">
-                    <TextBlock Text="{Binding Title}" Classes="h3" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding SubjectsText}" Classes="muted" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Meta}" Classes="caption" />
-                  </StackPanel>
-                  <Button Grid.Column="1" Content="{loc:T Catalog_OpenComparison}" Command="{Binding OpenCommand}" Classes="accent" VerticalAlignment="Center" Margin="12,0,0,0" />
-                </Grid>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </StackPanel>
+
+      <!-- Tracks and courses, grouped by kind -->
       <ItemsControl ItemsSource="{Binding Groups}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TrackGroupViewModel">
-            <StackPanel Spacing="8" Margin="0,0,0,16">
+            <StackPanel Spacing="16" Margin="0,0,0,32">
               <TextBlock Text="{Binding Title}" Classes="h2" />
               <ItemsControl ItemsSource="{Binding Tracks}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:TrackCardViewModel">
-                    <Border Classes="panel" Padding="16" Margin="0,0,0,8">
-                      <StackPanel Spacing="8">
-                        <Grid ColumnDefinitions="*,Auto">
-                          <TextBlock Text="{Binding Title}" Classes="h3" />
-                          <Border Grid.Column="1" Classes="badge" Classes.warn="{Binding !IsAvailable}">
-                            <TextBlock Text="{Binding StatusText}" FontSize="12" />
-                          </Border>
+                    <StackPanel Spacing="12" Margin="0,0,0,8">
+                      <!-- planned: muted, inert -->
+                      <Border Classes="panel" Padding="16,12" IsVisible="{Binding IsPlanned}" Opacity="0.75">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                          <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock Text="{Binding Description}" Classes="small muted" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                          </StackPanel>
+                          <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top"><TextBlock Text="{loc:T Catalog_Soon}" /></Border>
                         </Grid>
-                        <TextBlock Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
-                        <ItemsControl ItemsSource="{Binding Courses}" IsVisible="{Binding HasCourses}">
+                      </Border>
+                      <!-- available -->
+                      <StackPanel Spacing="12" IsVisible="{Binding IsAvailable}">
+                        <StackPanel Spacing="2">
+                          <TextBlock Text="{Binding Title}" Classes="h3" />
+                          <TextBlock Text="{Binding Description}" Classes="secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding Courses}" IsVisible="{Binding HasCourses}" Margin="0,0,-12,0">
+                          <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                           <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:CourseCardViewModel">
-                              <Border Background="{DynamicResource SubtleBrush}" CornerRadius="4" Padding="12,8" Margin="0,4,0,0">
-                                <Grid ColumnDefinitions="*,Auto">
-                                  <StackPanel Spacing="2">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding Meta}" Classes="caption" />
+                              <Button Classes="tile" Command="{Binding OpenCommand}" Margin="0,0,12,12" MinHeight="132">
+                                <DockPanel>
+                                  <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,12,0,0">
+                                    <TextBlock Text="{Binding Meta}" Classes="small muted" />
+                                    <StackPanel Spacing="4" IsVisible="{Binding HasProgress}">
+                                      <ProgressBar Minimum="0" Maximum="1" Value="{Binding Fraction}" ShowProgressText="False" />
+                                      <TextBlock Text="{Binding ProgressText}" Classes="small muted" />
+                                    </StackPanel>
                                   </StackPanel>
-                                  <Button Grid.Column="1" Content="{loc:T Catalog_OpenCourse}" Command="{Binding OpenCommand}" Classes="accent" VerticalAlignment="Center" />
-                                </Grid>
-                              </Border>
+                                  <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Description}" Classes="secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                                  </StackPanel>
+                                </DockPanel>
+                              </Button>
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>
                       </StackPanel>
-                    </Border>
+                    </StackPanel>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
@@ -93,6 +91,53 @@
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
+
+      <StackPanel Spacing="12" IsVisible="{Binding HasComparisons}">
+        <TextBlock Text="{loc:T Catalog_Comparisons}" Classes="h2" />
+        <Border Classes="panel" ClipToBounds="True">
+          <ItemsControl Classes="rows" ItemsSource="{Binding Comparisons}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ComparisonCardViewModel">
+                <Button Classes="row" Command="{Binding OpenCommand}" Padding="16,14">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding SubjectsText}" Classes="secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Meta}" Classes="small muted" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+      </StackPanel>
+
+      <!-- Paths: rows, one primary action each, the whole row opens the path -->
+      <TextBlock Text="{loc:T Catalog_PathsIntro}" Classes="muted" TextWrapping="Wrap" MaxWidth="680" HorizontalAlignment="Left" IsVisible="{Binding ShowPathsIntro}" />
+      <Expander IsExpanded="False" IsVisible="{Binding HasPaths}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+        <Expander.Header><TextBlock Text="{Binding AllPathsTitle}" Classes="h2" /></Expander.Header>
+        <Border Classes="panel" ClipToBounds="True" Margin="0,12,0,0">
+          <ItemsControl Classes="rows" ItemsSource="{Binding Paths}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:PathCardViewModel">
+                <Grid>
+                  <Button Classes="row" Command="{Binding OpenCommand}" Padding="16,14,320,14">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Description}" Classes="secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Meta}" Classes="small muted" Margin="0,2,0,0" />
+                    </StackPanel>
+                  </Button>
+                  <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <Button Classes="ghost" Content="{Binding FollowText}" Command="{Binding ToggleFollowCommand}" />
+                    <Button Classes="primary" Content="{loc:T Catalog_OpenPath}" Command="{Binding OpenCommand}" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+      </Expander>
+
     </StackPanel>
   </ScrollViewer>
 </UserControl>

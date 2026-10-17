@@ -5,7 +5,11 @@ using DevAcademy.Domain;
 
 namespace DevAcademy.Desktop.ViewModels;
 
-public abstract record ChoiceBase(string Label);
+public abstract record ChoiceBase(string Label)
+{
+    /// <summary>One-line explanation shown under the label in choice lists.</summary>
+    public string Description { get; init; } = "";
+}
 
 public sealed record Choice<T>(T Value, string Label) : ChoiceBase(Label);
 
@@ -31,9 +35,9 @@ public sealed partial class ProfileEditorViewModel : ObservableObject
     {
         Languages = new ObservableCollection<TrackChoiceViewModel>(
             tracks.Where(t => t.Kind == TrackKind.Language).Select(t => new TrackChoiceViewModel(t, PickLanguage)));
-        Goals = GoalIds.Select(g => new Choice<string>(g, Loc.T("Goal_" + g))).ToList();
-        Levels = Enumerable.Range(0, 4).Select(l => new Choice<int>(l, Loc.T("Level_" + l))).ToList();
-        Depths = Enum.GetValues<LearningDepth>().Select(d => new Choice<LearningDepth>(d, Loc.T("Depth_" + d))).ToList();
+        Goals = GoalIds.Select(g => new Choice<string>(g, Loc.T("Goal_" + g)) { Description = Loc.T("GoalHint_" + g) }).ToList();
+        Levels = Enumerable.Range(0, 4).Select(l => new Choice<int>(l, Loc.T("Level_" + l)) { Description = Loc.T("LevelHint_" + l) }).ToList();
+        Depths = Enum.GetValues<LearningDepth>().Select(d => new Choice<LearningDepth>(d, Loc.T("Depth_" + d)) { Description = Loc.T("DepthHint_" + d) }).ToList();
 
         SelectedGoal = Goals.FirstOrDefault(g => g.Value == profile?.Goal) ?? Goals[0];
         SelectedLevel = Levels.FirstOrDefault(l => l.Value == profile?.Level) ?? Levels[0];

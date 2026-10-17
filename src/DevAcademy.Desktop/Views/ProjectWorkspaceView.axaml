@@ -35,7 +35,7 @@
           <Button Content="{loc:T Ws_Save}" Command="{Binding SaveCommand}" />
           <Button Content="{loc:T Nb_Close}" Command="{Binding CloseNotebookFromUiCommand}" IsVisible="{Binding HasNotebook}" />
           <Button Content="{loc:T Ws_Split}" Command="{Binding ToggleSplitCommand}" />
-          <Button Content="{loc:T Ws_Run}" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Classes="accent"
+          <Button Content="{loc:T Ws_Run}" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" Classes="primary"
                   ToolTip.Tip="{Binding RunCommandText}" />
           <Button Content="{loc:T Ws_Test}" Command="{Binding TestCommand}" IsEnabled="{Binding CanRun}"
                   ToolTip.Tip="{Binding TestCommandText}" />
@@ -63,7 +63,7 @@
           <Button Name="NodeStopButton" Content="{loc:T Ws_NodeStop}" Command="{Binding StopDevCommand}" IsVisible="{Binding IsDevRunning}" />
           <Button Name="NodeTestButton" Content="{loc:T Ws_NodeTest}" Command="{Binding TestNodeCommand}" IsEnabled="{Binding CanTestNode}" ToolTip.Tip="{Binding TestNodeText}" />
           <Button Name="NodeBuildButton" Content="{loc:T Ws_NodeBuild}" Command="{Binding BuildNodeCommand}" IsEnabled="{Binding CanBuildNode}" ToolTip.Tip="{Binding BuildCommandText}" />
-          <Button Name="OpenInBrowserButton" Content="{loc:T Ws_OpenInBrowser}" Command="{Binding OpenDevServerCommand}" IsVisible="{Binding CanOpenDevServer}" Classes="accent" />
+          <Button Name="OpenInBrowserButton" Content="{loc:T Ws_OpenInBrowser}" Command="{Binding OpenDevServerCommand}" IsVisible="{Binding CanOpenDevServer}" Classes="primary" />
           <TextBlock Name="DevStatusText" Text="{Binding DevStatusText}" Classes="caption" VerticalAlignment="Center" />
         </StackPanel>
         <StackPanel Spacing="2" IsVisible="{Binding HasPostCreate}">

@@ -206,11 +206,13 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     [ObservableProperty] private string _stdin = "";
     [ObservableProperty, NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(SubmitCommand))] private bool _isBusy;
     [ObservableProperty] private ConsoleResultViewModel? _consoleResult;
-    [ObservableProperty] private TestReportViewModel? _report;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(TestsHeader))] private TestReportViewModel? _report;
+    public string TestsHeader => Report is null || Report.Cases.Count == 0 ? Loc.T("Out_Tests") : Loc.F("Out_TestsCount", Report.Cases.Count(c => c.Passed), Report.Cases.Count);
+    public string HintsHeader => !HasHints ? Loc.T("Out_Hints") : Loc.F("Out_HintsCount", RevealedCount, Exercise!.Hints.Count);
     [ObservableProperty] private int _outputTab;
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private bool _isSolutionVisible;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanRevealHint), nameof(HintButtonText))] private int _revealedCount;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanRevealHint), nameof(HintButtonText), nameof(HintsHeader))] private int _revealedCount;
 
     public bool IsAcceleratorBlocked => AcceleratorBlock is not null;
     public bool HasEnvironmentNotice => AcceleratorBlock is not null || EnvironmentNotice is not null || InstallSet is not null || InstallLog.Length > 0;

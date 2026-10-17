@@ -49,6 +49,7 @@ public sealed class MarkdownViewer : ContentControl
         IBrush Get(string key, IBrush fallback) =>
             this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
         var f = MarkdownTheme.Fallback;
-        return new MarkdownTheme(Get("MdCodeBackground", f.CodeBackground), Get("MdBorder", f.Border), Get("MdMuted", f.Muted), Get("MdLink", f.Link), MarkdownTheme.DefaultMono);
+        return new MarkdownTheme(Get("MdCodeBackground", f.CodeBackground), Get("MdBorder", f.Border), Get("MdMuted", f.Muted), Get("MdLink", f.Link),
+            this.TryFindResource("MonoFont", ActualThemeVariant, out var mono) && mono is FontFamily ff ? ff : MarkdownTheme.DefaultMono);
     }
 }

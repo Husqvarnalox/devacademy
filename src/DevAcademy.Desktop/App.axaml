@@ -24,63 +24,253 @@
 
   <Application.Resources>
     <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://DevAcademy.Desktop/Styles/Icons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="AppBackground" Color="#F5F5F3" />
-          <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="SubtleBrush" Color="#EFEFEC" />
-          <SolidColorBrush x:Key="LineBrush" Color="#DCDCD7" />
-          <SolidColorBrush x:Key="MutedText" Color="#6A6A64" />
-          <SolidColorBrush x:Key="AccentText" Color="#1F5C9E" />
-          <SolidColorBrush x:Key="SuccessBrush" Color="#2E7D32" />
+          <!-- Tokens (docs/design/DESIGN_SYSTEM.md) -->
+          <SolidColorBrush x:Key="BackgroundBrush" Color="#F6F4EF" />
+          <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SurfaceSunkenBrush" Color="#EFECE5" />
+          <SolidColorBrush x:Key="LineBrush" Color="#E2DED5" />
+          <SolidColorBrush x:Key="LineStrongBrush" Color="#CFCAC0" />
+          <SolidColorBrush x:Key="TextBrush" Color="#1D1C1A" />
+          <SolidColorBrush x:Key="TextSecondaryBrush" Color="#57534C" />
+          <SolidColorBrush x:Key="TextMutedBrush" Color="#6B665D" />
+          <SolidColorBrush x:Key="AccentBrush" Color="#0E6A64" />
+          <SolidColorBrush x:Key="AccentHoverBrush" Color="#0A5550" />
+          <SolidColorBrush x:Key="AccentSubtleBrush" Color="#E3EFED" />
+          <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#2A7239" />
+          <SolidColorBrush x:Key="SuccessSubtleBrush" Color="#E6F2E8" />
+          <SolidColorBrush x:Key="WarnBrush" Color="#8C5A08" />
+          <SolidColorBrush x:Key="WarnSubtleBrush" Color="#F6EEDC" />
           <SolidColorBrush x:Key="DangerBrush" Color="#B3261E" />
-          <SolidColorBrush x:Key="WarnBrush" Color="#8A5A00" />
+          <SolidColorBrush x:Key="DangerSubtleBrush" Color="#F8E6E4" />
+          <!-- Legacy keys, still read by C# controls and older views -->
+          <StaticResource x:Key="AppBackground" ResourceKey="BackgroundBrush" />
+          <StaticResource x:Key="PanelBrush" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="SubtleBrush" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="MutedText" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="AccentText" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="MdCodeBackground" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="MdBorder" ResourceKey="LineBrush" />
+          <StaticResource x:Key="MdMuted" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="MdLink" ResourceKey="AccentBrush" />
           <SolidColorBrush x:Key="DebugLineBrush" Color="#4DFFD54F" />
-          <SolidColorBrush x:Key="MdCodeBackground" Color="#F1F1EE" />
-          <SolidColorBrush x:Key="MdBorder" Color="#D9D9D4" />
-          <SolidColorBrush x:Key="MdMuted" Color="#6A6A64" />
-          <SolidColorBrush x:Key="MdLink" Color="#1F5C9E" />
           <SolidColorBrush x:Key="VizSeries1" Color="#0072B2" />
           <SolidColorBrush x:Key="VizSeries2" Color="#C24E00" />
           <SolidColorBrush x:Key="VizSeries3" Color="#00806A" />
           <SolidColorBrush x:Key="VizSeries4" Color="#B0457E" />
           <SolidColorBrush x:Key="VizSeries5" Color="#8A6F00" />
           <SolidColorBrush x:Key="VizSeries6" Color="#6B4FBB" />
+          <!-- Fluent control overrides -->
+          <StaticResource x:Key="ButtonBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ButtonForeground" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="ButtonBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="LineBrush" />
+          <StaticResource x:Key="TextControlBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="TextControlBackgroundDisabled" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="TextControlBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="TextControlBorderBrushDisabled" ResourceKey="LineBrush" />
+          <StaticResource x:Key="TextControlForeground" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TextControlForegroundDisabled" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="ComboBoxBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundPressed" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundFocused" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundFocusedPressed" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundDisabled" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushPointerOver" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushPressed" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushFocused" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushDisabled" ResourceKey="LineBrush" />
+          <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ComboBoxItemForegroundSelected" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ComboBoxItemForegroundSelectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundSelected" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundSelectedPointerOver" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundSelectedPressed" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ListBoxItemForegroundSelected" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ListBoxItemForegroundSelectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ListBoxItemForegroundSelectedPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="FlyoutPresenterBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="FlyoutBorderThemeBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ToolTipBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ToolTipForeground" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ToolTipBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ProgressBarBackground" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ProgressBarForeground" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundUnselected" ResourceKey="TextSecondaryBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundUnselectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundUnselectedPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundSelected" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundSelectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundSelectedPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderSelectedPipeFill" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="SystemControlFocusVisualPrimaryBrush" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="SystemControlFocusVisualSecondaryBrush" ResourceKey="SurfaceBrush" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="Transparent" />
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="AppBackground" Color="#17191B" />
-          <SolidColorBrush x:Key="PanelBrush" Color="#1E2124" />
-          <SolidColorBrush x:Key="SubtleBrush" Color="#272B2F" />
-          <SolidColorBrush x:Key="LineBrush" Color="#363B40" />
-          <SolidColorBrush x:Key="MutedText" Color="#9BA1A7" />
-          <SolidColorBrush x:Key="AccentText" Color="#79B0EC" />
-          <SolidColorBrush x:Key="SuccessBrush" Color="#6CC070" />
-          <SolidColorBrush x:Key="DangerBrush" Color="#F2837A" />
-          <SolidColorBrush x:Key="WarnBrush" Color="#E0B250" />
+          <!-- Tokens (docs/design/DESIGN_SYSTEM.md) -->
+          <SolidColorBrush x:Key="BackgroundBrush" Color="#161513" />
+          <SolidColorBrush x:Key="SurfaceBrush" Color="#1E1D1A" />
+          <SolidColorBrush x:Key="SurfaceSunkenBrush" Color="#121110" />
+          <SolidColorBrush x:Key="LineBrush" Color="#2E2C28" />
+          <SolidColorBrush x:Key="LineStrongBrush" Color="#3D3A35" />
+          <SolidColorBrush x:Key="TextBrush" Color="#ECE9E3" />
+          <SolidColorBrush x:Key="TextSecondaryBrush" Color="#B7B2A8" />
+          <SolidColorBrush x:Key="TextMutedBrush" Color="#9D988E" />
+          <SolidColorBrush x:Key="AccentBrush" Color="#4DB6AC" />
+          <SolidColorBrush x:Key="AccentHoverBrush" Color="#6CC6BD" />
+          <SolidColorBrush x:Key="AccentSubtleBrush" Color="#1F3532" />
+          <SolidColorBrush x:Key="OnAccentBrush" Color="#0E1514" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#6CC287" />
+          <SolidColorBrush x:Key="SuccessSubtleBrush" Color="#1E3125" />
+          <SolidColorBrush x:Key="WarnBrush" Color="#E0B45A" />
+          <SolidColorBrush x:Key="WarnSubtleBrush" Color="#3A3020" />
+          <SolidColorBrush x:Key="DangerBrush" Color="#F08A80" />
+          <SolidColorBrush x:Key="DangerSubtleBrush" Color="#3D2220" />
+          <!-- Legacy keys, still read by C# controls and older views -->
+          <StaticResource x:Key="AppBackground" ResourceKey="BackgroundBrush" />
+          <StaticResource x:Key="PanelBrush" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="SubtleBrush" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="MutedText" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="AccentText" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="MdCodeBackground" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="MdBorder" ResourceKey="LineBrush" />
+          <StaticResource x:Key="MdMuted" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="MdLink" ResourceKey="AccentBrush" />
           <SolidColorBrush x:Key="DebugLineBrush" Color="#40E0B250" />
-          <SolidColorBrush x:Key="MdCodeBackground" Color="#262A2E" />
-          <SolidColorBrush x:Key="MdBorder" Color="#3A3F44" />
-          <SolidColorBrush x:Key="MdMuted" Color="#9BA1A7" />
-          <SolidColorBrush x:Key="MdLink" Color="#79B0EC" />
           <SolidColorBrush x:Key="VizSeries1" Color="#56B4E9" />
           <SolidColorBrush x:Key="VizSeries2" Color="#F28E4B" />
           <SolidColorBrush x:Key="VizSeries3" Color="#3DD9A5" />
           <SolidColorBrush x:Key="VizSeries4" Color="#E39BC4" />
           <SolidColorBrush x:Key="VizSeries5" Color="#F0E442" />
           <SolidColorBrush x:Key="VizSeries6" Color="#A58FEA" />
+          <!-- Fluent control overrides -->
+          <StaticResource x:Key="ButtonBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ButtonBackgroundDisabled" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ButtonForeground" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ButtonForegroundDisabled" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="ButtonBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ButtonBorderBrushPointerOver" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ButtonBorderBrushPressed" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ButtonBorderBrushDisabled" ResourceKey="LineBrush" />
+          <StaticResource x:Key="TextControlBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="TextControlBackgroundDisabled" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="TextControlBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="TextControlBorderBrushDisabled" ResourceKey="LineBrush" />
+          <StaticResource x:Key="TextControlForeground" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TextControlForegroundDisabled" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="TextMutedBrush" />
+          <StaticResource x:Key="ComboBoxBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundPointerOver" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundPressed" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundFocused" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundFocusedPressed" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxBackgroundDisabled" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushPointerOver" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushPressed" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushFocused" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="ComboBoxBorderBrushDisabled" ResourceKey="LineBrush" />
+          <StaticResource x:Key="ComboBoxDropDownBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ComboBoxDropDownBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundSelected" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundSelectedPointerOver" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ComboBoxItemBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ComboBoxItemForegroundSelected" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ComboBoxItemForegroundSelectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundSelected" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundSelectedPointerOver" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ListBoxItemBackgroundSelectedPressed" ResourceKey="AccentSubtleBrush" />
+          <StaticResource x:Key="ListBoxItemForegroundSelected" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ListBoxItemForegroundSelectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ListBoxItemForegroundSelectedPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="FlyoutPresenterBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="FlyoutBorderThemeBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="MenuFlyoutPresenterBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="MenuFlyoutPresenterBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="MenuFlyoutItemBackgroundPointerOver" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="MenuFlyoutItemBackgroundPressed" ResourceKey="SurfaceSunkenBrush" />
+          <StaticResource x:Key="ToolTipBackground" ResourceKey="SurfaceBrush" />
+          <StaticResource x:Key="ToolTipForeground" ResourceKey="TextBrush" />
+          <StaticResource x:Key="ToolTipBorderBrush" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ProgressBarBackground" ResourceKey="LineStrongBrush" />
+          <StaticResource x:Key="ProgressBarForeground" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundUnselected" ResourceKey="TextSecondaryBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundUnselectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundUnselectedPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundSelected" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundSelectedPointerOver" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderForegroundSelectedPressed" ResourceKey="TextBrush" />
+          <StaticResource x:Key="TabItemHeaderSelectedPipeFill" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="SystemControlFocusVisualPrimaryBrush" ResourceKey="AccentBrush" />
+          <StaticResource x:Key="SystemControlFocusVisualSecondaryBrush" ResourceKey="SurfaceBrush" />
+          <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="Transparent" />
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
-      <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
-      <CornerRadius x:Key="OverlayCornerRadius">6</CornerRadius>
-      <FontFamily x:Key="MonoFont">Menlo, Consolas, 'DejaVu Sans Mono', monospace</FontFamily>
+      <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
+      <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
+      <!-- IBM Plex (SIL OFL 1.1, Cyrillic included), embedded under Assets/Fonts; system fonts are the fallback chain. -->
+      <FontFamily x:Key="UiFont">avares://DevAcademy.Desktop/Assets/Fonts#IBM Plex Sans, Segoe UI, Helvetica Neue, Arial, sans-serif</FontFamily>
+      <FontFamily x:Key="MonoFont">avares://DevAcademy.Desktop/Assets/Fonts#IBM Plex Mono, Menlo, Consolas, 'DejaVu Sans Mono', monospace</FontFamily>
+      <FontFamily x:Key="ContentControlThemeFontFamily">avares://DevAcademy.Desktop/Assets/Fonts#IBM Plex Sans, Segoe UI, Helvetica Neue, Arial, sans-serif</FontFamily>
     </ResourceDictionary>
   </Application.Resources>
 
   <Application.Styles>
     <FluentTheme>
       <FluentTheme.Palettes>
-        <ColorPaletteResources x:Key="Light" Accent="#2563A8" RegionColor="#F5F5F3" />
-        <ColorPaletteResources x:Key="Dark" Accent="#4F8FD6" RegionColor="#17191B" />
+        <ColorPaletteResources x:Key="Light" Accent="#0E6A64" RegionColor="#F6F4EF" />
+        <ColorPaletteResources x:Key="Dark" Accent="#4DB6AC" RegionColor="#161513" />
       </FluentTheme.Palettes>
     </FluentTheme>
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />

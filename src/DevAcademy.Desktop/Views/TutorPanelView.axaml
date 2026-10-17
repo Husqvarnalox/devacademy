@@ -6,13 +6,13 @@
              xmlns:loc="using:DevAcademy.Desktop.Localization"
              x:Class="DevAcademy.Desktop.Views.TutorPanelView"
              x:DataType="vm:TutorPanelViewModel">
-  <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource LineBrush}" Background="{DynamicResource PanelBrush}">
+  <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource LineBrush}" Background="{DynamicResource SurfaceBrush}">
     <Expander Name="TutorExpander" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" HorizontalAlignment="Stretch"
               HorizontalContentAlignment="Stretch" Padding="12,6" AutomationProperties.Name="{loc:T Tutor_Title}">
       <Expander.Header>
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <TextBlock Text="{loc:T Tutor_Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding HeaderNote}" Classes="caption" VerticalAlignment="Center" />
+          <TextBlock Text="{loc:T Tutor_Title}" Classes="h3" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding HeaderNote}" Classes="small muted" VerticalAlignment="Center" />
         </StackPanel>
       </Expander.Header>
       <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto">
@@ -23,18 +23,18 @@
           </StackPanel>
 
           <WrapPanel>
-            <Button Content="{loc:T Tutor_Explain}" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.Explain}" Margin="0,0,8,6" />
-            <Button Content="{loc:T Tutor_Debug}" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.Debug}" Margin="0,0,8,6" />
-            <Button Content="{loc:T Tutor_Hint}" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.Hint}" Margin="0,0,8,6" />
-            <Button Content="{loc:T Tutor_Review}" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.CodeReview}" Margin="0,0,8,6" />
+            <Button Content="{loc:T Tutor_Explain}" Classes="compact" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.Explain}" Margin="0,0,8,6" />
+            <Button Content="{loc:T Tutor_Debug}" Classes="compact" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.Debug}" Margin="0,0,8,6" />
+            <Button Content="{loc:T Tutor_Hint}" Classes="compact" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.Hint}" Margin="0,0,8,6" />
+            <Button Content="{loc:T Tutor_Review}" Classes="compact" Command="{Binding AskCommand}" CommandParameter="{x:Static tutor:TutorScenario.CodeReview}" Margin="0,0,8,6" />
             <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,6">
-              <TextBlock Text="{loc:T Tutor_HintLevel}" Classes="caption" VerticalAlignment="Center" />
+              <TextBlock Text="{loc:T Tutor_HintLevel}" Classes="small secondary" VerticalAlignment="Center" />
               <ComboBox ItemsSource="{Binding HintLevels}" SelectedItem="{Binding HintLevel}" MinWidth="64" AutomationProperties.Name="{loc:T Tutor_HintLevel}" />
             </StackPanel>
           </WrapPanel>
 
           <StackPanel Spacing="2">
-            <TextBlock Text="{loc:T Tutor_Context}" Classes="caption" />
+            <TextBlock Text="{loc:T Tutor_Context}" Classes="overline" />
             <WrapPanel>
               <CheckBox Content="{loc:T Tutor_CtxLesson}" IsChecked="{Binding IncludeLesson}" Margin="0,0,14,0" />
               <CheckBox Content="{loc:T Tutor_CtxCode}" IsChecked="{Binding IncludeCode}" IsEnabled="{Binding CodeAllowed}" Margin="0,0,14,0" />
@@ -60,7 +60,7 @@
                 </Border>
               </Expander>
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="{loc:T Tutor_Send}" Command="{Binding SendCommand}" Classes="accent" />
+                <Button Content="{loc:T Tutor_Send}" Command="{Binding SendCommand}" Classes="primary" />
                 <Button Content="{loc:T Common_Cancel}" Command="{Binding CancelPreviewCommand}" />
               </StackPanel>
               <CheckBox Content="{loc:T Tutor_SkipPreview}" IsChecked="{Binding SkipPreview}" />
@@ -80,7 +80,7 @@
             <TextBlock Text="{Binding ErrorText}" Classes="warn" TextWrapping="Wrap" />
             <Button Content="{loc:T Tutor_OpenSettings}" Command="{Binding OpenSettingsCommand}" HorizontalAlignment="Left" IsVisible="{Binding ShowOpenSettings}" />
           </StackPanel>
-          <TextBlock Text="{loc:T Tutor_TextOnly}" Classes="caption" TextWrapping="Wrap" />
+          <TextBlock Text="{loc:T Tutor_TextOnly}" Classes="caption muted" TextWrapping="Wrap" />
         </StackPanel>
       </ScrollViewer>
     </Expander>

@@ -7,31 +7,35 @@
   <StackPanel Spacing="14">
     <StackPanel Spacing="2">
       <TextBlock Text="{loc:T Quiz_Title}" Classes="h2" />
-      <TextBlock Text="{Binding ThresholdText}" Classes="caption" />
-      <TextBlock Text="{Binding BestScoreText}" Classes="caption" IsVisible="{Binding BestScoreText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding ThresholdText}" Classes="small secondary" />
+      <TextBlock Text="{Binding BestScoreText}" Classes="small secondary" IsVisible="{Binding BestScoreText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     </StackPanel>
     <ItemsControl ItemsSource="{Binding Questions}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="vm:QuizQuestionViewModel">
           <Border Classes="panel" Padding="14,12" Margin="0,0,0,10">
             <StackPanel Spacing="8">
-              <TextBlock Text="{Binding Number, StringFormat='{}{0}.'}" Classes="caption" />
+              <TextBlock Text="{Binding Number, StringFormat='{}{0}.'}" Classes="overline" />
               <SelectableTextBlock Text="{Binding Prompt}" TextWrapping="Wrap" FontSize="15" />
               <TextBlock Text="{Binding HintText}" Classes="caption" />
               <ItemsControl ItemsSource="{Binding SingleOptions}" IsVisible="{Binding IsSingle}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:QuizOptionViewModel">
+                    <Border Classes="option" Classes.selected="{Binding IsSelected}" Classes.correct="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsCorrect}" Classes.wrong="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsWrong}">
                     <RadioButton Content="{Binding Text}" IsChecked="{Binding IsSelected}"
                                  GroupName="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).GroupName}"
                                  IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                    </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <ItemsControl ItemsSource="{Binding MultipleOptions}" IsVisible="{Binding IsMultiple}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:QuizOptionViewModel">
+                    <Border Classes="option" Classes.selected="{Binding IsSelected}" Classes.correct="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsCorrect}" Classes.wrong="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsWrong}">
                     <CheckBox Content="{Binding Text}" IsChecked="{Binding IsSelected}"
                               IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                    </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
@@ -48,7 +52,7 @@
     </ItemsControl>
     <TextBlock Text="{Binding Error}" Classes="danger" TextWrapping="Wrap" />
     <StackPanel Orientation="Horizontal" Spacing="12">
-      <Button Content="{loc:T Quiz_Submit}" Command="{Binding SubmitCommand}" Classes="accent" />
+      <Button Content="{loc:T Quiz_Submit}" Command="{Binding SubmitCommand}" Classes="primary" />
       <Button Content="{loc:T Quiz_Retry}" Command="{Binding RetryCommand}" IsVisible="{Binding IsSubmitted}" />
       <TextBlock Text="{Binding ResultText}" FontWeight="SemiBold" VerticalAlignment="Center"
                  Classes.success="{Binding Passed}" Classes.danger="{Binding !Passed}" />

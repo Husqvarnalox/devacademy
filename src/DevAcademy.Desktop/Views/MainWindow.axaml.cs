@@ -12,9 +12,19 @@ public partial class MainWindow : Window
         DataContextChanged += (_, _) =>
         {
             if (DataContext is MainViewModel vm)
+            {
                 vm.Services.Holder.Window = this;
+                vm.NarrowWindow = Bounds.Width is > 0 and < CompactWidth;
+            }
+        };
+        SizeChanged += (_, e) =>
+        {
+            if (DataContext is MainViewModel vm) vm.NarrowWindow = e.NewSize.Width < CompactWidth;
         };
     }
+
+    /// <summary>Below this width the sidebar becomes a 56 px icon rail.</summary>
+    public const double CompactWidth = 1100;
 
     private bool _closeConfirmed;
 

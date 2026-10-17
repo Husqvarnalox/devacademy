@@ -17,6 +17,9 @@ public sealed partial class RoadmapLessonViewModel(int number, LessonStatus stat
     public string StateText { get; } = Display.State(status.State);
     public string Meta { get; } = Loc.F("Lesson_Meta", Display.Difficulty(status.Lesson.Difficulty), status.Lesson.EstimatedMinutes);
     public bool IsLocked { get; } = status.State == LessonState.Locked;
+    public bool IsCurrent { get; init; }
+    public bool IsAvailable { get; } = status.State == LessonState.Available;
+    public bool IsPlain => status.State != LessonState.Locked && status.State != LessonState.Completed && !IsCurrent;
     public bool IsCompleted { get; } = status.State == LessonState.Completed;
     public string? SourceText { get; } = status.State == LessonState.Completed ? Loc.F("Lesson_CompletedBy", Display.Source(status.Progress?.CompletionSource)) : null;
     public string? WhyLocked { get; } = status.State == LessonState.Locked
@@ -74,8 +77,21 @@ public sealed partial class RoadmapViewModel(AppServices s, INavigator nav, stri
     [ObservableProperty] private string _description = "";
     [ObservableProperty] private string _progressText = "";
     [ObservableProperty] private IReadOnlyList<RoadmapLessonViewModel> _lessons = [];
+    [ObservableProperty] private double _fraction;
+    [ObservableProperty] private string _primaryText = "";
+    [ObservableProperty] private IAsyncRelayCommand? _primaryCommand;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShownDescriptionLines), nameof(MoreText))] private bool _descriptionExpanded;
+
+    private const int CollapsedDescriptionChars = 220;
+    public bool HasLongDescription => Description.Length > CollapsedDescriptionChars;
+    public int ShownDescriptionLines => DescriptionExpanded ? 0 : 3;
+    public string MoreText => Loc.T(DescriptionExpanded ? "Roadmap_Less" : "Roadmap_More");
+
+    [RelayCommand]
+    private void ToggleDescription() => DescriptionExpanded = !DescriptionExpanded;
 
     public string CourseId { get; } = courseId;
+    public bool HasPrimary => PrimaryCommand is not null;
 
     /// <summary>Framework/library metadata block; null (nothing rendered) when course.yaml declares no framework.</summary>
     [ObservableProperty, NotifyPropertyChangedFor(nameof(HasFramework))] private FrameworkInfoViewModel? _framework;
@@ -95,7 +111,24 @@ public sealed partial class RoadmapViewModel(AppServices s, INavigator nav, stri
         Title = path.Course.Title;
         Description = path.Course.Description;
         ProgressText = Loc.F("Roadmap_Progress", path.Completed, path.Total);
-        Lessons = path.Lessons.Select((l, i) => new RoadmapLessonViewModel(i + 1, l, nav)).ToList();
+        OnPropertyChanged(nameof(HasLongDescription));
+        Fraction = path.Total == 0 ? 0 : (double)path.Completed / path.Total;
+        var currentIndex = path.Lessons.ToList().FindIndex(l => l.State == LessonState.InProgress);
+        if (currentIndex < 0) currentIndex = path.Lessons.ToList().FindIndex(l => l.State == LessonState.Available);
+        Lessons = path.Lessons.Select((l, i) => new RoadmapLessonViewModel(i + 1, l, nav) { IsCurrent = i == currentIndex }).ToList();
+        if (currentIndex >= 0)
+        {
+            var startedAny = path.Completed > 0 || path.Lessons.Any(l => l.State == LessonState.InProgress);
+            var lessonId = path.Lessons[currentIndex].Lesson.Id;
+            PrimaryText = Loc.F(startedAny ? "Roadmap_ContinueLesson" : "Roadmap_StartFirst", currentIndex + 1);
+            PrimaryCommand = new AsyncRelayCommand(() => nav.OpenLessonAsync(lessonId));
+        }
+        else
+        {
+            PrimaryText = "";
+            PrimaryCommand = null;
+        }
+        OnPropertyChanged(nameof(HasPrimary));
         Framework = path.Course.Framework is { } f ? new FrameworkInfoViewModel(path.Course, f) : null;
         Placements = (await s.Path.GetCoursePlacementOffersAsync(CourseId))
             .Select(o => new PlacementRowViewModel(o, StartPlacement)).ToList();

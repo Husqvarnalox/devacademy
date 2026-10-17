@@ -27,7 +27,7 @@
 
       <StackPanel Orientation="Horizontal" Spacing="6">
         <Button Name="BackButton" Content="{loc:T Viz_Back}" Command="{Binding StepBackCommand}" />
-        <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="accent" />
+        <Button Name="PlayButton" Content="{Binding PlayPauseText}" Command="{Binding PlayPauseCommand}" Classes="primary" />
         <Button Name="StepButton" Content="{loc:T Viz_Step}" Command="{Binding StepForwardCommand}" />
         <Button Name="ResetButton" Content="{loc:T Viz_Reset}" Command="{Binding ResetCommand}" />
         <TextBlock Text="{loc:T Viz_Speed}" Classes="caption" VerticalAlignment="Center" Margin="12,0,0,0" />

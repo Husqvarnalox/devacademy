@@ -62,7 +62,7 @@
                       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                         <TextBox Text="{Binding ApiKeyInput}" PasswordChar="●" PlaceholderText="{loc:T Ai_KeyPlaceholder}"
                                  IsEnabled="{Binding SecretStoreAvailable}" AutomationProperties.Name="{loc:T Ai_ApiKey}" />
-                        <Button Grid.Column="1" Content="{loc:T Common_Save}" Command="{Binding SaveKeyCommand}" Classes="accent" />
+                        <Button Grid.Column="1" Content="{loc:T Common_Save}" Command="{Binding SaveKeyCommand}" Classes="primary" />
                         <Button Grid.Column="2" Content="{loc:T Ai_KeyDelete}" Command="{Binding RemoveKeyCommand}" />
                       </Grid>
                       <TextBlock Text="{Binding KeyStateText}" Classes="caption" />
@@ -141,7 +141,7 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
         <StackPanel Orientation="Horizontal" Spacing="12">
-          <Button Content="{loc:T Ai_SaveAssignments}" Command="{Binding SaveAssignmentsCommand}" Classes="accent" />
+          <Button Content="{loc:T Ai_SaveAssignments}" Command="{Binding SaveAssignmentsCommand}" Classes="primary" />
           <TextBlock Text="{Binding AssignmentsMessage}" Classes="caption" VerticalAlignment="Center" />
         </StackPanel>
       </StackPanel>
@@ -161,7 +161,7 @@
         </Grid>
         <TextBlock Text="{loc:T Ai_LimitNote}" Classes="caption" TextWrapping="Wrap" />
         <StackPanel Orientation="Horizontal" Spacing="12">
-          <Button Content="{loc:T Common_Save}" Command="{Binding SaveLimitsCommand}" Classes="accent" />
+          <Button Content="{loc:T Common_Save}" Command="{Binding SaveLimitsCommand}" Classes="primary" />
           <TextBlock Text="{Binding LimitsMessage}" Classes="caption" VerticalAlignment="Center" />
         </StackPanel>
       </StackPanel>
