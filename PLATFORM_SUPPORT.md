@@ -22,10 +22,15 @@ and uploads it as a workflow artifact. No auto-update. Installers are built by `
 | SQLite persistence | V | B | B | ? | B | B |
 | Secret store | V (Keychain) | C | C (Credential Manager) | C | C (libsecret) | C |
 | Language runtimes detected & run (python, node, go, java, kotlin, cpp, csharp, rust, php) | V | ? | ? | ? | ? | ? |
-| `ProcessLimits` isolation | V | ? | partial: no `ulimit`, no process group | ? | ? | ? |
+| `ProcessLimits` isolation | V | ? | partial: wall-clock, output cap and process-tree kill (Job Object, KILL_ON_JOB_CLOSE); no `ulimit` memory/CPU limits | ? | ? | ? |
 | `OsSandbox` | V (`sandbox-exec`) | ? (same mechanism, untested) | — | — | C (bubblewrap) | C |
 | `Container` (Docker; python, javascript) | argument-tested; end-to-end only where Docker is installed | ? | ? | ? | ? | ? |
 | Code editor (AvaloniaEdit + TextMate) | V | ? | ? | ? | ? | ? |
+
+Windows notes: terminal shell is PowerShell over ConPTY (smoke-tested in CI). C++ needs MinGW `g++` or clang with Visual Studio
+Build Tools (a clang without the C++ standard library headers is detected and reported as unsupported); Rust needs the MSVC build tools.
+C++/Rust debugging is reported as unsupported on Windows. `OsSandbox` and `Container` are not available there, so runs use `ProcessLimits`
+and say so. Learner output has CRLF normalised to LF and temp-directory paths scrubbed.
 
 Notes: Windows ARM64 is built but not tested in CI. macOS `sandbox-exec` is deprecated by Apple but works on the verified
 version (Darwin 25). Linux bubblewrap needs `bwrap` and unprivileged user namespaces (often disabled in containers and
