@@ -114,8 +114,10 @@ jobs:
       - name: Maven content environment (jars verified against the committed sha256 locks)
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- maven-env --maven-env .maven-content
       - name: Check Python environment against content
+        if: ${{ !cancelled() }}   # report content problems even when a test project failed
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- python-env-check --python-env .venv-content --content content
       - name: Validate content (runs reference solutions where toolchains exist)
+        if: ${{ !cancelled() }}
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions --python-env .venv-content --node-env .node-content --go-env .go-content --nuget-env .nuget-content --maven-env .maven-content
 
   publish:

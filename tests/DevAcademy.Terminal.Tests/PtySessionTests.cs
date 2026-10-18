@@ -46,6 +46,19 @@ public class PtySessionTests
         catch (ArgumentException) { return false; }
     }
 
+    /// <summary>The ConPTY path: a real cmd.exe behind a pseudo console, input typed with CR, output parsed by the emulator.</summary>
+    [Fact]
+    public async Task Windows_conpty_runs_cmd_and_shows_its_output()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "ConPTY is Windows only");
+        using var s = new PtyTerminalFactory().Start(new TerminalStartOptions(Path.GetTempPath(), 80, 24, Program: "cmd.exe"));
+        Assert.True(await WaitAsync(() => Snapshot(s).Trim().Length > 0, 15000), "cmd printed no banner");
+        s.Write("echo hello-conpty\r");
+        Assert.True(await WaitForLineAsync(s, "hello-conpty", 15000), Snapshot(s));
+        s.Write("exit\r");
+        Assert.True(await WaitAsync(() => !s.IsRunning, 15000), Snapshot(s));
+    }
+
     [Fact]
     public async Task Echo_appears_in_the_emulated_screen()
     {

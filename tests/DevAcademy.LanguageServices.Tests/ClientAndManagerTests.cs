@@ -407,7 +407,7 @@ public class ServerRegistryTests
         var loc = new ServerLocator(cache, [sys]);
         Assert.Null(loc.Resolve(py));
         File.WriteAllText(Path.Combine(sys, "basedpyright-langserver" + ext), "");
-        Assert.Equal("basedpyright-langserver" + ext, Path.GetFileName(loc.Resolve(py)!.Executable));  // second candidate
+        Assert.Equal("basedpyright-langserver" + ext, Path.GetFileName(loc.Resolve(py)!.Executable), ignoreCase: OperatingSystem.IsWindows());  // PATHEXT is upper case  // second candidate
         File.WriteAllText(Path.Combine(bin, "pyright-langserver" + ext), "");
         var r = loc.Resolve(py)!;
         Assert.Equal(ServerSource.RunnerCache, r.Source);
