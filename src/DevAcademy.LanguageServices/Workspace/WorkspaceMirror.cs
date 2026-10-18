@@ -46,7 +46,7 @@ public sealed class WorkspaceMirror : IAsyncDisposable
     public static IReadOnlyList<(string Path, string Content)> Scaffolding(string languageId) => languageId switch
     {
         "go" => [("go.mod", "module lesson\n\ngo 1.22\n")],
-        "cpp" => [("compile_flags.txt", "-std=c++20\n-pthread\n-Wall\n-Wextra\n")],
+        "cpp" => [("compile_flags.txt", "-std=c++23\n-pthread\n-Wall\n-Wextra\n")],
         "python" => [("pyrightconfig.json", "{\n  \"typeCheckingMode\": \"basic\",\n  \"reportMissingModuleSource\": false\n}\n")],
         "typescript" or "javascript" => [("tsconfig.json",
             "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"module\": \"commonjs\",\n    \"strict\": true,\n    \"allowJs\": true,\n    \"checkJs\": false,\n    \"skipLibCheck\": true\n  }\n}\n")],

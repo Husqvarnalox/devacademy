@@ -19,7 +19,7 @@ void shiftToZero(std::vector<long long>& v) {
     for (long long& x : v) x -= m;
 }
 
-void print(const std::string& label, const std::vector<long long>& v) {
+void print_line(const std::string& label, const std::vector<long long>& v) {
     std::cout << label << ":";
     for (long long x : v) std::cout << " " << x;
     std::cout << "\n";
@@ -33,12 +33,12 @@ int main() {
     const std::vector<long long> original = data;
     {
         Section s("sorted");
-        print("sorted", sortedCopy(data));
+        print_line("sorted", sortedCopy(data));
     }
     {
         Section s("shift");
         shiftToZero(data);
-        print("shifted", data);
+        print_line("shifted", data);
     }
-    print("original", original);
+    print_line("original", original);
 }

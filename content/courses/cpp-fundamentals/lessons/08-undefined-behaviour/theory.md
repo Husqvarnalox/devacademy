@@ -192,20 +192,20 @@ void race() {
 **Пример 6. Что сообщают санитайзеры (реальные запуски на Apple clang 21, строки сокращены).**
 
 ```bash
-clang++ -std=c++20 -g -fsanitize=undefined overflow.cpp && ./a.out
+clang++ -std=c++23 -g -fsanitize=undefined overflow.cpp && ./a.out
 # overflow.cpp:5:15: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
 
-clang++ -std=c++20 -g -fsanitize=address oob.cpp && ./a.out
+clang++ -std=c++23 -g -fsanitize=address oob.cpp && ./a.out
 # ERROR: AddressSanitizer: heap-buffer-overflow on address 0x6020000000dc ...
 # READ of size 4 at 0x6020000000dc thread T0
 #     #0 ... in main oob.cpp:5
 
-clang++ -std=c++20 -g -fsanitize=address dangling.cpp && ./a.out
+clang++ -std=c++23 -g -fsanitize=address dangling.cpp && ./a.out
 # ERROR: AddressSanitizer: heap-use-after-free on address 0x6020000000d0 ...
 # READ of size 4 at ... thread T0
 #     #0 ... in main dangling.cpp:8
 
-clang++ -std=c++20 -g -fsanitize=thread race.cpp && ./a.out
+clang++ -std=c++23 -g -fsanitize=thread race.cpp && ./a.out
 # WARNING: ThreadSanitizer: data race
 #   Write of size 4 at 0x... by thread T2:
 ```

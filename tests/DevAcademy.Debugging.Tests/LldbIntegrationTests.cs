@@ -29,7 +29,7 @@ public class LldbIntegrationTests
         string src = Path.Combine(dir, "main.cpp"), exe = Path.Combine(dir, "prog");
         File.WriteAllText(src, Source);
         var psi = new ProcessStartInfo(cxx) { RedirectStandardError = true, RedirectStandardOutput = true, WorkingDirectory = dir };
-        foreach (var a in new[] { "-std=c++20", "-g", "-O0", "-o", exe, src }) psi.ArgumentList.Add(a);
+        foreach (var a in new[] { "-std=c++23", "-g", "-O0", "-o", exe, src }) psi.ArgumentList.Add(a);
         using var p = Process.Start(psi)!;
         await p.WaitForExitAsync();
         Assert.True(p.ExitCode == 0, await p.StandardError.ReadToEndAsync());

@@ -5,7 +5,9 @@
 
 * **Исключения** (`throw`/`try`/`catch`) - для ошибок, которые вызывающий код обычно не может обработать на месте: нет файла, нарушен инвариант, не хватило памяти. Исключение раскручивает стек и вызывает деструкторы локальных объектов (поэтому [RAII](lesson:cpp.fundamentals.raii-smart-pointers) и исключения работают вместе).
 * **`std::optional<T>`** (C++17) - «значения может не быть», когда это нормальный исход: поиск, разбор строки.
-* **`std::expected<T, E>`** (C++23) - «значение или причина ошибки», когда ошибка ожидаема и вызывающий должен её разобрать.
+* **`std::expected<T, E>`** (C++23, `<expected>`) хранит значение `T` или ошибку `E`. Возвращает ошибку через `std::unexpected(e)`; проверяется как `if (r)`, значение - `*r`, ошибка - `r.error()`, `value_or(x)` даёт запасное значение. Монадические операции `and_then`, `transform`, `or_else` позволяют строить цепочки без вложенных `if`. Режим этого приложения - `-std=c++23`, поэтому пример ниже запускается; в `-std=c++20` заголовок `<expected>` недоступен. Библиотеке тоже нужна свежая версия: `std::expected` есть в libstdc++ 12+ и libc++ 16+.
+
+**Исключения, коды ошибок или `expected`.** Исключение выносит обработку из основного пути и годится для редких сбоев, которые нужно пронести через много слоёв, но ошибка не видна в сигнатуре и стоит дорого на пути ошибки. Код ошибки (возврат `enum` плюс выходной параметр) дёшев и явен, однако его легко проигнорировать, а значение приходится передавать через параметр. `expected<T, E>` делает возможную ошибку частью типа результата и не использует раскрутку стека, поэтому хорошо подходит для ожидаемых исходов (разбор ввода, поиск); для редких сбоев в глубине вызовов исключения по-прежнему удобнее. Сравнение разобрано в примере 5.
 * **Коды возврата** (`std::error_code`, `std::errc`) - так устроены `std::from_chars` и функции файловой системы без исключений.
 * **`noexcept`** - обещание, что функция не бросает исключений. От него зависит, будет ли `vector` перемещать элементы при росте или копировать.
 * **`assert`/`terminate`** - для ошибок программиста, которые нельзя исправить: нарушены предусловия.
@@ -236,23 +238,39 @@ bad_optional_access
 
 Строка `"+5"` отвергнута: `from_chars` не принимает знак `+`. Старая функция `stoi` молча приняла бы `12abc`.
 
-**Пример 5. `std::expected` (C++23, не запускается в среде курса).**
+**Пример 5. `std::expected` (C++23) против исключения и кода ошибки.**
 
-```cpp
+```cpp run
 #include <charconv>
 #include <expected>
 #include <iostream>
+#include <stdexcept>
 #include <string_view>
 #include <system_error>
 
-enum class ParseError { Empty, NotANumber, OutOfRange };
+enum class ParseError { None, Empty, NotANumber, OutOfRange };
 
-std::expected<int, ParseError> parse(std::string_view s) {
-    if (s.empty()) return std::unexpected(ParseError::Empty);
+// Общий разбор: возвращает код ошибки, значение кладёт в out.
+ParseError parse_code(std::string_view s, int& out) {
+    if (s.empty()) return ParseError::Empty;
+    auto [p, ec] = std::from_chars(s.data(), s.data() + s.size(), out);
+    if (ec == std::errc::result_out_of_range) return ParseError::OutOfRange;
+    if (ec != std::errc{} || p != s.data() + s.size()) return ParseError::NotANumber;
+    return ParseError::None;
+}
+
+// 1. Исключение: сигнатура не говорит, что функция может не получиться.
+int parse_throwing(std::string_view s) {
     int v = 0;
-    auto [p, ec] = std::from_chars(s.data(), s.data() + s.size(), v);
-    if (ec == std::errc::result_out_of_range) return std::unexpected(ParseError::OutOfRange);
-    if (ec != std::errc{} || p != s.data() + s.size()) return std::unexpected(ParseError::NotANumber);
+    if (parse_code(s, v) != ParseError::None) throw std::invalid_argument("bad number");
+    return v;
+}
+
+// 2. Выходной параметр и код: вызывающий может забыть проверить код.
+// 3. expected: сигнатура несёт и значение, и причину ошибки.
+std::expected<int, ParseError> parse(std::string_view s) {
+    int v = 0;
+    if (ParseError e = parse_code(s, v); e != ParseError::None) return std::unexpected(e);
     return v;
 }
 
@@ -266,10 +284,28 @@ int main() {
         if (r) std::cout << *r << "\n";
         else   std::cout << "error " << static_cast<int>(r.error()) << "\n";
     }
+
+    try { parse_throwing("12abc"); }
+    catch (const std::invalid_argument& e) { std::cout << "exception: " << e.what() << "\n"; }
+
+    int v = -1;
+    ParseError e = parse_code("", v);
+    std::cout << "code " << static_cast<int>(e) << ", v=" << v << "\n";
+
+    std::cout << parse("x").value_or(-1) << "\n";
 }
 ```
+```output
+42
+error 1
+error 2
+error 3
+exception: bad number
+code 1, v=-1
+-1
+```
 
-Этот код собирается командой `clang++ -std=c++23` и печатает `42`, `error 0`, `error 1`, `error 2`. С `-std=c++20` компилятор сообщает, что в пространстве имён `std` нет шаблона `expected`.
+Один и тот же разбор в трёх видах. `doubled` пробрасывает ошибку сквозь `transform` без единого `if`. Исключение несёт только текст и ловится отдельным `try`. Код ошибки не мешает использовать `v`, оставшееся равным `-1`: проверка зависит от дисциплины вызывающего. `expected` не даст получить значение, не обратившись к результату (`*r` без проверки - неопределённое поведение, `value()` бросает `std::bad_expected_access`). Источник: [std::expected](https://en.cppreference.com/w/cpp/utility/expected).
 
 **Пример 6. Ловушки (не запускать).**
 
@@ -301,7 +337,8 @@ int bad3(std::optional<int> o) { return *o; } // пустой optional: неоп
 * **`*opt` без проверки.** Это неопределённое поведение, а не исключение; `value()` бросает `bad_optional_access`.
 * **`catch (...) {}`** - молчаливое проглатывание. Хотя бы залогируйте.
 * **Исключения как управление потоком** для ожидаемых исходов (поиск, конец данных). Используйте `optional` или `expected`.
-* **Использовать `expected` в `-std=c++20`.** Нужен `-std=c++23`; проверяйте версию стандарта, прежде чем полагаться на возможность.
+* **Использовать `expected` в `-std=c++20`.** Нужен `-std=c++23` и библиотека не старше libstdc++ 12 / libc++ 16; проверяйте версию стандарта, прежде чем полагаться на возможность.
+* **Обращаться к `*r` у `expected` с ошибкой.** Это неопределённое поведение; проверьте `if (r)` или используйте `value_or`.
 
 <!-- section: summary -->
 ## Итоги

@@ -30,6 +30,11 @@ facts:
     text: "Начиная с C++17 копирование временного объекта при инициализации гарантированно пропускается (guaranteed copy elision)."
     sources:
       - "https://en.cppreference.com/w/cpp/language/copy_elision"
+  - kind: "internals"
+    text: "Вызов функции без квалификации учитывает и функции из пространств имён аргументов (ADL), поэтому пользовательская print(const std::string&, const std::vector<T>&) конкурирует со std::print из C++23, когда в аргументах есть типы std."
+    sources:
+      - "https://en.cppreference.com/w/cpp/language/adl"
+      - "https://en.cppreference.com/w/cpp/io/print"
   - kind: "historical"
     text: "Термин RAII (Resource Acquisition Is Initialization) связан с идеей Страуструпа: ресурс захватывается при создании объекта и освобождается в деструкторе."
     sources:

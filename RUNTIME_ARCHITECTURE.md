@@ -84,7 +84,7 @@ default when the exercise gives none.
 | `go` | `main.go` | `go version` | `go build -o prog <non-test .go files>`; env `GOFLAGS=-mod=mod`, `GOCACHE`/`GOPATH` under the runner cache | `./prog` |
 | `java` | `Main.java` | `javac -version` and `java -version` (a JDK) | `javac -encoding UTF-8 -d out <all .java>` | `java -XX:+UseSerialGC -Xss16m -cp out <MainClass>` |
 | `kotlin` | `Main.kt` | `kotlinc -version` + working `java` | `kotlinc <all .kt> [-cp <coroutines jar>] -include-runtime -d prog.jar` (timeout ≥ 120 s) | `java -XX:+UseSerialGC -Xss16m -jar prog.jar`; with the coroutines jar: `java -XX:+UseSerialGC -Xss16m -cp prog.jar<sep><coroutines jar> <package.>FileKt` (`-jar` ignores `-cp`; the main class is derived from the entry file and its `package` line), and the jar's directory is added to `ReadOnlyPaths` of the run step. |
-| `cpp` | `main.cpp` | first working of `clang++`/`g++` (rejects the Xcode shim without Command Line Tools) | `-std=c++20 -pthread -O2 -Wall -Wextra -o prog <.cpp/.cc/.cxx>` (debug plan: `-std=c++20 -pthread -g -O0 -Wall -Wextra`) | `./prog` |
+| `cpp` | `main.cpp` | first working of `clang++`/`g++` (rejects the Xcode shim without Command Line Tools); `Unsupported` when it rejects `-std=c++23` (probe: `-x c++ -std=c++23 -dM -E -`) | `-std=c++23 -pthread -O2 -Wall -Wextra -o prog <.cpp/.cc/.cxx>` (debug plan: `-std=c++23 -pthread -g -O0 -Wall -Wextra`) | `./prog` |
 | `csharp` | `Program.cs` | `dotnet --version`, SDK major ≥ **10** (file-based apps) | `dotnet build <entry> -o out --nologo -v q --disable-build-servers -p:UseSharedCompilation=false`; env `DOTNET_CLI_HOME`, `NUGET_PACKAGES` under the runner cache, telemetry off | `dotnet out/<name>.dll`. **Only the entry file is compiled** (file-based app). |
 | `rust` | `main.rs` | `rustc --version` (also searches `~/.cargo/bin`) | `rustc --edition 2021 -O -o prog <entry>`; `RUSTUP_HOME`/`CARGO_HOME` pointed at the real dirs (read-only use) | `./prog`. Single `rustc` invocation; `mod x;` resolves next to the entry. No Cargo projects. |
 | `php` | `main.php` | `php --version` | — | `php <entry>` |
@@ -96,11 +96,12 @@ default when the exercise gives none.
 Kotlin: `DetectAsync` looks for `kotlinx-coroutines-core-jvm.jar` beside the symlink-resolved `kotlinc`
 (`lib/`, `../lib/`, `../libexec/lib/`: zip layout and Homebrew) and reports it in `Notes`; `CreatePlan` re-resolves it
 (no extra field on `RuntimeStatus`). Without the jar the plan is the plain `-jar` one and `import kotlinx.coroutines.*`
-fails to compile. C++ builds with `-pthread` so `std::thread` links on Linux. The standard stays `-std=c++20`: `-std=c++23`
-was tried and rejected because libc++ declares `std::print` in C++23, which ADL finds for calls such as
-`print("label", someStdVector)` and silently prefers over a user's own `print(const std::string&, const std::vector<T>&)`
-(the cpp-first-steps value-semantics exercise prints wrong output). `std::expected` therefore stays unavailable;
-the language-service `compile_flags.txt` matches (`-std=c++20 -pthread`).
+fails to compile. C++ builds with `-pthread` so `std::thread` links on Linux. The standard is `-std=c++23` (run, debug and the language-service `compile_flags.txt` agree), so `std::expected` is available.
+Minimum toolchains: the flag itself needs GCC 11+/Clang 17+ (Apple clang from Xcode 16); `std::expected` needs libstdc++ 12+/libc++ 16+
+(the install hint says GCC 13+/Clang 17+). Content must not call its own helper `print(...)` with `std::` arguments:
+C++23 libc++ declares `std::print` in `<print>`, which ADL finds, so the call resolves to or collides with `std::print`
+(cpp-first-steps lesson 2 uses `print_line` and explains why). `__cplusplus` is `202302L` with Clang but `202100L` with
+GCC before 15, so lessons print a comparison instead of the number.
 
 Course packages come in per-course **sets** (`tools/content-packages/`, shipped as `content-packages/` beside the executable; manifests only).
 Node sets are installed by `NodeEnvironmentService` into `<data dir>/node-content/<set>/` via `npm ci --ignore-scripts --no-audit --no-fund` run in that

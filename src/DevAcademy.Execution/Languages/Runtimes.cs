@@ -303,14 +303,18 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
         {
             if (ToolLocator.Find(name) is not { } path) continue;
             string? v = await ToolLocator.ProbeAsync(path, ["--version"], ct).ConfigureAwait(false); // fails for the Xcode shim without Command Line Tools
-            if (v is not null) return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null);
+            if (v is null) continue;
+            // Preprocess-only probe (-dM -E on empty stdin prints the predefined macros): cheap, needs no temp file, and fails exactly when the driver rejects -std=c++23.
+            if (await ToolLocator.ProbeAsync(path, ["-x", "c++", "-std=c++23", "-dM", "-E", "-"], ct).ConfigureAwait(false) is null)
+                return new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppUnsupported()).WithInstallHint(EngineMessages.CppHint());
+            return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null);
         }
         return ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
     }
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
-        var args = new List<string> { "-std=c++20", "-pthread", "-O2", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { "-std=c++23", "-pthread", "-O2", "-Wall", "-Wextra", "-o", "prog" };
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".cpp", ".cc", ".cxx"));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
@@ -321,7 +325,7 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
     {
         string src = sourceDirectory ?? workingDirectory;
-        var args = new List<string> { "-std=c++20", "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { "-std=c++23", "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
         args.AddRange(ToolLocator.FilesWithExtensions(src, ".cpp", ".cc", ".cxx").Select(f => Path.GetFullPath(f, src)));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],

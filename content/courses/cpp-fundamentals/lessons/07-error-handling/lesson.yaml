@@ -17,7 +17,7 @@ objectives:
   - "Объяснять раскрутку стека, роль деструкторов и правила перехвата (const&, порядок обработчиков, throw;)."
   - "Различать гарантии безопасности исключений и назначать noexcept перемещению и swap."
   - "Применять optional, коды ошибок и from_chars для ожидаемых исходов."
-  - "Описывать std::expected (C++23) и объяснять, почему его нельзя собрать с -std=c++20."
+  - "Применять std::expected (C++23) и сравнивать его с исключениями и кодами ошибок; объяснять, почему его нельзя собрать с -std=c++20."
   - "Выбирать между исключением, optional/expected и assert для конкретной ошибки."
 masteryCriteria:
   - "Вы пишете строгий разбор целого через std::from_chars, отвергающий 12abc, пустую строку и переполнение."
@@ -43,11 +43,16 @@ facts:
       - "https://en.cppreference.com/w/cpp/utility/move_if_noexcept"
       - "https://en.cppreference.com/w/cpp/language/noexcept_spec"
   - kind: "historical"
-    text: "std::optional и std::from_chars для целых вошли в C++17, std::expected и std::unexpected - в C++23; с -std=c++20 заголовок <expected> не подходит."
+    text: "std::optional и std::from_chars для целых вошли в C++17, std::expected и std::unexpected - в C++23; с -std=c++20 заголовок <expected> не подходит. Приложение компилирует с -std=c++23, так что expected запускается; нужна libstdc++ 12+ или libc++ 16+."
     sources:
       - "https://en.cppreference.com/w/cpp/utility/optional"
       - "https://en.cppreference.com/w/cpp/utility/from_chars"
       - "https://en.cppreference.com/w/cpp/utility/expected"
+  - kind: "internals"
+    text: "std::expected<T, E> хранит либо значение T, либо ошибку E в одном объекте (как tagged union) и не использует исключения и динамическую память для ошибки; обращение к value() при наличии ошибки бросает std::bad_expected_access<E>, а разыменование *r без проверки - неопределённое поведение."
+    sources:
+      - "https://en.cppreference.com/w/cpp/utility/expected"
+      - "https://en.cppreference.com/w/cpp/utility/expected/bad_expected_access"
   - kind: "misconception"
     text: "«std::stoi проверяет, что строка - число»: нет, он разбирает префикс и пропускает пробелы, так что stoi(\"12abc\") равно 12. Строгий разбор делают через from_chars и проверку конца."
     sources:

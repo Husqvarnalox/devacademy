@@ -1068,7 +1068,7 @@
   <data name="Engine_Eval_TestSkipped" xml:space="preserve"><value>тест пропущен (skip/todo не засчитывается)</value></data>
   <data name="Engine_Eval_TimeLimit" xml:space="preserve"><value>Превышен лимит времени</value></data>
   <data name="Engine_Eval_TimeLimitSeconds" xml:space="preserve"><value>Превышен лимит времени ({0} с)</value></data>
-  <data name="Engine_Hint_Cpp" xml:space="preserve"><value>Установите компилятор C++: macOS: xcode-select --install; Debian/Ubuntu: apt install g++; Windows: https://visualstudio.microsoft.com/downloads/ или MSYS2.</value></data>
+  <data name="Engine_Hint_Cpp" xml:space="preserve"><value>Установите компилятор с поддержкой C++23 (курсы собираются с -std=c++23 и используют std::expected: GCC 13+ или Clang 17+; Apple clang из Xcode 16): macOS: xcode-select --install; Debian/Ubuntu: apt install g++ (g++-13 или новее); Windows: https://visualstudio.microsoft.com/downloads/ или MSYS2.</value></data>
   <data name="Engine_Hint_DotNet" xml:space="preserve"><value>Установите .NET 10 SDK с https://dotnet.microsoft.com/download (macOS: brew install --cask dotnet-sdk; Debian/Ubuntu: apt install dotnet-sdk-10.0).</value></data>
   <data name="Engine_Hint_Go" xml:space="preserve"><value>Установите Go с https://go.dev/dl/ (macOS: brew install go; Debian/Ubuntu: apt install golang).</value></data>
   <data name="Engine_Hint_GoWorking" xml:space="preserve"><value>Установите Go с https://go.dev/dl/.</value></data>
@@ -1156,6 +1156,7 @@
   <data name="Engine_Run_UnknownLanguage" xml:space="preserve"><value>Неизвестный язык «{0}».</value></data>
   <data name="Engine_Runtime_CSharpNotes" xml:space="preserve"><value>Компилируется только файл точки входа (file-based app). Если среди файлов ровно один .csproj, собирается весь проект.</value></data>
   <data name="Engine_Runtime_CSharpUnsupported" xml:space="preserve"><value>Для file-based приложений нужен .NET SDK 10 или новее.</value></data>
+  <data name="Engine_Runtime_CppUnsupported" xml:space="preserve"><value>Компилятор не принимает -std=c++23; обновите его (флаг: GCC 11+/Clang 17+; std::expected требует libstdc++ 12+/libc++ 16+).</value></data>
   <data name="Engine_Runtime_CppNotFound" xml:space="preserve"><value>clang++ или g++ не найдены в PATH.</value></data>
   <data name="Engine_Runtime_JdkNotFound" xml:space="preserve"><value>java и javac (JDK) не найдены в PATH.</value></data>
   <data name="Engine_Runtime_JdkNotWorking" xml:space="preserve"><value>Работающий JDK в PATH не найден.</value></data>

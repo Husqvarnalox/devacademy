@@ -463,7 +463,7 @@ public class WorkspaceMirrorTests
     }
 
     [Fact]
-    public async Task Exercise_supplied_scaffold_file_wins_and_clangd_gets_cpp20_flags()
+    public async Task Exercise_supplied_scaffold_file_wins_and_clangd_gets_cpp23_flags()
     {
         string baseDir = TestEnv.TempDir("lsp-ws");
         await using var go = new WorkspaceMirror(baseDir, "e", "go");
@@ -471,7 +471,7 @@ public class WorkspaceMirrorTests
         Assert.Contains("module custom", File.ReadAllText(Path.Combine(go.Root, "go.mod")));
         await using var cpp = new WorkspaceMirror(baseDir, "e", "cpp");
         await cpp.PrepareAsync([("main.cpp", "int main(){}\n")]);
-        Assert.Contains("-std=c++20", File.ReadAllText(Path.Combine(cpp.Root, "compile_flags.txt")));
+        Assert.Contains("-std=c++23", File.ReadAllText(Path.Combine(cpp.Root, "compile_flags.txt")));
     }
 
     [Fact]

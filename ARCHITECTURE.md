@@ -382,7 +382,7 @@ The app contains no parser or completion engine; `DevAcademy.LanguageServices` (
   (Starting/Ready/Restarting/Error/NotInstalled/Disabled) is visible in the UI.
 * `Workspace/WorkspaceMirror`: lesson exercises are in-memory buffers, but servers need files. Each exercise/language has a stable
   directory `<app data>/lsp-workspaces/<exerciseId>/<lang>` that mirrors the editor files (debounced writes) plus scaffolding
-  (`go.mod`, `compile_flags.txt -std=c++20`, `pyrightconfig.json`, `tsconfig.json`, ...). Project workspaces use the real project root.
+  (`go.mod`, `compile_flags.txt -std=c++23`, `pyrightconfig.json`, `tsconfig.json`, ...). Project workspaces use the real project root.
 * Desktop: `LanguageIntelligenceService` (settings `lsp.enabled`, `lsp.command.<language>`), `CodeEditorControl.LspTarget` + `EditorLspBinding`
   (squiggles from theme brushes, completion window with trigger characters and Ctrl/Cmd+Space, hover popup rendered by the existing
   markdown renderer, signature help, F12 / Cmd(Ctrl)+click, Shift+Alt+F), a Problems tab (lessons) / list (projects), the status item
