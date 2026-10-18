@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual runs on any branch (e.g. to iterate on platform fixes before they reach main).
+  workflow_dispatch:
 
 permissions:
   contents: read
