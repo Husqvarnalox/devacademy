@@ -34,7 +34,7 @@ facts:
       - "https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/task-based-asynchronous-pattern-tap"
       - "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/"
   - kind: "internals"
-    text: "Task.WhenAll возвращает результаты в порядке аргументов, а не в порядке завершения. При нескольких ошибках await выбрасывает только первое исключение, а все исключения доступны в свойстве Exception.InnerExceptions возвращённой задачи."
+    text: "Task.WhenAll возвращает результаты в порядке аргументов, а не в порядке завершения. При нескольких ошибках await выбрасывает только одно из них, а все исключения доступны в свойстве Exception.InnerExceptions возвращённой задачи."
     sources:
       - "https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.task.whenall"
       - "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/task-asynchronous-programming-model"

@@ -45,6 +45,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # The PHP course is written for and checked on PHP 8.5 (it uses mb_trim and array_find, 8.4+); the runner images carry no PHP on macOS and
+      # an older one on Ubuntu (8.3, whose messages and missing mb_trim fail the lessons). Windows is left as it was.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        if: runner.os != 'Windows'
+        with:
+          php-version: "8.5"
+          coverage: none
+          extensions: mbstring
       - run: dotnet restore DevAcademy.slnx
       - run: dotnet build DevAcademy.slnx -c Release --no-restore
       - run: dotnet format whitespace DevAcademy.slnx --verify-no-changes

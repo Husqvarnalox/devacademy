@@ -123,6 +123,8 @@ exercise:
     * `urlpatterns`: `login/`, `logout/`, `profile/`, `publish/`.
 
     CSRF в этом приложении не включён, чтобы тесты не отвлекались на токены.
+
+    В каркасе подключён `QuickPBKDF2PasswordHasher`: тот же `pbkdf2_sha256`, но со 100 000 итераций вместо 1 500 000 по умолчанию, чтобы проверка укладывалась в лимит времени. Формат строки пароля от этого не меняется.
   entryFile: access_app.py
   evaluation: harness
   harness: exercise/harness

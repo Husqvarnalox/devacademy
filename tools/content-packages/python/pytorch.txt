@@ -1,5 +1,11 @@
 # DevAcademy package set "pytorch": PyTorch (CPU) с NumPy
 # torch has no wheels for macOS Intel (platforms in index.json excludes osx-x64); the marker on its line keeps `pip install -r` working there.
 # Installed into the ACTIVE managed Python environment only after an explicit, confirmed action (shows the command; needs network).
+# The CPU build of torch. The default PyPI wheel for Linux depends on the whole CUDA stack (about 3 GB: cuda-toolkit, cudnn, nccl, ...) and
+# `import torch` then maps so much that a lesson no longer fits its memory limit. The PyTorch CPU index serves torch as `2.14.1+cpu`, which
+# satisfies the pin below; it is listed first so that both pip (newest match across indexes) and uv (first index with the package) take it.
+# Everything else (numpy, sympy, jinja2, ...) still comes from PyPI.
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
 numpy==2.5.4
 torch==2.14.1; sys_platform != "darwin" or platform_machine != "x86_64"

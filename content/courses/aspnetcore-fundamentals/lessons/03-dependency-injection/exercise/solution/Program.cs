@@ -10,6 +10,16 @@ builder.WebHost.UseTestServer();
 builder.Logging.ClearProviders();
 Api.Configure(builder);
 WebApplication app = builder.Build();
+// Клиент получает ответ раньше, чем хост освобождает область запроса. Чтобы список disposed не зависел от этой гонки,
+// каждый запрос сообщает о конце: OnCompleted-обработчики вызываются в обратном порядке регистрации, поэтому наш,
+// зарегистрированный до создания области (RequestServices), срабатывает уже после её освобождения.
+var requestFinished = new SemaphoreSlim(0);
+app.Use(async (context, next) =>
+{
+    context.Response.OnCompleted(() => { requestFinished.Release(); return Task.CompletedTask; });
+    _ = context.RequestServices;
+    await next();
+});
 Api.Map(app);
 await app.StartAsync();
 using HttpClient client = app.GetTestClient();
@@ -32,6 +42,7 @@ foreach (string line in input.Split('\n', StringSplitOptions.TrimEntries | Strin
     }
     using HttpResponseMessage response = await client.SendAsync(request);
     string body = await response.Content.ReadAsStringAsync();
+    await requestFinished.WaitAsync(TimeSpan.FromSeconds(10));
     string type = response.Content.Headers.ContentType?.MediaType ?? "-";
     Console.WriteLine($"{(int)response.StatusCode} {type} {body}".TrimEnd());
     if (Api.Events.Count > 0) Console.WriteLine($"  disposed: {string.Join(", ", Api.Events)}");

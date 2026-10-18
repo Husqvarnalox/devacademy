@@ -27,8 +27,8 @@
 **Исключения и задачи.**
 
 * Исключение в `async`-методе сохраняется в возвращённой задаче и выбрасывается при `await`. Исключение в `async void` уходит в контекст синхронизации, а без него обычно завершает процесс.
-* `await` выбрасывает **первое** исключение; `Task.Wait()` и `.Result` оборачивают их в `AggregateException`.
-* `Task.WhenAll(tasks)` завершается, когда завершены **все** задачи; результат - массив значений **в порядке аргументов**, а не завершения. Если несколько задач упали, `await` выбросит первое исключение, а все остальные доступны в `task.Exception.InnerExceptions`. `Task.WhenAny` завершается при завершении первой задачи.
+* `await` выбрасывает **одно** исключение (не все); `Task.Wait()` и `.Result` оборачивают их в `AggregateException`.
+* `Task.WhenAll(tasks)` завершается, когда завершены **все** задачи; результат - массив значений **в порядке аргументов**, а не завершения. Если несколько задач упали, `await` выбросит одно исключение из них (какое именно - зависит от того, какая задача упала раньше, поэтому на него нельзя полагаться), а все остальные доступны в `task.Exception.InnerExceptions`. `Task.WhenAny` завершается при завершении первой задачи.
 * Неожиданно «забытый» `await` (CS4014) - исключение и завершение задачи никто не увидит.
 
 **Отмена.**
@@ -105,6 +105,7 @@ a,b,c
 
 ```csharp run
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -140,7 +141,9 @@ try
 }
 catch (Exception e)
 {
-    Console.WriteLine($"await бросил: {e.Message}; всего ошибок: {all.Exception!.InnerExceptions.Count}");
+    // Какое из двух исключений поймал await, зависит от порядка падения задач, поэтому выводим тип и отсортированный список всех ошибок.
+    string messages = string.Join(", ", all.Exception!.InnerExceptions.Select(x => x.Message).Order());
+    Console.WriteLine($"await бросил {e.GetType().Name}; всего ошибок: {all.Exception!.InnerExceptions.Count} ({messages})");
 }
 
 try
@@ -155,7 +158,7 @@ catch (AggregateException e)
 ```output
 поймано TaskCanceledException
 RanToCompletion Canceled True
-await бросил: one; всего ошибок: 2
+await бросил InvalidOperationException; всего ошибок: 2 (one, two)
 Wait бросил AggregateException из 2
 ```
 

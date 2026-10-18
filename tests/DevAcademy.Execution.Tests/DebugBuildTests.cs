@@ -55,7 +55,7 @@ public class DebugBuildTests
             Assert.Equal(EngineMessages.CppFallback20Key, status.NotesText?.Key);
             Assert.Equal(EngineMessages.CppFallback20Key, status.WarningText?.Key);
         }
-        else Assert.Null(status.Warning);
+        else if (status.Warning is not null) Assert.Equal(EngineMessages.CppNoExpectedKey, status.WarningText?.Key); // C++23 compiler whose library lacks std::expected
     }
 
     [Fact]

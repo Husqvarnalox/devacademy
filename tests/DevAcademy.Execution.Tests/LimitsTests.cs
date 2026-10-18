@@ -18,6 +18,20 @@ public class LimitsTests
         Assert.True(sw.Elapsed < TimeSpan.FromSeconds(6), $"took {sw.Elapsed}");
     }
 
+    /// <summary>
+    /// CPU time is summed over threads: a JVM (JIT and GC threads) spends 4+ CPU seconds in a 1-second wall run on a loaded machine. A CPU
+    /// limit of wall+1 killed such a run with SIGXCPU - no output, an empty "crashed" - before the wall timeout could speak.
+    /// </summary>
+    [Fact]
+    public void Cpu_time_limit_leaves_room_for_the_threads_of_a_multi_threaded_runtime()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var (_, args) = LocalProcessSandbox.ApplyUnixLimits("/bin/true", [], TestSupport.RunLimits(seconds: 5));
+        long cpuSeconds = long.Parse(System.Text.RegularExpressions.Regex.Match(args[1], @"ulimit -t (\d+)").Groups[1].Value);
+        Assert.True(cpuSeconds >= 6, $"ulimit -t {cpuSeconds}");
+        Assert.True(cpuSeconds >= Math.Min(Environment.ProcessorCount, 8) * 5, $"ulimit -t {cpuSeconds} with {Environment.ProcessorCount} cores");
+    }
+
     [Fact]
     public async Task Memory_hog_is_stopped()
     {

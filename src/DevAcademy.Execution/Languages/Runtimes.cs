@@ -299,6 +299,10 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
 
     public async Task<RuntimeStatus> DetectAsync(CancellationToken ct)
     {
+        // Several compilers can be installed, and the first one is not always the best: clang++ on Ubuntu uses libstdc++, whose <expected>
+        // needs a concepts feature-test macro that clang 18 does not define, so only g++ builds the std::expected examples there.
+        // Prefer a compiler that builds everything; otherwise the best of the rest (C++23 without std::expected, then C++20), the first one on a tie.
+        RuntimeStatus? best = null;
         foreach (string name in new[] { "clang++", "g++" })
         {
             if (ToolLocator.Find(name) is not { } path) continue;
@@ -306,15 +310,31 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
             if (v is null) continue;
             // Preprocess-only probes (-dM -E on empty stdin prints the predefined macros): cheap, need no temp file, and fail exactly when the driver rejects the -std flag.
             if (await AcceptsAsync(path, Cpp23, ct).ConfigureAwait(false))
-                return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp23);
+            {
+                if (await HasExpectedAsync(path, ct).ConfigureAwait(false))
+                    return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp23);
+                best = Better(best, new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp23)
+                    .WithNotes(EngineMessages.CppNoExpected()).WithWarning(EngineMessages.CppNoExpected()).WithInstallHint(EngineMessages.CppHint()));
+                continue;
+            }
             // An older compiler still runs most of the courses: build as C++20 and say once per run what that costs (C++23-only examples fail to compile).
-            if (await AcceptsAsync(path, Cpp20, ct).ConfigureAwait(false))
-                return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp20)
-                    .WithNotes(EngineMessages.CppFallback20()).WithWarning(EngineMessages.CppFallback20()).WithInstallHint(EngineMessages.CppHint());
-            return new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppUnsupported()).WithInstallHint(EngineMessages.CppHint());
+            best = Better(best, await AcceptsAsync(path, Cpp20, ct).ConfigureAwait(false)
+                ? new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp20)
+                    .WithNotes(EngineMessages.CppFallback20()).WithWarning(EngineMessages.CppFallback20()).WithInstallHint(EngineMessages.CppHint())
+                : new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppUnsupported()).WithInstallHint(EngineMessages.CppHint()));
         }
-        return ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
+        return best ?? ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
     }
+
+    private static RuntimeStatus Better(RuntimeStatus? current, RuntimeStatus candidate) =>
+        current is null || Rank(candidate) > Rank(current) ? candidate : current;
+
+    private static int Rank(RuntimeStatus s) => s.Availability != RuntimeAvailability.Available ? 0 : s.LanguageStandard == Cpp23 ? 2 : 1;
+
+    /// <summary>A syntax-only compile of a program that uses <c>std::expected</c> (stdin, no temp file): true when the compiler and its standard library provide it.</summary>
+    private static async Task<bool> HasExpectedAsync(string compiler, CancellationToken ct) =>
+        await ToolLocator.SucceedsAsync(compiler, ["-x", "c++", "-std=" + Cpp23, "-fsyntax-only", "-"],
+            "#include <expected>\nstd::expected<int, int> f() { return std::unexpected(1); }\n", ct).ConfigureAwait(false);
 
     internal const string Cpp23 = "c++23";
     internal const string Cpp20 = "c++20";
@@ -582,11 +602,31 @@ internal sealed class PhpRuntime : ILanguageRuntime
         LocalizedText hint = EngineMessages.PhpHint();
         if (ToolLocator.Find("php") is not { } php) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotFound("php"), hint);
         string? v = await ToolLocator.ProbeAsync(php, ["--version"], ct).ConfigureAwait(false);
-        return v is null
-            ? ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("php"), hint)
-            : new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, php, null, null);
+        if (v is null) return ToolLocator.Missing(LanguageId, EngineMessages.ToolNotWorking("php"), hint);
+        var status = new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, php, null, null);
+        // The first line is "PHP 8.5.11 (cli) ..."; the courses use 8.4+ functions (mb_trim, array_find) and were verified on 8.5.
+        Match m = Regex.Match(v, @"PHP (\d+)\.(\d+)");
+        return m.Success && new Version(int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), int.Parse(m.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)) < new Version(8, 4)
+            ? status.WithNotes(EngineMessages.PhpOld()).WithWarning(EngineMessages.PhpOld()).WithInstallHint(hint)
+            : status;
     }
 
+    /// <summary>
+    /// Settings that make a run the same on every machine, whatever php.ini and conf.d the distribution ships (Ubuntu: display_errors off,
+    /// zend.assertions -1, memory_limit -1, and Xdebug in develop mode, which replaces var_dump's output and prefixes it with file and line).
+    /// Errors go to stderr so stdout is only what the program prints; precision values are PHP's own defaults, stated so a php.ini cannot change float output.
+    /// </summary>
+    internal static readonly string[] Settings =
+    [
+        "-d", "xdebug.mode=off",
+        "-d", "display_errors=stderr", "-d", "display_startup_errors=1", "-d", "log_errors=0", "-d", "html_errors=0",
+        "-d", "error_reporting=32767",
+        "-d", "zend.assertions=1", "-d", "assert.exception=1",
+        "-d", "precision=14", "-d", "serialize_precision=-1",
+        "-d", "memory_limit=128M", "-d", "default_charset=UTF-8",
+        "-d", "opcache.enable_cli=0", "-d", "auto_prepend_file=", "-d", "auto_append_file=",
+    ];
+
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status) =>
-        new([], new ProcessSpec(status.ExecutablePath!, [entryFile], workingDirectory));
+        new([], new ProcessSpec(status.ExecutablePath!, [.. Settings, entryFile], workingDirectory));
 }

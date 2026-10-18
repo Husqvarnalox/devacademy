@@ -27,10 +27,12 @@ public static class EngineMessages
     public const string CppHintKey = "Engine_Hint_Cpp";
     public const string CppUnsupportedKey = "Engine_Runtime_CppUnsupported";
     public const string CppFallback20Key = "Engine_Runtime_CppFallback20";
+    public const string CppNoExpectedKey = "Engine_Runtime_CppNoExpected";
     public const string RustHintKey = "Engine_Hint_Rust";
     public const string DotNetHintKey = "Engine_Hint_DotNet";
     public const string KotlinHintKey = "Engine_Hint_Kotlin";
     public const string PhpHintKey = "Engine_Hint_Php";
+    public const string PhpOldKey = "Engine_Runtime_PhpOld";
 
     public const string PackageManagersKey = "Engine_Runtime_PackageManagers";
     public const string PackageManagerMissingKey = "Engine_Runtime_PackageManagerMissing";
@@ -61,10 +63,12 @@ public static class EngineMessages
     public static LocalizedText JdkHint() => LocalizedText.Create(JdkHintKey, "Install a JDK (17+) from https://adoptium.net/ (macOS: brew install openjdk; Debian/Ubuntu: apt install default-jdk).");
     public static LocalizedText CppHint() => LocalizedText.Create(CppHintKey, "Install a C++23-capable compiler (courses build with -std=c++23 and use std::expected: GCC 13+ or Clang 17+; Apple clang from Xcode 16): macOS: xcode-select --install; Debian/Ubuntu: apt install g++ (g++-13 or newer); Windows: https://visualstudio.microsoft.com/downloads/ or MSYS2.");
     public static LocalizedText CppFallback20() => LocalizedText.Create(CppFallback20Key, "This compiler does not support C++23, so programs are built as C++20. Most lessons work; examples that use C++23 (std::expected) will not compile. Update to GCC 13+ or Clang 17+ to build everything.");
+    public static LocalizedText CppNoExpected() => LocalizedText.Create(CppNoExpectedKey, "This compiler builds C++23 but its standard library has no std::expected (for example clang with libstdc++ 13), so examples that use it will not compile. Install g++ 13 or newer, or Clang 17+ with libc++, to build everything.");
     public static LocalizedText CppUnsupported() => LocalizedText.Create(CppUnsupportedKey, "The compiler accepts neither -std=c++23 nor -std=c++20; update it (GCC 13+ or Clang 17+).");
     public static LocalizedText RustHint() => LocalizedText.Create(RustHintKey, "https://rustup.rs");
     public static LocalizedText DotNetHint() => LocalizedText.Create(DotNetHintKey, "Install the .NET 10 SDK from https://dotnet.microsoft.com/download (macOS: brew install --cask dotnet-sdk; Debian/Ubuntu: apt install dotnet-sdk-10.0).");
     public static LocalizedText KotlinHint() => LocalizedText.Create(KotlinHintKey, "https://kotlinlang.org/docs/command-line.html (also requires a JDK).");
+    public static LocalizedText PhpOld() => LocalizedText.Create(PhpOldKey, "This PHP is older than 8.4. The PHP courses were verified on PHP 8.5 and use functions added in 8.4 (mb_trim, array_find, property hooks); those examples will fail on this version. Update PHP to 8.4 or newer.");
     public static LocalizedText PhpHint() => LocalizedText.Create(PhpHintKey, "Install PHP 8 from https://www.php.net/downloads (macOS: brew install php; Debian/Ubuntu: apt install php-cli).");
 
     /// <param name="items">One entry per manager: a literal "npm 10.9.2" or <see cref="PackageManagerMissing"/>.</param>

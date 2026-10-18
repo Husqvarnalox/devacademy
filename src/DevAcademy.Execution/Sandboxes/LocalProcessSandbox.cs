@@ -31,7 +31,11 @@ public class LocalProcessSandbox : IProcessSandbox
     {
         if (OperatingSystem.IsWindows()) return (file, args);
         long fileBlocks = MaxFileSizeMegabytes * 1024L * 2; // ulimit -f counts 512-byte blocks
-        long cpuSeconds = (long)Math.Ceiling(limits.WallTimeout.TotalSeconds) + 1;
+        // CPU time is summed over all threads, so a multi-threaded runtime (JIT and GC threads of a JVM, the .NET tiered compiler) legitimately
+        // spends several CPU seconds per wall second. A limit of one CPU second per wall second would kill it with SIGXCPU - no output, no
+        // message, just "crashed" - long before the wall timeout, and the slower the machine the sooner. The wall timeout stays the real
+        // limit; this one is only the backstop for a child that escapes it, so it scales with the cores the run can use.
+        long cpuSeconds = (long)Math.Ceiling(limits.WallTimeout.TotalSeconds) * Math.Clamp(Environment.ProcessorCount, 1, 8) + 1;
         string script = $"ulimit -c 0; ulimit -f {fileBlocks}; ulimit -t {cpuSeconds}; if command -v perl >/dev/null 2>&1; then exec perl -e 'setpgrp(0,0); exec @ARGV or die \"exec: $!\"' \"$@\"; else exec \"$@\"; fi";
         var wrapped = new List<string> { "-c", script, "sh", file };
         wrapped.AddRange(args);

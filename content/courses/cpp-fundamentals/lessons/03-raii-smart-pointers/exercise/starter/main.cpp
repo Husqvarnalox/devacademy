@@ -59,6 +59,7 @@ int main() {
         }
     }
     std::cout << "shutdown\n";
-    owners.clear();
-    holders.clear();
+    // clear() не гарантирует порядок уничтожения элементов (libstdc++ и libc++ различаются), поэтому удаляем по одному, по возрастанию имени.
+    while (!owners.empty()) owners.erase(owners.begin());
+    while (!holders.empty()) holders.erase(holders.begin());
 }

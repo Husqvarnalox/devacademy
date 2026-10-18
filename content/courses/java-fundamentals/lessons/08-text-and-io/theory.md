@@ -27,7 +27,7 @@
 
 **Ввод.** `Scanner(System.in)`: `nextInt`, `nextLong`, `next`, `nextLine`, `hasNext`, `hasNextInt`. `nextInt()` не потребляет перевод строки, поэтому следующий `nextLine()` вернёт пустой остаток строки. Для большого ввода или построчного разбора: `new BufferedReader(new InputStreamReader(System.in, UTF_8))` и `readLine()` (возвращает `null` в конце). Строки разбирайте через `strip`, `indexOf`, `substring`, `split` и регулярные выражения (`Pattern`, `Matcher`); `Integer.parseInt` бросает `NumberFormatException`.
 
-**Версии (проверено `--release N`).** `String.isBlank/strip/lines/repeat` - 11; `Files.readString/writeString` - 11; текстовые блоки и `formatted` - 15. Кодировка по умолчанию UTF-8 - 18 (JEP 400).
+**Версии (проверено `--release N`).** `String.isBlank/strip/lines/repeat` - 11; `Files.readString/writeString` - 11; текстовые блоки и `formatted` - 15. Кодировка по умолчанию UTF-8 - 18 (JEP 400). `format` и `formatted` берут локаль по умолчанию: в русской локали `%05.1f` даст `003,1`, поэтому для воспроизводимого вывода передавайте `Locale.ROOT`, как в примере ниже.
 
 <!-- section: examples -->
 ## Примеры
@@ -35,6 +35,8 @@
 **Пример 1. Идентичность, неизменяемость и методы String.**
 
 ```java run
+import java.util.Locale;
+
 public class Main {
     public static void main(String[] args) {
         String a = "java";
@@ -48,7 +50,7 @@ public class Main {
         String s = "  Привет, мир \t";
         System.out.println("[" + s.strip() + "] " + s.isBlank() + " " + "   ".isBlank());
         System.out.println("ab".repeat(3) + " " + "a-b-c".replace("-", "+") + " " + "Java".toUpperCase());
-        System.out.println(String.join("/", "x", "y", "z") + " " + "%05.1f|%-4s|%4d".formatted(3.14159, "ab", 42));
+        System.out.println(String.join("/", "x", "y", "z") + " " + String.format(Locale.ROOT, "%05.1f", 3.14159) + "|" + "%-4s|%4d".formatted("ab", 42));
 
         String text = """
             первая
@@ -66,7 +68,7 @@ true false false true
 true
 [Привет, мир] false true
 ababab a+b+c JAVA
-x/y/z 003,1|ab  |  42
+x/y/z 003.1|ab  |  42
 первая
   вторая
 третья (продолжение)

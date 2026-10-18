@@ -58,7 +58,16 @@ internal static class ToolLocator
     }
 
     /// <summary>Runs the tool briefly and returns the first non-empty output line (stdout then stderr), or null when it fails.</summary>
-    public static async Task<string?> ProbeAsync(string exe, string[] args, CancellationToken ct)
+    public static async Task<string?> ProbeAsync(string exe, string[] args, CancellationToken ct) =>
+        (await RunProbeAsync(exe, args, null, ct).ConfigureAwait(false)) is { ExitCode: 0 } r
+            ? r.Text.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0)
+            : null;
+
+    /// <summary>Runs the tool briefly with <paramref name="stdin"/> as its input and reports only whether it exited with 0 (for probes that print nothing on success, e.g. a syntax-only compile).</summary>
+    public static async Task<bool> SucceedsAsync(string exe, string[] args, string stdin, CancellationToken ct) =>
+        (await RunProbeAsync(exe, args, stdin, ct).ConfigureAwait(false)) is { ExitCode: 0 };
+
+    private static async Task<(int ExitCode, string Text)?> RunProbeAsync(string exe, string[] args, string? stdin, CancellationToken ct)
     {
         var psi = new ProcessStartInfo(exe)
         {
@@ -77,16 +86,20 @@ internal static class ToolLocator
         try
         {
             using var p = Process.Start(psi)!;
+            if (stdin is not null)
+            {
+                try { await p.StandardInput.WriteAsync(stdin).ConfigureAwait(false); }
+                catch (IOException) { } // the tool stopped reading: its exit code tells the rest
+            }
             p.StandardInput.Close();
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(10));
+            cts.CancelAfter(TimeSpan.FromSeconds(stdin is null ? 10 : 30));
             try
             {
                 Task<string> o = p.StandardOutput.ReadToEndAsync(cts.Token), e = p.StandardError.ReadToEndAsync(cts.Token);
                 await p.WaitForExitAsync(cts.Token).ConfigureAwait(false);
                 string text = await o.ConfigureAwait(false) + "\n" + await e.ConfigureAwait(false);
-                if (p.ExitCode != 0) return null;
-                return text.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
+                return (p.ExitCode, text);
             }
             catch (OperationCanceledException)
             {

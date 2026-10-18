@@ -2,11 +2,22 @@
 import django
 from django.apps import AppConfig
 from django.conf import settings
+from django.contrib.auth.hashers import PBKDF2PasswordHasher
 
 
 class AccessConfig(AppConfig):
     name = __name__
     label = "access"
+
+
+class QuickPBKDF2PasswordHasher(PBKDF2PasswordHasher):
+    """Тот же pbkdf2_sha256, но с минимально допустимым здесь числом итераций.
+
+    Настоящий Django (в 6.1 - 1 500 000 итераций) намеренно хеширует медленно, а проверка выполняется
+    со строгим лимитом времени и десятками паролей. Формат строки не меняется; в продакшене этот класс не нужен.
+    """
+
+    iterations = 100_000
 
 
 # ---- каркас: django.contrib.auth + сессии, SQLite в памяти ----
@@ -27,6 +38,7 @@ if not settings.configured:
             "django.contrib.auth.middleware.AuthenticationMiddleware",
         ],
         LOGIN_URL="/login/",
+        PASSWORD_HASHERS=[__name__ + ".QuickPBKDF2PasswordHasher"],
         DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
         DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
         USE_TZ=True,

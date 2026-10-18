@@ -56,7 +56,7 @@ True False
 True
 ```
 
-**Пример 2. Пользователь, права и группы.** Права группы действуют на всех её участников. Объект пользователя кэширует права, поэтому после изменения его загружают заново.
+**Пример 2. Пользователь, права и группы.** В примерах 2 и 3 подключён `QuickHasher` - тот же `pbkdf2_sha256`, но со 100 000 итераций: так пример укладывается в лимит времени. В настоящем проекте оставляйте хешер по умолчанию (как в примере 1). Права группы действуют на всех её участников. Объект пользователя кэширует права, поэтому после изменения его загружают заново.
 
 ```python run
 import django
@@ -72,11 +72,19 @@ settings.configure(
         "django.contrib.auth.middleware.AuthenticationMiddleware",
     ],
     LOGIN_URL="/login/",
+    PASSWORD_HASHERS=[__name__ + ".QuickHasher"],  # только чтобы пример выполнялся быстро, см. ниже
     DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
     DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
     USE_I18N=False,
 )
 django.setup()
+
+from django.contrib.auth.hashers import PBKDF2PasswordHasher
+
+
+class QuickHasher(PBKDF2PasswordHasher):
+    iterations = 100_000  # по умолчанию их 1 500 000; формат строки тот же
+
 
 from django.core.management import call_command
 
@@ -121,11 +129,19 @@ settings.configure(
         "django.contrib.auth.middleware.AuthenticationMiddleware",
     ],
     LOGIN_URL="/login/",
+    PASSWORD_HASHERS=[__name__ + ".QuickHasher"],  # только чтобы пример выполнялся быстро, см. ниже
     DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
     DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
     USE_I18N=False,
 )
 django.setup()
+
+from django.contrib.auth.hashers import PBKDF2PasswordHasher
+
+
+class QuickHasher(PBKDF2PasswordHasher):
+    iterations = 100_000  # по умолчанию их 1 500 000; формат строки тот же
+
 
 from django.core.management import call_command
 

@@ -68,7 +68,7 @@ Money(250) / 2.50
 <__main__.Plain
 ```
 
-**Пример 2. Контракт eq и hash.**
+**Пример 2. Контракт eq и hash.** Формулировка сообщения зависит от версии Python (в 3.14 к `unhashable type: 'OnlyEq'` добавлено начало «cannot use 'OnlyEq' as a set element»), поэтому пример проверяет тип исключения и фразу `unhashable type`, а не весь текст.
 
 ```python run
 class OnlyEq:
@@ -81,7 +81,7 @@ print(OnlyEq.__hash__)
 try:
     {OnlyEq(1)}
 except TypeError as exc:
-    print("TypeError:", exc)
+    print(type(exc).__name__, "unhashable type" in str(exc))
 
 class Both(OnlyEq):
     def __hash__(self):
@@ -92,7 +92,7 @@ print(OnlyEq(1) == 1)
 ```
 ```output
 None
-TypeError: cannot use 'OnlyEq' as a set element (unhashable type: 'OnlyEq')
+TypeError True
 2
 False
 ```
