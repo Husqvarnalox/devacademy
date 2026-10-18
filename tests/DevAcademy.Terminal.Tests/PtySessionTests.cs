@@ -6,8 +6,18 @@ namespace DevAcademy.Terminal.Tests;
 /// <summary>Real pseudo-terminal sessions against /bin/sh (Unix only; the Windows ConPTY path is not covered here).</summary>
 public class PtySessionTests
 {
-    private static ITerminalSession Start(string? cwd = null, int cols = 80, int rows = 24) =>
-        new PtyTerminalFactory().Start(new TerminalStartOptions(cwd ?? Path.GetTempPath(), cols, rows, Program: "/bin/sh"));
+    /// <summary>
+    /// Starts /bin/sh and returns once its first prompt is on the screen. Input written earlier is echoed by the tty right away, so
+    /// a shell without readline (dash is /bin/sh on Debian and Ubuntu) then prints its prompt in front of the first command's output
+    /// ("# hello") and tests that look for a line of its own would fail depending on timing.
+    /// </summary>
+    private static ITerminalSession Start(string? cwd = null, int cols = 80, int rows = 24)
+    {
+        var session = new PtyTerminalFactory().Start(new TerminalStartOptions(cwd ?? Path.GetTempPath(), cols, rows, Program: "/bin/sh"));
+        var until = Stopwatch.StartNew();
+        while (until.ElapsedMilliseconds < 10000 && Snapshot(session).Trim().Length == 0) Thread.Sleep(10);
+        return session;
+    }
 
     private static void RequireUnix() => Assert.SkipWhen(OperatingSystem.IsWindows(), "PTY tests need /bin/sh");
 
@@ -94,7 +104,7 @@ public class PtySessionTests
         s.Write("echo started; sleep 100\n");
         Assert.True(await WaitForLineAsync(s, "started"), Snapshot(s));
         s.Write(KeyEncoder.EncodeControl('c')!);
-        s.Write("echo after-interrupt\n");
+        s.Write("printf '\\nafter-interrupt\\n'\n");   // the leading newline keeps the prompt of a shell without readline off that line
         Assert.True(await WaitForLineAsync(s, "after-interrupt"), Snapshot(s));
         Assert.True(s.IsRunning);
     }

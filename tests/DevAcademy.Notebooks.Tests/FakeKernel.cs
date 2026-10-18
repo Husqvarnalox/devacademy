@@ -32,6 +32,7 @@ internal sealed class FakeKernelProcess : IKernelProcess
     private readonly CancellationTokenSource _cts = new();
     private readonly string _session = Guid.NewGuid().ToString("N");
     private readonly List<ZmtpListener> _listeners = [];
+    private readonly List<ZmtpSocket> _accepted = []; // keeps accepted sockets reachable: an unreferenced one is finalized by the GC, which resets the client's connection
     private readonly bool _signalInterrupts, _ignoreShutdown;
     private volatile bool _interrupt;
     private volatile bool _hbEnabled = true;
@@ -93,6 +94,7 @@ internal sealed class FakeKernelProcess : IKernelProcess
             var listener = new ZmtpListener(port);
             lock (_listeners) _listeners.Add(listener);
             var socket = await listener.AcceptAsync(type, _cts.Token);
+            lock (_accepted) _accepted.Add(socket);
             await run(socket);
         }
         catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException or System.Net.Sockets.SocketException) { }

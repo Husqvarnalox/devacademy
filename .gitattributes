@@ -1,0 +1,31 @@
+# Text is stored with LF and checked out with LF on every platform. Formatting (`dotnet format whitespace`, .editorconfig end_of_line = lf),
+# shell scripts, generated-file checks and content hashes all assume LF; a Windows checkout with autocrlf would otherwise turn every file into CRLF.
+* text=auto eol=lf
+
+# Binary files: never touched by line-ending conversion or text diffs.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tgz binary
+*.jar binary
+*.nupkg binary
+*.dmg binary
+*.exe binary
+*.dll binary
+*.dylib binary
+*.so binary
+
+# Files whose committed bytes are CRLF on purpose: verbatim vendor licences and recorded Windows dev-server output used as parser fixtures.
+src/DevAcademy.Desktop/Assets/Fonts/OFL-*.txt -text
+tests/DevAcademy.Execution.Tests/Fixtures/devserver/*.log -text

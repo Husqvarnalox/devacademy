@@ -151,6 +151,7 @@ internal static class ProcessRunner
     /// <summary>
     /// The Unix wrapper (see LocalProcessSandbox) makes the root a process-group leader when perl is available,
     /// so this reaches orphans that were reparented to init and are invisible to a tree walk. No-op otherwise (ESRCH).
+    /// Written as <c>kill -s KILL -- -pgid</c> because dash (/bin/sh on Debian and Ubuntu) rejects <c>kill -9 -- -pgid</c> ("Illegal number").
     /// </summary>
     private static void KillProcessGroup(int rootPid)
     {
@@ -158,7 +159,7 @@ internal static class ProcessRunner
         try
         {
             var psi = new ProcessStartInfo("/bin/sh") { UseShellExecute = false, CreateNoWindow = true };
-            foreach (string a in new[] { "-c", "kill -9 -- \"-$0\" 2>/dev/null", rootPid.ToString(System.Globalization.CultureInfo.InvariantCulture) }) psi.ArgumentList.Add(a);
+            foreach (string a in new[] { "-c", "kill -s KILL -- \"-$0\" 2>/dev/null", rootPid.ToString(System.Globalization.CultureInfo.InvariantCulture) }) psi.ArgumentList.Add(a);
             using var p = Process.Start(psi);
             p?.WaitForExit(2000);
         }

@@ -184,6 +184,15 @@ public sealed partial class ContentPackageIndex
             : new(null, $"ни один набор пакетов не покрывает {string.Join(", ", required)} одновременно (наборы {Describe(language)} в {IndexFile})");
     }
 
+    /// <summary>
+    /// The content-authoring question "does some shipped set offer all of these packages?", independent of the platform the check runs on:
+    /// a set covers a requirement wherever it is supported. Whether it can be installed here is a runtime concern, answered by <see cref="Resolve"/>.
+    /// </summary>
+    public string? CoverageError(PackageSetLanguage language, IReadOnlyCollection<string> required) =>
+        required.Count == 0 || For(language).Any(set => set.Covers(required))
+            ? null
+            : $"ни один набор пакетов не покрывает {string.Join(", ", required)} одновременно (наборы {Describe(language)} в {IndexFile})";
+
     // ---------------------------------------------------------------- files
 
     /// <summary>The set's npm directory (package.json + package-lock.json), Go module directory (go.mod + go.sum), NuGet restore directory (restore.csproj), Maven set directory (lock.json) or Python requirements file; null when the index is in memory.</summary>

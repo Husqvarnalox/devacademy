@@ -187,8 +187,9 @@ public sealed class PtyTerminalSession : ITerminalSession
         {
             // The shell is a session leader (forkpty/setsid): hang up its group first so interactive shells can clean their jobs.
             Native.KillGroup(pid, Native.SigHup);
-            if (_pty.WaitForExit(400)) { Native.KillGroup(pid, Native.SigKill); return; }
+            if (_pty.WaitForExit(400)) { Native.KillGroup(pid, Native.SigKill); Native.KillSession(pid); return; }
             Native.KillGroup(pid, Native.SigKill);
+            Native.KillSession(pid);
         }
         try { _pty.Kill(); } catch (Exception ex) when (ex is InvalidOperationException or IOException or ObjectDisposedException) { }
         try { _pty.WaitForExit(2000); } catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException) { }
@@ -209,10 +210,36 @@ public sealed class PtyTerminalSession : ITerminalSession
         [DllImport("libc", EntryPoint = "killpg", SetLastError = true)]
         private static extern int KillPg(int pgrp, int sig);
 
+        [DllImport("libc", EntryPoint = "kill", SetLastError = true)]
+        private static extern int Kill(int pid, int sig);
+
         public static void KillGroup(int pgid, int signal)
         {
             try { _ = KillPg(pgid, signal); }
             catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException) { }
+        }
+
+        /// <summary>
+        /// Kills every process left in the shell's session. Shells with job control put each background job into its own process group,
+        /// so killing the shell's group misses them, and a shell that does not forward SIGHUP (dash, /bin/sh on Debian and Ubuntu) leaves them
+        /// running with the terminal's slave side open: the session would never end. The shell is the session leader, so its pid is the session id.
+        /// </summary>
+        public static void KillSession(int sid)
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo("pgrep") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+                psi.ArgumentList.Add("-s");
+                psi.ArgumentList.Add(sid.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                using var pgrep = System.Diagnostics.Process.Start(psi);
+                if (pgrep is null) return;
+                var output = pgrep.StandardOutput.ReadToEndAsync();
+                if (!pgrep.WaitForExit(2000)) { pgrep.Kill(); return; }
+                foreach (var line in output.GetAwaiter().GetResult().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    if (int.TryParse(line, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid) && pid > 1 && pid != Environment.ProcessId)
+                        _ = Kill(pid, SigKill);
+            }
+            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { }
         }
     }
 }

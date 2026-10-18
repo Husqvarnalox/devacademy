@@ -26,6 +26,7 @@ import com.sun.jdi.event.ExceptionEvent;
 import com.sun.jdi.event.StepEvent;
 import com.sun.jdi.event.VMDeathEvent;
 import com.sun.jdi.event.VMDisconnectEvent;
+import com.sun.jdi.event.VMStartEvent;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
@@ -244,6 +245,12 @@ public final class DevAcademyJdiAdapter {
     private volatile boolean ending;
     private boolean terminatedSent;
     private boolean launched;
+    // The JVM is launched with suspend=y and JDI delivers a VMStartEvent set that suspends everything. Resuming that set (the
+    // default for an event set nobody handles) would start the program as soon as the event loop runs, before the client has sent
+    // its breakpoints: a fast JVM then runs past them. The set is held until configurationDone.
+    private final Object startGate = new Object();
+    private EventSet heldStart;
+    private boolean configured;
 
     private DevAcademyJdiAdapter(InputStream in, OutputStream out) {
         this.in = in;
@@ -325,7 +332,7 @@ public final class DevAcademyJdiAdapter {
             case "setExceptionBreakpoints": respond(req, obj("breakpoints", new ArrayList<>())); break;
             case "configurationDone":
                 respond(req, obj());
-                vm.resume();
+                releaseStart();
                 break;
             case "threads": threads(req); break;
             case "stackTrace": stackTrace(req, args); break;
@@ -353,6 +360,15 @@ public final class DevAcademyJdiAdapter {
                 fail(req, "Unsupported request: " + command);
         }
         return false;
+    }
+
+    /** Starts the program: resumes the held VMStartEvent set (or, when it has not arrived yet, lets it through when it does). */
+    private void releaseStart() {
+        synchronized (startGate) {
+            configured = true;
+            if (heldStart != null) { heldStart.resume(); heldStart = null; }
+            else vm.resume();
+        }
     }
 
     private void shutdown() {
@@ -513,7 +529,14 @@ public final class DevAcademyJdiAdapter {
                 EventSet set = vm.eventQueue().remove();
                 boolean stopped = false;
                 for (Event e : set) {
-                    if (e instanceof BreakpointEvent be) { stopped = true; stopAt("breakpoint", null, be.thread()); }
+                    if (e instanceof VMStartEvent) {
+                        synchronized (startGate) {
+                            if (configured) break;   // the client is ready: fall through to the resume below
+                            heldStart = set;
+                        }
+                        stopped = true;   // not resumed here
+                    }
+                    else if (e instanceof BreakpointEvent be) { stopped = true; stopAt("breakpoint", null, be.thread()); }
                     else if (e instanceof StepEvent se) {
                         vm.eventRequestManager().deleteEventRequest(se.request());
                         stopped = true;

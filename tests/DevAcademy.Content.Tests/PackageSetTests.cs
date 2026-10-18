@@ -27,6 +27,20 @@ public class PackageSetValidationTests
         Assert.Empty(Errors(ContentValidator.Validate(f.Load().Content, Index())));
     }
 
+    [Theory]
+    [InlineData("osx-x64")]
+    [InlineData("linux-arm64")]
+    [InlineData("win-x64")]
+    public void Coverage_does_not_depend_on_the_platform_the_check_runs_on(string rid)
+    {
+        using var f = new Fixture();
+        f.EditVars(Anchor, Anchor + "  requires: { packages: [torch] }\n");
+        // Offered only for osx-arm64: authoring-wise the requirement is covered, whatever machine runs the validator.
+        var index = new ContentPackageIndex(
+            [new("torch", "PyTorch", PackageSetLanguage.Python, "", ["torch"], ["osx-arm64"])], rid: rid);
+        Assert.Empty(Errors(ContentValidator.Validate(f.Load().Content, index)));
+    }
+
     [Fact]
     public void Go_modules_covered_by_one_go_set_are_fine()
     {
@@ -95,10 +109,15 @@ public class PackageSetValidationTests
         Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("package-set index not found"));
     }
 
-    [Fact]
-    public void Every_requirement_of_the_shipped_content_is_covered_by_a_shipped_set()
+    [Theory]
+    [InlineData("osx-arm64")]
+    [InlineData("osx-x64")]
+    [InlineData("linux-x64")]
+    [InlineData("linux-arm64")]
+    [InlineData("win-x64")]
+    public void Every_requirement_of_the_shipped_content_is_covered_by_a_shipped_set(string rid)
     {
-        var packages = ContentPackageIndex.TryLoadDefault();
+        var packages = ContentPackageIndex.TryLoadDefault(rid: rid);
         Assert.NotNull(packages);
         var contentRoot = Path.Combine(Path.GetDirectoryName(packages.Directory!)!, "..", "content");
         if (!Directory.Exists(contentRoot)) Assert.Skip("repository content not found");

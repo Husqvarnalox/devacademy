@@ -376,7 +376,7 @@ public static class ContentValidator
         if (index() is not { } packages) return;
         var label = $"{kind} '{ex.Id}'";
         foreach (var (language, required) in new[] { (PackageSetLanguage.Python, python), (PackageSetLanguage.Node, node), (PackageSetLanguage.Go, go), (PackageSetLanguage.NuGet, nuget), (PackageSetLanguage.Maven, maven) })
-            if (required.Count > 0 && packages.Resolve(language, required).Error is { } problem)
+            if (packages.CoverageError(language, required) is { } problem)
                 error(path, $"{label}: {problem}");
     }
 

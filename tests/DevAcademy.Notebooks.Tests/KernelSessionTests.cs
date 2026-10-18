@@ -114,6 +114,19 @@ public class KernelSessionTests
     }
 
     [Fact]
+    public async Task A_collection_while_the_kernel_is_idle_does_not_drop_any_channel()
+    {
+        var (s, _) = await StartAsync();
+        await using var _ = s;
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        await Task.Delay(100);
+        var (r, _) = await RunAsync(s, "print:a");
+        Assert.True(r.IsOk);
+        Assert.Equal(KernelState.Idle, s.State);
+    }
+
+    [Fact]
     public async Task Interrupt_by_signal_stops_a_running_cell()
     {
         var (s, host) = await StartAsync(signal: true);
