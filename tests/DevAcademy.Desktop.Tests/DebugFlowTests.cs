@@ -65,7 +65,8 @@ public class DebugFlowTests : IDisposable
         return projects.Project!;
     }
 
-    private static Task StoppedAsync(DebugViewModel d) => Util.UntilAsync(() => d.State == DebugState.Stopped && d.Frames.Count > 0, "a stop");
+    // Frames are added before the top user frame is selected (which sets the editor's execution line), so wait for the selection too.
+    private static Task StoppedAsync(DebugViewModel d) => Util.UntilAsync(() => d.State == DebugState.Stopped && d.Frames.Count > 0 && d.SelectedFrame is not null, "a stop");
 
     [Fact]
     public async Task Breakpoint_hit_shows_stack_variables_then_steps_and_finishes()
