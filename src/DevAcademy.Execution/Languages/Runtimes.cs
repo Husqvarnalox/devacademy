@@ -452,7 +452,7 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
         };
         // Project mode: exactly one .csproj at the root builds as a project (all its .cs files) and runs <AssemblyName>.dll.
         // Otherwise the entry file alone is built as a file-based app, exactly as before.
-        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, .. Utf8ConsoleFlags(home)];
+        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, .. SandboxBuildFlags(home)];
         if (FindProject(workingDirectory) is { } project)
             return new BuildPlan(
                 [new ProcessSpec(status.ExecutablePath!, ["build", project, .. flags], workingDirectory, env)],
@@ -471,35 +471,49 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
     private static readonly string[] OfflineFlags = ["-p:PublishAot=false", "-p:NuGetAudit=false"];
 
     /// <summary>
-    /// With redirected pipes .NET on Windows reads and writes the console streams in the ANSI code page (Cyrillic prints as "?"). A module initializer compiled
-    /// into the learner's program (through a targets file imported after Microsoft.Common.targets, so neither the sources nor the project change) switches
-    /// stdin/stdout/stderr to UTF-8, which is what the engine decodes. Other platforms already use UTF-8.
+    /// A targets file imported after Microsoft.Common.targets (so neither the sources nor the project change) that adapts every build to the sandbox:
+    /// <list type="bullet">
+    /// <item>The scratch directory <c>tmp</c> (TEMP/TMPDIR of the run) and the output directory <c>out</c> live inside the project folder, so the SDK's default
+    /// globs would pick up whatever the toolchain writes there - the Web SDK turns a transient <c>tmp/**/*.json</c> into Content and the build then fails
+    /// copying a file that is already gone. Both are excluded (items are evaluated after all properties, so setting the property here still applies).</item>
+    /// <item>With redirected pipes .NET on Windows reads and writes the console streams in the ANSI code page (Cyrillic prints as "?"). A module initializer
+    /// compiled into the learner's program switches stdin/stdout/stderr to UTF-8, which is what the engine decodes. Other platforms already use UTF-8.</item>
+    /// </list>
     /// </summary>
-    private static string[] Utf8ConsoleFlags(string home)
+    private static string[] SandboxBuildFlags(string home)
     {
-        if (!OperatingSystem.IsWindows()) return [];
-        string dir = Path.Combine(home, "utf8");
+        string dir = Path.Combine(home, "sandbox-build");
         Directory.CreateDirectory(dir);
-        string source = Path.Combine(dir, "Utf8Console.cs");
-        string targets = Path.Combine(dir, "Utf8Console.targets");
-        WriteIfChanged(source, """
-            internal static class DevAcademyUtf8Console
-            {
-                [System.Runtime.CompilerServices.ModuleInitializer]
-                internal static void Init()
+        string targets = Path.Combine(dir, "DevAcademy.Sandbox.targets");
+        string utf8 = "";
+        if (OperatingSystem.IsWindows())
+        {
+            string source = Path.Combine(dir, "Utf8Console.cs");
+            WriteIfChanged(source, """
+                internal static class DevAcademyUtf8Console
                 {
-                    var utf8 = new System.Text.UTF8Encoding(false);
-                    System.Console.SetOut(new System.IO.StreamWriter(System.Console.OpenStandardOutput(), utf8) { AutoFlush = true });
-                    System.Console.SetError(new System.IO.StreamWriter(System.Console.OpenStandardError(), utf8) { AutoFlush = true });
-                    System.Console.SetIn(new System.IO.StreamReader(System.Console.OpenStandardInput(), utf8));
+                    [System.Runtime.CompilerServices.ModuleInitializer]
+                    internal static void Init()
+                    {
+                        var utf8 = new System.Text.UTF8Encoding(false);
+                        System.Console.SetOut(new System.IO.StreamWriter(System.Console.OpenStandardOutput(), utf8) { AutoFlush = true });
+                        System.Console.SetError(new System.IO.StreamWriter(System.Console.OpenStandardError(), utf8) { AutoFlush = true });
+                        System.Console.SetIn(new System.IO.StreamReader(System.Console.OpenStandardInput(), utf8));
+                    }
                 }
-            }
-            """);
+                """);
+            utf8 = $"""
+
+                  <ItemGroup>
+                    <Compile Include="{source}" />
+                  </ItemGroup>
+                """;
+        }
         WriteIfChanged(targets, $"""
             <Project>
-              <ItemGroup>
-                <Compile Include="{source}" />
-              </ItemGroup>
+              <PropertyGroup>
+                <DefaultItemExcludes>$(DefaultItemExcludes);tmp/**;out/**</DefaultItemExcludes>
+              </PropertyGroup>{utf8}
             </Project>
             """);
         return [$"-p:CustomAfterMicrosoftCommonTargets={targets}"];
@@ -527,7 +541,7 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
             ["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "1",
         };
         string outDir = Path.Combine(workingDirectory, "out");
-        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true", .. Utf8ConsoleFlags(home)];
+        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true", .. SandboxBuildFlags(home)];
         string target; string assembly;
         if (FindProject(src) is { } project)
         {

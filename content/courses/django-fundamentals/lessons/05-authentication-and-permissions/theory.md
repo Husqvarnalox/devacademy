@@ -30,21 +30,26 @@
 <!-- section: examples -->
 ## Примеры
 
-**Пример 1. Хеш пароля: формат, соль, проверка.** Выводим только устойчивые части: сам хеш и соль при каждом запуске новые.
+**Пример 1. Хеш пароля: формат, соль, проверка.** Выводим только устойчивые части: сам хеш и соль при каждом запуске новые. Во всех примерах подключён `QuickHasher` - тот же `pbkdf2_sha256`, но со 100 000 итераций: каждая проверка пароля пересчитывает хеш, и с 1 500 000 итераций по умолчанию пример не укладывается в лимит времени на медленной машине. Само число по умолчанию видно в атрибуте `PBKDF2PasswordHasher.iterations`.
 
 ```python run
 import django
 from django.conf import settings
 
-settings.configure(USE_I18N=False)
+settings.configure(USE_I18N=False, PASSWORD_HASHERS=[__name__ + ".QuickHasher"])  # только чтобы пример выполнялся быстро
 django.setup()
 
-from django.contrib.auth.hashers import check_password, make_password
+from django.contrib.auth.hashers import PBKDF2PasswordHasher, check_password, make_password
+
+
+class QuickHasher(PBKDF2PasswordHasher):
+    iterations = 100_000  # формат строки тот же
+
 
 a = make_password("s3cret-pass")
 b = make_password("s3cret-pass")
 algorithm, iterations, salt, digest = a.split("$")
-print(algorithm, int(iterations) >= 600_000)
+print(algorithm, PBKDF2PasswordHasher.iterations >= 600_000)
 print("s3cret-pass" in a, a == b)
 print(check_password("s3cret-pass", a), check_password("wrong", a))
 print(make_password(None).startswith("!"))
@@ -56,7 +61,7 @@ True False
 True
 ```
 
-**Пример 2. Пользователь, права и группы.** В примерах 2 и 3 подключён `QuickHasher` - тот же `pbkdf2_sha256`, но со 100 000 итераций: так пример укладывается в лимит времени. В настоящем проекте оставляйте хешер по умолчанию (как в примере 1). Права группы действуют на всех её участников. Объект пользователя кэширует права, поэтому после изменения его загружают заново.
+**Пример 2. Пользователь, права и группы.** `QuickHasher` подключён и здесь; в настоящем проекте оставляйте хешер по умолчанию. Права группы действуют на всех её участников. Объект пользователя кэширует права, поэтому после изменения его загружают заново.
 
 ```python run
 import django
