@@ -622,6 +622,8 @@ internal sealed class PhpRuntime : ILanguageRuntime
         "-d", "display_errors=stderr", "-d", "display_startup_errors=1", "-d", "log_errors=0", "-d", "html_errors=0",
         "-d", "error_reporting=32767",
         "-d", "zend.assertions=1", "-d", "assert.exception=1",
+        // Production php.ini sets it to On: exception messages then name the type instead of the value ("Unhandled match case of type int").
+        "-d", "zend.exception_ignore_args=0",
         "-d", "precision=14", "-d", "serialize_precision=-1",
         "-d", "memory_limit=128M", "-d", "default_charset=UTF-8",
         "-d", "opcache.enable_cli=0", "-d", "auto_prepend_file=", "-d", "auto_append_file=",
