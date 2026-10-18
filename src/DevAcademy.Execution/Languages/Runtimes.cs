@@ -207,22 +207,22 @@ internal sealed class GoRuntime(string cacheDirectory) : ICommandRuntime, INativ
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
         var env = BuildEnvironment(workingDirectory);
-        var args = new List<string> { "build", "-o", "prog" };
+        var args = new List<string> { "build", "-o", ToolLocator.ProgramName };
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".go").Where(f => !f.EndsWith("_test.go", StringComparison.Ordinal)));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, env)],
-            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+            new ProcessSpec(Path.Combine(workingDirectory, ToolLocator.ProgramName), [], workingDirectory));
     }
 
     /// <summary>Same build with optimisation and inlining off so breakpoints and locals behave. The normal plan is unchanged.</summary>
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
     {
         var env = BuildEnvironment(workingDirectory);
-        var args = new List<string> { "build", "-gcflags=all=-N -l", "-o", "prog" };
+        var args = new List<string> { "build", "-gcflags=all=-N -l", "-o", ToolLocator.ProgramName };
         args.AddRange(ToolLocator.FilesWithExtensions(sourceDirectory ?? workingDirectory, ".go").Select(f => sourceDirectory is null ? f : Path.GetFullPath(f, sourceDirectory)).Where(f => !f.EndsWith("_test.go", StringComparison.Ordinal)));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, env)],
-            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+            new ProcessSpec(Path.Combine(workingDirectory, ToolLocator.ProgramName), [], workingDirectory));
     }
 }
 
@@ -303,11 +303,19 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
         // needs a concepts feature-test macro that clang 18 does not define, so only g++ builds the std::expected examples there.
         // Prefer a compiler that builds everything; otherwise the best of the rest (C++23 without std::expected, then C++20), the first one on a tie.
         RuntimeStatus? best = null;
+        RuntimeStatus? withoutHeaders = null;
         foreach (string name in new[] { "clang++", "g++" })
         {
             if (ToolLocator.Find(name) is not { } path) continue;
             string? v = await ToolLocator.ProbeAsync(path, ["--version"], ct).ConfigureAwait(false); // fails for the Xcode shim without Command Line Tools
             if (v is null) continue;
+            // A driver without a standard library cannot build anything: clang++ on Windows finds no <iostream> unless Visual Studio's
+            // build tools are installed. Skip it so another installed compiler (MinGW g++) is used, and say why if none works.
+            if (!await ToolLocator.SucceedsAsync(path, ["-x", "c++", "-fsyntax-only", "-"], "#include <iostream>\nint main() {}\n", ct).ConfigureAwait(false))
+            {
+                withoutHeaders ??= new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppNoStandardLibrary()).WithInstallHint(EngineMessages.CppHint());
+                continue;
+            }
             // Preprocess-only probes (-dM -E on empty stdin prints the predefined macros): cheap, need no temp file, and fail exactly when the driver rejects the -std flag.
             if (await AcceptsAsync(path, Cpp23, ct).ConfigureAwait(false))
             {
@@ -323,7 +331,7 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
                     .WithNotes(EngineMessages.CppFallback20()).WithWarning(EngineMessages.CppFallback20()).WithInstallHint(EngineMessages.CppHint())
                 : new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppUnsupported()).WithInstallHint(EngineMessages.CppHint()));
         }
-        return best ?? ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
+        return best ?? withoutHeaders ?? ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
     }
 
     private static RuntimeStatus Better(RuntimeStatus? current, RuntimeStatus candidate) =>
@@ -347,22 +355,22 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
 
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
-        var args = new List<string> { StdFlag(status), "-pthread", "-O2", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { StdFlag(status), "-pthread", "-O2", "-Wall", "-Wextra", "-o", ToolLocator.ProgramName };
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".cpp", ".cc", ".cxx"));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
-            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+            new ProcessSpec(Path.Combine(workingDirectory, ToolLocator.ProgramName), [], workingDirectory));
     }
 
     /// <summary>-g -O0 and absolute source paths, so DWARF file names match what the editor sends as breakpoint paths.</summary>
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
     {
         string src = sourceDirectory ?? workingDirectory;
-        var args = new List<string> { StdFlag(status), "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { StdFlag(status), "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", ToolLocator.ProgramName };
         args.AddRange(ToolLocator.FilesWithExtensions(src, ".cpp", ".cc", ".cxx").Select(f => Path.GetFullPath(f, src)));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
-            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+            new ProcessSpec(Path.Combine(workingDirectory, ToolLocator.ProgramName), [], workingDirectory));
     }
 }
 
@@ -386,8 +394,8 @@ internal sealed class RustRuntime : ILanguageRuntime, INativeDebugBuild
     // Single rustc invocation on the entry file: `mod x;` resolves next to it. Future cargo projects would use
     // CARGO_HOME/CARGO_TARGET_DIR below the runner cache with CARGO_NET_OFFLINE=true; plain rustc needs no cache.
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status) =>
-        new([new ProcessSpec(status.ExecutablePath!, ["--edition", "2021", "-O", "-o", "prog", entryFile], workingDirectory, ToolchainEnvironment())],
-            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+        new([new ProcessSpec(status.ExecutablePath!, ["--edition", "2021", "-O", "-o", ToolLocator.ProgramName, entryFile], workingDirectory, ToolchainEnvironment())],
+            new ProcessSpec(Path.Combine(workingDirectory, ToolLocator.ProgramName), [], workingDirectory));
 
     // HOME is the workdir, so point the rustup shim at the real toolchain directories (read only use).
     private static Dictionary<string, string> ToolchainEnvironment()
@@ -404,9 +412,9 @@ internal sealed class RustRuntime : ILanguageRuntime, INativeDebugBuild
     {
         var args = new List<string> { "--edition", "2021", "-g", "-C", "opt-level=0" };
         if (OperatingSystem.IsMacOS()) args.AddRange(["-C", "split-debuginfo=packed"]);
-        args.AddRange(["-o", "prog", Path.GetFullPath(entryFile, sourceDirectory ?? workingDirectory)]);
+        args.AddRange(["-o", ToolLocator.ProgramName, Path.GetFullPath(entryFile, sourceDirectory ?? workingDirectory)]);
         return new BuildPlan([new ProcessSpec(status.ExecutablePath!, args, workingDirectory, ToolchainEnvironment())],
-            new ProcessSpec(Path.Combine(workingDirectory, "prog"), [], workingDirectory));
+            new ProcessSpec(Path.Combine(workingDirectory, ToolLocator.ProgramName), [], workingDirectory));
     }
 }
 

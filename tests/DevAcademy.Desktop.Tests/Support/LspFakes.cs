@@ -181,5 +181,5 @@ public sealed class ScriptedLauncher : IServerLauncher
             [new ServerCommand(OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh", [])], [], null, [], "install scripted-ls"),
     ];
 
-    public static ServerLocator Locator => new(null, [Path.GetDirectoryName(Environment.ProcessPath)!]);
+    public static ServerLocator Locator => new(null, [OperatingSystem.IsWindows() ? Environment.SystemDirectory : "/bin"]);
 }

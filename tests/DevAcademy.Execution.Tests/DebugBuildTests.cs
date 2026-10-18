@@ -62,11 +62,11 @@ public class DebugBuildTests
     public void Rust_debug_plan_disables_optimisation_and_keeps_the_normal_plan_optimised()
     {
         var rt = new RustRuntime();
-        var debug = rt.CreateDebugPlan("/w", "main.rs", Fake).CompileSteps[0].Args;
+        var debug = rt.CreateDebugPlan(Path.GetFullPath("/w"), "main.rs", Fake).CompileSteps[0].Args;
         Assert.Contains("-g", debug);
         Assert.Contains("opt-level=0", debug);
         Assert.DoesNotContain("-O", debug);
-        Assert.Contains("-O", rt.CreatePlan("/w", "main.rs", Fake).CompileSteps[0].Args);
+        Assert.Contains("-O", rt.CreatePlan(Path.GetFullPath("/w"), "main.rs", Fake).CompileSteps[0].Args);
     }
 
     [Fact]

@@ -26,6 +26,7 @@ public static class EngineMessages
     public const string JdkHintKey = "Engine_Hint_Jdk";
     public const string CppHintKey = "Engine_Hint_Cpp";
     public const string CppUnsupportedKey = "Engine_Runtime_CppUnsupported";
+    public const string CppNoStandardLibraryKey = "Engine_Runtime_CppNoStandardLibrary";
     public const string CppFallback20Key = "Engine_Runtime_CppFallback20";
     public const string CppNoExpectedKey = "Engine_Runtime_CppNoExpected";
     public const string RustHintKey = "Engine_Hint_Rust";
@@ -65,6 +66,7 @@ public static class EngineMessages
     public static LocalizedText CppFallback20() => LocalizedText.Create(CppFallback20Key, "This compiler does not support C++23, so programs are built as C++20. Most lessons work; examples that use C++23 (std::expected) will not compile. Update to GCC 13+ or Clang 17+ to build everything.");
     public static LocalizedText CppNoExpected() => LocalizedText.Create(CppNoExpectedKey, "This compiler builds C++23 but its standard library has no std::expected (for example clang with libstdc++ 13), so examples that use it will not compile. Install g++ 13 or newer, or Clang 17+ with libc++, to build everything.");
     public static LocalizedText CppUnsupported() => LocalizedText.Create(CppUnsupportedKey, "The compiler accepts neither -std=c++23 nor -std=c++20; update it (GCC 13+ or Clang 17+).");
+    public static LocalizedText CppNoStandardLibrary() => LocalizedText.Create(CppNoStandardLibraryKey, "The compiler cannot find the C++ standard library (clang++ on Windows needs the Visual Studio Build Tools; MinGW g++ from MSYS2 works without them). Install one of them and make sure it is on PATH.");
     public static LocalizedText RustHint() => LocalizedText.Create(RustHintKey, "https://rustup.rs");
     public static LocalizedText DotNetHint() => LocalizedText.Create(DotNetHintKey, "Install the .NET 10 SDK from https://dotnet.microsoft.com/download (macOS: brew install --cask dotnet-sdk; Debian/Ubuntu: apt install dotnet-sdk-10.0).");
     public static LocalizedText KotlinHint() => LocalizedText.Create(KotlinHintKey, "https://kotlinlang.org/docs/command-line.html (also requires a JDK).");

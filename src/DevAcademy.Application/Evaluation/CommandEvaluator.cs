@@ -9,7 +9,7 @@ namespace DevAcademy.Application.Evaluation;
 /// <c>go test -json</c>) is mapped onto the declared cases. A case passes only when a matching reported test passed; a missing
 /// or skipped test fails it, and a clean exit code alone never passes anything.
 /// </summary>
-public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
+public sealed partial class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
 {
     private const long NodeToolMemoryBytes = 2048L * 1024 * 1024;
     private const int MaxReportBytes = 4 * 1024 * 1024;
@@ -129,8 +129,12 @@ public sealed class CommandEvaluator(ICodeRunner runner) : IExerciseEvaluator
         var dir = workDir.TrimEnd('/', '\\');
         foreach (var variant in new[] { "file://" + dir + "/", "file://" + "/private" + dir + "/", dir + "/", "/private" + dir + "/" })
             text = text.Replace(variant, "");
-        return text;
+        // Windows tools print the same directory as C:\\Users\\x\\Temp\\devacademy-run-..\\, file:///C:/Users/x/Temp/devacademy-run-../, with 8.3 short names or other casing.
+        return WorkDirPrefix().Replace(text, "");
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?:file:///)?(?:[A-Za-z]:)?[^\s'""()<>]*devacademy-run-[0-9a-f]{32}[/\\]", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex WorkDirPrefix();
 }
 
 /// <summary>Maps a declared case's <c>match</c> to the reported tests it denotes.</summary>

@@ -7,6 +7,9 @@ namespace DevAcademy.Execution;
 /// <summary>PATH lookup and short version probes used by language adapters and sandboxes.</summary>
 internal static class ToolLocator
 {
+    /// <summary>File name of the compiled program in the work directory (Windows only runs files with an executable suffix).</summary>
+    internal static readonly string ProgramName = OperatingSystem.IsWindows() ? "prog.exe" : "prog";
+
     private static readonly string[] ExtraUnixDirs = ["/opt/homebrew/bin", "/usr/local/bin"];
 
     private static readonly AsyncLocal<IReadOnlyList<string>?> DirsOverride = new();

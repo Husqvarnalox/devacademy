@@ -171,7 +171,7 @@ public static class TestEnv
         return new LanguageServerManager(new LanguageServerManagerOptions
         {
             Definitions = [def],
-            Locator = new ServerLocator(null, [Path.GetDirectoryName(Environment.ProcessPath)!]),
+            Locator = new ServerLocator(null, [OperatingSystem.IsWindows() ? Environment.SystemDirectory : "/bin"]),
             Launcher = launcher,
             IdleTimeout = idle ?? TimeSpan.FromMinutes(5),
             KillTimeout = TimeSpan.FromMilliseconds(500),

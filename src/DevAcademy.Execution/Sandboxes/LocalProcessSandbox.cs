@@ -49,7 +49,12 @@ public class LocalProcessSandbox : IProcessSandbox
     /// </summary>
     internal static void EnsureScratch(string workDir, UnixFileMode? mode = null)
     {
-        if (OperatingSystem.IsWindows()) { Directory.CreateDirectory(Path.Combine(workDir, "tmp")); return; }
+        if (OperatingSystem.IsWindows())
+        {
+            foreach (string dir in new[] { "tmp", Path.Combine("tmp", "appdata"), Path.Combine("tmp", "localappdata") })
+                Directory.CreateDirectory(Path.Combine(workDir, dir));
+            return;
+        }
         foreach (string dir in new[] { "tmp", Path.Combine("tmp", "xdg-data"), Path.Combine("tmp", "xdg-cache"), Path.Combine("tmp", "xdg-config") })
         {
             string full = Path.Combine(workDir, dir);
@@ -62,7 +67,8 @@ public class LocalProcessSandbox : IProcessSandbox
     internal static Dictionary<string, string> BuildEnvironment(ProcessSpec spec)
     {
         string tmp = Path.Combine(spec.WorkingDirectory, "tmp");
-        var env = new Dictionary<string, string>
+        // Windows variable names are case-insensitive (PATH, Path): a spec's "Path" must replace ours, not sit beside it.
+        var env = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
         {
             ["PATH"] = ToolLocator.SearchPath(),
             ["HOME"] = spec.WorkingDirectory,
@@ -80,7 +86,16 @@ public class LocalProcessSandbox : IProcessSandbox
         {
             env["TEMP"] = tmp;
             env["TMP"] = tmp;
-            foreach (string name in new[] { "SystemRoot", "ComSpec", "PATHEXT", "windir" })
+            // The Windows counterpart of HOME and XDG_*: tools (NuGet, rustup, node) resolve their per-user folders from these and fail on null paths without them.
+            env["USERPROFILE"] = spec.WorkingDirectory;
+            env["APPDATA"] = Path.Combine(tmp, "appdata");
+            env["LOCALAPPDATA"] = Path.Combine(tmp, "localappdata");
+            // Machine-level, non-secret variables: Windows itself, and toolchains that locate Visual Studio / the SDKs through them (rustc and clang find link.exe and the libraries this way).
+            foreach (string name in new[]
+            {
+                "SystemRoot", "SystemDrive", "ComSpec", "PATHEXT", "windir", "OS", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE",
+                "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432", "ProgramData", "CommonProgramFiles", "CommonProgramFiles(x86)", "CommonProgramW6432", "ALLUSERSPROFILE",
+            })
                 if (Environment.GetEnvironmentVariable(name) is { } v) env[name] = v;
         }
         if (spec.Environment is not null)

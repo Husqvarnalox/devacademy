@@ -100,7 +100,7 @@ public static class ProjectRunProfiles
     {
         if (value.Length > 0 && value.All(c => char.IsLetterOrDigit(c) || c is '/' or '.' or '_' or '-' or ':' or '\\' or '+' or '@' or '~'))
             return value;
-        if (OperatingSystem.IsWindows()) return "& \"" + value.Replace("\"", "\"\"") + "\"";
+        if (OperatingSystem.IsWindows()) return "& '" + value.Replace("'", "''") + "'"; // PowerShell (the Windows terminal's shell): single quotes do not expand $variables
         return "'" + value.Replace("'", "'\\''") + "'";
     }
 }

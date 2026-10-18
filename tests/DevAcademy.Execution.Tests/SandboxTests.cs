@@ -78,6 +78,7 @@ public class SandboxTests
     [Fact]
     public void Profile_escapes_quotes_and_uses_realpaths()
     {
+        if (OperatingSystem.IsWindows()) Assert.Skip("sandbox-exec profiles hold POSIX paths and are only built on macOS; Windows runs use plain process limits");
         string profile = MacSandboxExecSandbox.BuildProfile("/tmp/a\"b\\c", "/tmp/cache", allowNetwork: false);
         Assert.Contains("(deny network*)", profile);
         Assert.Contains("(subpath \"/tmp/a\\\"b\\\\c\")", profile);

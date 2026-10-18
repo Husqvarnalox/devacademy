@@ -39,6 +39,7 @@ internal static class ProcessRunner
         var sw = Stopwatch.StartNew();
         process.Start();
         int rootPid = process.Id;
+        using WindowsJob? job = OperatingSystem.IsWindows() ? WindowsJob.TryCreate(process) : null;
 
         int killReason = KillNone;
         Task? onKillTask = null;
@@ -46,7 +47,7 @@ internal static class ProcessRunner
         void Kill(int reason)
         {
             if (Interlocked.CompareExchange(ref killReason, reason, KillNone) != KillNone) return;
-            KillTree(process, knownPids, rootPid);
+            KillTree(process, knownPids, rootPid, job);
             if (launch.OnKill is not null) onKillTask = launch.OnKill();
         }
 
@@ -95,13 +96,13 @@ internal static class ProcessRunner
         if (!await TryWaitAsync(readers, TimeSpan.FromSeconds(1)).ConfigureAwait(false))
         {
             KillLeftovers(knownPids, rootPid);
-            KillProcessGroup(rootPid);
+            KillProcessGroup(rootPid, job);
             if (!await TryWaitAsync(readers, TimeSpan.FromSeconds(1)).ConfigureAwait(false))
                 await readCts.CancelAsync().ConfigureAwait(false);
         }
         await TryWaitAsync(readers, TimeSpan.FromSeconds(1)).ConfigureAwait(false);
         KillLeftovers(knownPids, rootPid);
-        KillProcessGroup(rootPid);
+        KillProcessGroup(rootPid, job);
 
         await monitorCts.CancelAsync().ConfigureAwait(false);
         await monitorTask.ConfigureAwait(false);
@@ -140,12 +141,12 @@ internal static class ProcessRunner
         }
     }
 
-    private static void KillTree(Process process, List<int> knownPids, int rootPid)
+    private static void KillTree(Process process, List<int> knownPids, int rootPid, WindowsJob? job)
     {
         try { process.Kill(entireProcessTree: true); }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException) { }
         KillLeftovers(knownPids, rootPid);
-        KillProcessGroup(rootPid);
+        KillProcessGroup(rootPid, job);
     }
 
     /// <summary>
@@ -153,9 +154,9 @@ internal static class ProcessRunner
     /// so this reaches orphans that were reparented to init and are invisible to a tree walk. No-op otherwise (ESRCH).
     /// Written as <c>kill -s KILL -- -pgid</c> because dash (/bin/sh on Debian and Ubuntu) rejects <c>kill -9 -- -pgid</c> ("Illegal number").
     /// </summary>
-    private static void KillProcessGroup(int rootPid)
+    private static void KillProcessGroup(int rootPid, WindowsJob? job)
     {
-        if (OperatingSystem.IsWindows()) return;
+        if (OperatingSystem.IsWindows()) { job?.Terminate(); return; } // the Windows counterpart of the process group
         try
         {
             var psi = new ProcessStartInfo("/bin/sh") { UseShellExecute = false, CreateNoWindow = true };
@@ -231,7 +232,10 @@ internal static class ProcessRunner
 
         public (string Stdout, string Stderr) Decode()
         {
-            lock (_gate) return (Encoding.UTF8.GetString(_out.ToArray()), Encoding.UTF8.GetString(_err.ToArray()));
+            lock (_gate) return (Normalise(Encoding.UTF8.GetString(_out.ToArray())), Normalise(Encoding.UTF8.GetString(_err.ToArray())));
         }
+
+        /// <summary>Windows runtimes write text with CRLF; learners' expected output (and every check against it) uses LF.</summary>
+        private static string Normalise(string text) => OperatingSystem.IsWindows() ? text.Replace("\r\n", "\n", StringComparison.Ordinal) : text;
     }
 }

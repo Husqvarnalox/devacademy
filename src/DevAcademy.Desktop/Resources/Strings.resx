@@ -1157,6 +1157,7 @@
   <data name="Engine_Runtime_CSharpNotes" xml:space="preserve"><value>Компилируется только файл точки входа (file-based app). Если среди файлов ровно один .csproj, собирается весь проект.</value></data>
   <data name="Engine_Runtime_CSharpUnsupported" xml:space="preserve"><value>Для file-based приложений нужен .NET SDK 10 или новее.</value></data>
   <data name="Engine_Runtime_CppUnsupported" xml:space="preserve"><value>Компилятор не принимает ни -std=c++23, ни -std=c++20; обновите его (GCC 13+ или Clang 17+).</value></data>
+  <data name="Engine_Runtime_CppNoStandardLibrary" xml:space="preserve"><value>Компилятор не находит стандартную библиотеку C++ (clang++ в Windows требует Visual Studio Build Tools; MinGW g++ из MSYS2 работает без них). Установите один из вариантов и добавьте его в PATH.</value></data>
   <data name="Engine_Runtime_CppNotFound" xml:space="preserve"><value>clang++ или g++ не найдены в PATH.</value></data>
   <data name="Engine_Runtime_JdkNotFound" xml:space="preserve"><value>java и javac (JDK) не найдены в PATH.</value></data>
   <data name="Engine_Runtime_JdkNotWorking" xml:space="preserve"><value>Работающий JDK в PATH не найден.</value></data>

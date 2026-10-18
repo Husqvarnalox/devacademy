@@ -163,5 +163,5 @@ public static class FileUri
     public static string ToPath(string uri) => Uri.TryCreate(uri, UriKind.Absolute, out var u) && u.IsFile ? u.LocalPath : uri;
 
     /// <summary>Stable dictionary key: servers may percent-encode differently from how we built the URI.</summary>
-    public static string Key(string uri) => ToPath(uri);
+    public static string Key(string uri) => OperatingSystem.IsWindows() ? ToPath(uri).ToUpperInvariant() : ToPath(uri); // NTFS paths are case-insensitive
 }

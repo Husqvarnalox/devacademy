@@ -60,6 +60,9 @@ public sealed class ServerLocator
         string[] exts = OperatingSystem.IsWindows()
             ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.CMD;.BAT").Split(';', StringSplitOptions.RemoveEmptyEntries)
             : [""];
+        // "cmd.exe" already carries a PATHEXT extension: try it as written before appending another one.
+        if (OperatingSystem.IsWindows() && exts.Any(e => nameOrPath.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+            exts = ["", .. exts];
         foreach (string dir in dirs)
             foreach (string ext in exts)
             {

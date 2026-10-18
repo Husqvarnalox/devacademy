@@ -402,17 +402,18 @@ public class ServerRegistryTests
         string cache = TestEnv.TempDir("cache"), sys = TestEnv.TempDir("sys");
         string bin = ServerLocator.NpmBinDirectory(cache);
         Directory.CreateDirectory(bin);
+        string ext = OperatingSystem.IsWindows() ? ".cmd" : "";   // Windows only launches files with a PATHEXT extension (npm .cmd shims)
         var py = LanguageServerRegistry.ForLanguage("python")!;
         var loc = new ServerLocator(cache, [sys]);
         Assert.Null(loc.Resolve(py));
-        File.WriteAllText(Path.Combine(sys, "basedpyright-langserver"), "");
-        Assert.Equal("basedpyright-langserver", Path.GetFileName(loc.Resolve(py)!.Executable));  // second candidate
-        File.WriteAllText(Path.Combine(bin, "pyright-langserver"), "");
+        File.WriteAllText(Path.Combine(sys, "basedpyright-langserver" + ext), "");
+        Assert.Equal("basedpyright-langserver" + ext, Path.GetFileName(loc.Resolve(py)!.Executable));  // second candidate
+        File.WriteAllText(Path.Combine(bin, "pyright-langserver" + ext), "");
         var r = loc.Resolve(py)!;
         Assert.Equal(ServerSource.RunnerCache, r.Source);
         Assert.Equal(["--stdio"], r.Args);
 
-        string custom = Path.Combine(sys, "my pyright");
+        string custom = Path.Combine(sys, "my pyright" + ext);
         File.WriteAllText(custom, "");
         var o = loc.Resolve(py, $"\"{custom}\" --stdio --verbose")!;
         Assert.Equal(ServerSource.UserOverride, o.Source);

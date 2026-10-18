@@ -15,7 +15,7 @@ public class LimitsTests
         var sw = Stopwatch.StartNew();
         ExecutionResult r = await TestSupport.RunAsync(Py("while True: pass\n"), limits: TestSupport.RunLimits(seconds: 1));
         Assert.Equal(ExecutionStatus.Timeout, r.Status);
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(6), $"took {sw.Elapsed}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(6), $"took {sw.Elapsed} (run itself {r.Duration}, status {r.Status})");
     }
 
     /// <summary>
@@ -87,8 +87,8 @@ public class LimitsTests
             Py("import subprocess\nc = subprocess.Popen(['sleep', '300'])\nprint(c.pid, flush=True)\n"),
             limits: TestSupport.RunLimits(seconds: 20));
         Assert.Equal(ExecutionStatus.Success, r.Status);
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(8), $"took {sw.Elapsed}");
-        Assert.True(await WaitUntilGoneAsync(int.Parse(r.Stdout.Trim())));
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(8), $"took {sw.Elapsed} (run itself {r.Duration})");
+        Assert.True(await WaitUntilGoneAsync(int.Parse(r.Stdout.Trim())), "the orphaned grandchild is still alive");
     }
 
     private static async Task<bool> WaitUntilGoneAsync(int pid)

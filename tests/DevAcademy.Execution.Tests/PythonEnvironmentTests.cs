@@ -225,9 +225,12 @@ public class PythonEnvironmentTests(PythonEnvFixture fx) : IClassFixture<PythonE
     [Fact]
     public void Sandbox_profiles_mark_read_only_paths()
     {
-        string mac = MacSandboxExecSandbox.BuildProfile("/w", "/c", false, ["/envs/x"]);
-        Assert.Contains("/envs/x", mac);
-        Assert.True(mac.LastIndexOf("(deny file-write*", StringComparison.Ordinal) > mac.IndexOf("/c", StringComparison.Ordinal));
+        if (!OperatingSystem.IsWindows()) // the sandbox-exec profile holds POSIX paths and is only built on macOS
+        {
+            string mac = MacSandboxExecSandbox.BuildProfile("/w", "/c", false, ["/envs/x"]);
+            Assert.Contains("/envs/x", mac);
+            Assert.True(mac.LastIndexOf("(deny file-write*", StringComparison.Ordinal) > mac.IndexOf("/c", StringComparison.Ordinal));
+        }
         var bwrap = LinuxBubblewrapSandbox.BuildArguments("/w", "/c", "/bin/sh", ["-c", "true"], false, ["/envs/x"]);
         int i = bwrap.ToList().IndexOf("--ro-bind");
         Assert.True(i >= 0);
