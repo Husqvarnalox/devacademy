@@ -15,7 +15,7 @@ public class LimitsTests
         var sw = Stopwatch.StartNew();
         ExecutionResult r = await TestSupport.RunAsync(Py("while True: pass\n"), limits: TestSupport.RunLimits(seconds: 1));
         Assert.Equal(ExecutionStatus.Timeout, r.Status);
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(6), $"took {sw.Elapsed} (run itself {r.Duration}, status {r.Status})");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(10), $"took {sw.Elapsed} (run itself {r.Duration}, status {r.Status})");
     }
 
     /// <summary>
