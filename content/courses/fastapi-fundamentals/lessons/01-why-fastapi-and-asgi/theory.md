@@ -156,19 +156,19 @@ seen = {}
 
 @app.get("/sync")
 def sync_handler():
-    seen["sync"] = threading.get_ident()
+    seen["sync"] = threading.current_thread()
     return {}
 
 @app.get("/async")
 async def async_handler():
-    seen["async"] = threading.get_ident()
+    seen["async"] = threading.current_thread()
     return {}
 
 client = TestClient(app)
 client.get("/sync")
 client.get("/async")
-print("разные потоки:", seen["sync"] != seen["async"])
-print("async не в главном потоке теста:", seen["async"] != threading.get_ident())
+print("разные потоки:", seen["sync"] is not seen["async"])
+print("async не в главном потоке теста:", seen["async"] is not threading.current_thread())
 ```
 ```output
 разные потоки: True
