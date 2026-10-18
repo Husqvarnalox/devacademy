@@ -59,6 +59,7 @@ public sealed class PtyTerminalSession : ITerminalSession
     private int _running = 1;
     private int _disposed;
     private int _exitCode = int.MinValue;
+    private int _watchedExit = int.MinValue;
 
     private PtyTerminalSession(IPtyConnection pty, TerminalEmulator screen, string name, string exitFormat)
     {
@@ -101,10 +102,24 @@ public sealed class PtyTerminalSession : ITerminalSession
         var screen = new TerminalEmulator(options.Cols, options.Rows, o.ScrollbackLines);
         var session = new PtyTerminalSession(pty, screen, shell.DisplayName, o.ExitMessageFormat);
         session.BeginRead();
+        if (OperatingSystem.IsWindows()) session.BeginExitWatch();
         return session;
     }
 
     private void BeginRead() => Task.Factory.StartNew(ReadLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+    /// <summary>ConPTY keeps the output pipe open after the shell exits until the pseudoconsole is closed, so the reader never sees EOF. Watch the process, give the output a moment to drain, then close the console to end the read.</summary>
+    private void BeginExitWatch() => Task.Run(() =>
+    {
+        try
+        {
+            if (!_pty.WaitForExit(Timeout.Infinite)) return;
+            Volatile.Write(ref _watchedExit, _pty.ExitCode);
+            Thread.Sleep(500);
+            if (IsRunning) _pty.Dispose();
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException or IOException or System.ComponentModel.Win32Exception) { }
+    });
 
     private void ReadLoop()
     {
@@ -135,7 +150,9 @@ public sealed class PtyTerminalSession : ITerminalSession
         var code = -1;
         try
         {
-            if (_pty.WaitForExit(3000)) code = _pty.ExitCode;
+            var watched = Volatile.Read(ref _watchedExit);
+            if (watched != int.MinValue) code = watched;
+            else if (_pty.WaitForExit(3000)) code = _pty.ExitCode;
         }
         catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException) { }
 

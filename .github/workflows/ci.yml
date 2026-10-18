@@ -64,6 +64,9 @@ jobs:
       # Every test project runs even when an earlier one fails (so a platform problem shows all its failures at once); the step fails at the end.
       # Real toolchains present on the runner image; missing ones are skipped by the tests themselves.
       - name: Unit, integration, headless UI and code execution engine tests
+        id: tests
+        # The content environments and validation below still run after a test failure (their problems are reported in the same run); a last step fails the job.
+        continue-on-error: true
         shell: bash
         run: |
           failed=""
@@ -114,11 +117,13 @@ jobs:
       - name: Maven content environment (jars verified against the committed sha256 locks)
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- maven-env --maven-env .maven-content
       - name: Check Python environment against content
-        if: ${{ !cancelled() }}   # report content problems even when a test project failed
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- python-env-check --python-env .venv-content --content content
       - name: Validate content (runs reference solutions where toolchains exist)
-        if: ${{ !cancelled() }}
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions --python-env .venv-content --node-env .node-content --go-env .go-content --nuget-env .nuget-content --maven-env .maven-content
+      - name: Fail the job when a test project failed
+        if: ${{ !cancelled() && steps.tests.outcome == 'failure' }}
+        shell: bash
+        run: exit 1
 
   publish:
     needs: test
