@@ -517,8 +517,20 @@ public sealed class CodeRunner : ICodeRunner
                     await Task.Delay(100 * (attempt + 1)).ConfigureAwait(false);
                 }
             }
-            // Last attempt surfaces the problem instead of silently leaking the directory.
-            if (Directory.Exists(workDir)) Directory.Delete(workDir, recursive: true);
+            // Windows components a run touches (WinINet's INetCache\Content.IE5, for one) leave read-only/system entries that a plain recursive delete
+            // refuses. Clear the attributes and try once more; if the directory still cannot go, leave it in the temp folder: a leftover scratch
+            // directory must not turn an already computed result into a crash.
+            try
+            {
+                if (!Directory.Exists(workDir)) return;
+                foreach (string entry in Directory.EnumerateFileSystemEntries(workDir, "*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = 0 }))
+                    File.SetAttributes(entry, FileAttributes.Normal);
+                Directory.Delete(workDir, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Trace.TraceWarning($"Could not remove the run directory {workDir}: {ex.Message}");
+            }
         }
     }
 }

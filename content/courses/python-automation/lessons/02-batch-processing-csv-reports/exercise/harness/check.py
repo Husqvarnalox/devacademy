@@ -145,7 +145,7 @@ def t_max_errors():
 def t_streaming():
     def gen():
         yield HEADER
-        for i in range(1, 60001):
+        for i in range(1, 20001):
             yield f"{i},name{i},{i % 100}.25,2024-0{i % 9 + 1}-15"
 
     tracemalloc.start()
@@ -154,9 +154,9 @@ def t_streaming():
         _, peak = tracemalloc.get_traced_memory()
     finally:
         tracemalloc.stop()
-    if summary["rows_ok"] != 60000 or errors:
+    if summary["rows_ok"] != 20000 or errors:
         return f"неверный результат на большом потоке: {summary['rows_ok']} строк, {len(errors)} ошибок"
-    if peak > 2_000_000:
+    if peak > 500_000:
         return f"пиковая память {peak // 1000} КБ: входной поток нельзя превращать в список (list(lines), readlines, read)"
 
 
