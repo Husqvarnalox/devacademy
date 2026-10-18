@@ -26,6 +26,7 @@ public static class EngineMessages
     public const string JdkHintKey = "Engine_Hint_Jdk";
     public const string CppHintKey = "Engine_Hint_Cpp";
     public const string CppUnsupportedKey = "Engine_Runtime_CppUnsupported";
+    public const string CppFallback20Key = "Engine_Runtime_CppFallback20";
     public const string RustHintKey = "Engine_Hint_Rust";
     public const string DotNetHintKey = "Engine_Hint_DotNet";
     public const string KotlinHintKey = "Engine_Hint_Kotlin";
@@ -59,7 +60,8 @@ public static class EngineMessages
     public static LocalizedText GoWorkingHint() => LocalizedText.Create(GoWorkingHintKey, "Install Go from https://go.dev/dl/.");
     public static LocalizedText JdkHint() => LocalizedText.Create(JdkHintKey, "Install a JDK (17+) from https://adoptium.net/ (macOS: brew install openjdk; Debian/Ubuntu: apt install default-jdk).");
     public static LocalizedText CppHint() => LocalizedText.Create(CppHintKey, "Install a C++23-capable compiler (courses build with -std=c++23 and use std::expected: GCC 13+ or Clang 17+; Apple clang from Xcode 16): macOS: xcode-select --install; Debian/Ubuntu: apt install g++ (g++-13 or newer); Windows: https://visualstudio.microsoft.com/downloads/ or MSYS2.");
-    public static LocalizedText CppUnsupported() => LocalizedText.Create(CppUnsupportedKey, "The compiler does not accept -std=c++23; update it (GCC 11+/Clang 17+ for the flag; std::expected needs libstdc++ 12+/libc++ 16+).");
+    public static LocalizedText CppFallback20() => LocalizedText.Create(CppFallback20Key, "This compiler does not support C++23, so programs are built as C++20. Most lessons work; examples that use C++23 (std::expected) will not compile. Update to GCC 13+ or Clang 17+ to build everything.");
+    public static LocalizedText CppUnsupported() => LocalizedText.Create(CppUnsupportedKey, "The compiler accepts neither -std=c++23 nor -std=c++20; update it (GCC 13+ or Clang 17+).");
     public static LocalizedText RustHint() => LocalizedText.Create(RustHintKey, "https://rustup.rs");
     public static LocalizedText DotNetHint() => LocalizedText.Create(DotNetHintKey, "Install the .NET 10 SDK from https://dotnet.microsoft.com/download (macOS: brew install --cask dotnet-sdk; Debian/Ubuntu: apt install dotnet-sdk-10.0).");
     public static LocalizedText KotlinHint() => LocalizedText.Create(KotlinHintKey, "https://kotlinlang.org/docs/command-line.html (also requires a JDK).");

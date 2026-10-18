@@ -1156,7 +1156,7 @@
   <data name="Engine_Run_UnknownLanguage" xml:space="preserve"><value>Неизвестный язык «{0}».</value></data>
   <data name="Engine_Runtime_CSharpNotes" xml:space="preserve"><value>Компилируется только файл точки входа (file-based app). Если среди файлов ровно один .csproj, собирается весь проект.</value></data>
   <data name="Engine_Runtime_CSharpUnsupported" xml:space="preserve"><value>Для file-based приложений нужен .NET SDK 10 или новее.</value></data>
-  <data name="Engine_Runtime_CppUnsupported" xml:space="preserve"><value>Компилятор не принимает -std=c++23; обновите его (флаг: GCC 11+/Clang 17+; std::expected требует libstdc++ 12+/libc++ 16+).</value></data>
+  <data name="Engine_Runtime_CppUnsupported" xml:space="preserve"><value>Компилятор не принимает ни -std=c++23, ни -std=c++20; обновите его (GCC 13+ или Clang 17+).</value></data>
   <data name="Engine_Runtime_CppNotFound" xml:space="preserve"><value>clang++ или g++ не найдены в PATH.</value></data>
   <data name="Engine_Runtime_JdkNotFound" xml:space="preserve"><value>java и javac (JDK) не найдены в PATH.</value></data>
   <data name="Engine_Runtime_JdkNotWorking" xml:space="preserve"><value>Работающий JDK в PATH не найден.</value></data>
@@ -1174,4 +1174,5 @@
   <data name="Engine_Runtime_TsNoTypes" xml:space="preserve"><value>{0} найден, но проверка типов недоступна: не подготовлен @types/node.</value></data>
   <data name="Engine_Runtime_TsNoTypesWarning" xml:space="preserve"><value>проверка типов недоступна: не подготовлен @types/node</value></data>
   <data name="Engine_Runtime_TsStripping" xml:space="preserve"><value>Запуск через удаление типов в Node (без enum и namespace).</value></data>
+  <data name="Engine_Runtime_CppFallback20" xml:space="preserve"><value>Компилятор не поддерживает C++23, поэтому программы собираются как C++20. Большинство уроков работает; примеры на возможностях C++23 (std::expected) не скомпилируются. Чтобы собиралось всё, обновите компилятор до GCC 13+ или Clang 17+.</value></data>
 </root>

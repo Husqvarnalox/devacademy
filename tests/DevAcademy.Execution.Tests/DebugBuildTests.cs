@@ -29,6 +29,35 @@ public class DebugBuildTests
         Assert.DoesNotContain("-g", normal);
     }
 
+    [Theory]
+    [InlineData(null, "-std=c++23")]
+    [InlineData("c++23", "-std=c++23")]
+    [InlineData("c++20", "-std=c++20")]
+    public void Cpp_plans_build_with_the_detected_standard(string? standard, string flag)
+    {
+        string d = Dir();
+        File.WriteAllText(Path.Combine(d, "main.cpp"), "int main(){}");
+        var rt = new CppRuntime();
+        var status = Fake with { LanguageStandard = standard };
+        Assert.Contains(flag, rt.CreatePlan(d, "main.cpp", status).CompileSteps[0].Args);
+        Assert.Contains(flag, rt.CreateDebugPlan(d, "main.cpp", status).CompileSteps[0].Args);
+    }
+
+    [Fact]
+    public async Task Detected_cpp_compiler_reports_its_standard_and_explains_a_fallback()
+    {
+        var status = await new CppRuntime().DetectAsync(TestContext.Current.CancellationToken);
+        Assert.SkipWhen(status.Availability == RuntimeAvailability.Missing, "No C++ compiler on this machine.");
+        if (status.Availability == RuntimeAvailability.Unsupported) { Assert.Null(status.LanguageStandard); return; }
+        Assert.Contains(status.LanguageStandard, new[] { "c++23", "c++20" });
+        if (status.LanguageStandard == "c++20")
+        {
+            Assert.Equal(EngineMessages.CppFallback20Key, status.NotesText?.Key);
+            Assert.Equal(EngineMessages.CppFallback20Key, status.WarningText?.Key);
+        }
+        else Assert.Null(status.Warning);
+    }
+
     [Fact]
     public void Rust_debug_plan_disables_optimisation_and_keeps_the_normal_plan_optimised()
     {

@@ -304,17 +304,30 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
             if (ToolLocator.Find(name) is not { } path) continue;
             string? v = await ToolLocator.ProbeAsync(path, ["--version"], ct).ConfigureAwait(false); // fails for the Xcode shim without Command Line Tools
             if (v is null) continue;
-            // Preprocess-only probe (-dM -E on empty stdin prints the predefined macros): cheap, needs no temp file, and fails exactly when the driver rejects -std=c++23.
-            if (await ToolLocator.ProbeAsync(path, ["-x", "c++", "-std=c++23", "-dM", "-E", "-"], ct).ConfigureAwait(false) is null)
-                return new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppUnsupported()).WithInstallHint(EngineMessages.CppHint());
-            return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null);
+            // Preprocess-only probes (-dM -E on empty stdin prints the predefined macros): cheap, need no temp file, and fail exactly when the driver rejects the -std flag.
+            if (await AcceptsAsync(path, Cpp23, ct).ConfigureAwait(false))
+                return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp23);
+            // An older compiler still runs most of the courses: build as C++20 and say once per run what that costs (C++23-only examples fail to compile).
+            if (await AcceptsAsync(path, Cpp20, ct).ConfigureAwait(false))
+                return new RuntimeStatus(LanguageId, RuntimeAvailability.Available, v, path, null, null, LanguageStandard: Cpp20)
+                    .WithNotes(EngineMessages.CppFallback20()).WithWarning(EngineMessages.CppFallback20()).WithInstallHint(EngineMessages.CppHint());
+            return new RuntimeStatus(LanguageId, RuntimeAvailability.Unsupported, v, path, null, null).WithNotes(EngineMessages.CppUnsupported()).WithInstallHint(EngineMessages.CppHint());
         }
         return ToolLocator.Missing(LanguageId, EngineMessages.CppNotFound(), EngineMessages.CppHint());
     }
 
+    internal const string Cpp23 = "c++23";
+    internal const string Cpp20 = "c++20";
+
+    private static async Task<bool> AcceptsAsync(string compiler, string standard, CancellationToken ct) =>
+        await ToolLocator.ProbeAsync(compiler, ["-x", "c++", "-std=" + standard, "-dM", "-E", "-"], ct).ConfigureAwait(false) is not null;
+
+    /// <summary>The detected standard; C++23 when the status does not say (a status built by hand, e.g. in tests).</summary>
+    internal static string StdFlag(RuntimeStatus status) => "-std=" + (status.LanguageStandard ?? Cpp23);
+
     public BuildPlan CreatePlan(string workingDirectory, string entryFile, RuntimeStatus status)
     {
-        var args = new List<string> { "-std=c++23", "-pthread", "-O2", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { StdFlag(status), "-pthread", "-O2", "-Wall", "-Wextra", "-o", "prog" };
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".cpp", ".cc", ".cxx"));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
@@ -325,7 +338,7 @@ internal sealed class CppRuntime : ILanguageRuntime, INativeDebugBuild
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
     {
         string src = sourceDirectory ?? workingDirectory;
-        var args = new List<string> { "-std=c++23", "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
+        var args = new List<string> { StdFlag(status), "-pthread", "-g", "-O0", "-Wall", "-Wextra", "-o", "prog" };
         args.AddRange(ToolLocator.FilesWithExtensions(src, ".cpp", ".cc", ".cxx").Select(f => Path.GetFullPath(f, src)));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],

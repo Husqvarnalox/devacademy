@@ -110,7 +110,9 @@ public sealed record RuntimeStatus(
     /// <summary>Translatable forms of <see cref="Notes"/>, <see cref="InstallHint"/> and <see cref="Warning"/>; the strings are their English fallbacks. Set them through the With* methods.</summary>
     LocalizedText? NotesText = null,
     LocalizedText? InstallHintText = null,
-    LocalizedText? WarningText = null)
+    LocalizedText? WarningText = null,
+    /// <summary>Language standard the build uses when the runtime has several (C++: "c++23", or "c++20" on compilers without C++23). Null: the runtime's default.</summary>
+    string? LanguageStandard = null)
 {
     public RuntimeStatus WithNotes(LocalizedText? text) => this with { Notes = text?.Fallback, NotesText = text };
     public RuntimeStatus WithInstallHint(LocalizedText? text) => this with { InstallHint = text?.Fallback, InstallHintText = text };
