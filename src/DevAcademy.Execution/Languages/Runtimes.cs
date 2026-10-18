@@ -253,7 +253,7 @@ internal sealed class JavaRuntime : ILanguageRuntime, IDebugBuildRuntime
         string mainClass = Path.ChangeExtension(entryFile, null)!.Replace('\\', '.').Replace('/', '.');
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
-            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", "-cp", "out", mainClass], workingDirectory));
+            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", .. ToolLocator.JvmEncoding, "-cp", "out", mainClass], workingDirectory));
     }
 
     /// <summary>javac -g (line numbers, local variable names) into <c>out</c> with absolute source paths; the run command is the one the JDI adapter launches.</summary>
@@ -266,7 +266,7 @@ internal sealed class JavaRuntime : ILanguageRuntime, IDebugBuildRuntime
         string mainClass = Path.ChangeExtension(entryFile, null)!.Replace('\\', '.').Replace('/', '.');
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory)],
-            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", "-cp", Path.Combine(workingDirectory, "out"), mainClass], workingDirectory));
+            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", .. ToolLocator.JvmEncoding, "-cp", Path.Combine(workingDirectory, "out"), mainClass], workingDirectory));
     }
 
     /// <summary>Heap cap of a run with a jar folder: the JVM would otherwise grow towards a quarter of the machine's memory, past the run's memory limit.</summary>
@@ -287,7 +287,7 @@ internal sealed class JavaRuntime : ILanguageRuntime, IDebugBuildRuntime
         args.AddRange(ToolLocator.FilesWithExtensions(workingDirectory, ".java"));
         return new BuildPlan(
             [new ProcessSpec(status.ExecutablePath!, args, workingDirectory, ReadOnlyPaths: readOnly)],
-            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", LibraryHeap, "-cp", "out" + Path.PathSeparator + wildcard, mainClass], workingDirectory, ReadOnlyPaths: readOnly));
+            new ProcessSpec(java, ["-XX:+UseSerialGC", "-Xss16m", .. ToolLocator.JvmEncoding, LibraryHeap, "-cp", "out" + Path.PathSeparator + wildcard, mainClass], workingDirectory, ReadOnlyPaths: readOnly));
     }
 }
 
@@ -452,7 +452,7 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
         };
         // Project mode: exactly one .csproj at the root builds as a project (all its .cs files) and runs <AssemblyName>.dll.
         // Otherwise the entry file alone is built as a file-based app, exactly as before.
-        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags];
+        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, .. Utf8ConsoleFlags(home)];
         if (FindProject(workingDirectory) is { } project)
             return new BuildPlan(
                 [new ProcessSpec(status.ExecutablePath!, ["build", project, .. flags], workingDirectory, env)],
@@ -469,6 +469,46 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
     /// AOT, so turn it off: a plain program then needs no package at all. NuGetAudit would also contact nuget.org.
     /// </summary>
     private static readonly string[] OfflineFlags = ["-p:PublishAot=false", "-p:NuGetAudit=false"];
+
+    /// <summary>
+    /// With redirected pipes .NET on Windows reads and writes the console streams in the ANSI code page (Cyrillic prints as "?"). A module initializer compiled
+    /// into the learner's program (through a targets file imported after Microsoft.Common.targets, so neither the sources nor the project change) switches
+    /// stdin/stdout/stderr to UTF-8, which is what the engine decodes. Other platforms already use UTF-8.
+    /// </summary>
+    private static string[] Utf8ConsoleFlags(string home)
+    {
+        if (!OperatingSystem.IsWindows()) return [];
+        string dir = Path.Combine(home, "utf8");
+        Directory.CreateDirectory(dir);
+        string source = Path.Combine(dir, "Utf8Console.cs");
+        string targets = Path.Combine(dir, "Utf8Console.targets");
+        WriteIfChanged(source, """
+            internal static class DevAcademyUtf8Console
+            {
+                [System.Runtime.CompilerServices.ModuleInitializer]
+                internal static void Init()
+                {
+                    var utf8 = new System.Text.UTF8Encoding(false);
+                    System.Console.SetOut(new System.IO.StreamWriter(System.Console.OpenStandardOutput(), utf8) { AutoFlush = true });
+                    System.Console.SetError(new System.IO.StreamWriter(System.Console.OpenStandardError(), utf8) { AutoFlush = true });
+                    System.Console.SetIn(new System.IO.StreamReader(System.Console.OpenStandardInput(), utf8));
+                }
+            }
+            """);
+        WriteIfChanged(targets, $"""
+            <Project>
+              <ItemGroup>
+                <Compile Include="{source}" />
+              </ItemGroup>
+            </Project>
+            """);
+        return [$"-p:CustomAfterMicrosoftCommonTargets={targets}"];
+    }
+
+    private static void WriteIfChanged(string path, string content)
+    {
+        if (!File.Exists(path) || File.ReadAllText(path) != content) File.WriteAllText(path, content);
+    }
 
     /// <summary>Debug build (portable pdb, no optimisation) into <c>out</c> of the working directory; the run command is <c>dotnet &lt;absolute dll&gt;</c>.</summary>
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
@@ -487,7 +527,7 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
             ["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "1",
         };
         string outDir = Path.Combine(workingDirectory, "out");
-        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true"];
+        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true", .. Utf8ConsoleFlags(home)];
         string target; string assembly;
         if (FindProject(src) is { } project)
         {
@@ -578,7 +618,7 @@ internal sealed class KotlinRuntime : ILanguageRuntime
         if (coroutines is not null) args.AddRange(["-cp", coroutines]);
         args.AddRange(["-include-runtime", "-d", "prog.jar"]);
         string java = ToolLocator.Find("java")!;
-        string[] jvm = ["-XX:+UseSerialGC", "-Xss16m"];
+        string[] jvm = ["-XX:+UseSerialGC", "-Xss16m", .. ToolLocator.JvmEncoding];
         // `java -jar` ignores -cp, so with the coroutines jar the main class is named explicitly: <package.>FileKt of the entry file.
         ProcessSpec run = coroutines is null
             ? new ProcessSpec(java, [.. jvm, "-jar", "prog.jar"], workingDirectory)

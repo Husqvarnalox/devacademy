@@ -105,7 +105,7 @@ def t_write_basic():
     path = Path("da_report_1.txt")
     try:
         m.write_report(path, [1, 2, 3])
-        return expect(path.read_bytes().decode("utf-8"), "Всего: 3\nСумма: 6\n", "содержимое отчёта")
+        return expect(path.read_bytes().decode("utf-8").replace("\r\n", "\n"), "Всего: 3\nСумма: 6\n", "содержимое отчёта")
     finally:
         path.unlink(missing_ok=True)
 
@@ -114,11 +114,11 @@ def t_write_overwrite():
     path = make_file("da_report_2.txt", "старое содержимое, которое длиннее нового отчёта и не должно остаться\n" * 3)
     try:
         m.write_report(path, [])
-        bad = expect(path.read_bytes().decode("utf-8"), "Всего: 0\nСумма: 0\n", "содержимое отчёта для пустого списка")
+        bad = expect(path.read_bytes().decode("utf-8").replace("\r\n", "\n"), "Всего: 0\nСумма: 0\n", "содержимое отчёта для пустого списка")
         if bad:
             return bad
         m.write_report(str(path), [-5, 5, 10])
-        return expect(path.read_bytes().decode("utf-8"), "Всего: 3\nСумма: 10\n", "содержимое после повторной записи")
+        return expect(path.read_bytes().decode("utf-8").replace("\r\n", "\n"), "Всего: 3\nСумма: 10\n", "содержимое после повторной записи")
     finally:
         path.unlink(missing_ok=True)
 

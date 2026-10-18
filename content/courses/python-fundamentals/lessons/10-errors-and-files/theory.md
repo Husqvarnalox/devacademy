@@ -146,7 +146,7 @@ NegativeAmountError -5 сумма не может быть отрицатель�
 from pathlib import Path
 
 path = Path("demo_notes.txt")
-path.write_text("первая\nвторая\n", encoding="utf-8")
+path.write_text("первая\nвторая\n", encoding="utf-8", newline="\n")
 
 with open(path, encoding="utf-8") as f:
     for number, line in enumerate(f, start=1):

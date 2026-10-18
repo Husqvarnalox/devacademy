@@ -85,6 +85,13 @@ public class ContentLoaderTests
     }
 
     [Fact]
+    public void PosixFlagMarksSamplesThatDoNotRunOnWindows()
+    {
+        var samples = TheoryParser.Parse("```python run\nprint(1)\n```\n```output\n1\n```\n\n```python run posix\nprint(2)\n```\n```output\n2\n```\n\n```python run bogus\nprint(3)\n```\n").Samples;
+        Assert.Equal([false, true], samples.Select(x => x.PosixOnly));
+    }
+
+    [Fact]
     public void MissingRootReportsErrorInsteadOfThrowing()
     {
         var r = ContentLoader.Load(Path.Combine(Path.GetTempPath(), "does-not-exist-" + Guid.NewGuid()));

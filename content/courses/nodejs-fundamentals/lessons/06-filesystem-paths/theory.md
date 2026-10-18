@@ -39,7 +39,7 @@ const text = await fs.readFile("notes.txt", "utf8");
 Пути: `join`, `resolve`, `relative`, `parse` (относительно корня, без привязки к машине).
 
 ```javascript run
-const path = require("node:path");
+const path = require("node:path").posix; // .posix: одинаковый вывод на любой ОС
 console.log(path.join("a", "b", "..", "c", "file.txt"));
 console.log(path.join("/a", "/b"), path.resolve("/a", "/b"));
 console.log(path.resolve("/srv/app", "data", "../logs"));

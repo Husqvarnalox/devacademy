@@ -84,6 +84,8 @@ jobs:
         run: |
           python -m venv .venv-content
           .venv-content/Scripts/python.exe -m pip install --disable-pip-version-check -r tools/python-dev-requirements.txt
+          # Windows has no IANA time zone database (the datetime lesson says to install tzdata); the lessons run on the system interpreter.
+          python -m pip install --disable-pip-version-check tzdata
       # React/TypeScript/Express exercises: every package set in a throwaway directory (install scripts disabled), never global.
       - name: Node content environment
         shell: bash
@@ -119,6 +121,8 @@ jobs:
       - name: Check Python environment against content
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- python-env-check --python-env .venv-content --content content
       - name: Validate content (runs reference solutions where toolchains exist)
+        env:
+          DEVACADEMY_VALIDATE_FULL: "1"
         run: dotnet run --project src/DevAcademy.Cli -c Release --no-build -- validate-content --content content --run-solutions --python-env .venv-content --node-env .node-content --go-env .go-content --nuget-env .nuget-content --maven-env .maven-content
       - name: Fail the job when a test project failed
         if: ${{ !cancelled() && steps.tests.outcome == 'failure' }}

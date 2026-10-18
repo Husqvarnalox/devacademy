@@ -8,6 +8,12 @@ namespace DevAcademy.Execution;
 internal static class ToolLocator
 {
     /// <summary>File name of the compiled program in the work directory (Windows only runs files with an executable suffix).</summary>
+    /// <summary>
+    /// A JVM with redirected output encodes it in the console's ANSI code page on Windows (Cyrillic becomes "?") and reads stdin the same way.
+    /// UTF-8 is what the engine decodes, so ask for it explicitly (flags, not JAVA_TOOL_OPTIONS, which prints a notice on stderr).
+    /// </summary>
+    internal static readonly string[] JvmEncoding = OperatingSystem.IsWindows() ? ["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8"] : [];
+
     internal static readonly string ProgramName = OperatingSystem.IsWindows() ? "prog.exe" : "prog";
 
     private static readonly string[] ExtraUnixDirs = ["/opt/homebrew/bin", "/usr/local/bin"];

@@ -172,7 +172,7 @@ with tempfile.TemporaryDirectory(dir=".") as tmp:
     except FileExistsError:
         print("FileExistsError: dst уже есть")
 
-    print(safe_join(base, "dst", "pkg").relative_to(base))
+    print(safe_join(base, "dst", "pkg").relative_to(base).as_posix())
     for bad in ("../outside", "/etc/passwd"):
         try:
             safe_join(base, bad)

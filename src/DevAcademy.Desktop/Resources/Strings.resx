@@ -116,6 +116,7 @@
   <data name="Locked_Title" xml:space="preserve"><value>Урок заблокирован</value></data>
   <data name="Markdown_Image" xml:space="preserve"><value>[изображение: {0}]</value></data>
   <data name="Markdown_OpenInEditor" xml:space="preserve"><value>Открыть в редакторе</value></data>
+  <data name="Markdown_PosixOnly" xml:space="preserve"><value>Пример для Linux и macOS: в Windows работает иначе или не работает</value></data>
   <data name="Markdown_Output" xml:space="preserve"><value>Вывод</value></data>
   <data name="Mode_Challenge" xml:space="preserve"><value>Challenge</value></data>
   <data name="Mode_Practice" xml:space="preserve"><value>Практика</value></data>

@@ -291,7 +291,13 @@ public static class MarkdownRenderer
             VerticalAlignment = VerticalAlignment.Center,
         };
         header.Children.Add(label);
-        if (isRun && o.OpenInEditor is { } open)
+        if (isRun && tokens.Contains("posix") && OperatingSystem.IsWindows())
+        {
+            var note = new TextBlock { Text = Loc.T("Markdown_PosixOnly"), FontSize = 12, Foreground = o.Theme.Muted, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(note, 1);
+            header.Children.Add(note);
+        }
+        else if (isRun && o.OpenInEditor is { } open)
         {
             var btn = new Button { Content = Loc.T("Markdown_OpenInEditor") };
             btn.Classes.Add("md-open-in-editor");

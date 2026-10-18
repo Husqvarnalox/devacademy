@@ -93,7 +93,7 @@ FileNotFoundError
 
 **Пример 3. Почему shell=True опасен: аргумент как данные.**
 
-```python run
+```python run posix
 import subprocess
 import sys
 

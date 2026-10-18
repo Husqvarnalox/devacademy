@@ -256,7 +256,8 @@ public sealed record Exercise(
 public sealed record ComplexityInfo(string Time, string Space, string? Explanation);
 
 /// <summary>A runnable ```lang run block with the expected stdout of the following ```output block, if any.</summary>
-public sealed record CodeSample(string LanguageId, string Code, string? ExpectedOutput);
+/// <summary><paramref name="PosixOnly"/>: the fence is <c>```lang run posix</c>, the sample uses POSIX-only features (symlinks, pipe select, SIGUSR1, a POSIX shell) and does not behave the same on Windows.</summary>
+public sealed record CodeSample(string LanguageId, string Code, string? ExpectedOutput, bool PosixOnly = false);
 
 /// <param name="Sections">Section name (simple, precise, ...) to Markdown body.</param>
 public sealed record Theory(

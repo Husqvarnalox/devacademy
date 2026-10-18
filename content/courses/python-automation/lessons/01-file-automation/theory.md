@@ -68,7 +68,7 @@ with tempfile.TemporaryDirectory(dir=".") as tmp:
     print("на месте:", sorted(os.listdir(tmp)))
     print("первый запуск:", organize(tmp))
     print("второй запуск:", organize(tmp))
-    print("итог:", sorted(str(p.relative_to(tmp)) for p in Path(tmp).rglob("*")))
+    print("итог:", sorted(p.relative_to(tmp).as_posix() for p in Path(tmp).rglob("*")))
 ```
 ```output
 dry-run: [('a.TXT', 'txt/a.TXT'), ('b.csv', 'csv/b.csv'), ('notes', 'other/notes')]

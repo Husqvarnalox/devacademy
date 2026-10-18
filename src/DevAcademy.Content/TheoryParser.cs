@@ -35,11 +35,13 @@ public static partial class TheoryParser
         {
             if (doc[i] is not FencedCodeBlock block) continue;
             // Markdig splits the info string into Info (first word) and Arguments (the rest).
-            if (string.IsNullOrEmpty(block.Info) || block.Arguments?.Trim() != "run") continue;
+            if (string.IsNullOrEmpty(block.Info)) continue;
+            var flags = (block.Arguments ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (flags is not (["run"] or ["run", "posix"])) continue;
             string? expected = null;
             if (i + 1 < doc.Count && doc[i + 1] is FencedCodeBlock { Info: "output" } output)
                 expected = output.Lines.ToString();
-            samples.Add(new CodeSample(block.Info, block.Lines.ToString(), expected));
+            samples.Add(new CodeSample(block.Info, block.Lines.ToString(), expected, flags.Length == 2));
         }
         return samples;
     }

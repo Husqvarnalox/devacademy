@@ -391,6 +391,8 @@ internal static class Cli
             var goExercise = new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>().FirstOrDefault(e => e.NeedsGoEnvironment);
             foreach (var sample in lesson.Theory.Samples.Where(s => s.ExpectedOutput is not null))
             {
+                // `run posix` samples demonstrate POSIX-only behaviour; the app tells a Windows learner so, and validation does not expect their output there.
+                if (sample.PosixOnly && OperatingSystem.IsWindows()) continue;
                 if (UnsupportedSet(packages, unsupportedSamples.Exercise, sample.LanguageId) is { } unsupportedForSample)
                 {
                     if (!warnedUnsupported) Add(DiagnosticSeverity.Warning, lesson, $"code samples ({sample.LanguageId}): skipped: package set '{unsupportedForSample.Id}' is not available on {packages!.Rid}");
@@ -557,7 +559,8 @@ internal static class Cli
     private static string First(string s)
     {
         s = s.Trim().ReplaceLineEndings(" | ");
-        return s.Length <= 200 ? s : s[..200] + "...";
+        int limit = Environment.GetEnvironmentVariable("DEVACADEMY_VALIDATE_FULL") == "1" ? 2000 : 200;
+        return s.Length <= limit ? s : s[..limit] + "...";
     }
 
     private static string EntryFileFor(string language) => ExecutionEngine.DefaultEntryFile(language) ?? "main.txt";

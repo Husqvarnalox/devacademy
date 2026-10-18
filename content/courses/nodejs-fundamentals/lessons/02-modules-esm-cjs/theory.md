@@ -112,7 +112,7 @@ console.log(path.basename(import.meta.filename), import.meta.dirname === path.di
 console.log(new URL(import.meta.url).protocol, import.meta.resolve("node:fs"));
 
 const require = createRequire(import.meta.url);
-console.log(require("node:os").EOL === "\n");
+console.log(require("node:os").EOL.endsWith("\n"));
 try {
   await import("./missing.mjs");
 } catch (error) {

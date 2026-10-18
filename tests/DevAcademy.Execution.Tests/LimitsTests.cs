@@ -87,7 +87,8 @@ public class LimitsTests
             Py("import subprocess\nc = subprocess.Popen(['sleep', '300'])\nprint(c.pid, flush=True)\n"),
             limits: TestSupport.RunLimits(seconds: 20));
         Assert.Equal(ExecutionStatus.Success, r.Status);
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(8), $"took {sw.Elapsed} (run itself {r.Duration})");
+        // The point is that the run does not wait for the orphan (limit 20 s); Windows adds seconds of process start and file scanning around the run.
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(OperatingSystem.IsWindows() ? 15 : 8), $"took {sw.Elapsed} (run itself {r.Duration})");
         Assert.True(await WaitUntilGoneAsync(int.Parse(r.Stdout.Trim())), "the orphaned grandchild is still alive");
     }
 

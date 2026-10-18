@@ -82,7 +82,7 @@ b data:   hello | links: 1
 
 ## Висячая символическая ссылка
 
-```python run
+```python run posix
 import os, tempfile
 
 with tempfile.TemporaryDirectory() as d:

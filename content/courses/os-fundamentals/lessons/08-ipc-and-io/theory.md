@@ -88,7 +88,7 @@ capacity at least 4096: True
 
 ## SIGPIPE как исключение
 
-```python run
+```python run posix
 import os
 
 r, w = os.pipe()
@@ -107,7 +107,7 @@ BrokenPipeError: no readers
 
 ## Готовность дескриптора и сигнал самому себе
 
-```python run
+```python run posix
 import os, select, signal
 
 r, w = os.pipe()

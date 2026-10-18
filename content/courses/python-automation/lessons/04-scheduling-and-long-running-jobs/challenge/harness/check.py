@@ -83,7 +83,7 @@ def t_stop_flag():
 
 
 def t_signal_install():
-    sig = signal.SIGUSR1
+    sig = getattr(signal, "SIGUSR1", signal.SIGINT)  # SIGUSR1 does not exist on Windows
     marker = []
     previous = signal.signal(sig, lambda s, f: marker.append(s))
     try:
