@@ -313,7 +313,8 @@ public class TestDataFileTests
         File.WriteAllText(abs, "x");
         try
         {
-            var (f, _) = Setup($"stdinFile: \"{abs}\"\n      expected: \"x\"");
+            // Single-quoted YAML has no escapes, so a Windows path (C:\\Users\\...) reaches the loader unchanged.
+            var (f, _) = Setup($"stdinFile: '{abs}'\n      expected: \"x\"");
             using var _f = f;
             Assert.True(HasError(f.Load(), "must be a relative path inside the lesson directory"));
         }
