@@ -25,7 +25,7 @@ public sealed class DebugSession : IAsyncDisposable
     private readonly DebugSessionOptions _options;
     private readonly IAdapterLauncher _launcher;
     private readonly Channel<Func<Task>> _work = Channel.CreateUnbounded<Func<Task>>(new UnboundedChannelOptions { SingleReader = true });
-    private readonly Dictionary<string, IReadOnlyList<SourceBreakpoint>> _breakpoints = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<SourceBreakpoint>> _breakpoints = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);   // Windows paths differ in drive-letter case
     private readonly TaskCompletionSource _initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object _gate = new();
     private IAdapterProcess? _process;

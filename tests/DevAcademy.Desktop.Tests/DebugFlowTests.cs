@@ -262,6 +262,7 @@ public class DebugFlowTests : IDisposable
     [Fact]
     public async Task Real_lldb_debugs_a_scratch_cpp_program_through_the_lesson_editor()
     {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "lldb-dap is not a supported C++ debugger on Windows (MinGW/MSVC binaries); C++ debugging is macOS/Linux only.");
         using var host = new TestHost();
         host.Services.Debug.Invoke = a => a();
         var status = await host.Services.Debug.GetStatusAsync("cpp", null);

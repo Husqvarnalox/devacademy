@@ -127,6 +127,8 @@ public sealed class AdapterResolver
 
     private async Task<AdapterStatus> LldbStatusAsync(DebugAdapterDefinition def, CancellationToken ct)
     {
+        // lldb-dap on Windows (MinGW/MSVC builds) closes the session at startup in CI and is untested; say so instead of offering a broken debugger.
+        if (OperatingSystem.IsWindows()) return AdapterStatus.Of(AdapterState.Unavailable, EngineMessages.LldbWindowsUnsupported());
         string? exe = null;
         if (OperatingSystem.IsMacOS() && File.Exists("/usr/bin/xcrun"))
         {

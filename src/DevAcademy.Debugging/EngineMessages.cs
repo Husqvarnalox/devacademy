@@ -13,6 +13,7 @@ public static class EngineMessages
     public const string DebugpyNoVenvKey = "Engine_Debug_DebugpyNoVenv";
     public const string DebugpyNotInstalledKey = "Engine_Debug_DebugpyNotInstalled";
     public const string LldbNotFoundKey = "Engine_Debug_LldbNotFound";
+    public const string LldbWindowsUnsupportedKey = "Engine_Debug_LldbWindowsUnsupported";
     public const string DelveNoGoKey = "Engine_Debug_DelveNoGo";
     public const string DelveNotInstalledKey = "Engine_Debug_DelveNotInstalled";
     public const string NodeMissingKey = "Engine_Debug_NodeMissing";
@@ -41,6 +42,7 @@ public static class EngineMessages
     public static LocalizedText DebugpyNoVenv() => LocalizedText.Create(DebugpyNoVenvKey,
         "debugpy is not installed, and the selected interpreter is not in a virtual environment. The app installs nothing into the system Python: create a .venv or a managed environment.");
     public static LocalizedText DebugpyNotInstalled() => LocalizedText.Create(DebugpyNotInstalledKey, "debugpy is not installed in the selected environment.");
+    public static LocalizedText LldbWindowsUnsupported() => LocalizedText.Create(LldbWindowsUnsupportedKey, "Debugging C++ and Rust is not supported on Windows yet (lldb-dap is untested there). Programs still run; use the console output to check them.");
     public static LocalizedText LldbNotFound(LocalizedText hint) => LocalizedText.Create(LldbNotFoundKey, "lldb-dap not found. {0}", hint);
     public static LocalizedText DelveNoGo() => LocalizedText.Create(DelveNoGoKey, "dlv not found, and Go is not installed: install Go (https://go.dev/dl/), then Delve.");
     public static LocalizedText DelveNotInstalled() => LocalizedText.Create(DelveNotInstalledKey, "Delve (dlv) is not installed.");

@@ -17,7 +17,8 @@ internal sealed class RealRun : IAsyncDisposable
 
     /// <summary>Writes the source, builds it for debugging with the real debug builder and starts the real adapter with one breakpoint.</summary>
     public static async Task<(RealRun Run, string File, string Dir)> StartAsync(
-        string language, string fileName, string source, int? breakpointLine, AdapterStatus status, int timeoutMs = 60000, bool waitForStop = true)
+        string language, string fileName, string source, int? breakpointLine, AdapterStatus status, int timeoutMs = 60000, bool waitForStop = true,
+        Func<string, string>? breakpointPath = null)
     {
         string dir = Util.TempDir("real-" + language);
         string file = Path.Combine(dir, fileName);
@@ -33,7 +34,7 @@ internal sealed class RealRun : IAsyncDisposable
         session.Terminated += t => { lock (run.Ended) run.Ended.Add(t); };
         session.Output += o => { lock (run.Output) run.Output.Add(o.Text); };
         if (breakpointLine is { } line)
-            session.SeedBreakpoints(new Dictionary<string, IReadOnlyList<SourceBreakpoint>> { [file] = [new SourceBreakpoint(line)] });
+            session.SeedBreakpoints(new Dictionary<string, IReadOnlyList<SourceBreakpoint>> { [breakpointPath?.Invoke(file) ?? file] = [new SourceBreakpoint(line)] });
         await session.StartAsync(CancellationToken.None);
         if (waitForStop) await run.WaitForStopAsync(1, "first stop", timeoutMs);
         return (run, file, dir);

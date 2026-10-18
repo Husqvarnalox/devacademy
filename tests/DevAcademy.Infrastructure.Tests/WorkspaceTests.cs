@@ -28,11 +28,13 @@ public class RecentProjectsTests
         using var t = new TempDb();
         var repo = new SqliteRecentProjectsRepository(t.Db);
         var t0 = DateTimeOffset.UtcNow;
+        // The repository stores full paths: "/tmp/a" becomes "D:\tmp\a" on Windows.
+        string a = Path.GetFullPath("/tmp/a"), b = Path.GetFullPath("/tmp/b");
         await repo.TouchAsync("/tmp/a", t0);
         await repo.TouchAsync("/tmp/b", t0.AddMinutes(1));
         await repo.TouchAsync("/tmp/a", t0.AddMinutes(2));
         var list = await repo.GetRecentAsync(10);
-        Assert.Equal(["/tmp/a", "/tmp/b"], list.Select(r => r.Path));
+        Assert.Equal([a, b], list.Select(r => r.Path));
         Assert.Equal("a", list[0].Name);
         await repo.RemoveAsync("/tmp/a");
         Assert.Single(await repo.GetRecentAsync(10));

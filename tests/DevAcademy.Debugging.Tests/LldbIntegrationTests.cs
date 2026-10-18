@@ -26,7 +26,7 @@ public class LldbIntegrationTests
         string? cxx = new[] { "clang++", "g++" }.Select(n => new DevAcademy.LanguageServices.Servers.ServerLocator(null).FindExecutable(n, includeCache: false)).FirstOrDefault(p => p is not null);
         if (cxx is null) return null;
         string dir = Util.TempDir("lldb");
-        string src = Path.Combine(dir, "main.cpp"), exe = Path.Combine(dir, "prog");
+        string src = Path.Combine(dir, "main.cpp"), exe = Path.Combine(dir, OperatingSystem.IsWindows() ? "prog.exe" : "prog");
         File.WriteAllText(src, Source);
         var psi = new ProcessStartInfo(cxx) { RedirectStandardError = true, RedirectStandardOutput = true, WorkingDirectory = dir };
         foreach (var a in new[] { "-std=c++23", "-g", "-O0", "-o", exe, src }) psi.ArgumentList.Add(a);
@@ -39,6 +39,9 @@ public class LldbIntegrationTests
     [Fact]
     public async Task Breakpoint_in_a_loop_shows_the_variable_steps_and_runs_to_the_exit_code()
     {
+        // The LLVM build on Windows runners ships lldb-dap but it exits at startup against MinGW/MSVC binaries (no usable DWARF/PDB
+        // pairing with the toolchains a learner has there); C++ debugging is supported on macOS and Linux, Windows learners get the run-only path.
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "lldb-dap is not a supported C++ debugger on Windows (MinGW/MSVC binaries); C++ debugging is macOS/Linux only.");
         var status = await new AdapterResolver(Util.TempDir("cache")).GetStatusAsync(DebugAdapterRegistry.ForLanguage("cpp")!, new DebugEnvironment(), default);
         Assert.SkipUnless(status.IsReady, "lldb-dap not available: " + status.Message);
         var built = await BuildAsync();

@@ -28,26 +28,29 @@ public class RegistryTests
     [Fact]
     public void Js_java_and_csharp_launch_configs_have_the_per_adapter_shape()
     {
+        // Rooted paths of the running OS: "/w" is not fully qualified on Windows.
+        string w = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "w")), node = Path.Combine(w, "bin", "node"), jdkJava = Path.Combine(w, "jdk", "java"), dotnet = Path.Combine(w, "dotnet");
+        string mainTs = Path.Combine(w, "main.ts"), outDir = Path.Combine(w, "out"), appDll = Path.Combine(outDir, "App.dll");
         var js = LaunchConfigurations.Create(DebugAdapterRegistry.ForLanguage("typescript")!,
-            new DebugLaunch("/usr/bin/node", "/w", ["x"], RunArguments: ["--experimental-strip-types", "/w/main.ts"]));
+            new DebugLaunch(node, w, ["x"], RunArguments: ["--experimental-strip-types", mainTs]));
         Assert.Equal("pwa-node", (string?)js["type"]);
-        Assert.Equal("/w/main.ts", (string?)js["program"]);
-        Assert.Equal("/usr/bin/node", (string?)js["runtimeExecutable"]);
+        Assert.Equal(mainTs, (string?)js["program"]);
+        Assert.Equal(node, (string?)js["runtimeExecutable"]);
         Assert.Equal("--experimental-strip-types", (string?)js["runtimeArgs"]![0]);
         Assert.False((bool)js["sourceMaps"]!);
 
         var java = LaunchConfigurations.Create(DebugAdapterRegistry.ForLanguage("java")!,
-            new DebugLaunch("/jdk/bin/java", "/w", [], RunArguments: ["-XX:+UseSerialGC", "-cp", "/w/out", "app.Main"]));
+            new DebugLaunch(jdkJava, w, [], RunArguments: ["-XX:+UseSerialGC", "-cp", outDir, "app.Main"]));
         Assert.Equal("app.Main", (string?)java["mainClass"]);
-        Assert.Equal("/w/out", (string?)java["classpath"]);
+        Assert.Equal(outDir, (string?)java["classpath"]);
         Assert.Equal("-XX:+UseSerialGC", (string?)java["vmArgs"]![0]);
         Assert.Single(java["vmArgs"]!.AsArray());
 
         var cs = LaunchConfigurations.Create(DebugAdapterRegistry.ForLanguage("csharp")!,
-            new DebugLaunch("/usr/bin/dotnet", "/w", ["a"], RunArguments: ["/w/out/App.dll"]));
+            new DebugLaunch(dotnet, w, ["a"], RunArguments: [appDll]));
         Assert.Equal("coreclr", (string?)cs["type"]);
-        Assert.Equal("/usr/bin/dotnet", (string?)cs["program"]);
-        Assert.Equal(["/w/out/App.dll", "a"], cs["args"]!.AsArray().Select(n => (string)n!).ToArray());
+        Assert.Equal(dotnet, (string?)cs["program"]);
+        Assert.Equal([appDll, "a"], cs["args"]!.AsArray().Select(n => (string)n!).ToArray());
     }
 
     [Fact]

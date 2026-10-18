@@ -479,11 +479,15 @@ public final class DevAcademyJdiAdapter {
         return m;
     }
 
+    private static final boolean WINDOWS = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("windows");
+
     private boolean sourceMatches(ReferenceType t, String path) {
         try {
+            // Windows clients send C:\dir\Main.java and the debug info holds app/Main.java: compare with one separator, ignoring case there.
+            String norm = path.replace('\\', '/');
             for (String sp : t.sourcePaths(vm.getDefaultStratum())) {
                 String rel = sp.replace('\\', '/');
-                if (path.equals(rel) || path.endsWith("/" + rel)) return true;
+                if (norm.equals(rel) || norm.regionMatches(WINDOWS, norm.length() - rel.length() - 1, "/" + rel, 0, rel.length() + 1)) return true;
             }
         } catch (AbsentInformationException | ClassNotPreparedException ignored) { }
         return false;
@@ -654,7 +658,8 @@ public final class DevAcademyJdiAdapter {
             String rel = l.sourcePath().replace('\\', '/');
             for (String root : sourceRoots) {
                 Path p = Path.of(root).resolve(rel);
-                if (Files.isRegularFile(p)) return obj("name", l.sourceName(), "path", p.toRealPath().toString());
+                // On Windows keep the path as given: toRealPath would expand 8.3 short names (RUNNER~1) and no longer equal the client's path.
+                if (Files.isRegularFile(p)) return obj("name", l.sourceName(), "path", WINDOWS ? p.toAbsolutePath().normalize().toString() : p.toRealPath().toString());
             }
             return obj("name", l.sourceName());
         } catch (AbsentInformationException | IOException e) {

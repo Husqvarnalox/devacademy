@@ -59,17 +59,16 @@ jobs:
       - name: Third-party notices are up to date
         if: matrix.rid == 'linux-x64'
         run: python3 tools/generate-third-party-notices.py --check
-      # Domain/Content/Application/Infrastructure/AI/Desktop (headless) — everything except the runner suite.
-      - name: Unit, integration and headless UI tests
+      # Every test project runs even when an earlier one fails (so a platform problem shows all its failures at once); the step fails at the end.
+      # Real toolchains present on the runner image; missing ones are skipped by the tests themselves.
+      - name: Unit, integration, headless UI and code execution engine tests
         shell: bash
         run: |
+          failed=""
           for p in tests/*/*.csproj; do
-            case $p in *Execution.Tests*) continue;; esac
-            dotnet test "$p" -c Release --no-build || exit 1
+            dotnet test "$p" -c Release --no-build || failed="$failed $(basename "$p" .csproj)"
           done
-      # Real toolchains present on the runner image; missing ones are skipped by the tests themselves.
-      - name: Code execution engine tests
-        run: dotnet test tests/DevAcademy.Execution.Tests -c Release --no-build
+          if [ -n "$failed" ]; then echo "::error::Failed test projects:$failed"; exit 1; fi
       # Course content may declare `requires: { packages }`; they live in a throwaway venv, never in the runner's global Python.
       - name: Python content environment (Linux/macOS)
         if: runner.os != 'Windows'

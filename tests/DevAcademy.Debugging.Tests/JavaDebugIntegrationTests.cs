@@ -132,6 +132,16 @@ public class JavaDebugIntegrationTests
     }
 
     [Fact]
+    public async Task A_breakpoint_path_with_windows_separators_and_drive_letter_case_matches_the_class()
+    {
+        var status = await ProvisionedAsync();
+        // What a Windows client sends: backslashes and a drive letter. The debug info only knows "Main.java".
+        var (run, _, _) = await RealRun.StartAsync("java", "Main.java", Source, 10, status, breakpointPath: _ => @"C:\Users\Learner\proj\Main.java");
+        await using var _ = run;
+        Assert.Equal(11, run.Stops[0].Frames[0].Line);
+    }
+
+    [Fact]
     public async Task An_uncaught_exception_stops_the_program_and_pause_stops_a_busy_one()
     {
         var status = await ProvisionedAsync();
