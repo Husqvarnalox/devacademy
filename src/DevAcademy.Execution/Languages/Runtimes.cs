@@ -420,10 +420,11 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
             ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
             ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
             ["MSBUILDDISABLENODEREUSE"] = "1",
+            ["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "1",
         };
         // Project mode: exactly one .csproj at the root builds as a project (all its .cs files) and runs <AssemblyName>.dll.
         // Otherwise the entry file alone is built as a file-based app, exactly as before.
-        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false"];
+        string[] flags = ["-o", "out", "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags];
         if (FindProject(workingDirectory) is { } project)
             return new BuildPlan(
                 [new ProcessSpec(status.ExecutablePath!, ["build", project, .. flags], workingDirectory, env)],
@@ -433,6 +434,13 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
             [new ProcessSpec(status.ExecutablePath!, ["build", entryFile, .. flags], workingDirectory, env)],
             new ProcessSpec(status.ExecutablePath!, [Path.Combine("out", name + ".dll")], workingDirectory, env));
     }
+
+    /// <summary>
+    /// .NET 10 file-based apps default to <c>PublishAot=true</c>, which makes restore download ILLink/ILCompiler and runtime packs
+    /// from nuget.org (about 100 MB; fails on a fresh machine and under a no-network sandbox). We only build and run, never publish
+    /// AOT, so turn it off: a plain program then needs no package at all. NuGetAudit would also contact nuget.org.
+    /// </summary>
+    private static readonly string[] OfflineFlags = ["-p:PublishAot=false", "-p:NuGetAudit=false"];
 
     /// <summary>Debug build (portable pdb, no optimisation) into <c>out</c> of the working directory; the run command is <c>dotnet &lt;absolute dll&gt;</c>.</summary>
     public BuildPlan CreateDebugPlan(string workingDirectory, string entryFile, RuntimeStatus status, string? sourceDirectory = null)
@@ -448,9 +456,10 @@ internal sealed class CSharpRuntime(string cacheDirectory) : ILanguageRuntime, I
             ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
             ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
             ["MSBUILDDISABLENODEREUSE"] = "1",
+            ["DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE"] = "1",
         };
         string outDir = Path.Combine(workingDirectory, "out");
-        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true"];
+        string[] flags = ["-c", "Debug", "-o", outDir, "--nologo", "-v", "q", "--disable-build-servers", "-p:UseSharedCompilation=false", .. OfflineFlags, "-p:Optimize=false", "-p:DebugType=portable", "-p:DebugSymbols=true"];
         string target; string assembly;
         if (FindProject(src) is { } project)
         {

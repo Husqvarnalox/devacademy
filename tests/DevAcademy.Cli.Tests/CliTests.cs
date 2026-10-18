@@ -74,7 +74,8 @@ public class InterpreterResolutionTests : IDisposable
 
     private string Touch(string relative)
     {
-        var path = Path.Combine(_dir, relative);
+        // Native separators: the resolver returns Path.Combine(full dir, "bin", "python"), never a mixed "\\bin/python" on Windows.
+        var path = Path.GetFullPath(Path.Combine(_dir, relative.Replace('/', Path.DirectorySeparatorChar)));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, "");
         return path;

@@ -358,8 +358,7 @@ public sealed class CodeRunner : ICodeRunner
             : UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
         Directory.CreateDirectory(path, mode);
         File.SetUnixFileMode(path, mode); // CreateDirectory applies the umask; this does not
-        Directory.CreateDirectory(Path.Combine(path, "tmp"), mode);
-        File.SetUnixFileMode(Path.Combine(path, "tmp"), mode);
+        LocalProcessSandbox.EnsureScratch(path, mode);
         return path;
     }
 
