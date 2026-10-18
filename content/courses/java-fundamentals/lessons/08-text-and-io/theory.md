@@ -147,7 +147,7 @@ true
 
 **Пример 4. Файлы через java.nio.file.**
 
-```java run
+```java run posix
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;

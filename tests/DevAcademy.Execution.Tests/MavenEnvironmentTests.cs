@@ -27,7 +27,7 @@ public class MavenEnvironmentTests : IDisposable
         var plan = new JavaRuntime().CreatePlan(_work, "demo/Main.java", Status());
         Assert.DoesNotContain("-parameters", plan.CompileSteps.Single().Args);
         Assert.Empty(plan.CompileSteps.Single().ReadOnlyPaths ?? []);
-        Assert.Equal(["-XX:+UseSerialGC", "-Xss16m", "-cp", "out", "demo.Main"], plan.Run.Args);
+        Assert.Equal(["-XX:+UseSerialGC", "-Xss16m", .. ToolLocator.JvmEncoding, "-cp", "out", "demo.Main"], plan.Run.Args);
     }
 
     [Fact]
