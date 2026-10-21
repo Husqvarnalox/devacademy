@@ -19,7 +19,8 @@
     <ItemsControl ItemsSource="{Binding Questions}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="vm:QuizQuestionViewModel">
-          <Border Classes="panel" Padding="16,12" Margin="0,0,0,12">
+          <!-- Questions are separated by hairlines; only the answer options are boxed. -->
+          <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,16">
             <StackPanel Spacing="8">
               <TextBlock Text="{Binding Number, StringFormat='{}{0}.'}" Classes="overline" />
               <SelectableTextBlock Text="{Binding Prompt}" TextWrapping="Wrap" Classes="reading" />

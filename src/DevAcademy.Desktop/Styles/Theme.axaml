@@ -244,6 +244,92 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
   </Style>
 
+  <!-- Segmented switch: a 1px group of text buttons, the active one AccentSubtle. For views of the same content
+       (theory depth, filters); not for navigation between screens (use Button.tab). -->
+  <Style Selector="Border.segmented">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="2" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
+  <Style Selector="Button.segment">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="Button.segment:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.segment:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceSunkenBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+  <Style Selector="Button.segment.active">
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.segment.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.segment.active:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <!-- Footer strip of a pane: Surface with a top hairline (lesson footer, result summary). -->
+  <Style Selector="Border.footerbar">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="MinHeight" Value="44" />
+  </Style>
+
+  <!-- quiet toggle that is on (e.g. the AI tutor panel is open) -->
+  <Style Selector="Button.quiet.active">
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="Button.quiet.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <!-- Disclosure toggle: text + chevron that opens an optional block (stdin, details). No box, the chevron turns when open. -->
+  <Style Selector="ToggleButton.disclosure">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="4,0" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.disclosure:pointerover /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.disclosure:pressed /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.disclosure:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.disclosure:checked ctl|Icon"><Setter Property="RenderTransform" Value="rotate(90deg)" /></Style>
+
+  <!-- Pane splitter: a 5 px grab area drawing a 1 px Line (accent while hovered or dragged). Add .rows for a row splitter. -->
+  <Style Selector="GridSplitter.hairline">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent">
+          <Border Name="PART_Line" Background="{DynamicResource LineBrush}" Width="1" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="GridSplitter.hairline.rows /template/ Border#PART_Line">
+    <Setter Property="Width" Value="NaN" /><Setter Property="Height" Value="1" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="GridSplitter.hairline:pointerover /template/ Border#PART_Line">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
   <!-- Sidebar / course navigation item: 32 px, AccentSubtle + 2px accent marker when current -->
   <Style Selector="Button.navitem">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -354,6 +440,30 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
   </Style>
 
+  <!-- Table: an overline header row over hairline-separated Button.row / Border.tablerow lines, no outer box. -->
+  <Style Selector="Border.tablehead">
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,1" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+  <Style Selector="Border.tablerow">
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="12,10" />
+  </Style>
+  <Style Selector="Button.row.tablerow">
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="MinHeight" Value="44" />
+  </Style>
+  <Style Selector="Button.row.tablerow:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.row.tablerow:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+  </Style>
+  <!-- Failed test case: a DangerSubtle band; passed cases stay on the pane background. -->
+  <Style Selector="Border.tablerow.failed"><Setter Property="Background" Value="{DynamicResource DangerSubtleBrush}" /></Style>
+
   <!-- Segmented choice (ListBox.segmented, horizontal) -->
   <Style Selector="ListBox.segmented"><Setter Property="Background" Value="Transparent" /><Setter Property="Padding" Value="0" /></Style>
   <Style Selector="ListBox.segmented > ListBoxItem">
@@ -405,8 +515,8 @@
   <Style Selector="TabItem">
     <Setter Property="FontSize" Value="13" />
     <Setter Property="FontWeight" Value="Medium" />
-    <Setter Property="MinHeight" Value="32" />
-    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="Padding" Value="10,0" />
   </Style>
   <Style Selector="ListBox"><Setter Property="Background" Value="Transparent" /></Style>
   <Style Selector="ListBoxItem"><Setter Property="CornerRadius" Value="6" /></Style>

@@ -46,6 +46,8 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
     public bool IsProblemsSection => Section == Section.Problems;
     /// <summary>The "Problems" nav item exists only when algorithm content is loaded.</summary>
     public bool HasProblems => services.Problems.HasProblems;
+    /// <summary>The "Practice" nav item: some exercise or placement check exists.</summary>
+    public bool HasPractice => ProblemsViewModel.HasContent(services);
     public bool IsDashboardSection => Section == Section.Dashboard;
     public bool IsSettingsSection => Section == Section.Settings;
     public bool IsProjectsSection => Section == Section.Projects;

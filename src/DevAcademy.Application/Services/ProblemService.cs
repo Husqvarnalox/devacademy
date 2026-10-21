@@ -42,6 +42,24 @@ public sealed class ProblemService(IContentRepository content, IProgressReposito
         return items;
     }
 
+    /// <summary>
+    /// Every lesson exercise of the available tracks, algorithm courses included: the practice list for learners who
+    /// check what they know without reading the theory first. One progress read per course.
+    /// </summary>
+    public async Task<IReadOnlyList<ProblemItem>> ListExercisesAsync(CancellationToken ct = default)
+    {
+        var set = content.Current;
+        var items = new List<ProblemItem>();
+        foreach (var course in set.Courses.Where(c => set.FindTrack(c.TrackId) is { Status: ContentStatus.Available }))
+        {
+            if (await path.GetCoursePathAsync(course.Id, ct) is not { } plan) continue;
+            foreach (var status in plan.Lessons.Where(l => l.Lesson.Exercise is not null))
+                items.Add(new ProblemItem(status.Lesson, course, status.Lesson.Difficulty, status.Progress?.ExercisePassed == true, status.State,
+                    status.Lesson.Exercise!.AllVariants.Select(v => v.LanguageId).ToList()));
+        }
+        return items;
+    }
+
     public async Task<bool> IsSolvedAsync(string lessonId, CancellationToken ct = default) =>
         (await progress.GetAsync(lessonId, ct))?.ExercisePassed == true;
 

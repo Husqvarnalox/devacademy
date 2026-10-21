@@ -190,7 +190,10 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     public bool HasHints => Exercise is { Hints.Count: > 0 };
     public bool HasSolution => Exercise is { Solution.Count: > 0 };
 
-    [ObservableProperty] private string _languageId;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(LanguageName))] private string _languageId;
+    public string LanguageName => Display.LanguageName(LanguageId);
+    /// <summary>Run / check shortcuts in the platform's notation, shown in the editor's info strip.</summary>
+    public static string ShortcutsText => Loc.T(OperatingSystem.IsMacOS() ? "Editor_ShortcutsMac" : "Editor_ShortcutsPc");
     [ObservableProperty] private string _entryFile;
     [ObservableProperty] private LanguageOptionViewModel? _selectedLanguage;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(RuntimeHint)), NotifyCanExecuteChangedFor(nameof(RunCommand), nameof(SubmitCommand))] private bool _isRuntimeMissing;

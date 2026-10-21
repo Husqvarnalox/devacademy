@@ -39,6 +39,18 @@ IBM Plex Sans (UI, three weights: Regular, Medium, SemiBold) and IBM Plex Mono (
 - Rows: `Button.row` in `ItemsControl.rows` inside a `panel`; hover SurfaceSunken, selected AccentSubtle plus a 2px marker.
 - Choices: `Button.tile` (+selected), `ListBox.choices`, `ListBox.segmented`, quiz `Border.option` (selected / correct / wrong).
 - Icons: `<c:Icon Kind=...>` with Lucide geometries in `Styles/Icons.axaml`, stroked with the inherited foreground.
+- Segmented switch: `Border.segmented` holding `Button.segment` (+`active`). For views of the same content (theory section, practice scope, catalog filter), never for moving between screens.
+- Tables: `Border.tablehead` (overline cells) over `Button.row.tablerow` / `Border.tablerow` lines; hairlines only, no outer box. `Border.tablerow.failed` is the DangerSubtle band of a failed test.
+- Pane chrome: `Border.bar` (44 px headers and toolbars), `Border.footerbar` (pane footer), `GridSplitter.hairline` (+`rows`): a 5 px grab area that draws one 1 px Line, accent on hover.
+- Disclosure: `ToggleButton.disclosure` (text + chevron that turns) for optional blocks such as stdin; no Expander box.
+- `Button.quiet.active`: a quiet toggle that is on (the AI tutor panel is open).
+
+## Layouts
+- Shell: sidebar 220 px (Главная, Обучение, Практика, Проекты; Настройки and collapse at the bottom), an icon rail of 56 px in lessons and narrow windows. Practice is listed when any exercise or placement check exists.
+- Lesson workspace: course pane (course, progress, numbered lessons) | lesson (44 px header with the way back to the course and the Theory / Practice / Test tabs; content at most 760 px wide; footer with what completes the lesson, the AI tutor toggle and the next step) | editor (file + Debug / Check / Run, an info strip with language and shortcuts, the editor, then Output / Check / Hints / Problems / Debug). Below 1100 px the course pane starts hidden; below 900 px the editor goes under the lesson. Splitters keep their size while the window is open.
+- Theory is shown one section at a time (Просто → Точнее → Примеры → Частые ошибки → Итог → Глубже, as the lesson has them) with a "Дальше" button; "Всё сразу" shows the whole page and is remembered (`ui.theory.all`).
+- Hub pages (Главная, Практика): a main column and a 320–340 px side column that moves under the main one below 980 px (`Views/Responsive.cs`).
+- Practice: algorithm problems or every course exercise (segmented), filtered by title, language, difficulty and state; placement checks ("Проверка знаний") and solved counts per course in the side column. Only real data: solved = all tests passed, credited = a placement quiz was passed. No skill levels or scores.
 
 ## Editor
 Editor background is Surface (Light `#FFFFFF`, Dark `#1E1D1A`), current line SurfaceSunken, gutter TextMuted, caret Text, selection `SelectionBrush` (Light `#D8E9E6`, Dark `#1F3532`), matching brackets a subtle outline. Syntax colours come from two embedded TextMate themes (`Assets/Themes/devacademy-{light,dark}.json`, loaded by `Controls/SyntaxThemes.cs`, switched at runtime with the app theme). Read-only code blocks use the same highlighter.

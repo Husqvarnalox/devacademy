@@ -2,25 +2,36 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DevAcademy.Desktop.ViewModels"
              xmlns:loc="using:DevAcademy.Desktop.Localization"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
              x:Class="DevAcademy.Desktop.Views.DashboardView"
              x:DataType="vm:DashboardViewModel">
   <ScrollViewer>
-    <StackPanel MaxWidth="1040" Margin="32,32,32,48" Spacing="32" HorizontalAlignment="Stretch">
+    <StackPanel MaxWidth="1100" Margin="32,28,32,48" Spacing="32" HorizontalAlignment="Stretch">
 
-      <!-- Hero: the single next step -->
-      <StackPanel Spacing="8">
-        <TextBlock Text="{Binding HeroOverline}" Classes="overline" TextTrimming="CharacterEllipsis" />
-        <TextBlock Text="{Binding HeroTitle}" Classes="h1" TextWrapping="Wrap" />
-        <TextBlock Text="{Binding HeroText}" Classes="body secondary" TextWrapping="Wrap" MaxWidth="680" HorizontalAlignment="Left" />
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Classes="primary large" Content="{Binding HeroPrimaryText}" Command="{Binding HeroPrimaryCommand}" />
-          <Button Classes="ghost large" Content="{loc:T Dashboard_OpenCourse}" Command="{Binding HeroCourseCommand}" IsVisible="{Binding HasHeroCourse}" />
-        </StackPanel>
-      </StackPanel>
+      <!-- Continue: the single next step, with the course it belongs to -->
+      <Border Classes="panel" Padding="24,20">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="32">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding HeroOverline}" Classes="overline" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding HeroTitle}" Classes="h1" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding HeroText}" Classes="body secondary" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left" />
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+              <Button Classes="primary large" Command="{Binding HeroPrimaryCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding HeroPrimaryText}" /><ctl:Icon Kind="arrow-right" Size="14" /></StackPanel>
+              </Button>
+              <Button Classes="ghost large" Content="{loc:T Dashboard_OpenCourse}" Command="{Binding HeroCourseCommand}" IsVisible="{Binding HasHeroCourse}" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Width="200" Spacing="6" VerticalAlignment="Bottom" IsVisible="{Binding HasHeroProgress}">
+            <TextBlock Text="{Binding HeroProgressText}" Classes="small secondary" />
+            <ProgressBar Minimum="0" Maximum="1" Value="{Binding HeroProgress}" ShowProgressText="False" />
+          </StackPanel>
+        </Grid>
+      </Border>
 
-      <Grid ColumnDefinitions="*,320" ColumnSpacing="32">
-        <!-- Left: courses + activity -->
-        <StackPanel Spacing="32">
+      <!-- Wide: courses + activity | reviews, next, practice; narrow: stacked (code-behind) -->
+      <Grid Name="Columns" ColumnDefinitions="*,320" RowDefinitions="Auto,Auto" ColumnSpacing="32" RowSpacing="32">
+        <StackPanel Name="MainPane" Spacing="32">
           <StackPanel Spacing="12">
             <TextBlock Text="{loc:T Dashboard_Courses}" Classes="h2" />
             <TextBlock Text="{loc:T Dashboard_NoCourses}" Classes="secondary" TextWrapping="Wrap" IsVisible="{Binding !HasCourses}" />
@@ -65,8 +76,7 @@
           </StackPanel>
         </StackPanel>
 
-        <!-- Right: reviews + difficulty -->
-        <StackPanel Grid.Column="1" Spacing="32">
+        <StackPanel Name="SidePane" Grid.Column="1" Spacing="32">
           <StackPanel Spacing="12">
             <TextBlock Text="{loc:T Dashboard_Reviews}" Classes="h2" />
             <TextBlock Text="{loc:T Dashboard_ReviewsEmpty}" Classes="small secondary" TextWrapping="Wrap" IsVisible="{Binding !HasReviews}" />
@@ -81,6 +91,14 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="8" IsVisible="{Binding HasPractice}">
+            <TextBlock Text="{loc:T Nav_Problems}" Classes="h2" />
+            <TextBlock Text="{loc:T Dashboard_PracticeText}" Classes="small secondary" TextWrapping="Wrap" />
+            <Button Classes="link" Command="{Binding OpenPracticeCommand}" HorizontalAlignment="Left" Margin="0,4,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{loc:T Dashboard_OpenPractice}" /><ctl:Icon Kind="arrow-right" Size="14" /></StackPanel>
+            </Button>
           </StackPanel>
 
           <StackPanel Spacing="12" IsVisible="{Binding HasUpNext}">

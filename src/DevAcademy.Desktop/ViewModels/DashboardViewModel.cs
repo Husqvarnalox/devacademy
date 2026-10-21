@@ -43,6 +43,13 @@ public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : 
     [ObservableProperty] private string _heroPrimaryText = "";
     [ObservableProperty] private IAsyncRelayCommand? _heroPrimaryCommand;
     [ObservableProperty] private IAsyncRelayCommand? _heroCourseCommand;
+    /// <summary>Progress of the hero lesson's course ("3 из 10 уроков"), empty when there is no course to continue.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasHeroProgress))] private string _heroProgressText = "";
+    [ObservableProperty] private double _heroProgress;
+    public bool HasHeroProgress => HeroProgressText.Length > 0;
+    /// <summary>The practice entry is offered only when the practice page has something (problems or a placement check).</summary>
+    public bool HasPractice { get; } = ProblemsViewModel.HasContent(s);
+    public IAsyncRelayCommand OpenPracticeCommand { get; } = new AsyncRelayCommand(nav.ShowProblemsAsync);
     [ObservableProperty] private IReadOnlyList<RecommendationViewModel> _reviews = [];
     [ObservableProperty] private IReadOnlyList<RecommendationViewModel> _upNext = [];
 
@@ -68,22 +75,24 @@ public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : 
         var profile = await s.Settings.GetProfileAsync();
         var enrolled = profile?.EnrolledCourseIds.ToHashSet(StringComparer.Ordinal) ?? [];
 
-        var rows = new List<CourseRowViewModel>();
+        var rows = new List<(CourseRowViewModel Row, DateTimeOffset? Last)>();
         foreach (var c in stats.Courses.Where(c => enrolled.Contains(c.CourseId) || c.Completed > 0))
         {
             var path = await s.Path.GetCoursePathAsync(c.CourseId);
             var stamps = (path?.Lessons ?? []).Select(l => l.Progress).Where(p => p is not null)
                 .SelectMany(p => new[] { p!.StartedAt, p.CompletedAt, p.LastReviewedAt }).Where(t => t is not null).Select(t => t!.Value).ToList();
             var courseId = c.CourseId;
-            rows.Add(new CourseRowViewModel(c.Title, Loc.F("Dashboard_CourseCount", c.Completed, c.Total),
+            DateTimeOffset? last = stamps.Count == 0 ? null : stamps.Max();
+            rows.Add((new CourseRowViewModel(c.Title, Loc.F("Dashboard_CourseCount", c.Completed, c.Total),
                 c.CreditedByAssessment > 0 ? Loc.F("Dashboard_Credited", c.CreditedByAssessment) : null,
                 c.Total == 0 ? 0 : (double)c.Completed / c.Total)
             {
-                LastActivityText = ActivityText(stamps.Count == 0 ? null : stamps.Max()),
+                LastActivityText = ActivityText(last),
                 OpenCommand = new AsyncRelayCommand(() => nav.OpenCourseAsync(courseId)),
-            });
+            }, last));
         }
-        Courses = rows;
+        // The course worked on last comes first; courses not started keep the content order after them.
+        Courses = rows.OrderByDescending(r => r.Last.HasValue).ThenByDescending(r => r.Last).Select(r => r.Row).ToList();
         var solvedMax = Math.Max(1, Enum.GetValues<Difficulty>().Max(d => stats.SolvedExercisesByDifficulty.GetValueOrDefault(d)));
         Solved = Enum.GetValues<Difficulty>().Select(d => new DifficultyRowViewModel(Display.Difficulty(d),
             stats.SolvedExercisesByDifficulty.GetValueOrDefault(d), (double)stats.SolvedExercisesByDifficulty.GetValueOrDefault(d) / solvedMax)).ToList();
@@ -115,6 +124,7 @@ public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : 
             HeroPrimaryText = Loc.T("Dashboard_OpenCatalog");
             HeroPrimaryCommand = new AsyncRelayCommand(nav.ShowCatalogAsync);
             HeroCourseCommand = null;
+            HeroProgressText = "";
         }
         else
         {
@@ -126,6 +136,9 @@ public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : 
             HeroPrimaryText = Loc.T("Dashboard_ContinueLesson");
             HeroPrimaryCommand = new AsyncRelayCommand(() => nav.OpenLessonAsync(hero.LessonId));
             HeroCourseCommand = course is null ? null : new AsyncRelayCommand(() => nav.OpenCourseAsync(course.Id));
+            var progress = course is null ? null : stats.Courses.FirstOrDefault(c => c.CourseId == course.Id);
+            HeroProgressText = progress is null || progress.Total == 0 ? "" : Loc.F("Lesson_CourseProgress", progress.Completed, progress.Total);
+            HeroProgress = progress is null || progress.Total == 0 ? 0 : (double)progress.Completed / progress.Total;
         }
         OnPropertyChanged(nameof(HasActivity));
         OnPropertyChanged(nameof(HasSolved));

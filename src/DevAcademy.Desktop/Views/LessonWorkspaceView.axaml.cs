@@ -9,10 +9,13 @@ namespace DevAcademy.Desktop.Views;
 public partial class LessonWorkspaceView : UserControl
 {
     public const double NarrowWidth = 900;
-    private const double NavWidth = 232;
+    private const double NavWidth = 248;
     /// <summary>Below this width the lesson list starts hidden so theory and editor keep a usable width; the toggle brings it back.</summary>
     public const double CompactNavWidth = 1100;
     private bool _navAutoHandled;
+    /// <summary>Pane sizes the learner set with the splitters; kept for the app session so the next lesson opens the same way.</summary>
+    private static double s_navWidth = NavWidth, s_sessionShare = 1.15 / 2.15;
+    private (bool Narrow, bool Nav, bool Session)? _layout;
 
     private LessonWorkspaceViewModel? _vm;
 
@@ -21,6 +24,18 @@ public partial class LessonWorkspaceView : UserControl
         InitializeComponent();
         DataContextChanged += (_, _) => Attach();
         SizeChanged += (_, _) => Arrange();
+        DetachedFromVisualTree += (_, _) => RememberSizes();
+    }
+
+    /// <summary>Reads the splitter-adjusted widths of the wide layout before it is rebuilt or the view goes away.</summary>
+    private void RememberSizes()
+    {
+        if (_layout is not { Narrow: false } layout) return;
+        var cols = this.FindControl<Grid>("Body")!.ColumnDefinitions;
+        if (cols.Count < 5) return;
+        if (layout.Nav && cols[0].ActualWidth > 0) s_navWidth = cols[0].ActualWidth;
+        var both = cols[2].ActualWidth + cols[4].ActualWidth;
+        if (layout.Session && both > 0 && cols[4].ActualWidth > 0) s_sessionShare = cols[4].ActualWidth / both;
     }
 
     private void Attach()
@@ -35,6 +50,9 @@ public partial class LessonWorkspaceView : UserControl
     {
         if (e.PropertyName is nameof(LessonWorkspaceViewModel.IsNavVisible) or nameof(LessonWorkspaceViewModel.ShowSession))
             Arrange();
+        // A new theory section starts at its top, not where the previous one was scrolled to.
+        if (e.PropertyName is nameof(LessonWorkspaceViewModel.SelectedSection))
+            this.FindControl<ScrollViewer>("TheoryScroll")?.ScrollToHome();
     }
 
     /// <summary>Wide: nav | theory | editor+output. Narrow (&lt; 900 px): nav behind a toggle, editor stacked below theory.</summary>
@@ -49,6 +67,12 @@ public partial class LessonWorkspaceView : UserControl
             _vm.IsNavVisible = false;
         }
 
+        // Rebuild only when the arrangement changes: a plain resize keeps the splitter positions.
+        var layout = (narrow, _vm.IsNavVisible, _vm.ShowSession);
+        if (_layout == layout) return;
+        RememberSizes();
+        _layout = layout;
+
         var body = this.FindControl<Grid>("Body")!;
         var nav = this.FindControl<Border>("NavPane")!;
         var navSplit = this.FindControl<GridSplitter>("NavSplitter")!;
@@ -62,11 +86,11 @@ public partial class LessonWorkspaceView : UserControl
 
         if (!narrow)
         {
-            body.ColumnDefinitions.Add(new ColumnDefinition(showNav ? new GridLength(NavWidth) : new GridLength(0)) { MinWidth = showNav ? 160 : 0, MaxWidth = 420 });
+            body.ColumnDefinitions.Add(new ColumnDefinition(showNav ? new GridLength(s_navWidth) : new GridLength(0)) { MinWidth = showNav ? 180 : 0, MaxWidth = 420 });
             body.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-            body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)) { MinWidth = 320 });
+            body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1 - s_sessionShare, GridUnitType.Star)) { MinWidth = 320 });
             body.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-            body.ColumnDefinitions.Add(new ColumnDefinition(showSession ? new GridLength(1.15, GridUnitType.Star) : new GridLength(0)) { MinWidth = showSession ? 360 : 0 });
+            body.ColumnDefinitions.Add(new ColumnDefinition(showSession ? new GridLength(s_sessionShare, GridUnitType.Star) : new GridLength(0)) { MinWidth = showSession ? 360 : 0 });
             Place(nav, 0, 0); Place(navSplit, 0, 1); Place(center, 0, 2); Place(mainSplit, 0, 3); Place(session, 0, 4);
             navSplit.ResizeDirection = GridResizeDirection.Columns; navSplit.Width = 5; navSplit.Height = double.NaN;
             navSplit.HorizontalAlignment = HorizontalAlignment.Stretch; navSplit.VerticalAlignment = VerticalAlignment.Stretch;
@@ -89,6 +113,7 @@ public partial class LessonWorkspaceView : UserControl
             nav.MaxHeight = 200;
         }
         if (!narrow) navSplit.IsVisible = showNav;
+        mainSplit.Classes.Set("rows", narrow);
     }
 
     private static void Place(Control c, int row, int column)
