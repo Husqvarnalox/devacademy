@@ -1,0 +1,239 @@
+id: "kotlin.from-zero.functions"
+title: "Функции"
+goal: "Оформлять вычисление как функцию с параметрами и результатом и вызывать её из main."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "kotlin.from-zero.loop-control"
+objectives:
+  - "Объявлять функцию с параметрами и типом результата и вызывать её."
+  - "Использовать return, функцию без результата (Unit) и короткую запись с =."
+  - "Объяснять область видимости: параметры и локальные переменные живут внутри функции."
+  - "Читать задание в формате «готовый main вызывает вашу функцию»."
+masteryCriteria:
+  - "Ваша функция возвращает цену билета по возрасту, а готовый main вызывает её на разных данных."
+  - "Вы определяете, почему переменная из функции не видна в main."
+  - "Вы находите ошибку «нет return» или «неверный тип аргумента» по сообщению компилятора."
+concepts:
+  introduces:
+    - "kotlin.function"
+    - "kotlin.parameter"
+    - "kotlin.return"
+    - "kotlin.unit"
+    - "kotlin.scope"
+  uses:
+    - "kotlin.main-function"
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.boolean"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.if"
+    - "kotlin.comparison"
+    - "kotlin.for"
+    - "kotlin.range"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.arithmetic"
+    - "kotlin.println"
+    - "kotlin.string-case"
+    - "kotlin.concatenation"
+    - "kotlin.compound-assignment"
+    - "kotlin.integer-division"
+next:
+  - "kotlin.from-zero.nullable-values"
+tags:
+  - "kotlin"
+  - "function"
+  - "parameter"
+  - "return"
+  - "scope"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun twice(x: Int): Int {
+            return x * 2
+        }
+
+        fun main() {
+            println(twice(twice(3)))
+        }
+        ```
+      options:
+        - "6"
+        - "12"
+        - "9"
+        - "Ошибку компиляции."
+      answer: 1
+      explanation: "Внутренний вызов twice(3) возвращает 6, затем twice(6) возвращает 12."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        fun half(x: Int): Int {
+            val result = x / 2
+        }
+
+        fun main() {
+            println(half(10))
+        }
+        ```
+      options:
+        - "Напечатается 5."
+        - "Напечатается 0."
+        - "Ошибка: missing return statement."
+        - "Ошибка: unresolved reference."
+      answer: 2
+      explanation: "Функция обещает вернуть Int, но не содержит return. Компилятор сообщает: missing return statement."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun check(n: Int): String {
+            if (n > 10) {
+                return "много"
+            }
+            return "мало"
+        }
+
+        fun main() {
+            println(check(15))
+        }
+        ```
+      options:
+        - "мало"
+        - "много"
+        - "много и мало"
+        - "Ничего."
+      answer: 1
+      explanation: "При n = 15 условие истинно, выполняется первый return, и функция завершается сразу: вторая строка return не достигается."
+    - id: "q4"
+      type: "single"
+      prompt: "Какая запись неверна?"
+      options:
+        - "fun add(a: Int, b: Int): Int = a + b"
+        - "fun add(a, b): Int = a + b"
+        - "fun add(a: Int, b: Int): Int { return a + b }"
+        - "fun add(a: Int, b: Int) = a + b"
+      answer: 1
+      explanation: "У параметров функции тип обязателен. В записи fun add(a, b) типы не указаны, и компилятор сообщает: an explicit type is required on a value parameter."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun addOne(n: Int): Int {
+            return n + 1
+        }
+
+        fun main() {
+            val x = 5
+            addOne(x)
+            println(x)
+        }
+        ```
+      options:
+        - "5"
+        - "6"
+        - "11"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "Функция получает копию значения и возвращает новое число, но результат вызова нигде не сохранён. Переменная x не изменилась."
+exercise:
+  id: "kotlin.from-zero.functions.exercise"
+  title: "Цена билета"
+  prompt: |
+    Напишите функцию `ticketPrice(age: Int): Int`, которая возвращает цену билета в музей по возрасту посетителя:
+
+    * младше 7 лет - бесплатно (`0`);
+    * от 7 до 17 лет включительно - `200`;
+    * от 65 лет и старше - `250`;
+    * все остальные - `400`.
+
+    Функция `main` уже написана: она читает число посетителей, затем возраст каждого и печатает строку вида `Возраст 12: 200`. Допишите только функцию `ticketPrice`.
+
+    **Пример.** Для ввода
+
+    ```
+    3
+    5
+    12
+    40
+    ```
+
+    вывод:
+
+    ```
+    Возраст 5: 0
+    Возраст 12: 200
+    Возраст 40: 400
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Верните число из функции с помощью return. Проверки удобно расположить цепочкой: if (age < 7) { return 0 }."
+    - "Порядок проверок: сначала age < 7, затем age < 18, затем age >= 65. Если ни одно условие не подошло, верните 400."
+    - "Границы входят в нужные группы: 7 и 17 лет платят 200, 65 лет платят 250. Сравнивайте age < 7, age < 18, age >= 65."
+  tests:
+    - id: "basic"
+      title: "Три посетителя"
+      stdin: |
+        3
+        5
+        12
+        40
+      expected: |
+        Возраст 5: 0
+        Возраст 12: 200
+        Возраст 40: 400
+      hint: "5 лет - бесплатно, 12 лет - 200, 40 лет - 400."
+    - id: "senior"
+      title: "Пенсионеры"
+      stdin: |
+        2
+        65
+        80
+      expected: |
+        Возраст 65: 250
+        Возраст 80: 250
+      hint: "От 65 лет цена 250."
+    - id: "bounds"
+      title: "Границы групп (скрытый)"
+      stdin: |
+        6
+        6
+        7
+        17
+        18
+        64
+        65
+      expected: |
+        Возраст 6: 0
+        Возраст 7: 200
+        Возраст 17: 200
+        Возраст 18: 400
+        Возраст 64: 400
+        Возраст 65: 250
+      hidden: true
+      hint: "Границы: 6 - бесплатно, 7 и 17 - 200, 18 и 64 - 400, 65 - 250."
+    - id: "one"
+      title: "Один посетитель (скрытый)"
+      stdin: |
+        1
+        0
+      expected: |
+        Возраст 0: 0
+      hidden: true
+      hint: "Возраст 0 младше 7, билет бесплатный."

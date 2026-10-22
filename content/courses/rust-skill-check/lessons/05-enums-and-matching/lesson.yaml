@@ -1,0 +1,244 @@
+id: "rust.check.enums-and-matching"
+title: "Проверка: перечисления и match"
+goal: "Описывать варианты данных перечислением и разбирать их полным `match`."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: описать перечисление с данными в вариантах, написать полный `match` по нему и вернуть `Option` из разбора строки."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "rust"
+  - "check"
+  - "enums-and-matching"
+assessmentFor:
+  - "rust.from-zero.first-struct"
+  - "rust.fundamentals.structs-enums-pattern-matching"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```rust
+        enum Light { Red, Yellow, Green }
+
+        fn main() {
+            let l = Light::Yellow;
+            let text = match l {
+                Light::Red => "stop",
+                Light::Green => "go",
+            };
+            println!("{}", text);
+        }
+        ```
+      options:
+        - "Программа выведет go"
+        - "Ошибка компиляции: match не покрывает вариант Yellow"
+        - "Программа выведет пустую строку"
+        - "Паника во время выполнения"
+      answer: 1
+      explanation: "match по перечислению обязан покрыть все варианты. Вариант Yellow не обработан, поэтому компилятор сообщает об ошибке E0004 ещё до запуска."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        enum Op { Add(i32), Neg, Const { value: i32 } }
+
+        fn apply(op: &Op, x: i32) -> i32 {
+            match op {
+                Op::Add(n) => x + n,
+                Op::Neg => -x,
+                Op::Const { value } => *value,
+            }
+        }
+
+        fn main() {
+            let ops = [Op::Add(5), Op::Neg, Op::Const { value: 9 }];
+            let mut x = 1;
+            for op in &ops {
+                x = apply(op, x);
+            }
+            println!("{}", x);
+        }
+        ```
+      options:
+        - "9"
+        - "-6"
+        - "1"
+        - "10"
+      answer: 0
+      explanation: "Add(5) даёт 6, Neg даёт -6, а Const игнорирует текущее значение и возвращает 9. Итог последнего шага - 9."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn kind(n: i32) -> &'static str {
+            match n {
+                x if x < 0 => "neg",
+                0 => "zero",
+                1..=9 => "digit",
+                _ => "big",
+            }
+        }
+
+        fn main() {
+            println!("{} {} {} {}", kind(-3), kind(0), kind(7), kind(10));
+        }
+        ```
+      options:
+        - "neg zero big big"
+        - "big zero digit big"
+        - "neg zero digit digit"
+        - "neg zero digit big"
+      answer: 3
+      explanation: "Ветки проверяются сверху вниз. -3 попадает в охранное условие x < 0, 0 - в точное совпадение, 7 - в диапазон 1..=9, а 10 выходит за него и ловится знаком подчёркивания."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn label(n: u32) -> &'static str {
+            match n {
+                1..=5 => "low",
+                3 => "three",
+                _ => "high",
+            }
+        }
+
+        fn main() {
+            println!("{} {}", label(3), label(8));
+        }
+        ```
+      options:
+        - "three low"
+        - "Ошибка компиляции: ветка 3 повторяется"
+        - "low high"
+        - "three high"
+      answer: 2
+      explanation: "Первая подошедшая ветка побеждает: число 3 входит в диапазон 1..=5, и ветка с литералом 3 никогда не сработает. Компилятор лишь предупреждает о недостижимом образце, а не отклоняет программу."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        #[derive(Debug)]
+        struct Point { x: i32, y: i32 }
+
+        impl Point {
+            fn shifted(&self, dx: i32) -> Point {
+                Point { x: self.x + dx, ..*self }
+            }
+        }
+
+        fn main() {
+            let p = Point { x: 1, y: 2 };
+            let q = p.shifted(10);
+            println!("{:?} {:?}", p, q);
+        }
+        ```
+      options:
+        - "Point { x: 1, y: 2 } Point { x: 10, y: 2 }"
+        - "Point { x: 1, y: 2 } Point { x: 11, y: 2 }"
+        - "Point { x: 11, y: 2 } Point { x: 11, y: 2 }"
+        - "Ошибка компиляции: p перемещено"
+      answer: 1
+      explanation: "Метод получает &self и создаёт новое значение, поэтому p не меняется. Оставшиеся поля берутся из *self, а i32 копируются, так что перемещения нет."
+exercise:
+  id: "rust.check.enums-and-matching.exercise"
+  title: "Фигуры: перечисление и match"
+  prompt: |-
+    В `main.rs` уже описано перечисление `Shape` и написана `main`: она читает фигуры по одной в строке, печатает для каждой правильной фигуры её название и площадь с двумя знаками, а в конце число отброшенных строк (`bad=`). Допишите три функции над `main`. Перечисление и `main` не меняйте.
+
+    1. `parse_shape(line: &str) -> Option<Shape>` - разбирает строку: `circle R`, `rect W H` или `square S`. Размеры - числа `f64`, которые должны быть конечными и больше нуля. Неизвестное слово, неверное число размеров или неподходящее число - `None`.
+    2. `name(shape: &Shape) -> &'static str` - название варианта: `circle`, `rect`, `square`.
+    3. `area(shape: &Shape) -> f64` - площадь; для круга используйте `std::f64::consts::PI`.
+
+    **Пример.** Для ввода
+
+    ```
+    circle 1
+    rect 3 4.5
+    square 2
+    hexagon 3
+    ```
+
+    программа печатает
+
+    ```
+    circle 3.14
+    rect 13.50
+    square 4.00
+    bad=1
+    ```
+
+    Скрытые тесты проверяют ноль и отрицательные размеры, лишние и недостающие размеры.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Разделите строку на слова: line.split_whitespace().collect::<Vec<&str>>(). Первое слово определяет вариант, число остальных слов должно ему соответствовать."
+    - "Для разбора числа удобна вспомогательная запись: let r: f64 = words[1].parse().ok()?; - знак ? вернёт None из функции, если разбор не удался. Затем проверьте r.is_finite() && r > 0.0."
+    - "В name и area пишите match shape { Shape::Circle(r) => ..., Shape::Rect { w, h } => ..., Shape::Square(s) => ... }. Все три варианта обязательны."
+    - "Для круга площадь равна PI * r * r. Так как match идёт по ссылке, значения r, w, h - ссылки: используйте *r или умножайте ссылки напрямую."
+  tests:
+    - id: "basic"
+      title: "Круг, прямоугольник, квадрат и неизвестная фигура"
+      stdin: |
+        circle 1
+        rect 3 4.5
+        square 2
+        hexagon 3
+      expected: |
+        circle 3.14
+        rect 13.50
+        square 4.00
+        bad=1
+      hint: "Название и площадь с двумя знаками для трёх фигур; неизвестное слово hexagon увеличивает bad."
+    - id: "circle-rect"
+      title: "Дробные размеры и пустые строки"
+      stdin: |
+        circle 2.5
+
+        rect 0.5 0.5
+      expected: |
+        circle 19.63
+        rect 0.25
+        bad=1
+      hint: "Площадь круга радиуса 2.5 и прямоугольника 0.5 x 0.5; пустая строка считается плохой, потому что слов нет."
+    - id: "non-positive"
+      title: "Ноль, отрицательное, nan и inf (скрытый)"
+      stdin: |
+        square 0
+        square -3
+        circle nan
+        rect 2 inf
+        square 3
+      expected: |
+        square 9.00
+        bad=4
+      hidden: true
+      hint: "Размеры должны быть конечными и больше нуля; проверка знака для nan не срабатывает, поэтому нужна is_finite."
+    - id: "arity"
+      title: "Неверное число размеров и мусор (скрытый)"
+      stdin: |
+        circle
+        circle 1 2
+        rect 3
+        rect 1 2 3
+        square x
+        square 1
+      expected: |
+        square 1.00
+        bad=5
+      hidden: true
+      hint: "Для каждой фигуры число слов должно совпадать; x не разбирается как число."

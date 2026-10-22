@@ -1,0 +1,204 @@
+id: "java.from-zero.switch"
+title: "Выбор из многих вариантов: switch"
+goal: "Выбирать действие по точному значению int, char или String командой switch со стрелками и обрабатывать остальные значения веткой default."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "java.from-zero.if-else"
+objectives:
+  - "Записывать switch со стрелочными ветками case ... -> и веткой default."
+  - "Объединять несколько значений в одну ветку: case 1, 3, 5 -> ..."
+  - "Записывать switch справа от = и объяснять, почему default там обязателен."
+  - "Отличать задачи для switch (точные значения) от задач для if (диапазоны)."
+masteryCriteria:
+  - "Программа печатает число дней для каждого номера месяца 1-12, в том числе для февраля."
+  - "Для номера вне диапазона 1-12 программа печатает сообщение, а не число."
+  - "Вы объясняете, почему диапазоны проверяют через if, а не через switch."
+concepts:
+  introduces:
+    - "java.switch"
+    - "java.default-case"
+  uses:
+    - "java.int"
+    - "java.char"
+    - "java.string"
+    - "java.if"
+    - "java.else"
+    - "java.comparison"
+    - "java.scanner"
+    - "java.println"
+    - "java.concatenation"
+    - "java.compile-error"
+    - "java.variable"
+next:
+  - "java.from-zero.while-loop"
+tags:
+  - "java"
+  - "switch"
+  - "case"
+  - "default"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        int n = 6;
+        switch (n) {
+            case 1, 2, 3 -> System.out.println("A");
+            case 6, 7 -> System.out.println("B");
+            default -> System.out.println("C");
+        }
+        ```
+      options:
+        - "A"
+        - "B"
+        - "C"
+        - "BC"
+      answer: 1
+      explanation: "Значение 6 совпало со второй веткой. Выполняется только она: в записи со стрелкой ветки не проваливаются друг в друга."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        char c = 'x';
+        switch (c) {
+            case 'a' -> System.out.println("гласная");
+            case 'e' -> System.out.println("гласная");
+            default -> System.out.println("другая");
+        }
+        System.out.println("конец");
+        ```
+      options:
+        - "другая, затем конец"
+        - "конец"
+        - "гласная, затем конец"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Символ 'x' не совпал ни с одним вариантом, выполняется default. Строка после закрывающей скобки switch выполняется всегда."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой записью правильно объединить значения 6 и 7 в одну ветку?"
+      options:
+        - "case 6 || 7 ->"
+        - "case 6, 7 ->"
+        - "case 6 or 7 ->"
+        - "case (6, 7) ->"
+      answer: 1
+      explanation: "Несколько значений перечисляют через запятую. Оператор || даёт boolean и вариантом быть не может; слова or в Java нет."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Компилятор сообщает: the switch expression does not cover all possible input values. Что нужно исправить?
+
+        ```java
+        String s = switch (day) {
+            case 1 -> "Пн";
+            case 2 -> "Вт";
+        };
+        ```
+      options:
+        - "Добавить ветку default"
+        - "Убрать точку с запятой после }"
+        - "Заменить -> на :"
+        - "Объявить day как double"
+      answer: 0
+      explanation: "switch, который вычисляет значение, обязан дать результат для любого значения day. Ветка default покрывает все остальные числа."
+    - id: "q5"
+      type: "single"
+      prompt: "Какую задачу удобнее решать через if / else if, а не через switch?"
+      options:
+        - "Название дня недели по номеру 1-7"
+        - "Оценка по баллам: 90 и выше - «отлично», 70 и выше - «хорошо»"
+        - "Операция калькулятора по символу + - * /"
+        - "Число дней по номеру месяца"
+      answer: 1
+      explanation: "Баллы образуют диапазоны, а switch проверяет только точные значения. Остальные три задачи выбирают по конкретному значению."
+exercise:
+  id: "java.from-zero.switch.exercise"
+  title: "Число дней в месяце"
+  prompt: |
+    На вход подаётся номер месяца `m` - целое число. Напечатайте одну строку:
+
+    * `Дней: 31` для месяцев 1, 3, 5, 7, 8, 10, 12;
+    * `Дней: 30` для месяцев 4, 6, 9, 11;
+    * `Дней: 28` для месяца 2 (високосные годы не учитываем);
+    * `Нет такого месяца` для любого другого числа.
+
+    **Пример.** Ввод:
+
+    ```
+    4
+    ```
+
+    Вывод:
+
+    ```
+    Дней: 30
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Выбор идёт по точным значениям номера месяца, поэтому подойдёт switch. Месяцы с одинаковым результатом объединяются в одну ветку."
+    - "Три группы месяцев: case 1, 3, 5, 7, 8, 10, 12; case 4, 6, 9, 11; case 2. Для остальных чисел нужна ветка default."
+    - "Каждая ветка печатает свою строку со стрелкой: case 2 -> System.out.println(\"Дней: 28\");"
+  tests:
+    - id: "thirty"
+      title: "Апрель"
+      stdin: |
+        4
+      expected: |
+        Дней: 30
+      hint: "Апрель (4) относится к месяцам по 30 дней."
+    - id: "thirty-one"
+      title: "Июль"
+      stdin: |
+        7
+      expected: |
+        Дней: 31
+      hint: "Июль (7) входит в группу месяцев по 31 дню."
+    - id: "february"
+      title: "Февраль (скрытый)"
+      stdin: |
+        2
+      expected: |
+        Дней: 28
+      hidden: true
+      hint: "Для февраля (2) нужно напечатать «Дней: 28»."
+    - id: "december"
+      title: "Декабрь, последний вариант (скрытый)"
+      stdin: |
+        12
+      expected: |
+        Дней: 31
+      hidden: true
+      hint: "Месяц 12 должен входить в список 31-дневных месяцев."
+    - id: "zero"
+      title: "Ноль (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Нет такого месяца
+      hidden: true
+      hint: "Номер 0 не существует: нужна ветка default с сообщением «Нет такого месяца»."
+    - id: "thirteen"
+      title: "Тринадцатый месяц (скрытый)"
+      stdin: |
+        13
+      expected: |
+        Нет такого месяца
+      hidden: true
+      hint: "Число больше 12 тоже обрабатывается веткой default."
+    - id: "negative"
+      title: "Отрицательное число (скрытый)"
+      stdin: |
+        -5
+      expected: |
+        Нет такого месяца
+      hidden: true
+      hint: "Отрицательный номер месяца - тоже случай default."

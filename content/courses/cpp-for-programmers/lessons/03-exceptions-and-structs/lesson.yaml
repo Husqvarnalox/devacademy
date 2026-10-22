@@ -1,0 +1,243 @@
+id: "cpp.programmers.exceptions-and-structs"
+title: "Исключения и структуры"
+goal: "Строго разбирать ввод и перехватывать исключения правильно, а также работать со структурами как со значениями: копировать, передавать по ссылке и инициализировать поля."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "cpp.first-steps.how-cpp-runs"
+objectives:
+  - "Объяснять, что std::stoi разбирает префикс строки, и проверять, что разобрана вся строка, через второй параметр."
+  - "Перехватывать исключения по const& в порядке от частных типов к общим и отличать invalid_argument от out_of_range."
+  - "Объяснять раскрутку стека и роль деструкторов."
+  - "Возвращать std::optional для ожидаемого плохого ввода вместо исключения."
+  - "Создавать struct с инициализированными полями и объяснять, что присваивание и передача по значению копируют структуру."
+masteryCriteria:
+  - "parseScore, summarize и passed работают на обычных и граничных данных: хвост после числа, текст вместо числа, число вне диапазона, число, не помещающееся в int, пустой ввод."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "cpp"
+  - "programmers"
+  - "exceptions"
+  - "structs"
+assessmentFor:
+  - "cpp.from-zero.exceptions"
+  - "cpp.from-zero.first-struct"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::cout << std::stoi("12abc") << "\n";
+        }
+        ```
+      options:
+        - "12"
+        - "Бросит std::invalid_argument"
+        - "0"
+        - "Бросит std::out_of_range"
+      answer: 0
+      explanation: "std::stoi разбирает максимально длинное начало строки, допустимое как число, и молча игнорирует остаток. Исключение invalid_argument бросается, только если в начале нет ни одной цифры. Для строгого разбора передают второй параметр и сравнивают число разобранных символов с длиной строки."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <stdexcept>
+
+        int main() {
+            try {
+                throw std::out_of_range("x");
+            } catch (const std::logic_error&) {
+                std::cout << "A\n";
+            } catch (const std::out_of_range&) {
+                std::cout << "B\n";
+            }
+        }
+        ```
+      options:
+        - "A"
+        - "B"
+        - "A и B"
+        - "Не скомпилируется"
+      answer: 0
+      explanation: "std::out_of_range является потомком std::logic_error, поэтому подходит первый обработчик, и он срабатывает. Второй обработчик недостижим: компилятор может предупредить об этом. Частные типы ставят выше общих."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        struct Counter {
+            int value = 0;
+        };
+
+        void bump(Counter c) {
+            c.value++;
+        }
+
+        int main() {
+            Counter counter;
+            bump(counter);
+            std::cout << counter.value << "\n";
+        }
+        ```
+      options:
+        - "1"
+        - "0"
+        - "Неопределённое значение"
+        - "Не скомпилируется"
+      answer: 1
+      explanation: "Параметр Counter c - копия структуры. Увеличивается копия, оригинал остаётся равным 0. Чтобы изменить оригинал, параметр должен быть Counter&."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что верно про этот код?
+
+        ```cpp
+        struct Point {
+            int x;
+            int y;
+        };
+
+        int main() {
+            Point p;
+            return p.x;
+        }
+        ```
+      options:
+        - "p.x равно 0: поля структуры обнуляются по умолчанию"
+        - "Ошибка компиляции: нет конструктора"
+        - "Чтение p.x - неопределённое поведение: поля не инициализированы"
+        - "p.x равно -1"
+      answer: 2
+      explanation: "У полей встроенных типов нет начальных значений, и Point p; их не обнуляет. Чтение такого поля - UB. Исправления: Point p{}; или int x = 0; в объявлении поля."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что будет напечатано?
+
+        ```cpp
+        #include <iostream>
+        #include <string>
+
+        struct Guard {
+            std::string name;
+            explicit Guard(std::string n) : name(n) { std::cout << "open " << name << "\n"; }
+            ~Guard() { std::cout << "close " << name << "\n"; }
+        };
+
+        void work() {
+            Guard guard("a");
+            throw 1;
+        }
+
+        int main() {
+            try {
+                work();
+            } catch (int) {
+                std::cout << "caught\n";
+            }
+        }
+        ```
+      options:
+        - "open a, caught"
+        - "open a, caught, close a"
+        - "open a, close a, caught"
+        - "caught, open a, close a"
+      answer: 2
+      explanation: "При броске исключения стек раскручивается: деструкторы локальных объектов вызываются при выходе из функции work, до входа в обработчик. Поэтому close a печатается раньше, чем caught."
+exercise:
+  id: "cpp.programmers.exceptions-and-structs.exercise"
+  title: "Строгий разбор баллов и сводка по студентам"
+  prompt: |
+    Готовая функция `main` читает пары `имя балл`, печатает вердикт для каждого и итоговую строку. Допишите три части над `main` в `main.cpp`. Функцию `main` не меняйте.
+
+    1. `std::optional<int> parseScore(const std::string& text)` - балл, если `std::stoi` разобрал строку **целиком** и результат от `0` до `100`; иначе пустой `std::nullopt`. Исключения из функции выходить не должны: `abc`, `12abc`, `7.5`, `101` и `99999999999` дают `nullopt`.
+    2. Метод `bool passed() const` структуры `Student` - `true`, если `score` не меньше `60`.
+    3. `Summary summarize(const std::vector<Student>& students)` - число студентов, лучший балл и сумма баллов. Для пустого списка все поля равны нулю.
+
+    Для строки с плохим баллом `main` печатает `bad: имя`; для остальных - `имя: pass` или `имя: fail`, в конце - `count=... best=... avg=... bad=...`.
+
+    **Пример.** Для ввода
+
+    ```
+    Anna 90
+    Boris 45
+    Clara 12abc
+    Dan 60
+    ```
+
+    программа печатает
+
+    ```
+    Anna: pass
+    Boris: fail
+    bad: Clara
+    Dan: pass
+    count=3 best=90 avg=65.00 bad=1
+    ```
+
+    Часть тестов скрыта: в них числа вне диапазона, не помещающиеся в `int` и только плохие строки.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "parseScore: в try вызовите std::stoi(text, &used) с переменной std::size_t used = 0; верните nullopt, если used != text.size() или значение вне 0..100. Поймайте std::invalid_argument и std::out_of_range и тоже верните nullopt."
+    - "passed: return score >= 60;"
+    - "summarize: заведите Summary result; (поля уже обнулены значениями по умолчанию) и в цикле for (const Student& student : students) увеличивайте count, прибавляйте score к total и обновляйте best, если score больше."
+    - "Не вызывайте std::stoi вне try: на строке abc она бросает исключение и программа аварийно завершается."
+  tests:
+    - id: "tail-and-pass"
+      title: "Хвост после числа, зачёт и незачёт"
+      stdin: "Anna 90\nBoris 45\nClara 12abc\nDan 60\n"
+      expected: |
+        Anna: pass
+        Boris: fail
+        bad: Clara
+        Dan: pass
+        count=3 best=90 avg=65.00 bad=1
+      hint: "12abc разобрана не целиком (разобрано 2 символа из 5) - это bad. Балл 60 - зачёт, 45 - нет. Среднее по трём корректным: (90 + 45 + 60) / 3 = 65.00."
+    - id: "boundaries"
+      title: "Границы зачёта и дробное число"
+      stdin: "Ira 59\nJon 60\nKai 7.5\nLev 100\nMax 88\n"
+      expected: |
+        Ira: fail
+        Jon: pass
+        bad: Kai
+        Lev: pass
+        Max: pass
+        count=4 best=100 avg=76.75 bad=1
+      hint: "59 - незачёт, 60 - зачёт. Строка 7.5: stoi разберёт только 7 (1 символ из 3), значит это bad. Среднее по четырём: (59 + 60 + 100 + 88) / 4 = 76.75."
+    - id: "range-and-text"
+      title: "Текст и число вне диапазона (скрытый)"
+      stdin: "Eva abc\nFima 101\nGlen 100\nHana 0\n"
+      expected: |
+        bad: Eva
+        bad: Fima
+        Glen: pass
+        Hana: fail
+        count=2 best=100 avg=50.00 bad=2
+      hidden: true
+      hint: "abc бросает invalid_argument - перехватите и верните nullopt. 101 вне диапазона 0..100. Граничные значения 100 и 0 допустимы."
+    - id: "all-bad"
+      title: "Только плохие строки, переполнение int и отрицательный балл (скрытый)"
+      stdin: "A 99999999999\nB -5\nC x\n"
+      expected: |
+        bad: A
+        bad: B
+        bad: C
+        count=0 best=0 avg=0.00 bad=3
+      hidden: true
+      hint: "99999999999 не помещается в int - stoi бросает out_of_range, его тоже надо перехватить. -5 вне диапазона. Для пустого списка корректных студентов summarize возвращает нули."

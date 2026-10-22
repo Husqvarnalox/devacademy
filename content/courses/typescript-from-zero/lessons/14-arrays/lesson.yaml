@@ -1,0 +1,161 @@
+id: "typescript.from-zero.arrays"
+title: "Массивы"
+goal: "Хранить набор значений одного типа под одним именем, читать элементы по индексу и добавлять новые."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "typescript.from-zero.loop-control"
+objectives:
+  - "Записать массив с типом number[] или string[] и объяснить, что такое элемент и индекс."
+  - "Прочитать и изменить элемент по индексу, узнать длину массива и добавить элемент через push."
+  - "Назвать индекс первого и последнего элементов и объяснить, что происходит при выходе за границы."
+  - "Написать функцию, принимающую и возвращающую массив."
+masteryCriteria:
+  - "Функции с массивами верны для обычных и пограничных значений: пустой массив, один элемент, отрицательные числа."
+  - "Обращение к элементу защищено: индекс неотрицателен и меньше length."
+concepts:
+  introduces:
+    - "ts.array"
+    - "ts.array-type"
+    - "ts.index"
+    - "ts.push"
+  uses:
+    - "ts.const"
+    - "ts.let"
+    - "ts.number"
+    - "ts.string"
+    - "ts.type-annotation"
+    - "ts.for"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.function"
+    - "ts.return"
+    - "ts.type-error"
+    - "ts.console-log"
+next:
+  - "typescript.from-zero.iterating-arrays"
+tags:
+  - "typescript"
+  - "arrays"
+  - "index"
+  - "push"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const prices: number[] = [10, 20, 30];
+        console.log(prices[1], prices.length);
+        ```
+      options:
+        - "20 3"
+        - "10 3"
+        - "20 2"
+        - "30 3"
+      answer: 0
+      explanation: "Нумерация индексов начинается с нуля, поэтому prices[1] - второй элемент, 20. В массиве три элемента, length равно 3."
+    - id: "q2"
+      type: "single"
+      prompt: "Какое выражение даёт последний элемент непустого массива values?"
+      options:
+        - "values[values.length - 1]"
+        - "values[values.length]"
+        - "values[length]"
+        - "values[-1]"
+      answer: 0
+      explanation: "Индексы идут от 0 до length - 1. Выражение values[values.length] указывает за конец массива и даёт undefined, а values[-1] также undefined: отрицательные индексы с конца не считают."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const values: number[] = [1, 2, 3];
+        console.log(values[3]);
+        ```
+      options:
+        - "undefined"
+        - "3"
+        - "0"
+        - "Проверка сообщит ошибку и программа не запустится"
+      answer: 0
+      explanation: "Допустимые индексы - 0, 1 и 2. Чтение за границей не ошибка и не останавливает программу: результат undefined. Проверка типов этого не замечает."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        const names: string[] = ["Аня", "Борис"];
+        names.push(5);
+        ```
+      options:
+        - "TS2345: аргумент типа number нельзя передать там, где ожидается string"
+        - "TS2588: names - константа, изменять её нельзя"
+        - "Ничего, массив получит число пять"
+        - "TS2551: у массива нет свойства push"
+      answer: 0
+      explanation: "Массив строк принимает только строки. Число 5 не подходит к параметру push, поэтому проверка сообщает TS2345."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const xs: number[] = [1];
+        xs.push(2);
+        console.log(xs.length);
+        ```
+      options:
+        - "2"
+        - "1"
+        - "Проверка сообщит TS2588: нельзя менять массив, объявленный через const"
+        - "0"
+      answer: 0
+      explanation: "const запрещает присвоить переменной другой массив, но не запрещает менять содержимое. push добавляет элемент, длина становится 2."
+exercise:
+  id: "typescript.from-zero.arrays.exercise"
+  title: "Квадраты, последний элемент, сумма"
+  prompt: |
+    В файле `arrays_task.ts` три функции:
+
+    * `squares(n)` - массив квадратов целых чисел от 1 до `n`. Например, `squares(4)` равно `[1, 4, 9, 16]`; для `n` меньше 1 результат пустой массив `[]`.
+    * `lastValue(values)` - последний элемент массива; для пустого массива результат `0`. Например, `lastValue([5, 8, 2])` равно `2`.
+    * `sumOf(values)` - сумма всех элементов массива; для пустого массива `0`. Например, `sumOf([4, -1, 10])` равно `13`.
+
+    Функции должны **возвращать** значение, а не печатать его. Скрытые тесты проверяют пустой массив, один элемент и отрицательные числа.
+  entryFile: "arrays_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В squares создайте пустой массив const result: number[] = []; и в цикле от 1 до n включительно добавляйте i * i через result.push(...). В конце верните result."
+    - "В lastValue сначала проверьте пустой массив: if (values.length === 0) { return 0; }. Последний элемент - values[values.length - 1]."
+    - "В sumOf объявите total = 0 и перебирайте индексы: for (let i = 0; i < values.length; i++). К total прибавляйте values[i]."
+    - "Для пустого массива цикл в sumOf не выполнится и вернётся начальное значение 0: отдельной проверки не нужно. В lastValue проверка нужна, иначе получится values[-1], то есть undefined."
+  tests:
+    - id: "squares-basic"
+      title: "squares: обычные значения"
+      hint: "squares(4) = [1, 4, 9, 16]; squares(1) = [1]; squares(3) = [1, 4, 9]."
+    - id: "last-basic"
+      title: "lastValue: обычные массивы"
+      hint: "Последний элемент [5, 8, 2] - это 2; в массиве из одного элемента 7 он же и последний."
+    - id: "sum-basic"
+      title: "sumOf: обычные массивы"
+      hint: "4 + (-1) + 10 = 13; 1 + 2 + 3 = 6."
+    - id: "squares-edge"
+      title: "squares: 0 и отрицательные (скрытый)"
+      hidden: true
+      hint: "Для n меньше 1 цикл не выполняется, и функция возвращает пустой массив []."
+    - id: "last-edge"
+      title: "lastValue: пустой массив, нули (скрытый)"
+      hidden: true
+      hint: "Для [] результат 0 (обращаться к values[-1] нельзя); значение 0 как последний элемент тоже допустимо и должно вернуться как есть."
+    - id: "sum-edge"
+      title: "sumOf: пустой, отрицательные, дробные (скрытый)"
+      hidden: true
+      hint: "Для [] результат 0; [-2, -3] даёт -5; 0.5 + 0.25 = 0.75."

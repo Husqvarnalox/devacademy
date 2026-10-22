@@ -1,0 +1,240 @@
+id: "java.from-zero.exceptions"
+title: "Исключения: try, catch и throw"
+goal: "Перехватывать исключения конструкцией try/catch, выбрасывать IllegalArgumentException и пропускать неверные данные, не прерывая программу."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "java.from-zero.string-methods"
+objectives:
+  - "Объяснять, что такое исключение и чем оно отличается от ошибки компиляции."
+  - "Перехватывать NumberFormatException конструкцией try/catch и продолжать работу."
+  - "Выбрасывать IllegalArgumentException оператором throw new и читать сообщение через getMessage."
+  - "Считать и пропускать неверные значения при обработке ввода."
+masteryCriteria:
+  - "Метод isNumber возвращает false для текста, дробных чисел, пустой строки и слишком больших чисел."
+  - "Метод checkedAge выбрасывает исключение с указанным сообщением для возраста вне диапазона 0..150."
+  - "Вы различаете исключение, которое нужно перехватить, и условие, которое проще проверить через if."
+concepts:
+  introduces:
+    - "java.exception"
+    - "java.try-catch"
+    - "java.throw"
+  uses:
+    - "java.number-format-exception"
+    - "java.parse-int"
+    - "java.string"
+    - "java.int"
+    - "java.boolean"
+    - "java.method"
+    - "java.parameter"
+    - "java.return"
+    - "java.static"
+    - "java.if"
+    - "java.logical-operators"
+    - "java.for"
+    - "java.for-each"
+    - "java.array"
+    - "java.scope"
+    - "java.block"
+    - "java.compound-assignment"
+    - "java.concatenation"
+    - "java.scanner"
+    - "java.continue"
+    - "java.println"
+    - "java.compile-error"
+next:
+  - "java.from-zero.first-class"
+tags:
+  - "java"
+  - "exceptions"
+  - "try-catch"
+  - "validation"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        try {
+            int n = Integer.parseInt("x1");
+            System.out.println("A");
+        } catch (NumberFormatException e) {
+            System.out.println("B");
+        }
+        System.out.println("C");
+        ```
+      options:
+        - "B и C"
+        - "A и C"
+        - "только B"
+        - "только C"
+      answer: 0
+      explanation: "parseInt бросает исключение, остаток try (печать A) пропускается, выполняется catch (B), затем программа идёт дальше и печатает C."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        int sum = 0;
+        String[] t = {"4", "a", "6"};
+        for (String s : t) {
+            try {
+                sum += Integer.parseInt(s);
+            } catch (NumberFormatException e) {
+            }
+        }
+        System.out.println(sum);
+        ```
+      options:
+        - "10"
+        - "4"
+        - "0"
+        - "Программа завершится с ошибкой"
+      answer: 0
+      explanation: "Неверный элемент \"a\" перехватывается и пропускается, цикл продолжается. Складываются 4 и 6, получается 10. Пустой catch допустим, но скрывает данные об ошибке: лучше считать пропуски."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая запись создаёт и выбрасывает исключение?"
+      options:
+        - "throw new IllegalArgumentException(\"Плохо\");"
+        - "throw IllegalArgumentException(\"Плохо\");"
+        - "new throw IllegalArgumentException(\"Плохо\");"
+        - "catch new IllegalArgumentException(\"Плохо\");"
+      answer: 0
+      explanation: "Исключение - объект, поэтому после throw идёт new и вызов конструктора. Без new компилятор не находит метод IllegalArgumentException."
+    - id: "q4"
+      type: "single"
+      prompt: "Код `int n = Integer.parseInt(\"abc\");` обёрнут в try с `catch (ArithmeticException e)`. Что произойдёт?"
+      options:
+        - "Исключение не будет перехвачено, программа завершится"
+        - "Выполнится catch"
+        - "Программа не скомпилируется"
+        - "В n окажется 0"
+      answer: 0
+      explanation: "parseInt бросает NumberFormatException, а catch ловит только ArithmeticException. Исключение проходит мимо и завершает программу."
+    - id: "q5"
+      type: "single"
+      prompt: "Переменная n объявлена внутри блока try, а `System.out.println(n);` стоит после этого блока. Что сообщит компилятор?"
+      options:
+        - "cannot find symbol: переменная n не видна вне try"
+        - "incompatible types"
+        - "missing return statement"
+        - "Ничего, всё скомпилируется"
+      answer: 0
+      explanation: "Переменная, объявленная внутри блока try, видна только в нём. Чтобы использовать значение после, объявите переменную до try."
+exercise:
+  id: "java.from-zero.exceptions.exercise"
+  title: "Проверка возрастов"
+  prompt: |
+    В заготовке уже есть `main`. Он читает число `n`, затем `n` слов. Каждое слово - возраст человека, которое может оказаться и не числом. Для каждого слова `main` печатает результат, а потом читает ещё одно слово - лимит - и печатает итог:
+
+    ```
+    Возраст: <число>        - слово число и в диапазоне 0..150
+    Ошибка: <сообщение>     - слово число, но возраст вне диапазона
+    Не число: <слово>       - слово не является целым числом
+    Принято: <k>, отклонено: <m>
+    Лимит: <число>
+    ```
+
+    Напишите три метода:
+
+    * `isNumber(String text)` - `true`, если текст можно превратить в целое число методом `Integer.parseInt`;
+    * `checkedAge(int age)` - возвращает `age`, если он в диапазоне от 0 до 150 включительно; иначе выбрасывает `IllegalArgumentException` с сообщением `Недопустимый возраст: <age>`;
+    * `parseOrDefault(String text, int fallback)` - число из текста или `fallback`, если текст не число.
+
+    **Пример.** Ввод:
+
+    ```
+    4
+    25 abc -3 40
+    50
+    ```
+
+    Вывод:
+
+    ```
+    Возраст: 25
+    Не число: abc
+    Ошибка: Недопустимый возраст: -3
+    Возраст: 40
+    Принято: 2, отклонено: 2
+    Лимит: 50
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "isNumber и parseOrDefault строятся на одном приёме: попробуйте вызвать Integer.parseInt(text) внутри try и перехватите NumberFormatException."
+    - "isNumber: в try вызовите Integer.parseInt(text) и верните true, а в catch верните false."
+    - "checkedAge: если age < 0 или age > 150, выполните throw new IllegalArgumentException(\"Недопустимый возраст: \" + age); иначе верните age."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: |
+        4
+        25 abc -3 40
+        50
+      expected: |
+        Возраст: 25
+        Не число: abc
+        Ошибка: Недопустимый возраст: -3
+        Возраст: 40
+        Принято: 2, отклонено: 2
+        Лимит: 50
+      hint: "Возраст в диапазоне принимается, слово без числа печатается как «Не число», вне диапазона - «Ошибка» с сообщением метода."
+    - id: "bounds"
+      title: "Границы диапазона"
+      stdin: |
+        4
+        0 150 151 -1
+        много
+      expected: |
+        Возраст: 0
+        Возраст: 150
+        Ошибка: Недопустимый возраст: 151
+        Ошибка: Недопустимый возраст: -1
+        Принято: 2, отклонено: 2
+        Лимит: 100
+      hint: "Значения 0 и 150 допустимы, 151 и -1 - нет; лимит «много» не число, поэтому равен 100."
+    - id: "empty"
+      title: "Нет возрастов (скрытый)"
+      stdin: |
+        0
+        7
+      expected: |
+        Принято: 0, отклонено: 0
+        Лимит: 7
+      hidden: true
+      hint: "При n = 0 печатаются только итоговая строка «Принято: 0, отклонено: 0» и лимит 7."
+    - id: "non-int"
+      title: "Дробные и слишком большие числа (скрытый)"
+      stdin: |
+        4
+        12.5 2147483648 +30 007
+        -5
+      expected: |
+        Не число: 12.5
+        Не число: 2147483648
+        Возраст: 30
+        Возраст: 7
+        Принято: 2, отклонено: 2
+        Лимит: -5
+      hidden: true
+      hint: "Дробное число и число, которое не помещается в int, - не целые числа для parseInt; запись +30 и 007 parseInt принимает."
+    - id: "all-bad"
+      title: "Все данные неверные (скрытый)"
+      stdin: |
+        3
+        абв 200 -10
+        2.5
+      expected: |
+        Не число: абв
+        Ошибка: Недопустимый возраст: 200
+        Ошибка: Недопустимый возраст: -10
+        Принято: 0, отклонено: 3
+        Лимит: 100
+      hidden: true
+      hint: "Принятых нет: счётчик принятых остаётся 0, лимит «2.5» не целое число, поэтому равен 100."

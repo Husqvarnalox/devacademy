@@ -1,0 +1,159 @@
+id: "kotlin.from-zero.basic-types"
+title: "Основные типы: Double, Boolean, Char, Long"
+goal: "Выбрать подходящий тип для числа с дробью, да/нет, одного символа и большого целого и записать его явно."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.variables"
+objectives:
+  - "Различать Int, Long, Double, Boolean, Char и String."
+  - "Записывать дробные числа с точкой, символы - в одинарных кавычках, текст - в двойных."
+  - "Указывать тип переменной явно: val x: Double = 1.5."
+  - "Объяснять, почему val price: Double = 5 не компилируется."
+masteryCriteria:
+  - "Ваша программа объявляет переменные пяти типов с явными типами и печатает их."
+  - "Вы отличаете 'A' от \"A\" и 3 от 3.0."
+  - "Вы выбираете Long для числа, не помещающегося в Int."
+concepts:
+  introduces:
+    - "kotlin.type"
+    - "kotlin.double"
+    - "kotlin.boolean"
+    - "kotlin.char"
+    - "kotlin.long"
+    - "kotlin.explicit-type"
+  uses:
+    - "kotlin.val"
+    - "kotlin.variable"
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.string-template"
+    - "kotlin.type-inference"
+    - "kotlin.println"
+next:
+  - "kotlin.from-zero.arithmetic"
+tags:
+  - "kotlin"
+  - "types"
+  - "double"
+  - "boolean"
+  - "char"
+  - "long"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой тип Kotlin выберет для значения 3.5?"
+      options:
+        - "Double"
+        - "Int"
+        - "String"
+        - "Boolean"
+      answer: 0
+      explanation: "Число с десятичной точкой Kotlin считает дробным и выводит тип Double."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val a = 'K'
+            val b = "K"
+            println(a)
+            println(b)
+        }
+        ```
+      options:
+        - "K и K: Char и String выглядят одинаково при выводе."
+        - "Ошибку: одинарные кавычки недопустимы."
+        - "'K' и \"K\" вместе с кавычками."
+        - "75 и K"
+      answer: 0
+      explanation: "'K' - один символ типа Char, \"K\" - текст из одного символа типа String. Печатаются они одинаково, но это разные типы."
+    - id: "q3"
+      type: "single"
+      prompt: "Что сообщит компилятор для строки val price: Double = 5 ?"
+      options:
+        - "initializer type mismatch: expected 'Double', actual 'Int'."
+        - "Ничего: 5 автоматически станет 5.0."
+        - "unresolved reference 'Double'."
+        - "syntax error: Expecting ')'."
+      answer: 0
+      explanation: "Целое число 5 имеет тип Int, а Kotlin не превращает Int в Double сам. Запишите 5.0, чтобы получить Double."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Какой тип Kotlin выведет для переменной?
+
+        ```kotlin
+        val population = 3000000000
+        ```
+      options:
+        - "Long: число не помещается в Int."
+        - "Int: любое целое число - Int."
+        - "Double: число слишком большое."
+        - "Ошибка компиляции."
+      answer: 0
+      explanation: "Int вмещает числа до примерно 2,1 млрд. Если литерал больше, Kotlin выбирает Long."
+    - id: "q5"
+      type: "single"
+      prompt: "Где правильно записано значение типа Boolean?"
+      options:
+        - "val ready = true"
+        - "val ready = \"true\""
+        - "val ready = True"
+        - "val ready = 'true'"
+      answer: 0
+      explanation: "Логические значения записываются строчными true и false без кавычек. \"true\" - это текст, а 'true' - ошибка: в одинарных кавычках допустим только один символ."
+exercise:
+  id: "kotlin.from-zero.basic-types.exercise"
+  title: "Карточка товара"
+  prompt: |
+    Допишите программу, чтобы она напечатала карточку товара из пяти строк:
+
+    ```
+    Название: Молоко
+    Вес (кг): 1.5
+    В наличии: true
+    Категория: M
+    Штрихкод: 4600000000017
+    ```
+
+    Первые три строки уже напечатаны. Добавьте:
+
+    1. переменную `category` типа `Char` со значением `'M'` (латинская M);
+    2. переменную `barcode` типа `Long` со значением `4600000000017`;
+    3. по команде `println` для каждой.
+
+    Тип пишите явно, как в первых трёх объявлениях.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Образец уже есть: val weight: Double = 1.5. Тип пишется после имени через двоеточие."
+    - "Символ записывается в одинарных кавычках: val category: Char = 'M'."
+    - "Штрихкод - большое целое, ему подходит Long: val barcode: Long = 4600000000017."
+    - "Остаётся напечатать переменные: println(\"Категория: $category\") и println(\"Штрихкод: $barcode\")."
+  tests:
+    - id: "basic"
+      title: "Карточка из пяти строк"
+      stdin: ""
+      expected: |
+        Название: Молоко
+        Вес (кг): 1.5
+        В наличии: true
+        Категория: M
+        Штрихкод: 4600000000017
+      hint: "После трёх готовых строк должны быть строки «Категория: M» и «Штрихкод: 4600000000017»."
+    - id: "exact"
+      title: "Точный вид пяти строк (скрытый)"
+      stdin: ""
+      expected: |
+        Название: Молоко
+        Вес (кг): 1.5
+        В наличии: true
+        Категория: M
+        Штрихкод: 4600000000017
+      hidden: true
+      hint: "Проверяется точное совпадение: категория - латинская M без кавычек в выводе, штрихкод - все 13 цифр без пробелов, ровно пять строк."

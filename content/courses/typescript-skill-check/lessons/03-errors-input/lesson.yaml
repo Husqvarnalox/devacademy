@@ -1,0 +1,176 @@
+id: "typescript.check.errors-input"
+title: "Проверка: ошибки и разбор ввода"
+goal: "Проверять входные данные, выбрасывать и перехватывать ошибки и строго разбирать числа из текста, не останавливая программу на плохой строке."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: проверять входные данные, выбрасывать и перехватывать ошибки и строго разбирать числа из текста, не останавливая программу на плохой строке"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "errors"
+assessmentFor:
+  - "typescript.from-zero.errors-and-exceptions"
+  - "typescript.from-zero.reading-input"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const log: string[] = [];
+        function f(): string {
+          try {
+            log.push("try");
+            throw new Error("x");
+          } catch {
+            log.push("catch");
+            return "r";
+          } finally {
+            log.push("finally");
+          }
+        }
+        f();
+        console.log(log.join(" "));
+        ```
+      options:
+        - "try catch"
+        - "try finally catch"
+        - "try catch finally"
+        - "try finally"
+      answer: 2
+      explanation: "Сначала выполняется try до броска исключения, затем catch, где стоит return, и только после него finally: этот блок выполняется всегда, прежде чем функция вернёт значение."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```typescript
+        try {
+          throw new Error("x");
+        } catch (e) {
+          console.log(e.message);
+        }
+        ```
+      options:
+        - "Выведется x"
+        - "Выведется undefined"
+        - "Проверка типов сообщит, что e имеет тип unknown (TS18046), программа не запустится"
+        - "Исключение во время работы"
+      answer: 2
+      explanation: "В строгом режиме значение в catch имеет тип unknown, потому что бросить можно что угодно, не только Error. Чтобы прочитать message, сначала нужно проверить e instanceof Error."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log(Number(""), Number("4 "), Number("4,5"), Number("abc"));
+        ```
+      options:
+        - "0 4 NaN NaN"
+        - "NaN 4 4.5 NaN"
+        - "0 NaN NaN NaN"
+        - "NaN NaN NaN NaN"
+      answer: 0
+      explanation: "Пустая строка превращается в 0, пробелы по краям игнорируются, а запятая и буквы не составляют числа и дают NaN."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log("5\n3\n".split("\n").length, "5\n3\n".trim().split("\n").length);
+        ```
+      options:
+        - "2 2"
+        - "3 2"
+        - "3 3"
+        - "2 3"
+      answer: 1
+      explanation: "После последнего перевода строки остаётся пустой фрагмент, поэтому split даёт три элемента. Вызов trim убирает хвостовой перевод строки, и остаётся два элемента."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const lines = ["4", "x", "5"];
+        let sum = 0;
+        for (const line of lines) {
+          try {
+            const n = Number(line);
+            if (Number.isNaN(n)) {
+              throw new Error("не число");
+            }
+            sum += n;
+          } catch {
+            sum += 100;
+          }
+        }
+        console.log(sum);
+        ```
+      options:
+        - "9"
+        - "109"
+        - "209"
+        - "100"
+      answer: 1
+      explanation: "Ошибка на строке x ловится внутри цикла и не останавливает его: к сумме добавляется 100. Остальные строки дают 4 и 5: 4 + 100 + 5 = 109."
+exercise:
+  id: "typescript.check.errors-input.exercise"
+  title: "Оценки из текста"
+  prompt: |
+    В файле `errors_check.ts` реализуйте четыре экспортируемые функции.
+
+    1. `parseScore(text)` - оценка: целое число от 0 до 100 (пробелы по краям игнорируются). Иначе выбросьте `new Error("оценка должна быть целым числом от 0 до 100")`. Неверны пустая строка, `"abc"`, `"4.5"`, `"-1"`, `"1e1"`, `"101"`.
+    2. `safeScore(text)` - то же, но вместо исключения вернуть `null`.
+    3. `summarize(text)` - разбирает многострочный текст (разделители `\n` и `\r\n`). Пустые строки и строки из одних пробелов игнорируются совсем. Возвращает `{ count, average, skipped }`: число верных оценок, их среднее, округлённое до двух знаков через `Math.round(x * 100) / 100` (если верных нет, `0`), и число неверных строк.
+    4. `describeFailure(error)` - для `Error` строка `"ошибка: "` и его сообщение; для любого другого значения (в том числе объекта с полем `message`) - `"неизвестная ошибка"`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "errors_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "parseScore: сначала text.trim(), затем проверка формата регулярным выражением /^\\d+$/ (пустая строка, дробь и знак не пройдут), потом Number(...) и сравнение с 100. Не полагайтесь на Number(\"\"): оно равно 0."
+    - "safeScore: try { return parseScore(text); } catch { return null; } - ловить можно все ошибки, потому что parseScore бросает только Error данных."
+    - "summarize: делите текст по /\\r?\\n/, пропускайте строки с trim() === \"\" и для остальных вызывайте safeScore. Если результат null, увеличивайте skipped, иначе count и сумму."
+    - "describeFailure: error instanceof Error даёт доступ к message. Объект { message: \"...\" } не является Error, поэтому до ветки «неизвестная ошибка» он дойдёт сам."
+  tests:
+    - id: "parse-basic"
+      title: "parseScore - верные и неверные значения"
+      hint: "«85» даёт 85, « 7 » даёт 7, а «abc» выбрасывает Error с заданным сообщением."
+    - id: "safe-basic"
+      title: "safeScore - число или null"
+      hint: "Верная оценка возвращается числом, неверная - null."
+    - id: "sum-basic"
+      title: "summarize - обычный текст"
+      hint: "Из «5», «abc», «4» получаются count 2, average 4.5 и skipped 1."
+    - id: "fail-basic"
+      title: "describeFailure - Error и строка"
+      hint: "Error даёт «ошибка: » и сообщение, строка - «неизвестная ошибка»."
+    - id: "parse-edge"
+      title: "parseScore - граничные строки (скрытый)"
+      hidden: true
+      hint: "Пустая строка, пробелы, 4.5, -1, 1e1, 0x10 и 101 - ошибки; 007 равно 7; число с пробелами по краям допустимо."
+    - id: "safe-edge"
+      title: "safeScore - ноль, дроби, пустые (скрытый)"
+      hidden: true
+      hint: "0 допустимая оценка (не null); пустая строка и дробь дают null."
+    - id: "sum-edge"
+      title: "summarize - пустые строки, \\r\\n, округление (скрытый)"
+      hidden: true
+      hint: "Пустые строки не считаются пропущенными; среднее 13/3 округляется до 4.33; при отсутствии верных оценок average равно 0."
+    - id: "fail-edge"
+      title: "describeFailure - наследники Error и поддельные объекты (скрытый)"
+      hidden: true
+      hint: "TypeError - тоже Error; null, число и объект { message } не Error."

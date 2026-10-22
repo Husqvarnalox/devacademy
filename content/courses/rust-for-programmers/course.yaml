@@ -1,0 +1,11 @@
+id: "rust-for-programmers"
+version: "1.0.0"
+title: "Rust для программистов"
+description: "Быстрый путь для тех, кто программирует на другом языке: отличия Rust и его ловушки. Пройденные уроки зачитывают соответствующие уроки курса «Rust с нуля»."
+languageId: "rust"
+level: 1
+track: "rust"
+lessons:
+  - "01-syntax-types-and-control-flow"
+  - "02-functions-ownership-and-collections"
+  - "03-option-result-errors-and-structs"

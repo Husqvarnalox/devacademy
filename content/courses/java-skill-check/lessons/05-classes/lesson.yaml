@@ -1,0 +1,217 @@
+id: "java.check.classes"
+title: "Проверка: классы, записи и перечисления"
+goal: "Описывать данные записями и перечислениями, проверять значения в конструкторе и понимать, как устроено равенство объектов."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: написать enum с методом, record с проверкой в компактном конструкторе и использовать запись как ключ в HashSet."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "java"
+  - "check"
+  - "classes"
+  - "classes"
+  - "records"
+  - "enums"
+assessmentFor:
+  - "java.fundamentals.classes-records-enums"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        record P(int x, int y) {}
+
+        P a = new P(1, 2);
+        P b = new P(1, 2);
+        System.out.println(a.equals(b) + " " + (a == b) + " " + a);
+        ```
+      options:
+        - "true true P[x=1, y=2]"
+        - "true false P[x=1, y=2]"
+        - "false false P@1"
+        - "true false P(1, 2)"
+      answer: 1
+      explanation: "У записи equals сравнивает компоненты, поэтому a.equals(b) истинно. Оператор == сравнивает ссылки на два разных объекта и даёт false. toString у записи имеет вид P[x=1, y=2]."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        enum Color { RED, GREEN, BLUE }
+
+        System.out.println(Color.GREEN.ordinal() + " " + Color.valueOf("RED") + " " + Color.BLUE.ordinal());
+        ```
+      options:
+        - "0 RED 1"
+        - "1 RED 2"
+        - "1 red 2"
+        - "Ошибка выполнения"
+      answer: 1
+      explanation: "Номера вариантов идут с нуля: RED - 0, GREEN - 1, BLUE - 2. valueOf(\"RED\") возвращает вариант RED, который печатается своим именем."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        class Point {
+            int x, y;
+            Point(int x, int y) { this.x = x; this.y = y; }
+        }
+
+        Set<Point> set = new HashSet<>();
+        set.add(new Point(1, 2));
+        set.add(new Point(1, 2));
+        System.out.println(set.size());
+        ```
+      options:
+        - "1"
+        - "2"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "В обычном классе без equals и hashCode действуют версии из Object: объекты равны только если это один и тот же объект. Поэтому в множество попадают оба. У record результат был бы 1."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```java
+        record P(int x, int y) {}
+
+        P p = new P(1, 2);
+        p.x = 5;
+        ```
+      options:
+        - "Скомпилируется, значение x станет 5"
+        - "Ошибка компиляции: нельзя присвоить значение final-полю x"
+        - "Ошибка выполнения: UnsupportedOperationException"
+        - "Скомпилируется, присваивание будет проигнорировано"
+      answer: 1
+      explanation: "Компоненты записи хранятся в final-полях, и присваивание им не компилируется. Для изменённой копии нужно создать новую запись."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        record Range(int lo, int hi) {
+            Range {
+                if (lo > hi) {
+                    throw new IllegalArgumentException("bad");
+                }
+            }
+        }
+
+        try {
+            new Range(3, 1);
+            System.out.println("ok");
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+        }
+        ```
+      options:
+        - "ok"
+        - "bad"
+        - "ok bad"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Компактный конструктор запускается при создании записи. Условие lo > hi истинно, бросается исключение с сообщением bad, а печать ok не выполняется."
+exercise:
+  id: "java.check.classes.exercise"
+  title: "Заказы, уровни и дубликаты"
+  prompt: |-
+    Дополните типы `Level` и `Order`; `main` уже написан и использует их.
+
+    * `enum Level { LOW, MEDIUM, HIGH }` с методом `static Level of(int amount)`: сумма меньше 100 - `LOW`, меньше 1000 - `MEDIUM`, иначе `HIGH`.
+    * `record Order(String id, int amount)` с компактным конструктором: если `amount < 0`, он бросает `IllegalArgumentException` с сообщением `Отрицательная сумма: <amount>`. Метод `Level level()` возвращает уровень суммы.
+
+    `main` читает строки `id сумма`, считает заказы по уровням, сообщает о повторах (запись с теми же `id` и суммой уже была) и об отклонённых заказах.
+
+    **Пример.** Ввод:
+
+    ```
+    a 50
+    b 500
+    a 50
+    c -5
+    ```
+
+    Вывод:
+
+    ```
+    повтор: a
+    Отклонён: Отрицательная сумма: -5
+    LOW: 1
+    MEDIUM: 1
+    HIGH: 0
+    Отклонено: 1
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "В starter-файле перечисление и запись заглушены: of всегда возвращает LOW, проверки нет. Замените заглушки настоящим кодом."
+    - "Для of достаточно двух if с return, а level() просто вызывает Level.of(amount)."
+    - "Компактный конструктор пишется без списка параметров: Order { if (amount < 0) throw new IllegalArgumentException(...); }. Записи равны по компонентам автоматически, ничего добавлять не нужно."
+  tests:
+    - id: "levels"
+      title: "Три уровня"
+      stdin: |
+        a 50
+        b 500
+        c 5000
+      expected: |
+        LOW: 1
+        MEDIUM: 1
+        HIGH: 1
+        Отклонено: 0
+      hint: "Суммы 50, 500 и 5000 попадают в LOW, MEDIUM и HIGH по одному."
+    - id: "duplicates"
+      title: "Повторы записей"
+      stdin: |
+        a 50
+        a 50
+        a 60
+      expected: |
+        повтор: a
+        LOW: 2
+        MEDIUM: 0
+        HIGH: 0
+        Отклонено: 0
+      hint: "Запись a 50 повторяется - второй раз печатается повтор. Запись a 60 отличается суммой и считается новой."
+    - id: "negative"
+      title: "Отрицательная сумма (скрытый)"
+      stdin: |
+        x -5
+        y 100
+      expected: |
+        Отклонён: Отрицательная сумма: -5
+        LOW: 0
+        MEDIUM: 1
+        HIGH: 0
+        Отклонено: 1
+      hidden: true
+      hint: "Компактный конструктор бросает исключение с точным текстом; main печатает его и увеличивает счётчик отклонённых."
+    - id: "boundaries"
+      title: "Границы уровней (скрытый)"
+      stdin: |
+        p 99
+        q 100
+        r 999
+        s 1000
+      expected: |
+        LOW: 1
+        MEDIUM: 2
+        HIGH: 1
+        Отклонено: 0
+      hidden: true
+      hint: "Сумма 99 - LOW, 100 - MEDIUM, 999 - MEDIUM, 1000 - HIGH: границы включают нижнюю и исключают верхнюю."

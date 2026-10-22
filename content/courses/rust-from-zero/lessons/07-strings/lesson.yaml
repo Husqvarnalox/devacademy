@@ -1,0 +1,167 @@
+id: "rust.from-zero.strings"
+title: "Строки: &str и String"
+goal: "Различать текст-литерал &str и изменяемый String, вызывать методы строк и объяснять, почему len() считает байты, а не буквы."
+difficulty: "intro"
+estimatedMinutes: 35
+prerequisites:
+  - "rust.from-zero.arithmetic"
+objectives:
+  - "Различать &str (заимствованный вид текста) и String (собственный изменяемый текст)."
+  - "Создавать String через String::from и дописывать в неё push_str."
+  - "Вызывать методы len(), chars().count(), to_uppercase(), to_lowercase(), is_empty()."
+  - "Объяснять, почему len() для русского слова вдвое больше числа букв и почему s[0] не работает."
+masteryCriteria:
+  - "Ваша программа создаёт String, дописывает к ней текст и печатает длину в буквах и в байтах."
+  - "Вы ставите mut у String, которую меняете, и не ставите там, где значение не меняется."
+  - "Вы отличаете число букв (chars().count()) от числа байтов (len())."
+concepts:
+  introduces:
+    - "rust.str"
+    - "rust.string"
+    - "rust.method-call"
+    - "rust.push-str"
+    - "rust.string-length"
+    - "rust.string-case"
+    - "rust.usize"
+  uses:
+    - "rust.variable"
+    - "rust.let"
+    - "rust.mut"
+    - "rust.string-literal"
+    - "rust.inline-format"
+    - "rust.i32"
+    - "rust.char"
+next:
+  - "rust.from-zero.reading-input"
+tags:
+  - "rust"
+  - "strings"
+  - "str"
+  - "string"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn main() {
+            let word = "кот";
+            println!("{} {}", word.len(), word.chars().count());
+        }
+        ```
+      options:
+        - "3 3"
+        - "6 3"
+        - "3 6"
+        - "6 6"
+      answer: 1
+      explanation: "len() считает байты, а каждая русская буква в UTF-8 занимает два байта: 3 * 2 = 6. chars().count() считает буквы: их три."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn main() {
+            let mut s = String::from("Хлеб");
+            s.push_str(" и молоко");
+            println!("{s}");
+        }
+        ```
+      options:
+        - "Хлеб"
+        - "Хлеб и молоко"
+        - "и молоко"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "push_str дописывает текст в конец String. Переменная объявлена с mut, поэтому изменение разрешено."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что сообщит компилятор?
+
+        ```rust
+        fn main() {
+            let s = String::from("abc");
+            s.push_str("d");
+            println!("{s}");
+        }
+        ```
+      options:
+        - "Выведется abcd."
+        - "Ошибка: cannot borrow `s` as mutable - переменная объявлена без mut."
+        - "Выведется abc."
+        - "Предупреждение, но программа запустится."
+      answer: 1
+      explanation: "push_str меняет строку, а без mut изменять переменную нельзя. Компилятор подсказывает: let mut s."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что делает to_uppercase() в такой записи?
+
+        ```rust
+        let name = String::from("анна");
+        let big = name.to_uppercase();
+        println!("{name} {big}");
+        ```
+      options:
+        - "Печатает АННА АННА."
+        - "Печатает анна АННА: создаётся новая строка, исходная не меняется."
+        - "Печатает АННА анна."
+        - "Ошибка: нужна mut."
+      answer: 1
+      explanation: "to_uppercase() возвращает новую строку и не меняет исходную, поэтому mut не нужен. Исходная name остаётся «анна»."
+    - id: "q5"
+      type: "single"
+      prompt: "Чем String отличается от &str?"
+      options:
+        - "Ничем: это два названия одного типа."
+        - "String владеет своим текстом и может его менять и увеличивать; &str - только смотрит на текст, который хранится где-то ещё."
+        - "&str можно менять, String - нет."
+        - "String бывает только из цифр."
+      answer: 1
+      explanation: "Текст в кавычках в программе - &str: его можно читать, но нельзя дописывать. String владеет своими буквами и умеет расти."
+exercise:
+  id: "rust.from-zero.strings.exercise"
+  title: "Название блюда"
+  prompt: |
+    В заготовке название блюда хранится в переменной `title` как неизменяемый текст-литерал. Измените программу так, чтобы она печатала:
+
+    ```
+    Блюдо: Овсяная каша с мёдом
+    Заглавными: ОВСЯНАЯ КАША С МЁДОМ
+    Букв: 20
+    Байтов: 37
+    ```
+
+    Сделайте `title` строкой `String`, которую можно менять, и допишите к ней текст ` с мёдом` (с пробелом в начале). Команды `println!` менять не нужно.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Чтобы строку можно было дописывать, нужен тип String: let mut title = String::from(\"Овсяная каша\");"
+    - "Дописывает метод push_str. Вызов записывают через точку: title.push_str(\" с мёдом\");"
+    - "Команда push_str должна стоять после let и до первого println!. Пробел перед словом «с» входит в дописываемый текст."
+    - "Строки с «Заглавными», «Букв» и «Байтов» исправятся сами, когда в title будет полное название."
+  tests:
+    - id: "basic"
+      title: "Название дополнено"
+      stdin: ""
+      expected: |
+        Блюдо: Овсяная каша с мёдом
+        Заглавными: ОВСЯНАЯ КАША С МЁДОМ
+        Букв: 20
+        Байтов: 37
+      hint: "Должно быть четыре строки; в первой название «Овсяная каша с мёдом», длина - 20 букв и 37 байтов."
+    - id: "space"
+      title: "Пробел перед словом «с» (скрытый)"
+      stdin: ""
+      expected: |
+        Блюдо: Овсяная каша с мёдом
+        Заглавными: ОВСЯНАЯ КАША С МЁДОМ
+        Букв: 20
+        Байтов: 37
+      hidden: true
+      hint: "Если пробела перед «с» нет, слова слипнутся и букв окажется 19, а байтов 36."

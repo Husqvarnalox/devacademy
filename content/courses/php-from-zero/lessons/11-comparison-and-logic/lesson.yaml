@@ -1,0 +1,199 @@
+id: "php.from-zero.comparison-and-logic"
+title: "Сравнения и логические операции"
+goal: "Составлять логические выражения из сравнений и операторов &&, || и !, различая === и ==."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "php.from-zero.formatted-output"
+objectives:
+  - "Использовать операторы сравнения ===, !==, <, >, <= и >= и объяснить, что результат - значение типа bool."
+  - "Составлять условия с &&, || и ! и учитывать приоритет операций."
+  - "Объяснить, чем === отличается от == и почему курс использует ===."
+  - "Объяснить, почему дробные числа не сравнивают через ===."
+masteryCriteria:
+  - "Ваша программа печатает результаты пяти логических выражений для введённых оценки и посещаемости."
+  - "Вы предсказываете результаты 5 === \"5\" и 5 == \"5\" и объясняете разницу."
+  - "Вы используете >= там, где граница входит в условие."
+concepts:
+  introduces:
+    - "php.comparison"
+    - "php.strict-equality"
+    - "php.logical-operators"
+  uses:
+    - "php.bool"
+    - "php.var-dump"
+    - "php.int"
+    - "php.float"
+    - "php.string"
+    - "php.null"
+    - "php.cast"
+    - "php.stdin"
+    - "php.fgets"
+    - "php.trim"
+    - "php.variable"
+    - "php.assignment"
+    - "php.arithmetic"
+    - "php.echo"
+next:
+  - "php.from-zero.if-else"
+tags:
+  - "php"
+  - "comparison"
+  - "logic"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        var_dump(5 === "5");
+        ```
+      options:
+        - "bool(true)"
+        - "bool(false)"
+        - "int(5)"
+        - "Ошибку типов"
+      answer: 1
+      explanation: "=== сравнивает значение и тип. Число 5 и строка \"5\" - значения разных типов, поэтому результат false. Оператор == дал бы true, потому что приводит строку к числу."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        $age = 20;
+        $hasTicket = false;
+        var_dump($age >= 18 && $hasTicket);
+        ```
+      options:
+        - "bool(true)"
+        - "bool(false)"
+        - "int(20)"
+        - "bool(false), но только если age меньше 18"
+      answer: 1
+      explanation: "&& даёт true, только когда истинны обе части. Возраст подходит, но билета нет, значит, результат false."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        var_dump(true || false && false);
+        ```
+      options:
+        - "bool(true)"
+        - "bool(false)"
+        - "Ошибку"
+        - "Зависит от версии PHP"
+      answer: 0
+      explanation: "&& имеет более высокий приоритет, чем ||, поэтому выражение читается как true || (false && false) и даёт true. Чтобы не держать приоритет в голове, ставьте скобки."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        var_dump(0.1 + 0.2 === 0.3);
+        ```
+      options:
+        - "bool(true)"
+        - "bool(false)"
+        - "float(0.3)"
+        - "Warning"
+      answer: 1
+      explanation: "0.1 + 0.2 хранится как 0.30000000000000004, а не 0.3, поэтому точное сравнение даёт false. Дробные числа сравнивают с допустимой погрешностью: abs($a - $b) < 0.0001."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```php
+        <?php
+        var_dump(1 < 2 < 3);
+        ```
+      options:
+        - "bool(true)"
+        - "bool(false)"
+        - "Parse error: syntax error, unexpected token \"<\""
+        - "int(1)"
+      answer: 2
+      explanation: "В PHP сравнения нельзя записывать цепочкой, как в математике. Нужно два сравнения, соединённые &&: 1 < 2 && 2 < 3."
+exercise:
+  id: "php.from-zero.comparison-and-logic.exercise"
+  title: "Зачёт по оценке и посещаемости"
+  prompt: |
+    На вход подаются два целых числа, каждое на своей строке: оценка за экзамен (0-100) и посещаемость в процентах (0-100). Заготовка читает их и печатает пять логических значений, но пока везде стоит `false`. Замените `false` выражениями по правилам:
+
+    * `$passedExam` - экзамен сдан, если оценка не меньше 60;
+    * `$admitted` - студент допущен, если посещаемость не меньше 75;
+    * `$credit` - зачёт получен, если экзамен сдан **и** студент допущен;
+    * `$retake` - нужна пересдача, если зачёт **не** получен;
+    * `$perfect` - максимум, если оценка равна ровно 100 (используйте `===`).
+
+    Вывод программы менять не нужно.
+
+    **Пример.** Ввод:
+
+    ```
+    75
+    80
+    ```
+
+    Вывод:
+
+    ```
+    Сдал экзамен: bool(true)
+    Допущен: bool(true)
+    Зачёт: bool(true)
+    Пересдача: bool(false)
+    Максимум: bool(false)
+    ```
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Каждое выражение сравнивает число с границей и даёт true или false. Например, $grade > 50 отвечает на вопрос «больше ли оценка пятидесяти»."
+    - "Фраза «не меньше 60» значит «больше или равно»: >= 60. Строгое > 60 исключило бы оценку 60."
+    - "Для «и» используется &&, для «не» - восклицательный знак: $credit = $passedExam && $admitted; $retake = !$credit;"
+    - "Максимум: $perfect = $grade === 100;"
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "75\n80\n"
+      expected: "Сдал экзамен: bool(true)\nДопущен: bool(true)\nЗачёт: bool(true)\nПересдача: bool(false)\nМаксимум: bool(false)\n"
+      hint: "Оценка 75 сдаёт экзамен (>= 60), посещаемость 80 даёт допуск (>= 75): зачёт получен, пересдача не нужна."
+    - id: "failed"
+      title: "Экзамен не сдан"
+      stdin: "55\n90\n"
+      expected: "Сдал экзамен: bool(false)\nДопущен: bool(true)\nЗачёт: bool(false)\nПересдача: bool(true)\nМаксимум: bool(false)\n"
+      hint: "Оценка 55 ниже 60: экзамен не сдан, зачёта нет, нужна пересдача, несмотря на хорошую посещаемость."
+    - id: "boundary"
+      title: "Границы 60 и 75 (скрытый)"
+      stdin: "60\n75\n"
+      expected: "Сдал экзамен: bool(true)\nДопущен: bool(true)\nЗачёт: bool(true)\nПересдача: bool(false)\nМаксимум: bool(false)\n"
+      hidden: true
+      hint: "Значения 60 и 75 входят в условие: нужны операторы >= (а не >), поэтому экзамен сдан и допуск есть."
+    - id: "absent"
+      title: "Мало посещений (скрытый)"
+      stdin: "90\n74\n"
+      expected: "Сдал экзамен: bool(true)\nДопущен: bool(false)\nЗачёт: bool(false)\nПересдача: bool(true)\nМаксимум: bool(false)\n"
+      hidden: true
+      hint: "Посещаемость 74 меньше 75: допуска нет, и зачёта нет, хотя экзамен сдан."
+    - id: "perfect"
+      title: "Максимум (скрытый)"
+      stdin: "100\n75\n"
+      expected: "Сдал экзамен: bool(true)\nДопущен: bool(true)\nЗачёт: bool(true)\nПересдача: bool(false)\nМаксимум: bool(true)\n"
+      hidden: true
+      hint: "Максимум - только ровно 100: проверка через ===. Оценка 90 максимумом не считается."
+    - id: "zeros"
+      title: "Нули (скрытый)"
+      stdin: "0\n0\n"
+      expected: "Сдал экзамен: bool(false)\nДопущен: bool(false)\nЗачёт: bool(false)\nПересдача: bool(true)\nМаксимум: bool(false)\n"
+      hidden: true
+      hint: "Нулевые значения: всё ложно, а пересдача нужна (истина)."

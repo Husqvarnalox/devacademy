@@ -1,14 +1,15 @@
 id: "rust.first-steps.how-rust-runs"
 title: "Как выполняется Rust: rustc, нет рантайма и stdin"
-goal: "Понять, что делает rustc, и написать программу, читающую числа из stdin."
+goal: "Понять, что делает rustc и почему Rust обходится без рантайма, выбрать i64 вместо i32 для суммы и написать программу со статистикой по числам из stdin."
 difficulty: "intro"
 estimatedMinutes: 30
-prerequisites: []
+prerequisites:
+  - "rust.from-zero.first-struct"
 objectives:
   - "Объяснить, что Rust компилируется в машинный код без сборщика мусора."
-  - "Различать let и let mut, типы i32 и i64, преобразования as."
-  - "Читать stdin через read_to_string и split_whitespace."
-  - "Знать, что поведение переполнения зависит от режима сборки."
+  - "Объяснять, как переполнение i32 и i64 ведёт себя в отладочной и релизной сборке, и выбирать тип суммы."
+  - "Выбирать между as, checked_, wrapping_ и saturating_ для преобразований и арифметики на границах типа."
+  - "Читать весь stdin двумя способами и разбирать числа через split_whitespace."
 masteryCriteria:
   - "Вы выбираете i64 для суммы и приводите к f64 до деления."
   - "Вы объясняете, зачем нужны checked_, wrapping_ и saturating_."
@@ -105,9 +106,9 @@ exercise:
   entryFile: "main.rs"
   evaluation: "io"
   hints:
-    - "Прочитайте весь stdin: read_to_string(&mut input), затем input.split_whitespace(). Первое слово - n."
-    - "Следующие n слов разберите как i64: it.take(n).map(|t| t.parse().unwrap()).collect::<Vec<i64>>()."
-    - "Сумма: nums.iter().sum::<i64>(); минимум и максимум: *nums.iter().min().unwrap() и max()."
+    - "Заготовка читает весь stdin и разбивает его на слова через split_whitespace(); первое слово - n. Это второй способ чтения из «Rust с нуля»: read_to_string(&mut input) вместо std::io::read_to_string(std::io::stdin())."
+    - "Следующие n слов разберите как i64 циклом: let mut nums: Vec<i64> = Vec::new(); for _ in 0..n { let x: i64 = it.next().unwrap().parse().unwrap(); nums.push(x); }. Короткая запись it.take(n).map(|t| t.parse().unwrap()).collect() делает то же: |t| ... - безымянная функция (замыкание), map применяет её к каждому слову, collect собирает результат в Vec. Подробнее - в rust-fundamentals."
+    - "Сумма: цикл с накоплением в sum: i64 или nums.iter().sum::<i64>(). Минимум и максимум: начните с nums[0] и сравнивайте *x в цикле for x in &nums; либо *nums.iter().min().unwrap() и max(): min() возвращает Option, потому что вектор может быть пуст."
     - "Среднее: sum as f64 / n as f64, формат {:.2}. Форматирование не зависит от локали."
   tests:
     - id: "basic"

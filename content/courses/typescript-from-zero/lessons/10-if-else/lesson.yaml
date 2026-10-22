@@ -1,0 +1,176 @@
+id: "typescript.from-zero.if-else"
+title: "Условия: if и else"
+goal: "Выбирать, какие команды выполнить, с помощью if, else if и else и возвращать результат по условию."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "typescript.from-zero.functions"
+objectives:
+  - "Записать if, else и цепочку else if с условием в скобках и телом в фигурных скобках."
+  - "Вернуть значение из функции по нескольким веткам."
+  - "Выбрать между цепочкой else if и несколькими независимыми if."
+  - "Прочитать TS2366: не на всех ветках есть return."
+masteryCriteria:
+  - "Функции дают верные результаты на границах диапазонов (6 и 7 лет, 17 и 18, 64 и 65) и на особых значениях (ноль, 1900 год)."
+  - "Условия строятся из сравнений и логических операторов."
+concepts:
+  introduces:
+    - "ts.if"
+  uses:
+    - "ts.function"
+    - "ts.parameter"
+    - "ts.return"
+    - "ts.return-type"
+    - "ts.export-for-check"
+    - "ts.comparison"
+    - "ts.logical-operators"
+    - "ts.arithmetic"
+    - "ts.let"
+    - "ts.assignment"
+    - "ts.boolean"
+    - "ts.console-log"
+next:
+  - "typescript.from-zero.while-loop"
+tags:
+  - "typescript"
+  - "if"
+  - "conditions"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const n: number = 5;
+        if (n > 3) {
+          console.log("A");
+        } else {
+          console.log("B");
+        }
+        console.log("C");
+        ```
+      options:
+        - "A"
+        - "A, затем C"
+        - "B, затем C"
+        - "A, B, затем C"
+      answer: 1
+      explanation: "Условие 5 > 3 истинно, выполняется ветка if (печатается A). Ветка else пропускается. Команда после блока выполняется всегда: C."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const score: number = 80;
+        if (score >= 90) {
+          console.log("отлично");
+        } else if (score >= 70) {
+          console.log("хорошо");
+        } else if (score >= 50) {
+          console.log("нормально");
+        } else {
+          console.log("плохо");
+        }
+        ```
+      options:
+        - "хорошо"
+        - "хорошо, затем нормально"
+        - "нормально"
+        - "отлично"
+      answer: 0
+      explanation: "Проверки идут сверху вниз до первой истинной: 80 >= 90 ложно, 80 >= 70 истинно - печатается «хорошо», остальные ветки не проверяются."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Чему равно x после выполнения?
+
+        ```typescript
+        let x: number = 10;
+        if (x > 5) { x = x - 5; }
+        if (x > 3) { x = x - 3; }
+        ```
+      options:
+        - "2"
+        - "5"
+        - "7"
+        - "10"
+      answer: 0
+      explanation: "Это два независимых if, и оба сработали по очереди: 10 > 5, x становится 5; затем 5 > 3, x становится 2. С else if вторая проверка не выполнилась бы."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка?
+
+        ```typescript
+        function sign(n: number): string {
+          if (n > 0) {
+            return "плюс";
+          } else if (n < 0) {
+            return "минус";
+          }
+        }
+        ```
+      options:
+        - "Ничего: ошибок нет."
+        - "TS2366: Function lacks ending return statement - при n равном 0 функция ничего не вернёт."
+        - "TS2322: Type 'string' is not assignable to type 'number'."
+        - "TS2552: Cannot find name 'sign'."
+      answer: 1
+      explanation: "Для нуля ни одна ветка не срабатывает, и функция дошла бы до конца без return. Тип результата string обещает строку, поэтому проверка требует вернуть значение на любом пути. Добавьте else или return после if."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Какое условие верно описывает «возраст от 7 до 17 включительно»?
+      options:
+        - "age >= 7 || age <= 17"
+        - "age > 7 && age < 17"
+        - "age >= 7 && age <= 17"
+        - "7 <= age <= 17"
+      answer: 2
+      explanation: "Оба края включены, поэтому >= и <=, а два условия соединены «и». С || подошёл бы любой возраст. Цепочка 7 <= age <= 17 отвергается проверкой (TS2365)."
+exercise:
+  id: "typescript.from-zero.if-else.exercise"
+  title: "Билет, високосный год, знак числа"
+  prompt: |
+    В файле `conditions_task.ts` три функции. Реализуйте их условиями:
+
+    * `ticketPrice(age)` - цена билета: младше 7 лет бесплатно (`0`), от 7 до 17 включительно `150`, от 18 до 64 включительно `300`, от 65 лет `100`.
+    * `isLeapYear(year)` - `true`, если год високосный: делится на 4, но не на 100, либо делится на 400. Иначе `false`.
+    * `sign(n)` - строка `"положительное"`, `"отрицательное"` или `"ноль"`.
+
+    Функции должны **возвращать** значение. Скрытые тесты проверяют границы диапазонов (6 и 7, 17 и 18, 64 и 65), годы-исключения (1900, 2000, 2100, 2400) и дробные числа.
+  entryFile: "conditions_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В ticketPrice проверяйте возраст по порядку, от меньшего к большему. Сработавшая ветка возвращает цену, остальные не проверяются."
+    - "В isLeapYear остаток от деления на 4, 100 и 400 даёт %. Правило можно записать одним return с && и ||, поставив скобки, либо цепочкой if."
+    - "В sign три случая: больше нуля, меньше нуля и все остальные (ноль)."
+    - "if (age < 7) { return 0; } else if (age < 18) { return 150; } else if (age < 65) { return 300; } else { return 100; } Для года: (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0."
+  tests:
+    - id: "ticket-basic"
+      title: "ticketPrice: обычные возрасты"
+      hint: "Ребёнок 3 года - бесплатно, 10 лет - 150, 30 лет - 300, 70 лет - 100."
+    - id: "leap-basic"
+      title: "isLeapYear: обычные годы"
+      hint: "2024 високосный (делится на 4), 2023 - нет."
+    - id: "sign-basic"
+      title: "sign: положительное и отрицательное"
+      hint: "5 - «положительное», -3 - «отрицательное»; строки пишутся строчными буквами без точки."
+    - id: "ticket-edge"
+      title: "ticketPrice: границы диапазонов (скрытый)"
+      hidden: true
+      hint: "Границы: 6 лет - бесплатно, 7 - 150; 17 - 150, 18 - 300; 64 - 300, 65 - 100. Проверьте < и >=."
+    - id: "leap-edge"
+      title: "isLeapYear: 1900, 2000, 2100, 2400 (скрытый)"
+      hidden: true
+      hint: "Годы, кратные 100, високосны только если делятся на 400: 1900 и 2100 - нет, 2000 и 2400 - да."
+    - id: "sign-edge"
+      title: "sign: ноль и дроби (скрытый)"
+      hidden: true
+      hint: "Ноль - «ноль», 0.5 - «положительное», -0.5 - «отрицательное»: проверяйте знак, а не целую часть."

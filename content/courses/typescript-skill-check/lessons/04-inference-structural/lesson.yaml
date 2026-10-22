@@ -1,0 +1,169 @@
+id: "typescript.check.inference-structural"
+title: "Проверка: вывод типов и структурная типизация"
+goal: "Понимать, что проверяет tsc и что стирается при запуске, предсказывать выведенные типы и писать функции над структурно описанными объектами с необязательными свойствами."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: понимать, что проверяет tsc и что стирается при запуске, предсказывать выведенные типы и писать функции над структурно описанными объектами с необязательными свойствами"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "inference"
+assessmentFor:
+  - "typescript.first-steps.how-typescript-runs"
+  - "typescript.first-steps.structural-typing-and-narrowing"
+  - "typescript.fundamentals.inference-and-structure"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        const a = 42;
+        let b = 42;
+        const c: 42 = a;
+        const d: 42 = b;
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2322 в последней строке: number нельзя присвоить типу 42"
+        - "Ошибка TS2322 в третьей строке"
+        - "Ошибка TS2322 в обеих последних строках"
+      answer: 1
+      explanation: "Для const a = 42 выводится литеральный тип 42, и присваивание c допустимо. Для let b = 42 выводится широкий тип number, потому что переменную можно изменить, и number нельзя присвоить типу 42."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        function area(size: { w: number; h: number }): number {
+          return size.w * size.h;
+        }
+        const box = { w: 2, h: 3, d: 4 };
+        console.log(area(box));
+        console.log(area({ w: 2, h: 3, d: 4 }));
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2353 во втором вызове: лишнее свойство d в литерале"
+        - "Ошибки TS2353 в обоих вызовах"
+        - "Ошибка TS2353 только в первом вызове"
+      answer: 1
+      explanation: "Проверка лишних свойств применяется только к свежему объектному литералу, записанному прямо в аргументе. Переменная box подходит по форме (структурная совместимость), а литерал с лишним d отвергается."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        interface Named {
+          name: string;
+        }
+        class Dog {
+          name = "Рекс";
+          age = 3;
+        }
+        const n: Named = new Dog();
+        console.log(n.name);
+        ```
+      options:
+        - "Рекс"
+        - "undefined"
+        - "Ошибка типов: Dog не объявлен как Named"
+        - "Dog"
+      answer: 0
+      explanation: "Совместимость в TypeScript структурная: у Dog есть строковое поле name, этого достаточно для Named. Объявлять реализацию интерфейса не нужно."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const config = { mode: "fast" };
+        config.mode = "slow";
+        console.log(config.mode);
+        ```
+      options:
+        - "fast"
+        - "slow"
+        - "Ошибка типов: mode имеет тип \"fast\""
+        - "undefined"
+      answer: 1
+      explanation: "Поля объекта могут измениться, поэтому литерал \"fast\" расширяется до string. Присваивание \"slow\" допустимо, а const защищает только саму переменную config от замены."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function double(n: number): number {
+          return n * 2;
+        }
+        const raw = JSON.parse('"21"');
+        console.log(double(raw));
+        ```
+      options:
+        - "42"
+        - "NaN"
+        - "Ошибка типов: string нельзя передать как number"
+        - "2121"
+      answer: 0
+      explanation: "JSON.parse возвращает any, поэтому проверка пропускает вызов. Во время работы типов нет: \"21\" * 2 JavaScript приводит строку к числу и получает 42. Данные снаружи нужно проверять самому."
+exercise:
+  id: "typescript.check.inference-structural.exercise"
+  title: "Люди и приветствия"
+  prompt: |
+    В файле `inference_check.ts` реализуйте четыре экспортируемые функции (интерфейс `Person` уже описан).
+
+    1. `greet(who)` - строка `"Здравствуйте, <имя>!"`. Параметр описан структурно (`{ name: string }`): подходит любой объект со строковым полем `name`.
+    2. `describe(entity)` - имя; если указан возраст, то имя и возраст в скобках, например `"Аня (25)"`. Возраст `0` тоже считается указанным.
+    3. `adultNames(people)` - имена совершеннолетних (возраст 18 и больше) в исходном порядке.
+    4. `oldest(people)` - самый старший человек (сам объект из списка); при равном возрасте - первый из них. Для пустого списка - `undefined`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "inference_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "greet и describe принимают структурные типы: обращайтесь только к полям, которые объявлены в параметре, остальные поля в объекте могут быть любыми."
+    - "describe: age необязательное, его тип number | undefined. Проверка entity.age === undefined отличает отсутствие возраста от возраста 0; запись if (entity.age) для нуля вернёт неверный результат."
+    - "adultNames: filter по условию person.age >= 18, затем map по имени; либо цикл for...of с push."
+    - "oldest: переменная best типа Person | undefined; обновляйте её, только если best === undefined или person.age строго больше best.age. Строгое сравнение сохраняет первого из равных."
+  tests:
+    - id: "greet-basic"
+      title: "greet - обычные объекты"
+      hint: "Приветствие строится из поля name; другие поля игнорируются."
+    - id: "describe-basic"
+      title: "describe - с возрастом и без"
+      hint: "С возрастом: «Аня (25)», без возраста - только имя."
+    - id: "adults-basic"
+      title: "adultNames - фильтрация"
+      hint: "Возраст 18 включительно; порядок как в исходном списке."
+    - id: "oldest-basic"
+      title: "oldest - обычный список"
+      hint: "Верните сам объект самого старшего, а не его копию."
+    - id: "greet-edge"
+      title: "greet - пустое имя и лишние поля (скрытый)"
+      hidden: true
+      hint: "Пустое имя даёт «Здравствуйте, !»; лишние поля не мешают."
+    - id: "describe-edge"
+      title: "describe - возраст 0 и undefined (скрытый)"
+      hidden: true
+      hint: "Возраст 0 нужно показать: «Малыш (0)»; age равное undefined означает «не указан»."
+    - id: "adults-edge"
+      title: "adultNames - границы 17, 18 и 0 (скрытый)"
+      hidden: true
+      hint: "17 лет - не совершеннолетний, 18 - совершеннолетний; список без подходящих даёт пустой массив."
+    - id: "oldest-edge"
+      title: "oldest - пустой список, возраст 0, равные возрасты (скрытый)"
+      hidden: true
+      hint: "Пустой список даёт undefined; единственный человек с возрастом 0 - это он сам; при равных возрастах побеждает первый."

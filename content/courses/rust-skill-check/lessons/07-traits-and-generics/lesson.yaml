@@ -1,0 +1,264 @@
+id: "rust.check.traits-and-generics"
+title: "Проверка: трейты и обобщения"
+goal: "Описывать общее поведение трейтом и писать обобщённые функции с ограничениями."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: реализовать трейт для нескольких типов, использовать метод по умолчанию и написать обобщённую функцию и функцию над `&dyn Trait`."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "rust"
+  - "check"
+  - "traits-and-generics"
+assessmentFor:
+  - "rust.fundamentals.traits-and-generics"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```rust
+        fn show<T>(value: T) {
+            println!("{}", value);
+        }
+
+        fn main() {
+            show(5);
+        }
+        ```
+      options:
+        - "Программа выведет 5"
+        - "Ошибка компиляции: тип T не обязан реализовывать Display"
+        - "Программа выведет адрес значения"
+        - "Ошибка выполнения при печати"
+      answer: 1
+      explanation: "Тип T может быть любым, и компилятор не знает, можно ли его печатать через {}. Нужно ограничение T: std::fmt::Display, иначе будет ошибка E0277."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        trait Greet {
+            fn name(&self) -> String;
+            fn hello(&self) -> String {
+                format!("Hello, {}", self.name())
+            }
+        }
+
+        struct Ann;
+        struct Bob;
+
+        impl Greet for Ann {
+            fn name(&self) -> String { "Ann".to_string() }
+        }
+
+        impl Greet for Bob {
+            fn name(&self) -> String { "Bob".to_string() }
+            fn hello(&self) -> String { "Yo".to_string() }
+        }
+
+        fn main() {
+            println!("{} / {}", Ann.hello(), Bob.hello());
+        }
+        ```
+      options:
+        - "Hello, Ann / Yo"
+        - "Yo / Yo"
+        - "Ошибка компиляции: hello не реализован для Ann"
+        - "Hello, Ann / Hello, Bob"
+      answer: 0
+      explanation: "Метод hello имеет реализацию по умолчанию. Ann её использует, а Bob переопределяет своей, поэтому результаты различаются."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn largest<T: PartialOrd + Copy>(items: &[T]) -> T {
+            let mut best = items[0];
+            for &item in items {
+                if item > best {
+                    best = item;
+                }
+            }
+            best
+        }
+
+        fn main() {
+            println!("{} {} {}", largest(&[3, 9, 4]), largest(&[1.5, 0.5]), largest(&['a', 'z', 'c']));
+        }
+        ```
+      options:
+        - "9 1.5 c"
+        - "9 0.5 z"
+        - "Ошибка компиляции: нельзя сравнивать разные типы"
+        - "9 1.5 z"
+      answer: 3
+      explanation: "Одна обобщённая функция работает с любым типом, у которого есть сравнение и копирование. Для каждого типа вызов независим: целые, дробные и символы сравниваются по своим правилам."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        trait Shape { fn sides(&self) -> u32; }
+        struct Tri;
+        struct Quad;
+        impl Shape for Tri { fn sides(&self) -> u32 { 3 } }
+        impl Shape for Quad { fn sides(&self) -> u32 { 4 } }
+
+        fn main() {
+            let shapes: Vec<Box<dyn Shape>> = vec![Box::new(Tri), Box::new(Quad), Box::new(Tri)];
+            let total: u32 = shapes.iter().map(|s| s.sides()).sum();
+            println!("{}", total);
+        }
+        ```
+      options:
+        - "Ошибка компиляции: разные типы в одном векторе"
+        - "7"
+        - "10"
+        - "12"
+      answer: 2
+      explanation: "Box<dyn Shape> позволяет хранить разные типы в одном векторе, а нужный метод выбирается во время работы программы. Сумма 3 + 4 + 3 равна 10."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```rust
+        trait Speak {
+            fn sound(&self) -> String;
+            fn twice(&self) -> String;
+        }
+
+        struct Dog;
+
+        impl Speak for Dog {
+            fn sound(&self) -> String { "woof".to_string() }
+        }
+
+        fn main() {
+            println!("{}", Dog.sound());
+        }
+        ```
+      options:
+        - "Программа выведет woof"
+        - "Ошибка компиляции: в impl не реализован метод twice"
+        - "Программа выведет woof woof"
+        - "Предупреждение, но программа запустится"
+      answer: 1
+      explanation: "Метод twice не имеет реализации по умолчанию, поэтому impl Speak for Dog обязан его содержать. Иначе компилятор сообщает об ошибке E0046."
+exercise:
+  id: "rust.check.traits-and-generics.exercise"
+  title: "Оплата труда: трейт и обобщённые функции"
+  prompt: |-
+    В `main.rs` уже описаны трейт `Pay`, структуры `Hourly` и `Salaried` и функция `main`. Допишите пять частей над `main`. Трейт, структуры и `main` не меняйте.
+
+    1. `impl Pay for Hourly`: `monthly` равна `hours * rate`, а `kind` возвращает `"hourly"`.
+    2. `impl Pay for Salaried`: `monthly` равна `amount`, метод `kind` не переопределяйте - у него есть реализация по умолчанию (`"staff"`).
+    3. `total_pay<T: Pay>(items: &[T]) -> i64` - сумма `monthly` всех элементов.
+    4. `top<T: Pay>(items: &[T]) -> Option<&T>` - элемент с наибольшей `monthly`; при равенстве - первый; для пустого среза - `None`.
+    5. `report(item: &dyn Pay) -> String` - строка `kind: monthly`, например `hourly: 4000`.
+
+    `main` читает строки `h часы ставка` и `s сумма`, затем печатает суммы по двум группам, лучшего в каждой и общий список по порядку ввода.
+
+    **Пример.** Для ввода
+
+    ```
+    h 160 25
+    s 3000
+    h 100 50
+    s 2500
+    ```
+
+    программа печатает
+
+    ```
+    hourly total=9000
+    salaried total=5500
+    top hourly: hourly: 5000
+    top salaried: staff: 3000
+    hourly: 4000
+    staff: 3000
+    hourly: 5000
+    staff: 2500
+    ```
+
+    Скрытые тесты проверяют равные значения, отрицательные суммы и нулевую выплату.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Реализация трейта пишется как impl Pay for Hourly { fn monthly(&self) -> i64 { ... } fn kind(&self) -> String { ... } }. Для Salaried метод kind не пишите вообще."
+    - "total_pay: пройдите по items циклом и складывайте item.monthly(). Ограничение T: Pay гарантирует, что метод есть."
+    - "top: храните лучший элемент как Option<&T>. Новый элемент заменяет лучшего только при строго большем monthly, тогда при равенстве останется первый."
+    - "report принимает &dyn Pay, поэтому у него те же методы monthly() и kind(). Склейте их через format!(\"{}: {}\", item.kind(), item.monthly())."
+  tests:
+    - id: "basic"
+      title: "Две группы и общий список"
+      stdin: |
+        h 160 25
+        s 3000
+        h 100 50
+        s 2500
+      expected: |
+        hourly total=9000
+        salaried total=5500
+        top hourly: hourly: 5000
+        top salaried: staff: 3000
+        hourly: 4000
+        staff: 3000
+        hourly: 5000
+        staff: 2500
+      hint: "Суммы по группам, лучший в каждой группе и общий отчёт в порядке ввода. kind по умолчанию даёт staff."
+    - id: "single-group"
+      title: "Только почасовые сотрудники"
+      stdin: |
+        h 10 7
+        h 8 8
+      expected: |
+        hourly total=134
+        salaried total=0
+        top hourly: hourly: 70
+        top salaried: none
+        hourly: 70
+        hourly: 64
+      hint: "Группа salaried пуста: сумма 0 и top печатает none; почасовые считаются hours * rate."
+    - id: "tie-negative"
+      title: "Равные значения и отрицательная сумма (скрытый)"
+      stdin: |
+        s 100
+        s 100
+        s -50
+        h 4 25
+        h 5 20
+      expected: |
+        hourly total=200
+        salaried total=150
+        top hourly: hourly: 100
+        top salaried: staff: 100
+        staff: 100
+        staff: 100
+        staff: -50
+        hourly: 100
+        hourly: 100
+      hidden: true
+      hint: "При равенстве лучшим остаётся первый элемент, отрицательные значения тоже суммируются."
+    - id: "zero"
+      title: "Нулевая выплата и пустая группа (скрытый)"
+      stdin: |
+        h 0 100
+      expected: |
+        hourly total=0
+        salaried total=0
+        top hourly: hourly: 0
+        top salaried: none
+        hourly: 0
+      hidden: true
+      hint: "Единственный элемент с monthly = 0 всё равно лучший в своей группе; пустая группа даёт сумму 0 и None."

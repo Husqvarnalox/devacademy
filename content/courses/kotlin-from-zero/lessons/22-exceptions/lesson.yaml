@@ -1,0 +1,219 @@
+id: "kotlin.from-zero.exceptions"
+title: "Исключения"
+goal: "Перехватывать исключения через try и catch и выбрасывать свои через throw."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "kotlin.from-zero.string-methods"
+objectives:
+  - "Объяснять, что такое исключение и что происходит с не перехваченным исключением."
+  - "Писать try и catch для NumberFormatException и других видов исключений."
+  - "Выбрасывать IllegalArgumentException через throw и читать e.message."
+  - "Читать стек вызовов снизу вверх и находить строку, где возникла ошибка."
+masteryCriteria:
+  - "Ваша функция проверяет возраст и выбрасывает исключение, а основной код печатает понятные сообщения и продолжает работу."
+  - "Вы предсказываете, какие строки напечатаются, если исключение случилось в середине блока try."
+  - "Вы выбираете вид исключения для catch по сообщению об ошибке."
+concepts:
+  introduces:
+    - "kotlin.exception"
+    - "kotlin.try-catch"
+    - "kotlin.throw"
+    - "kotlin.exception-message"
+    - "kotlin.illegal-argument"
+  uses:
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.if"
+    - "kotlin.for"
+    - "kotlin.range"
+    - "kotlin.list"
+    - "kotlin.logical-operators"
+    - "kotlin.comparison"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.number-format-exception"
+    - "kotlin.function"
+    - "kotlin.parameter"
+    - "kotlin.return"
+    - "kotlin.nullable"
+    - "kotlin.toint-or-null"
+next:
+  - "kotlin.from-zero.first-class"
+tags:
+  - "kotlin"
+  - "exception"
+  - "try"
+  - "catch"
+  - "throw"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            try {
+                println("a")
+                val n = "x".toInt()
+                println("b")
+            } catch (e: NumberFormatException) {
+                println("c")
+            }
+            println("d")
+        }
+        ```
+      options:
+        - "a, b, d"
+        - "a, c, d"
+        - "a, d"
+        - "a, b, c, d"
+      answer: 1
+      explanation: "После печати «a» toInt() бросает исключение, «b» пропускается, срабатывает catch («c»), затем программа продолжается («d»)."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            try {
+                println(10 / 0)
+            } catch (e: NumberFormatException) {
+                println("не число")
+            }
+            println("конец")
+        }
+        ```
+      options:
+        - "не число и затем конец"
+        - "Только конец."
+        - "Ошибку ArithmeticException: программа завершится, и «конец» не будет напечатано."
+        - "0 и затем конец"
+      answer: 2
+      explanation: "Деление на 0 бросает ArithmeticException, а перехватывается только NumberFormatException. Исключение не перехвачено, и программа завершается."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Чему равно значение val x в этой программе?
+
+        ```kotlin
+        fun main() {
+            val x = try { "5".toInt() } catch (e: NumberFormatException) { 0 }
+            println(x)
+        }
+        ```
+      options:
+        - "0"
+        - "5"
+        - "null"
+        - "Программа не скомпилируется."
+      answer: 1
+      explanation: "try - выражение. Разбор прошёл успешно, поэтому значением стало 5."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что нужно записать вместо многоточия, чтобы функция сообщила о недопустимом значении?
+
+        ```kotlin
+        fun check(n: Int) {
+            if (n < 0) {
+                ...
+            }
+        }
+        ```
+      options:
+        - "throw IllegalArgumentException(\"n < 0\")"
+        - "throw \"n < 0\""
+        - "catch IllegalArgumentException(\"n < 0\")"
+        - "return IllegalArgumentException"
+      answer: 0
+      explanation: "Исключение выбрасывает throw, а его вид (IllegalArgumentException) и текст задаются конструктором. Строку выбросить нельзя."
+exercise:
+  id: "kotlin.from-zero.exceptions.exercise"
+  title: "Проверка возраста"
+  prompt: |
+    Дана готовая функция `main`: она читает `n` строк и для каждой пытается получить возраст. Реализуйте функцию `checkAge(age: Int): Int`.
+
+    Правила для `checkAge`:
+
+    * если `age` меньше 0 или больше 120, функция выбрасывает `IllegalArgumentException` с текстом `Возраст должен быть от 0 до 120`;
+    * иначе возвращает `age`.
+
+    Функцию `main` менять не нужно. Она печатает `Принято: <возраст>`, `Не число: <строка>` или `Ошибка: <текст исключения>`.
+
+    **Пример.** Для ввода
+
+    ```
+    3
+    25
+    abc
+    200
+    ```
+
+    вывод:
+
+    ```
+    Принято: 25
+    Не число: abc
+    Ошибка: Возраст должен быть от 0 до 120
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Если условие допустимости нарушено, напишите throw IllegalArgumentException(\"Возраст должен быть от 0 до 120\")."
+    - "Условие нарушено, когда age < 0 || age > 120. В остальных случаях нужно просто вернуть age."
+    - "Текст исключения должен совпадать до символа: его печатает готовая main через e.message."
+  tests:
+    - id: "basic"
+      title: "Пример"
+      stdin: |
+        3
+        25
+        abc
+        200
+      expected: |
+        Принято: 25
+        Не число: abc
+        Ошибка: Возраст должен быть от 0 до 120
+      hint: "25 допустимо, abc не число, 200 больше 120."
+    - id: "neg"
+      title: "Отрицательный возраст"
+      stdin: |
+        2
+        -1
+        0
+      expected: |
+        Ошибка: Возраст должен быть от 0 до 120
+        Принято: 0
+      hint: "-1 меньше 0, а 0 допустим."
+    - id: "edge"
+      title: "Границы (скрытый)"
+      stdin: |
+        3
+        120
+        121
+        -5
+      expected: |
+        Принято: 120
+        Ошибка: Возраст должен быть от 0 до 120
+        Ошибка: Возраст должен быть от 0 до 120
+      hidden: true
+      hint: "Граница 120 допустима, 121 - нет."
+    - id: "allok"
+      title: "Все корректны (скрытый)"
+      stdin: |
+        2
+        18
+        65
+      expected: |
+        Принято: 18
+        Принято: 65
+      hidden: true
+      hint: "Корректные значения возвращаются без изменений."

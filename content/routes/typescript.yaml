@@ -1,0 +1,45 @@
+track: typescript
+entry:
+  beginner: typescript.from-zero.first-program
+  programmer: typescript.programmers.syntax-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, условия, циклы, функции
+    description: Типы значений, переменные, арифметика, строки, if и else, циклы while и for, функции с типизированными параметрами и return.
+    check: typescript.check.basics
+    after: []
+  - id: collections
+    title: Массивы, объекты и методы массивов
+    description: Массивы и объекты с interface, обход, map, filter, find, sort с компаратором, необязательные свойства и значения T | undefined.
+    check: typescript.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ошибки и разбор ввода
+    description: throw и try/catch, собственные классы ошибок, чтение текста ввода, строгий разбор чисел, сбор ошибок данных.
+    check: typescript.check.errors-input
+    after: [collections]
+  - id: inference-structural
+    title: Вывод типов и структурная типизация
+    description: Что проверяет tsc и что стирается при запуске, вывод и расширение литералов, структурная совместимость, лишние свойства литералов.
+    check: typescript.check.inference-structural
+    after: [collections]
+  - id: unions-narrowing
+    title: Объединения и сужение типов
+    description: Типы-объединения, сужение через typeof, null, in и instanceof, размеченные объединения, исчерпывающий switch.
+    check: typescript.check.unions-narrowing
+    after: [inference-structural]
+  - id: unknown-never
+    title: unknown, never и границы данных
+    description: Разница между any и unknown, предикаты v is T, ручная проверка данных из JSON, catch как unknown, never для исчерпывающих проверок.
+    check: typescript.check.unknown-never
+    after: [unions-narrowing, errors-input]
+  - id: generics
+    title: Обобщения
+    description: Параметры типа у функций и классов, вывод T, ограничения extends и keyof, стирание обобщений при запуске.
+    check: typescript.check.generics
+    after: [unions-narrowing]
+  - id: utility-types
+    title: Утилитарные типы
+    description: Partial, Required, Readonly, Pick, Omit, Record, их поверхностность и ограничения, частичное обновление объектов.
+    check: typescript.check.utility-types
+    after: [generics]

@@ -1,0 +1,16 @@
+id: "rust-skill-check"
+version: "1.0.0"
+title: "Проверка знаний Rust"
+description: "Короткие проверки по компетенциям: задача с запуском кода и вопросы на чтение кода. Пройденная проверка засчитывает уроки темы, непройденная ничего не меняет и показывает, какие уроки закрывают пробел. Проверку можно пройти повторно."
+languageId: "rust"
+level: 1
+track: "rust"
+lessons:
+  - "01-basics"
+  - "02-collections"
+  - "03-errors-input"
+  - "04-ownership"
+  - "05-enums-and-matching"
+  - "06-error-handling"
+  - "07-traits-and-generics"
+  - "08-iterators"

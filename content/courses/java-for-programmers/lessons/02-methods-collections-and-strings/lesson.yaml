@@ -1,0 +1,230 @@
+id: "java.programmers.methods-collections-and-strings"
+title: "Методы, массивы, коллекции и строки: ловушки Java"
+goal: "Писать методы и работать с массивами, списками, словарями и строками, не попадаясь на передачу ссылок по значению, перегрузку remove, unboxing null, порядок HashMap и регулярное выражение в split."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites: []
+next:
+  - "java.programmers.exceptions-and-classes"
+objectives:
+  - "Объяснять, что при вызове метода копируется значение: число или ссылка, - и предсказывать, что метод может изменить."
+  - "Различать массив, ArrayList и неизменяемые списки; выбирать remove(int) или remove(Object)."
+  - "Работать с HashMap: getOrDefault, merge, null вместо отсутствующего ключа, неопределённый порядок обхода."
+  - "Сравнивать строки через equals и применять split, substring и trim, помня, что split принимает регулярное выражение."
+masteryCriteria:
+  - "minMax, removeValue, countWords и initials дают верные результаты для повторяющихся значений, пустого текста и лишних пробелов."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "java"
+  - "programmers"
+  - "collections"
+  - "strings"
+assessmentFor:
+  - "java.from-zero.methods"
+  - "java.from-zero.arrays"
+  - "java.from-zero.arraylist"
+  - "java.from-zero.hashmap"
+  - "java.from-zero.string-methods"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        static void change(int[] a, int x) {
+            a[0] = 9;
+            x = 9;
+            a = new int[] {0};
+        }
+
+        public static void main(String[] args) {
+            int[] arr = {1};
+            int n = 1;
+            change(arr, n);
+            System.out.println(arr[0] + " " + n);
+        }
+        ```
+      options:
+        - "9 9"
+        - "1 1"
+        - "9 1"
+        - "1 9"
+      answer: 2
+      explanation: "Метод получает копии аргументов. Копия числа n - обычное число, её изменение не видно снаружи. Копия ссылки arr указывает на тот же массив, поэтому присваивание a[0] = 9 меняет общий массив. А присваивание a = new int[]{0} переставляет только локальную ссылку и на arr не влияет."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        List<Integer> xs = new ArrayList<>(List.of(5, 6, 7, 1));
+        xs.remove(1);
+        System.out.println(xs);
+        ```
+      options:
+        - "[5, 6, 7]"
+        - "[5, 7, 1]"
+        - "[6, 7, 1]"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "У списка две перегрузки: remove(int index) и remove(Object o). Для аргумента типа int компилятор выбирает первую, то есть удаляет элемент с индексом 1 (значение 6). Чтобы удалить значение 1, нужно написать xs.remove(Integer.valueOf(1))."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```java
+        Map<String, Integer> m = new HashMap<>();
+        int n = m.get("a");
+        ```
+      options:
+        - "n станет 0"
+        - "n станет null"
+        - "NullPointerException"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "get для отсутствующего ключа возвращает null. Присваивание его переменной int требует распаковки Integer в int, и распаковка null бросает NullPointerException. Безопаснее m.getOrDefault(\"a\", 0) или проверка containsKey."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Чему равно значение выражения?
+
+        ```java
+        "a,b,,".split(",").length
+        ```
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+      answer: 0
+      explanation: "split отбрасывает пустые строки в конце результата, поэтому получается массив {\"a\", \"b\"} длиной 2. Пустая строка в середине (\"a,,b\") сохраняется. Чтобы сохранить хвостовые пустые части, передайте второй аргумент: split(\",\", -1)."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        String s = new String("java");
+        System.out.println((s == "java") + " " + s.equals("java"));
+        ```
+      options:
+        - "true true"
+        - "false true"
+        - "false false"
+        - "true false"
+      answer: 1
+      explanation: "Оператор == сравнивает ссылки, а new String создаёт отдельный объект, не тот, что хранится для литерала \"java\". Поэтому == даёт false, а equals сравнивает содержимое и даёт true. Строки всегда сравнивают через equals."
+exercise:
+  id: "java.programmers.methods-collections-and-strings.exercise"
+  title: "Статистика, фильтр, частоты слов и инициалы"
+  prompt: |-
+    `main` уже написан и читает данные в таком порядке: число `n`, `n` целых чисел, число `value`, затем две строки - текст и полное имя. Реализуйте четыре метода.
+
+    * `minMax(int[] a)` возвращает массив из двух элементов: наименьшего и наибольшего значений (в `a` есть хотя бы один элемент);
+    * `removeValue(List<Integer> xs, int value)` возвращает список без **всех** элементов, значение которых равно `value`; порядок остальных сохраняется;
+    * `countWords(String line)` возвращает словарь «слово - сколько раз встретилось». Слова разделяются одним или несколькими пробелами, регистр не учитывается (приводите к нижнему); пустая или состоящая из пробелов строка даёт пустой словарь;
+    * `initials(String fullName)` собирает заглавные первые буквы слов с точками: `ivan petrov sidorov` даёт `I.P.S.`; для пустой строки - пустая строка.
+
+    **Пример.** Ввод:
+
+    ```
+    4
+    3 1 2 1
+    1
+    the cat and The dog
+    ivan petrov sidorov
+    ```
+
+    Вывод:
+
+    ```
+    Мин/макс: 1 3
+    Без 1: [3, 2]
+    Слова: {and=1, cat=1, dog=1, the=2}
+    Инициалы: I.P.S.
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Заготовки четырёх методов уже есть. Не меняйте main: слова он печатает отсортированными, поэтому порядок обхода словаря не важен."
+    - "minMax: заведите min и max со значением a[0] и пройдите по остальным элементам. removeValue: создайте новый ArrayList и добавляйте только те x, у которых x != value."
+    - "countWords: сначала trim() и проверка isEmpty(), затем toLowerCase().split(\"\\\\s+\") и для каждого слова counts.merge(w, 1, Integer::sum). Без проверки split на пустой строке даёт один пустой элемент."
+    - "initials: те же trim/isEmpty/split(\"\\\\s+\"); для каждого слова добавьте Character.toUpperCase(w.charAt(0)) и точку."
+  tests:
+    - id: "basic"
+      title: "Обычные данные"
+      stdin: |
+        4
+        3 1 2 1
+        1
+        the cat and The dog
+        ivan petrov sidorov
+      expected: |
+        Мин/макс: 1 3
+        Без 1: [3, 2]
+        Слова: {and=1, cat=1, dog=1, the=2}
+        Инициалы: I.P.S.
+      hint: "Проверяются все четыре строки: минимум и максимум, список без всех единиц, частоты слов без учёта регистра, инициалы."
+    - id: "negative"
+      title: "Отрицательные числа и повторы слов"
+      stdin: |
+        3
+        5 -2 9
+        9
+        to be or not to be
+        anna maria
+      expected: |
+        Мин/макс: -2 9
+        Без 9: [5, -2]
+        Слова: {be=2, not=1, or=1, to=2}
+        Инициалы: A.M.
+      hint: "Минимум -2, максимум 9; слово to встречается дважды, be дважды."
+    - id: "by-value"
+      title: "Удаление по значению, а не по индексу (скрытый)"
+      stdin: |
+        4
+        0 5 7 1
+        1
+        x
+        z
+      expected: |
+        Мин/макс: 0 7
+        Без 1: [0, 5, 7]
+        Слова: {x=1}
+        Инициалы: Z.
+      hidden: true
+      hint: "Нужно удалить значение 1, а не элемент с индексом 1: remove(int) и remove(Object) - разные методы. Ожидается [0, 5, 7]."
+    - id: "spaces"
+      title: "Лишние пробелы и регистр (скрытый)"
+      stdin: |
+        2
+        4 4
+        4
+          Hello   hello  HELLO world 
+          mary   ann  lee
+      expected: |
+        Мин/макс: 4 4
+        Без 4: []
+        Слова: {hello=3, world=1}
+        Инициалы: M.A.L.
+      hidden: true
+      hint: "Пробелы в начале, конце и между словами не создают пустых слов; Hello, hello и HELLO - одно слово."
+    - id: "empty"
+      title: "Пустой текст (скрытый)"
+      stdin: |
+        1
+        7
+        3
+
+        anna
+      expected: |
+        Мин/макс: 7 7
+        Без 3: [7]
+        Слова: {}
+        Инициалы: A.
+      hidden: true
+      hint: "Пустая строка текста даёт пустой словарь {}: split на пустой строке возвращает массив из одного пустого элемента, его нужно отсечь заранее."

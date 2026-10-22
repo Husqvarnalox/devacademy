@@ -1,0 +1,218 @@
+id: "csharp.check.classes"
+title: "Проверка: классы, интерфейсы, наследование"
+goal: "Проектировать небольшую иерархию классов с интерфейсом и виртуальными членами."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: реализовать интерфейс, наследовать класс и переопределить виртуальное свойство."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "csharp"
+  - "check"
+  - "classes"
+assessmentFor:
+  - "csharp.from-zero.classes-basics"
+  - "csharp.fundamentals.classes-records-structs"
+  - "csharp.fundamentals.interfaces-inheritance-polymorphism"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Animal a = new Dog();
+        Console.WriteLine(a.Speak());
+
+        class Animal
+        {
+            public virtual string Speak() => "...";
+        }
+
+        class Dog : Animal
+        {
+            public override string Speak() => "гав";
+        }
+        ```
+      options:
+        - "..."
+        - "гав"
+        - "Ошибка компиляции: нельзя присвоить Dog переменной Animal"
+        - "Бросится исключение во время выполнения"
+      answer: 1
+      explanation: "Метод Speak помечен virtual, а в Dog переопределён через override, поэтому вызов выбирается по фактическому типу объекта (Dog), а не по типу переменной. Выводится «гав»."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        new Child();
+
+        class Base
+        {
+            public Base() { Console.Write("B "); }
+        }
+
+        class Child : Base
+        {
+            public Child() { Console.Write("C "); }
+        }
+        ```
+      options:
+        - "C B"
+        - "B C"
+        - "C"
+        - "B"
+      answer: 1
+      explanation: "Конструктор базового класса выполняется первым, затем тело конструктора производного. Вызов базового конструктора без параметров подставляется автоматически, поэтому вывод - «B C »."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        P a = new P(1);
+        P b = new P(1);
+        Q c = new Q(1);
+        Q d = new Q(1);
+        Console.WriteLine($"{a == b} {c == d}");
+
+        record P(int V);
+
+        class Q
+        {
+            public int V { get; }
+            public Q(int v) { V = v; }
+        }
+        ```
+      options:
+        - "True True"
+        - "True False"
+        - "False True"
+        - "False False"
+      answer: 1
+      explanation: "Для record == сравнивает значения свойств, поэтому a == b даёт True. Для обычного класса == сравнивает ссылки, а c и d - два разных объекта, поэтому False."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```csharp
+        var s = new Shape();
+
+        abstract class Shape
+        {
+            public abstract double Area();
+        }
+        ```
+      options:
+        - "Программа соберётся, Area вернёт 0"
+        - "Ошибка компиляции: нельзя создать экземпляр абстрактного класса"
+        - "Программа соберётся, но бросит исключение при запуске"
+        - "Ошибка компиляции: у абстрактного метода не может быть имени"
+      answer: 1
+      explanation: "Абстрактный класс служит основой для наследников и не создаётся напрямую: компилятор сообщает об ошибке CS0144. Создавать нужно экземпляр конкретного наследника, реализующего Area."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        P a = new P(1, 2);
+        P b = a with { X = 9 };
+        Console.WriteLine($"{a.X} {b.X}");
+
+        record P(int X, int Y);
+        ```
+      options:
+        - "1 1"
+        - "9 9"
+        - "1 9"
+        - "9 2"
+      answer: 2
+      explanation: "Выражение with создаёт копию записи с изменённым свойством, а оригинал остаётся прежним. Поэтому a.X равно 1, а b.X равно 9."
+exercise:
+  id: "csharp.check.classes.exercise"
+  title: "Фигуры: интерфейс и наследование"
+  prompt: |
+    Основная часть программы написана: она читает фигуры (по одной на строку), создаёт объекты и печатает название и площадь каждой, а затем итоги. Интерфейс `IShape` описан в файле. Допишите в `Program.cs` классы `Rectangle`, `Square`, `Circle` и методы `TotalArea` и `Largest`. Основную часть и интерфейс не меняйте.
+
+    1. `Rectangle(double width, double height)` реализует `IShape`: `Name` - `"прямоугольник"`, `Area()` - `width * height`. Свойство `Name` должно быть `virtual`.
+    2. `Square(double side)` наследует `Rectangle` и вызывает базовый конструктор; его `Name` - `"квадрат"` (переопределите свойство).
+    3. `Circle(double radius)` реализует `IShape`: `Name` - `"круг"`, `Area()` - `Math.PI * radius * radius`.
+    4. `TotalArea(List<IShape> shapes)` - сумма площадей; для пустого списка - `0`.
+    5. `Largest(List<IShape> shapes)` - название фигуры с наибольшей площадью (при равенстве - первой из списка); для пустого списка - `нет`.
+
+    **Пример.** Для ввода
+
+    ```
+    rect 2 3
+    square 2
+    circle 1
+    ```
+
+    программа печатает
+
+    ```
+    прямоугольник: 6.00
+    квадрат: 4.00
+    круг: 3.14
+    всего: 13.14
+    крупнейшая: прямоугольник
+    ```
+
+    Часть тестов скрыта: в них пустой ввод, равные площади и дробные размеры.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Rectangle: сохраните width и height в полях через конструктор, Area() возвращает их произведение. Name объявите как public virtual string Name => \"прямоугольник\";"
+    - "Square: public Square(double side) : base(side, side) {} и public override string Name => \"квадрат\";"
+    - "Largest: заведите переменную best = shapes[0] и в цикле заменяйте её, если shape.Area() > best.Area() (строго больше - так сохранится первая из равных)."
+    - "Не забудьте проверку shapes.Count == 0 в Largest до обращения к shapes[0]."
+  tests:
+    - id: "basic"
+      title: "Три вида фигур"
+      stdin: "rect 2 3\nsquare 2\ncircle 1\n"
+      expected: |
+        прямоугольник: 6.00
+        квадрат: 4.00
+        круг: 3.14
+        всего: 13.14
+        крупнейшая: прямоугольник
+      hint: "Square должен переопределять Name, а площадь брать от Rectangle: 2 * 2 = 4.00. Круг радиуса 1 - 3.14."
+    - id: "sizes"
+      title: "Крупнейшая - круг"
+      stdin: "circle 2\nsquare 3\nrect 1 4\n"
+      expected: |
+        круг: 12.57
+        квадрат: 9.00
+        прямоугольник: 4.00
+        всего: 25.57
+        крупнейшая: круг
+      hint: "Площадь круга радиуса 2 - Math.PI * 4, около 12.57; она больше площадей остальных фигур."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        всего: 0.00
+        крупнейшая: нет
+      hidden: true
+      hint: "Без фигур TotalArea возвращает 0, а Largest - строку «нет». Не обращайтесь к shapes[0] у пустого списка."
+    - id: "ties"
+      title: "Равные площади и дробные размеры (скрытый)"
+      stdin: "rect 2 2\nsquare 2\nrect 0.5 3\ncircle 0.5\n"
+      expected: |
+        прямоугольник: 4.00
+        квадрат: 4.00
+        прямоугольник: 1.50
+        круг: 0.79
+        всего: 10.29
+        крупнейшая: прямоугольник
+      hidden: true
+      hint: "При равных площадях побеждает первая фигура в списке, поэтому сравнивайте строго «больше». Дробные размеры читаются с точкой."

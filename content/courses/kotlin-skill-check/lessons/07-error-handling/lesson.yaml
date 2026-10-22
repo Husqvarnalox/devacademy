@@ -1,0 +1,228 @@
+id: "kotlin.check.error-handling"
+title: "Проверка: обработка ошибок"
+goal: "Выбирать между исключениями, null и Result и проверять аргументы и состояние через require и check."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: проверять аргументы, перехватывать исключения и превращать их в значения через runCatching."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "exceptions"
+  - "result"
+assessmentFor:
+  - "kotlin.fundamentals.error-handling"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun f(): Int {
+            try {
+                return 1
+            } finally {
+                println("fin")
+            }
+        }
+
+        fun main() {
+            println(f())
+        }
+        ```
+      options:
+        - "fin 1"
+        - "1 fin"
+        - "1"
+        - "fin"
+      answer: 0
+      explanation: "Блок finally выполняется перед тем, как функция фактически вернёт значение, поэтому fin печатается раньше, чем println напечатает результат 1."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val r = runCatching { "x".toInt() }
+            println("${r.isFailure} ${r.getOrElse { -1 }} ${r.exceptionOrNull()?.javaClass?.simpleName}")
+        }
+        ```
+      options:
+        - "true -1 NumberFormatException"
+        - "false -1 null"
+        - "true x NumberFormatException"
+        - "true -1 null"
+      answer: 0
+      explanation: "runCatching перехватывает NumberFormatException и возвращает неудачный Result. getOrElse подставляет значение -1 для неудачи, а exceptionOrNull возвращает само исключение, у которого простое имя класса NumberFormatException."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            try {
+                require(false) { "a" }
+            } catch (e: Exception) {
+                print(e::class.simpleName)
+            }
+            print(" ")
+            try {
+                check(false) { "b" }
+            } catch (e: Exception) {
+                print(e::class.simpleName)
+            }
+            println()
+        }
+        ```
+      options:
+        - "IllegalArgumentException IllegalStateException"
+        - "IllegalStateException IllegalArgumentException"
+        - "IllegalArgumentException IllegalArgumentException"
+        - "Exception Exception"
+      answer: 0
+      explanation: "require проверяет аргументы и бросает IllegalArgumentException, check проверяет состояние и бросает IllegalStateException."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске?
+
+        ```kotlin
+        fun main() {
+            val z = 0
+            println(10.0 / z)
+            println(10 / z)
+        }
+        ```
+      options:
+        - "Infinity, затем ArithmeticException"
+        - "Infinity и 0"
+        - "ArithmeticException при первом println"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Деление дробного числа на ноль даёт Infinity без исключения, а деление целых на ноль бросает ArithmeticException (/ by zero), и программа завершается."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        class R(val n: String) : AutoCloseable {
+            override fun close() {
+                println("close $n")
+            }
+        }
+
+        fun main() {
+            R("a").use {
+                println("work")
+            }
+            println("end")
+        }
+        ```
+      options:
+        - "work close a end"
+        - "close a work end"
+        - "work end close a"
+        - "work end"
+      answer: 0
+      explanation: "use выполняет блок и затем всегда вызывает close, даже если в блоке было исключение. Поэтому порядок такой: work, close a, а затем end после блока."
+exercise:
+  id: "kotlin.check.error-handling.exercise"
+  title: "Возраст и снятие со счёта"
+  prompt: |-
+    Программа читает команды до конца ввода: `age <строка>` и `withdraw <баланс> <сумма>`. `main` уже написан; реализуйте три функции.
+
+    * `parseAge(s: String): Int` - возраст из строки (пробелы по краям допустимы). Если строка не число, должно возникнуть стандартное `NumberFormatException`; если возраст меньше 0 или больше 120 - `require` с сообщением `Возраст вне диапазона 0..120: <возраст>`;
+    * `safeParse(s: String): Result<Int>` - результат `parseAge`, обёрнутый в `Result` (исключения не должны вылетать наружу);
+    * `withdraw(balance: Int, amount: Int): Int` - остаток после снятия. Сумма должна быть положительной: `require` с сообщением `Сумма должна быть положительной`. Остаток не должен быть отрицательным: `check` с сообщением `Недостаточно средств: <баланс> < <сумма>`.
+
+    `main` печатает для каждой команды `OK <результат>` или `ERR <тип исключения>: <сообщение>`.
+
+    **Пример.** Ввод:
+
+    ```
+    age 25
+    age abc
+    age 200
+    withdraw 100 30
+    withdraw 10 30
+    withdraw 10 -5
+    ```
+
+    Вывод:
+
+    ```
+    OK 25
+    ERR NumberFormatException: For input string: "abc"
+    ERR IllegalArgumentException: Возраст вне диапазона 0..120: 200
+    OK 70
+    ERR IllegalStateException: Недостаточно средств: 10 < 30
+    ERR IllegalArgumentException: Сумма должна быть положительной
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций и `main` уже есть. parseAge: `val age = s.trim().toInt()` бросит NumberFormatException само, затем проверьте диапазон через require."
+    - "require и check принимают лямбду с сообщением: `require(age in 0..120) { \"Возраст вне диапазона 0..120: $age\" }`."
+    - "safeParse: `runCatching { parseAge(s) }` возвращает Result<Int>. withdraw: сначала require(amount > 0), потом check(balance >= amount), затем balance - amount."
+    - "Тип исключения важен: аргументы проверяет require (IllegalArgumentException), состояние - check (IllegalStateException)."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: |
+        age 25
+        age abc
+        age 200
+        withdraw 100 30
+        withdraw 10 30
+        withdraw 10 -5
+      expected: |
+        OK 25
+        ERR NumberFormatException: For input string: "abc"
+        ERR IllegalArgumentException: Возраст вне диапазона 0..120: 200
+        OK 70
+        ERR IllegalStateException: Недостаточно средств: 10 < 30
+        ERR IllegalArgumentException: Сумма должна быть положительной
+      hint: "abc - NumberFormatException; 200 нарушает require диапазона; 100 - 30 = 70; 10 - 30 нарушает check состояния; -5 нарушает require суммы."
+    - id: "bounds"
+      title: "Границы возраста"
+      stdin: |
+        age 0
+        age 120
+        age 121
+        age -1
+      expected: |
+        OK 0
+        OK 120
+        ERR IllegalArgumentException: Возраст вне диапазона 0..120: 121
+        ERR IllegalArgumentException: Возраст вне диапазона 0..120: -1
+      hint: "Допустимы 0 и 120; 121 и -1 вне диапазона, сообщение содержит сам возраст."
+    - id: "edge"
+      title: "Пробелы, пустая строка и нулевой остаток (скрытый)"
+      stdin: "age  \nage\nwithdraw 5 5\nwithdraw x 5\n"
+      expected: |
+        ERR NumberFormatException: For input string: ""
+        ERR NumberFormatException: For input string: ""
+        OK 0
+        ERR NumberFormatException: For input string: "x"
+      hidden: true
+      hint: "Пустая строка - NumberFormatException с текстом For input string: \"\"; остаток 5 - 5 = 0 допустим (check пропускает равенство); x - не число."
+    - id: "amount"
+      title: "Нулевая сумма (скрытый)"
+      stdin: |
+        withdraw 50 0
+        withdraw 0 1
+      expected: |
+        ERR IllegalArgumentException: Сумма должна быть положительной
+        ERR IllegalStateException: Недостаточно средств: 0 < 1
+      hidden: true
+      hint: "Сумма 0 нарушает require (положительная); баланс 0 и сумма 1 нарушают check."

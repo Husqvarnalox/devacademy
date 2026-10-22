@@ -1,0 +1,248 @@
+id: "kotlin.programmers.syntax-types-and-control-flow"
+title: "Типы, числа и управление потоком: ловушки Kotlin"
+goal: "Писать числовые вычисления, работу с Char и ввод так, чтобы переполнение Int, целочисленное деление, отсутствие неявных преобразований и вывод дробных чисел, зависящий от локали, не искажали результат."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "kotlin.programmers.functions-collections-and-strings"
+objectives:
+  - "Предсказывать результат арифметики с Int и Long: переполнение, целочисленное деление, знак остатка и mod."
+  - "Явно преобразовывать числа (toLong, toDouble, roundToInt) и понимать, почему Int, Long и Double нельзя сравнивать и присваивать друг другу."
+  - "Использовать if и when как выражения, диапазоны until, .., downTo и step, и различать == и ===."
+  - "Читать ввод через readln и readlnOrNull и печатать дроби независимо от локали через Locale.ROOT."
+masteryCriteria:
+  - "totalCents, percent, caesar и dayType дают верные результаты на больших суммах, отрицательном сдвиге и неизвестных значениях."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "kotlin"
+  - "programmers"
+  - "types"
+  - "control-flow"
+assessmentFor:
+  - "kotlin.from-zero.first-program"
+  - "kotlin.from-zero.compiler-errors"
+  - "kotlin.from-zero.output"
+  - "kotlin.from-zero.variables"
+  - "kotlin.from-zero.basic-types"
+  - "kotlin.from-zero.arithmetic"
+  - "kotlin.from-zero.strings"
+  - "kotlin.from-zero.reading-input"
+  - "kotlin.from-zero.type-conversion"
+  - "kotlin.from-zero.formatted-output"
+  - "kotlin.from-zero.comparison-and-logic"
+  - "kotlin.from-zero.if-else"
+  - "kotlin.from-zero.when"
+  - "kotlin.from-zero.while-loop"
+  - "kotlin.from-zero.for-loop"
+  - "kotlin.from-zero.loop-control"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val big = Int.MAX_VALUE
+            println(big + 1)
+        }
+        ```
+      options:
+        - "2147483648"
+        - "-2147483648"
+        - "Ошибка компиляции"
+        - "ArithmeticException"
+      answer: 1
+      explanation: "Int занимает 32 бита, и сложение молча переходит через границу: Int.MAX_VALUE + 1 даёт Int.MIN_VALUE, то есть -2147483648. Ни ошибки компиляции, ни исключения нет. Если переполнение недопустимо, нужен Long или Math.addExact."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val x = -7
+            println("${x / 2} ${x % 2} ${x.mod(2)}")
+        }
+        ```
+      options:
+        - "-3 -1 1"
+        - "-4 1 1"
+        - "-3 1 1"
+        - "-4 -1 -1"
+      answer: 0
+      explanation: "Деление целых отбрасывает дробную часть к нулю: -7 / 2 равно -3. Остаток % берёт знак делимого: -7 % 2 равно -1. Функция mod возвращает неотрицательный остаток для положительного делителя: 1."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val c = 'a'
+            println("${c + 1} ${c.code + 1}")
+        }
+        ```
+      options:
+        - "b 98"
+        - "98 98"
+        - "b b"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Char не число: Char + Int даёт Char, поэтому 'a' + 1 - это 'b'. Код символа даёт свойство code (97), и code + 1 равно 98. Автоматического превращения Char в Int, как в Java или C, нет."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun label(n: Int) = when {
+            n < 0 -> "neg"
+            n in 0..9 -> "digit"
+            n % 2 == 0 -> "even"
+            else -> "odd"
+        }
+
+        fun main() {
+            println("${label(-1)} ${label(7)} ${label(12)} ${label(15)}")
+        }
+        ```
+      options:
+        - "neg digit even odd"
+        - "neg digit digit odd"
+        - "neg even even odd"
+        - "neg digit even even"
+      answer: 0
+      explanation: "when без аргумента проверяет условия по порядку и берёт первую подходящую ветку: -1 попадает в neg, 7 - в диапазон 0..9, 12 - чётное, 15 - нечётное. Весь when - выражение, его значение становится результатом функции."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Чему равна сумма s?
+
+        ```kotlin
+        fun main() {
+            var s = 0
+            for (i in 5..1) s += i
+            for (i in 1 until 5) s += i
+            for (i in 5 downTo 1 step 2) s += i
+            println(s)
+        }
+        ```
+      options:
+        - "19"
+        - "15"
+        - "34"
+        - "10"
+      answer: 0
+      explanation: "Диапазон 5..1 пустой, поэтому первый цикл не выполняется. 1 until 5 даёт 1, 2, 3, 4 (сумма 10), 5 downTo 1 step 2 даёт 5, 3, 1 (сумма 9). Всего 0 + 10 + 9 = 19."
+exercise:
+  id: "kotlin.programmers.syntax-types-and-control-flow.exercise"
+  title: "Сумма, доля, шифр и тип дня"
+  prompt: |-
+    Программа читает данные и печатает четыре строки. `main` уже написан; реализуйте четыре функции.
+
+    Вход состоит из четырёх строк: `цена_в_копейках количество`, `часть всего`, `слово сдвиг`, `день`.
+
+    Функции:
+
+    * `totalCents(priceCents: Int, qty: Int): Long` - стоимость `priceCents * qty` типа `Long`; на больших значениях арифметика `Int` переполняется;
+    * `percent(part: Int, total: Int): Int` - доля `part` от `total` в процентах, **округлённая до целого** (половина вверх);
+    * `caesar(word: String, shift: Int): String` - сдвиг строчных латинских букв `a`-`z` по кругу на `shift` позиций (сдвиг может быть отрицательным или больше 26); остальные символы не меняются;
+    * `dayType(day: String): String` - `"weekend"` для `sat` и `sun`, `"weekday"` для `mon`-`fri`, иначе `"unknown"`; используйте `when`.
+
+    **Пример.** Ввод:
+
+    ```
+    250 4
+    1 8
+    abc 3
+    sat
+    ```
+
+    Вывод:
+
+    ```
+    Сумма: 1000
+    Доля: 13%
+    Шифр: def
+    День: weekend
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки всех четырёх функций уже есть, `main` менять не нужно. Начните с totalCents: вопрос в том, на каком шаге умножения число должно стать Long."
+    - "totalCents: преобразуйте один из множителей в Long до умножения - priceCents.toLong() * qty. percent: делите дробные числа - part * 100.0 / total - и округляйте roundToInt() (нужен import kotlin.math.roundToInt)."
+    - "caesar: для строчной буквы c вычислите 'a' + (c - 'a' + shift).mod(26): разность Char - Char даёт Int, а Char + Int даёт Char. Обычный % даёт отрицательный остаток для отрицательного сдвига."
+    - "dayType: when (day) { \"sat\", \"sun\" -> \"weekend\"; ... else -> \"unknown\" } как выражение с return."
+  tests:
+    - id: "basic"
+      title: "Обычные значения"
+      stdin: |
+        250 4
+        1 8
+        abc 3
+        sat
+      expected: |
+        Сумма: 1000
+        Доля: 13%
+        Шифр: def
+        День: weekend
+      hint: "Проверяются все четыре строки: 250 * 4 = 1000; 1/8 = 12,5% округляется вверх до 13; abc сдвигается на 3 в def; sat - weekend."
+    - id: "weekday"
+      title: "Будний день и нулевой сдвиг"
+      stdin: |
+        1999 3
+        50 200
+        hello 0
+        mon
+      expected: |
+        Сумма: 5997
+        Доля: 25%
+        Шифр: hello
+        День: weekday
+      hint: "Сдвиг 0 оставляет слово без изменений, 50 из 200 - ровно 25%, mon - weekday."
+    - id: "overflow"
+      title: "Большая сумма не должна переполнять Int (скрытый)"
+      stdin: |
+        2000000000 3
+        1 3
+        xyz 3
+        sun
+      expected: |
+        Сумма: 6000000000
+        Доля: 33%
+        Шифр: abc
+        День: weekend
+      hidden: true
+      hint: "2000000000 * 3 не помещается в Int. Преобразуйте множитель в Long до умножения, а не результат после."
+    - id: "negative-shift"
+      title: "Отрицательный сдвиг (скрытый)"
+      stdin: |
+        10 1
+        2 3
+        abc -1
+        fri
+      expected: |
+        Сумма: 10
+        Доля: 67%
+        Шифр: zab
+        День: weekday
+      hidden: true
+      hint: "Сдвиг -1 превращает abc в zab; 2 из 3 - это 66,67%, округляется до 67. Для отрицательного сдвига нужен mod, а не %."
+    - id: "other-chars"
+      title: "Не-буквы и сдвиг больше 26 (скрытый)"
+      stdin: |
+        999 2
+        7 7
+        ab-yz! 27
+        xyz
+      expected: |
+        Сумма: 1998
+        Доля: 100%
+        Шифр: bc-za!
+        День: unknown
+      hidden: true
+      hint: "Сдвиг 27 равен сдвигу 1: ab-yz! превращается в bc-za!, дефис и восклицательный знак не меняются; 7 из 7 - 100%; xyz - неизвестный день."

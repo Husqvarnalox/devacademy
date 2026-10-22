@@ -1,0 +1,149 @@
+id: "typescript.from-zero.variables"
+title: "Переменные: let и const"
+goal: "Хранить значения в переменных с помощью let и const, записывать тип переменной и менять значение присваиванием."
+difficulty: "intro"
+estimatedMinutes: 25
+prerequisites:
+  - "typescript.from-zero.values-and-types"
+objectives:
+  - "Объявить переменную через const и через let и записать её тип после двоеточия."
+  - "Объяснить, чем const отличается от let, и когда нужен каждый."
+  - "Изменить значение let-переменной присваиванием и предсказать итог."
+masteryCriteria:
+  - "Неизменяемые значения вы объявляете через const, изменяемые - через let."
+  - "Вы читаете сообщения TS2588 («присваивание константе») и TS2448 (использование до объявления) и исправляете причину."
+concepts:
+  introduces:
+    - "ts.variable"
+    - "ts.let"
+    - "ts.const"
+    - "ts.assignment"
+    - "ts.type-annotation"
+  uses:
+    - "ts.number"
+    - "ts.string"
+    - "ts.boolean"
+    - "ts.console-log"
+    - "ts.error-message"
+next:
+  - "typescript.from-zero.type-checking"
+tags:
+  - "typescript"
+  - "variables"
+  - "let"
+  - "const"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        let x: number = 3;
+        x = 7;
+        console.log(x);
+        ```
+      options:
+        - "3"
+        - "7"
+        - "10"
+        - "x"
+      answer: 1
+      explanation: "Присваивание x = 7 заменяет старое значение. Старая тройка забыта, и в момент печати в x лежит 7."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что сообщит проверка?
+
+        ```typescript
+        const rate: number = 90;
+        rate = 95;
+        ```
+      options:
+        - "Ничего: значение заменится на 95."
+        - "TS2588: Cannot assign to 'rate' because it is a constant."
+        - "TS2304: Cannot find name 'rate'."
+        - "Программа напечатает 95."
+      answer: 1
+      explanation: "const значит «постоянная»: после объявления привязку менять нельзя. Если значение должно меняться, объявите переменную через let."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        let a: number = 1;
+        let b: number = a;
+        a = 5;
+        console.log(a, b);
+        ```
+      options:
+        - "5 5"
+        - "1 1"
+        - "5 1"
+        - "1 5"
+      answer: 2
+      explanation: "В b скопировано значение a на момент объявления, то есть 1. Последующее изменение a на b не влияет."
+    - id: "q4"
+      type: "single"
+      prompt: "Что означает запись : number после имени переменной?"
+      options:
+        - "Переменная хранит ровно одно число."
+        - "Переменной можно присваивать только числа."
+        - "Переменная нумеруется порядковым номером."
+        - "Ничего: это комментарий."
+      answer: 1
+      explanation: "Аннотация типа задаёт, значения какого вида допустимы в переменной. Попытка записать туда текст будет отвергнута проверкой (подробнее в следующем уроке)."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        let total: number = 10;
+        total = total + 5;
+        console.log(total);
+        ```
+      options:
+        - "10"
+        - "5"
+        - "15"
+        - "total + 5"
+      answer: 2
+      explanation: "Справа от = значение вычисляется первым: 10 + 5 = 15. Затем результат записывается обратно в total."
+exercise:
+  id: "typescript.from-zero.variables.exercise"
+  title: "Итог корзины"
+  prompt: |
+    В заготовке заданы цены хлеба (45) и молока (80) и пустой итог. Допишите присваивания так, чтобы программа напечатала:
+
+    ```
+    Итого: 125
+    К оплате: 115
+    ```
+
+    Сначала прибавьте к `total` обе цены. Затем примените скидку: уменьшите `total` на 10. Знаки `+` и `-` здесь работают как в арифметике (подробно - в уроке 6). Менять объявления переменных не нужно.
+  entryFile: "main.ts"
+  evaluation: "io"
+  hints:
+    - "Присваивание новой суммы выглядит так: total = total + breadPrice; Справа вычисляется значение, слева ему назначается место."
+    - "Нужны три присваивания: прибавить хлеб, прибавить молоко, вычесть 10. Первые два - перед первым console.log, третье - после него."
+    - "total = total + breadPrice; total = total + milkPrice; (вывод) total = total - 10;"
+  tests:
+    - id: "basic"
+      title: "Итог и сумма со скидкой"
+      stdin: ""
+      expected: |
+        Итого: 125
+        К оплате: 115
+      hint: "Хлеб 45 и молоко 80 дают 125; после скидки 10 остаётся 115. Обе строки печатаются в нужном порядке."
+    - id: "order"
+      title: "Скидка применяется после первого вывода (скрытый)"
+      stdin: ""
+      expected: |
+        Итого: 125
+        К оплате: 115
+      hidden: true
+      hint: "В первой строке должно быть значение без скидки (125), во второй - со скидкой (115). Значит, вычитание 10 стоит после первого console.log."

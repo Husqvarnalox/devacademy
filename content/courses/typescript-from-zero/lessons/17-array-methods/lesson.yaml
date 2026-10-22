@@ -1,0 +1,167 @@
+id: "typescript.from-zero.array-methods"
+title: "Методы массивов"
+goal: "Преобразовывать, отбирать, искать и склеивать элементы массива готовыми методами и сортировать копию."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "typescript.from-zero.arrow-functions"
+objectives:
+  - "Применить map, filter, find, includes и join и предсказать результат."
+  - "Объяснить, какие методы создают новый массив, а какой меняет исходный."
+  - "Отсортировать копию массива чисел с функцией сравнения по возрастанию и по убыванию."
+  - "Составить цепочку filter-map-join."
+masteryCriteria:
+  - "Функции на методах массивов верны для пустого массива и не изменяют исходные данные."
+  - "Сортировка чисел использует функцию сравнения и работает с копией."
+concepts:
+  introduces:
+    - "ts.array-methods"
+  uses:
+    - "ts.array"
+    - "ts.array-type"
+    - "ts.arrow-function"
+    - "ts.function-type"
+    - "ts.callback"
+    - "ts.template-literal"
+    - "ts.function"
+    - "ts.return"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.optional-values"
+tags:
+  - "typescript"
+  - "arrays"
+  - "map"
+  - "filter"
+  - "sort"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const nums: number[] = [1, 2, 3, 4];
+        console.log(nums.filter((n) => n % 2 === 0).map((n) => n * 10));
+        ```
+      options:
+        - "[ 20, 40 ]"
+        - "[ 10, 20, 30, 40 ]"
+        - "[ 2, 4 ]"
+        - "[ 40, 80 ]"
+      answer: 0
+      explanation: "filter оставляет чётные числа 2 и 4, map умножает каждое на 10: получается [ 20, 40 ]."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const nums: number[] = [10, 9, 1, 100];
+        console.log([...nums].sort());
+        ```
+      options:
+        - "[ 1, 10, 100, 9 ]"
+        - "[ 1, 9, 10, 100 ]"
+        - "[ 100, 10, 9, 1 ]"
+        - "[ 10, 9, 1, 100 ]"
+      answer: 0
+      explanation: "Без функции сравнения sort упорядочивает элементы как строки: \"1\" < \"10\" < \"100\" < \"9\". Для чисел нужна функция (a, b) => a - b."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const prices: number[] = [30, 10, 20];
+        prices.map((p) => p * 2);
+        console.log(prices);
+        ```
+      options:
+        - "[ 30, 10, 20 ]"
+        - "[ 60, 20, 40 ]"
+        - "undefined"
+        - "Проверка сообщит об ошибке"
+      answer: 0
+      explanation: "map создаёт новый массив и не меняет исходный. Результат нигде не сохранён, поэтому он потерян, а prices остался прежним."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        const nums: number[] = [3, 1, 2];
+        const first: number = nums.find((n) => n > 1);
+        ```
+      options:
+        - "TS2322: тип number | undefined нельзя присвоить типу number"
+        - "TS2550: у массива нет метода find"
+        - "TS2345: аргумент не подходит по типу"
+        - "Ничего, find всегда возвращает число"
+      answer: 0
+      explanation: "find ничего не находит, когда подходящих элементов нет, и тогда возвращает undefined. Проверка не позволяет присвоить такой результат переменной типа number."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const names: string[] = ["Анна", "Борис"];
+        console.log(names.map((s) => s.length).join("+"));
+        ```
+      options:
+        - "4+5"
+        - "9"
+        - "Анна+Борис"
+        - "[ 4, 5 ]"
+      answer: 0
+      explanation: "map превращает строки в их длины: [4, 5], а join склеивает числа через плюс в строку 4+5. Сложения не происходит."
+exercise:
+  id: "typescript.from-zero.array-methods.exercise"
+  title: "Цены и названия"
+  prompt: |
+    В файле `methods_task.ts` пять функций. Каждую можно записать одной-двумя строками на методах массивов:
+
+    * `cheapItems(prices, limit)` - цены не выше `limit` в прежнем порядке. `cheapItems([30, 10, 50, 20], 30)` равно `[30, 10, 20]`.
+    * `withTax(prices, percent)` - новый массив, где каждая цена увеличена на `percent` процентов и округлена до целого (`Math.round`). `withTax([100, 250], 20)` равно `[120, 300]`; `withTax([99], 10)` равно `[109]`, потому что 108.9 округляется до 109.
+    * `sortedDescending(values)` - копия массива по убыванию. **Исходный массив остаётся без изменений.** `sortedDescending([3, 10, 2])` равно `[10, 3, 2]`.
+    * `joinNames(names)` - названия через запятую и пробел: `joinNames(["хлеб", "сыр"])` равно `"хлеб, сыр"`; для пустого массива пустая строка.
+    * `hasName(names, name)` - есть ли `name` среди `names` (точное совпадение, регистр важен).
+
+    Функции должны **возвращать** значение. Метод `toSorted` недоступен: используйте копию `[...values]`.
+  entryFile: "methods_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "cheapItems - это filter с предикатом (p) => p <= limit. withTax - это map: (p) => Math.round(p * (100 + percent) / 100)."
+    - "Для sortedDescending сначала сделайте копию [...values], затем .sort((a, b) => b - a). Без копии исходный массив изменится, а проверка это заметит."
+    - "joinNames - names.join(\", \") (запятая и пробел в кавычках); hasName - names.includes(name)."
+    - "Сортировка чисел без функции сравнения даст порядок как у строк: [100, 10, 9, 1] получится неверным. Всегда передавайте (a, b) => b - a."
+  tests:
+    - id: "cheap-basic"
+      title: "cheapItems: обычные значения"
+      hint: "Подходят цены не выше 30: 30, 10, 20 (в исходном порядке)."
+    - id: "tax-basic"
+      title: "withTax: обычные значения"
+      hint: "100 + 20% = 120; 250 + 20% = 300; 99 + 10% = 108.9, округляется до 109."
+    - id: "sort-basic"
+      title: "sortedDescending: порядок и исходный массив"
+      hint: "Результат [10, 3, 2]; исходный [3, 10, 2] не должен измениться - сортируйте копию."
+    - id: "join-has-basic"
+      title: "joinNames и hasName: обычные значения"
+      hint: "Разделитель - запятая и пробел: \"хлеб, сыр\"; поиск учитывает регистр."
+    - id: "cheap-edge"
+      title: "cheapItems: пустой, границы, отрицательные (скрытый)"
+      hidden: true
+      hint: "Цена, равная limit, подходит (<=); пустой массив даёт пустой; отрицательные числа сравниваются как обычные."
+    - id: "tax-edge"
+      title: "withTax: пустой, нулевая ставка, округление (скрытый)"
+      hidden: true
+      hint: "Для [] результат []; при percent 0 цены не меняются; 7 + 50% = 10.5, Math.round даёт 11."
+    - id: "sort-edge"
+      title: "sortedDescending, joinNames, hasName: границы (скрытый)"
+      hidden: true
+      hint: "Числа сортируются как числа ([10, 9, 1, 100] даёт [100, 10, 9, 1]); пустой массив даёт пустую строку; регистр в hasName важен."

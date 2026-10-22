@@ -1,0 +1,194 @@
+id: "csharp.from-zero.string-methods"
+title: "Методы строк"
+goal: "Очищать, разрезать и преобразовывать строки методами Trim, Split, Substring, Replace, ToUpper и ToLower."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "csharp.from-zero.dictionaries"
+objectives:
+  - "Применять Trim, ToUpper, ToLower, Contains, Replace и Substring, помня, что строка неизменяема."
+  - "Получать символ строки по индексу и отличать char от string."
+  - "Разбирать строку на части методом Split с удалением пустых частей."
+  - "Предвидеть выход за границы строки."
+masteryCriteria:
+  - "Вы сохраняете результат метода строки, а не вызываете метод вхолостую."
+  - "Вы разбираете строку вида «товар цена» на части и превращаете цену в число."
+  - "Вы проверяете длину строки перед обращением к первому символу."
+concepts:
+  introduces:
+    - "csharp.string-methods"
+    - "csharp.char"
+    - "csharp.split"
+  uses:
+    - "csharp.string"
+    - "csharp.string-length"
+    - "csharp.array"
+    - "csharp.index"
+    - "csharp.foreach"
+    - "csharp.method"
+    - "csharp.return"
+    - "csharp.if"
+    - "csharp.comparison"
+    - "csharp.parse"
+    - "csharp.read-line"
+    - "csharp.interpolation"
+next:
+  - "csharp.from-zero.exceptions"
+tags:
+  - "csharp"
+  - "strings"
+  - "split"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        string s = "  кот ";
+        s.Trim();
+        Console.WriteLine(s.Length);
+        ```
+      options:
+        - "3"
+        - "6"
+        - "5"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Метод Trim возвращает новую строку, а s не меняется. Исходная строка - два пробела, «кот» и пробел, шесть символов."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        string file = "report.txt";
+        Console.WriteLine(file.Substring(0, 6));
+        ```
+      options:
+        - "report"
+        - "repor"
+        - "report."
+        - ".txt"
+      answer: 0
+      explanation: "Substring(0, 6) берёт 6 символов с позиции 0: r, e, p, o, r, t."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Сколько элементов в массиве parts?
+
+        ```csharp
+        string[] parts = "a  b c".Split(' ');
+        ```
+      options:
+        - "3"
+        - "4"
+        - "5"
+        - "6"
+      answer: 1
+      explanation: "Между a и b два пробела, поэтому появляется пустая часть: «a», «», «b», «c» - четыре элемента. С StringSplitOptions.RemoveEmptyEntries было бы три."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```csharp
+        char c = "a";
+        ```
+      options:
+        - "Переменная c получит символ a."
+        - "Ошибка CS0029: строку нельзя неявно преобразовать в char."
+        - "Предупреждение CS0162."
+        - "Программа соберётся, но упадёт при запуске."
+      answer: 1
+      explanation: "Двойные кавычки задают строку, а одиночные - символ. Строка из одного символа остаётся строкой и в char не превращается."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        string s = "мир";
+        string t = s.ToUpper();
+        Console.WriteLine(s + " " + t);
+        ```
+      options:
+        - "МИР МИР"
+        - "мир МИР"
+        - "мир мир"
+        - "МИР мир"
+      answer: 1
+      explanation: "ToUpper возвращает новую строку и не меняет s. В s остаётся «мир», в t - «МИР»."
+exercise:
+  id: "csharp.from-zero.string-methods.exercise"
+  title: "Имя и слова"
+  prompt: |
+    Основная часть программы читает две строки: имя (возможно, с пробелами по краям и неправильным регистром) и текст. Она печатает результат ваших двух методов. Напишите их:
+
+    * `Capitalize(string word)` - возвращает слово, в котором первая буква заглавная, а остальные строчные (`аННА` -> `Анна`). Для пустой строки возвращает пустую строку;
+    * `CountWords(string text)` - возвращает количество слов в тексте. Слова разделены одним или несколькими пробелами, пробелы могут быть и по краям; в пустом тексте слов нет.
+
+    **Пример.** Для ввода
+
+    ```
+      аННА 
+      привет   мир  
+    ```
+
+    (первая строка начинается двумя пробелами и заканчивается одним, вторая - с двух пробелов, между словами три пробела и два пробела в конце) программа печатает
+
+    ```
+    Имя: [Анна]
+    Слов: 2
+    ```
+
+    Основную часть не меняйте: она сама убирает пробелы вокруг имени.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Capitalize: для пустой строки сразу верните пустую строку. Иначе соберите первую букву и остаток."
+    - "Первая буква: word.Substring(0, 1).ToUpper(). Остаток: word.Substring(1).ToLower(). Склейте их оператором +."
+    - "CountWords: разрежьте text методом Split(' ', StringSplitOptions.RemoveEmptyEntries) и верните Length получившегося массива."
+    - "if (word.Length == 0) { return \"\"; } return word.Substring(0, 1).ToUpper() + word.Substring(1).ToLower(); и return text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;"
+  tests:
+    - id: "basic"
+      title: "Имя с пробелами, текст с лишними пробелами"
+      stdin: "  аННА \n  привет   мир  \n"
+      expected: |
+        Имя: [Анна]
+        Слов: 2
+      hint: "Из «аННА» получается «Анна»; в тексте два слова, лишние пробелы слов не создают."
+    - id: "empty"
+      title: "Пустые строки (скрытый)"
+      stdin: "\n\n"
+      expected: |
+        Имя: []
+        Слов: 0
+      hidden: true
+      hint: "Для пустой строки Capitalize не должен падать на Substring: проверьте длину. В пустом тексте слов нет."
+    - id: "one-letter"
+      title: "Имя из одной буквы (скрытый)"
+      stdin: "я\nодно\n"
+      expected: |
+        Имя: [Я]
+        Слов: 1
+      hidden: true
+      hint: "Для слова из одной буквы остаток после первой буквы пуст: Substring(1) вернёт пустую строку, это допустимо."
+    - id: "only-spaces"
+      title: "Текст из пробелов (скрытый)"
+      stdin: "борис\n     \n"
+      expected: |
+        Имя: [Борис]
+        Слов: 0
+      hidden: true
+      hint: "Текст из одних пробелов не содержит слов: пустые части нужно отбросить."
+    - id: "many"
+      title: "Много слов (скрытый)"
+      stdin: "ЕЛЕНА\nа б в г д е\n"
+      expected: |
+        Имя: [Елена]
+        Слов: 6
+      hidden: true
+      hint: "Все буквы после первой должны стать строчными, а слов шесть."

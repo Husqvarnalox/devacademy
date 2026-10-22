@@ -1,0 +1,243 @@
+id: "php.check.classes"
+title: "Проверка: классы, интерфейсы и перечисления"
+goal: "Описывать предметную область классами, readonly-свойствами, перечислениями и интерфейсами и использовать их из готового кода."
+difficulty: "easy"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: описывать предметную область классами, перечислениями и интерфейсами."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "php"
+  - "check"
+  - "classes"
+assessmentFor:
+  - "php.from-zero.classes-intro"
+  - "php.fundamentals.classes-readonly-enums"
+  - "php.fundamentals.interfaces-traits-lsb"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        final class P
+        {
+            public function __construct(public readonly int $x)
+            {
+            }
+        }
+
+        $p = new P(1);
+        try {
+            $p->x = 2;
+        } catch (Error $e) {
+            echo get_class($e);
+        }
+        echo $p->x;
+        ```
+      options:
+        - "Error1"
+        - "Error2"
+        - "2"
+        - "TypeError1"
+      answer: 0
+      explanation: "Запись в readonly-свойство после инициализации бросает Error, он перехватывается, а значение остаётся прежним: 1."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        enum Suit: string
+        {
+            case Hearts = "H";
+            case Spades = "S";
+        }
+
+        echo Suit::from("S")->name, Suit::tryFrom("X")?->name ?? "-", count(Suit::cases());
+        ```
+      options:
+        - "S-2"
+        - "Spades-1"
+        - "Spades2"
+        - "Spades-2"
+      answer: 3
+      explanation: "from(\"S\") возвращает вариант Spades, и ->name даёт имя варианта, а не его значение. tryFrom(\"X\") возвращает null, поэтому ?-> и ?? дают дефис, а cases() возвращает два варианта."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        class A
+        {
+            public static function make(): static
+            {
+                return new static();
+            }
+
+            public function name(): string
+            {
+                return static::class;
+            }
+        }
+
+        class B extends A
+        {
+        }
+
+        echo B::make()->name(), A::make()->name();
+        ```
+      options:
+        - "AA"
+        - "BA"
+        - "BB"
+        - "AB"
+      answer: 1
+      explanation: "new static создаёт экземпляр того класса, через который вызван метод: B::make() даёт объект B, а A::make() - объект A. Выражение static::class возвращает имя этого класса."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        interface Shape
+        {
+            public function area(): float;
+        }
+
+        class Sq implements Shape
+        {
+            public function __construct(private float $s)
+            {
+            }
+
+            public function area(): float
+            {
+                return $this->s ** 2;
+            }
+        }
+
+        function total(Shape ...$shapes): float
+        {
+            return array_sum(array_map(fn(Shape $s) => $s->area(), $shapes));
+        }
+
+        echo total(new Sq(2), new Sq(3));
+        ```
+      options:
+        - "13"
+        - "25"
+        - "5"
+        - "Ошибка типа"
+      answer: 0
+      explanation: "Каждый Sq возвращает площадь s в квадрате: 4 и 9. Функция total принимает любые объекты, реализующие Shape, и суммирует их площади: 4 + 9 = 13."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        class Counter
+        {
+            public int $n = 0;
+        }
+
+        $a = new Counter();
+        $b = $a;
+        $c = clone $a;
+        $b->n = 5;
+        $c->n = 9;
+        echo $a->n, $b->n, $c->n;
+        ```
+      options:
+        - "059"
+        - "559"
+        - "009"
+        - "555"
+      answer: 1
+      explanation: "Присваивание $b = $a копирует идентификатор объекта, поэтому $a и $b указывают на один объект, и запись 5 видна в обоих. Объект $c - независимая копия, и запись 9 попадает только в него."
+exercise:
+  id: "php.check.classes.exercise"
+  title: "Список задач: перечисление, классы и интерфейс"
+  prompt: |-
+    Основная часть программы готова: она читает команды `add <приоритет> <название>`, `done <название>` и `list`, создаёт объекты и выводит результат. Допишите в `main.php` перечисление `Priority` и классы `Task` и `TaskList`, основную часть и интерфейс `Describable` не меняйте.
+
+    1. `enum Priority: int` - `Low = 1`, `Normal = 2`, `High = 3`; метод `label()` возвращает `низкий`, `обычный`, `высокий`.
+    2. `Task implements Describable` - название и приоритет задаются в конструкторе и не меняются (`readonly`); `complete()` помечает задачу выполненной, `isDone()` возвращает признак; `describe()` возвращает `[ ] название (высокий)` или `[x] название (высокий)` для выполненной.
+    3. `TaskList` - `add(Task)`, `find(string $title): ?Task` (точное название или `null`) и `pending(): array` - список невыполненных задач, сначала с более высоким приоритетом; при равном приоритете порядок добавления сохраняется.
+
+    **Пример.** Для ввода
+
+    ```
+    add 1 Купить хлеб
+    add 3 Сдать отчёт
+    done Купить хлеб
+    add 9 Позвонить
+    list
+    ```
+
+    программа печатает
+
+    ```
+    добавлено: [ ] Купить хлеб (низкий)
+    добавлено: [ ] Сдать отчёт (высокий)
+    готово: [x] Купить хлеб (низкий)
+    неизвестный приоритет: 9
+    [ ] Сдать отчёт (высокий)
+    ```
+
+    Часть тестов скрыта: в них одинаковые приоритеты, неизвестные задачи и пустой список.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Priority: объявите case Low = 1; case Normal = 2; case High = 3; а label() напишите через match ($this) { self::Low => ..., ... }."
+    - "Task: конструктор с promoted-свойствами public readonly string $title и public readonly Priority $priority; флаг private bool $done = false меняется только в complete()."
+    - "TaskList: храните задачи в private array $tasks. pending(): array_filter по !isDone(), затем array_values и usort по $b->priority->value <=> $a->priority->value; usort в PHP 8 стабильна, поэтому при равном приоритете порядок добавления сохраняется."
+    - "find: пройдите по задачам циклом и сравните $task->title === $title строго; если ничего не нашлось, верните null."
+  tests:
+    - id: "basic"
+      title: "Добавление, выполнение и список"
+      stdin: "add 1 Купить хлеб\nadd 3 Сдать отчёт\ndone Купить хлеб\nadd 9 Позвонить\nlist\n"
+      expected: "добавлено: [ ] Купить хлеб (низкий)\nдобавлено: [ ] Сдать отчёт (высокий)\nготово: [x] Купить хлеб (низкий)\nнеизвестный приоритет: 9\n[ ] Сдать отчёт (высокий)\n"
+      hint: "Низкоприоритетная задача выполнена и в список не попадает; приоритет 9 неизвестен (tryFrom вернул null)."
+    - id: "order"
+      title: "Порядок по приоритету"
+      stdin: "add 1 А\nadd 3 Б\nadd 2 В\nadd 3 Г\nlist\n"
+      expected: "добавлено: [ ] А (низкий)\nдобавлено: [ ] Б (высокий)\nдобавлено: [ ] В (обычный)\nдобавлено: [ ] Г (высокий)\n[ ] Б (высокий)\n[ ] Г (высокий)\n[ ] В (обычный)\n[ ] А (низкий)\n"
+      hint: "Сначала задачи с высоким приоритетом в порядке добавления (Б, Г), затем обычный (В), затем низкий (А)."
+    - id: "empty-list"
+      title: "Пустой список до и после добавления (скрытый)"
+      stdin: "list\nadd 2 Х\nlist\n"
+      expected: "пусто\nдобавлено: [ ] Х (обычный)\n[ ] Х (обычный)\n"
+      hidden: true
+      hint: "Пока задач нет, вывод - слово «пусто»; после добавления задача появляется в списке."
+    - id: "unknown"
+      title: "Неизвестная задача и повтор (скрытый)"
+      stdin: "done Нет такой\nadd 2 Позвонить маме\ndone Позвонить маме\ndone Позвонить маме\nlist\n"
+      expected: "нет задачи: Нет такой\nдобавлено: [ ] Позвонить маме (обычный)\nготово: [x] Позвонить маме (обычный)\nготово: [x] Позвонить маме (обычный)\nпусто\n"
+      hidden: true
+      hint: "Название может содержать пробелы; повторное «done» не ломает код; все задачи выполнены, поэтому список пустой."
+    - id: "all-done"
+      title: "Все задачи выполнены (скрытый)"
+      stdin: "add 2 Один\nadd 1 Два\ndone Один\ndone Два\nlist\n"
+      expected: "добавлено: [ ] Один (обычный)\nдобавлено: [ ] Два (низкий)\nготово: [x] Один (обычный)\nготово: [x] Два (низкий)\nпусто\n"
+      hidden: true
+      hint: "После выполнения обеих задач pending() возвращает пустой список и печатается «пусто»."
+    - id: "labels"
+      title: "Подписи всех приоритетов (скрытый)"
+      stdin: "add 1 a\nadd 2 b\nadd 3 c\nadd 0 d\nadd x e\nlist\n"
+      expected: "добавлено: [ ] a (низкий)\nдобавлено: [ ] b (обычный)\nдобавлено: [ ] c (высокий)\nнеизвестный приоритет: 0\nнеизвестный приоритет: x\n[ ] c (высокий)\n[ ] b (обычный)\n[ ] a (низкий)\n"
+      hidden: true
+      hint: "Подписи: низкий, обычный, высокий; значения 0 и «x» не соответствуют ни одному варианту (в основной части они превращаются в 0)."

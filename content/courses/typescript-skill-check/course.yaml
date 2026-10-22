@@ -1,0 +1,16 @@
+id: "typescript-skill-check"
+version: "1.0.0"
+title: "Проверка знаний TypeScript"
+description: "Короткие проверки по компетенциям: задача с запуском кода и вопросы на чтение кода. Пройденная проверка засчитывает уроки темы, непройденная ничего не меняет и показывает, какие уроки закрывают пробел. Проверку можно пройти повторно."
+languageId: "typescript"
+level: 1
+track: "typescript"
+lessons:
+  - "01-basics"
+  - "02-collections"
+  - "03-errors-input"
+  - "04-inference-structural"
+  - "05-unions-narrowing"
+  - "06-unknown-never"
+  - "07-generics"
+  - "08-utility-types"

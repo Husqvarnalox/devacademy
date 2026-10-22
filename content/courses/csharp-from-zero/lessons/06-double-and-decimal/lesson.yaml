@@ -1,0 +1,156 @@
+id: "csharp.from-zero.double-and-decimal"
+title: "Дробные числа: double и decimal"
+goal: "Вычислять с дробными числами, выбирая double для измерений и decimal для денег, и получать дробный результат деления целых."
+difficulty: "intro"
+estimatedMinutes: 35
+prerequisites:
+  - "csharp.from-zero.arithmetic"
+objectives:
+  - "Объявлять переменные double и decimal и записывать их литералы (2.5 и 19.90m)."
+  - "Объяснить, почему 0.1 + 0.2 для double не равно ровно 0.3, и выбрать decimal для денег."
+  - "Приводить int к double оператором (double), чтобы получить дробное частное."
+  - "Объяснить, зачем в программе строка CultureInfo.CurrentCulture = CultureInfo.InvariantCulture."
+masteryCriteria:
+  - "Вы получаете 3.5 из 7 и 2, приведя один операнд к double."
+  - "Вы пишете литерал decimal с суффиксом m и не смешиваете double с decimal в одном выражении."
+  - "Вы начинаете программу с дробными числами строкой, закрепляющей точку как разделитель."
+concepts:
+  introduces:
+    - "csharp.double"
+    - "csharp.decimal"
+    - "csharp.cast"
+    - "csharp.culture"
+  uses:
+    - "csharp.variable"
+    - "csharp.int"
+    - "csharp.arithmetic"
+    - "csharp.integer-division"
+    - "csharp.console-write"
+    - "csharp.console-writeline"
+    - "csharp.comment"
+next:
+  - "csharp.from-zero.strings"
+tags:
+  - "csharp"
+  - "double"
+  - "decimal"
+  - "cast"
+  - "culture"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        double r = 7 / 2;
+        Console.WriteLine(r);
+        ```
+      options:
+        - "3.5"
+        - "3"
+        - "4"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Сначала вычисляется 7 / 2 как деление двух int, получается 3. Только потом число 3 превращается в double (3). Чтобы получить 3.5, один из операндов приводят к double до деления: (double)7 / 2."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой тип выбрать для цены товара в рублях и копейках?"
+      options:
+        - "int: копейки отдельной переменной вообще не нужны"
+        - "double: самый быстрый и поэтому самый подходящий"
+        - "decimal: хранит десятичные дроби точно"
+        - "string: чтобы сохранить запись цены как есть"
+      answer: 2
+      explanation: "decimal хранит десятичные дроби вроде 19.90 точно, а double заменяет их близким двоичным числом, и в вычислениях накапливаются мелкие отклонения. Для денег важна точность, поэтому используют decimal."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int total = (int)3.99;
+        Console.WriteLine(total);
+        ```
+      options:
+        - "4"
+        - "3.99"
+        - "3"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "Приведение (int) отбрасывает дробную часть, а не округляет: получится 3. Без скобок с (int) запись int total = 3.99; не скомпилировалась бы (CS0266)."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Почему не компилируется эта строка?
+
+        ```csharp
+        decimal price = 19.90;
+        ```
+      options:
+        - "У decimal не бывает дробной части."
+        - "Литерал 19.90 - это double, для decimal нужен суффикс m: 19.90m."
+        - "Нужно написать 19,90."
+        - "Переменная должна называться Price."
+      answer: 1
+      explanation: "Число с точкой по умолчанию имеет тип double, а double нельзя неявно превратить в decimal: это ошибка CS0664. Суффикс m делает литерал decimal."
+    - id: "q5"
+      type: "single"
+      prompt: "На компьютере с русскими региональными настройками программа печатает 3,5 вместо 3.5. Как закрепить точку?"
+      options:
+        - "Заменить double на decimal."
+        - "Начать программу с CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;"
+        - "Не печатать дробные числа."
+        - "Перезагрузить компьютер."
+      answer: 1
+      explanation: "Формат вывода дробных чисел зависит от региональных настроек (культуры). InvariantCulture - набор правил, не зависящий от региона: в нём разделитель всегда точка. Смена типа на разделитель не влияет."
+exercise:
+  id: "csharp.from-zero.double-and-decimal.exercise"
+  title: "Заказ и доли"
+  prompt: |
+    Допишите программу так, чтобы она напечатала:
+
+    ```
+    Итого: 482.00
+    С доставкой: 632.00
+    Среднее: 5.5
+    Доля: 1.75
+    ```
+
+    Нужно объявить четыре переменные:
+
+    * `total` типа `decimal` - цена, умноженная на количество;
+    * `withDelivery` типа `decimal` - `total` плюс стоимость доставки;
+    * `average` типа `double` - среднее арифметическое `a` и `b` **с дробной частью**;
+    * `share` типа `double` - результат деления `a` на `b` **с дробной частью**.
+
+    Строка с `CultureInfo.InvariantCulture` в начале уже есть: она гарантирует точку в числах при любых настройках системы.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "decimal умножается на int без приведения: decimal total = price * quantity;"
+    - "Для double-переменных нельзя просто написать (a + b) / 2: деление двух int отбросит дробную часть. Приведите что-то одно к double."
+    - "Приведение записывается перед значением: (double)a превращает a в double, и тогда деление на int b уже дробное. Для среднего приведите сумму в скобках: (double)(a + b)."
+    - "decimal total = price * quantity; decimal withDelivery = total + delivery; double average = (double)(a + b) / 2; double share = (double)a / b;"
+  tests:
+    - id: "basic"
+      title: "Деньги и доли"
+      stdin: ""
+      expected: |
+        Итого: 482.00
+        С доставкой: 632.00
+        Среднее: 5.5
+        Доля: 1.75
+      hint: "120.50 * 4 = 482.00; с доставкой 150 получается 632.00; среднее 7 и 4 равно 5.5; доля 7 / 4 равна 1.75."
+    - id: "exact"
+      title: "Дробная часть не потеряна (скрытый)"
+      stdin: ""
+      expected: |
+        Итого: 482.00
+        С доставкой: 632.00
+        Среднее: 5.5
+        Доля: 1.75
+      hidden: true
+      hint: "Если среднее и доля напечатаны как 5 и 1, деление выполнено над int до приведения. Приведите операнд к double до деления; суммы должны быть decimal."

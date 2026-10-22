@@ -1,0 +1,133 @@
+id: "rust.check.error-handling"
+title: "Проверка: обработка ошибок"
+goal: "Строить собственный тип ошибки и передавать ошибки вверх оператором `?`."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: описать enum ошибки, реализовать для него `Display` и `From`, и написать функцию, которая передаёт ошибки оператором `?`."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "rust"
+  - "check"
+  - "error-handling"
+assessmentFor:
+  - "rust.fundamentals.error-handling"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт при компиляции?\n\n```rust\nfn main() {\n    let n: i32 = \"5\".parse()?;\n    println!(\"{}\", n);\n}\n```"
+      options:
+        - "Программа выведет 5"
+        - "Ошибка компиляции: оператор ? нельзя использовать в функции, возвращающей ()"
+        - "Паника во время выполнения"
+        - "Программа выведет 0"
+      answer: 1
+      explanation: "Оператор ? досрочно возвращает ошибку из функции, а main здесь ничего не возвращает. Тип результата должен быть Result или Option, иначе компилятор выдаёт ошибку E0277."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn main() {\n    let good: Result<Vec<i32>, _> = \"1 2 3\".split(' ').map(|s| s.parse::<i32>()).collect();\n    let bad: Result<Vec<i32>, _> = \"1 x 3\".split(' ').map(|s| s.parse::<i32>()).collect();\n    println!(\"{:?}\", good);\n    println!(\"{:?}\", bad);\n}\n```"
+      options:
+        - "Ok([1, 2, 3]) и Err(ParseIntError { kind: InvalidDigit })"
+        - "Ok([1, 2, 3]) и Ok([1, 3])"
+        - "Ok([1, 2, 3]) и Ok([1, 0, 3])"
+        - "Ok([1, 2, 3]) и Err(InvalidDigit) без Vec"
+      answer: 0
+      explanation: "Метод collect собирает итератор Result в один Result: при первой ошибке он останавливается и возвращает её, остальные элементы отбрасываются."
+    - id: "q3"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn first_even(v: &[i32]) -> Option<i32> {\n    let first = v.first()?;\n    if first % 2 == 0 { Some(*first) } else { None }\n}\n\nfn main() {\n    println!(\"{:?} {:?} {:?}\", first_even(&[4, 5]), first_even(&[3, 4]), first_even(&[]));\n}\n```"
+      options:
+        - "Some(4) Some(4) None"
+        - "Some(4) None Паника"
+        - "Some(4) Some(3) None"
+        - "Some(4) None None"
+      answer: 3
+      explanation: "Знак ? внутри функции с Option возвращает None, если значения нет: для пустого среза first() даёт None. Для [3, 4] первый элемент нечётный, поэтому результат тоже None."
+    - id: "q4"
+      type: "single"
+      prompt: "Что произойдёт при запуске?\n\n```rust\nfn main() {\n    println!(\"start\");\n    let v: Option<i32> = None;\n    let x = v.expect(\"need a value\");\n    println!(\"{}\", x);\n}\n```"
+      options:
+        - "Выведет start и need a value как обычный текст"
+        - "Выведет start и 0"
+        - "Выведет start, затем программа завершится паникой с сообщением need a value"
+        - "Ошибка компиляции: None нельзя разворачивать"
+      answer: 2
+      explanation: "expect на None вызывает панику с заданным сообщением. Строка start уже напечатана, а println! после паники не выполняется."
+    - id: "q5"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn main() {\n    let r = \"abc\".parse::<i32>().map_err(|e| e.to_string());\n    println!(\"{:?}\", r);\n}\n```"
+      options:
+        - "Err(\"abc\")"
+        - "Err(\"invalid digit found in string\")"
+        - "Err(ParseIntError { kind: InvalidDigit })"
+        - "Ok(0)"
+      answer: 1
+      explanation: "Метод map_err преобразует только ошибку, а ParseIntError через to_string() превращается в текст стандартного сообщения. Формат {:?} показывает строку в кавычках."
+exercise:
+  id: "rust.check.error-handling.exercise"
+  title: "Заказы и собственный тип ошибки"
+  prompt: "В `main.rs` уже описан `enum LineError` и написана `main`: она читает строки вида `товар количество`, печатает `ok товар xколичество` либо `error: сообщение` и в конце число тех и других. Допишите три части над `main`. `enum` и `main` не меняйте.\n\n1. `impl fmt::Display for LineError` - тексты: `MissingField(поле)` -> `missing поле`, `BadNumber(e)` -> `bad number: ` и сообщение стандартной ошибки `e`, `TooMany(n)` -> `too many: n`.\n2. `impl From<ParseIntError> for LineError` - превращает ошибку разбора в вариант `BadNumber`.\n3. `parse_line(line: &str) -> Result<(String, u32), LineError>` - разбирает `товар количество`: нет товара - `MissingField(\"name\")`, нет количества - `MissingField(\"quantity\")`, количество не число типа `u32` - `BadNumber` (используйте `?`), количество больше 100 - `TooMany(количество)`. Лишние слова после количества игнорируются.\n\n**Пример.** Для ввода\n\n```\ntea 5\ncake x\nmilk\ntea 500\n```\n\nпрограмма печатает\n\n```\nok tea x5\nerror: bad number: invalid digit found in string\nerror: missing quantity\nerror: too many: 500\nok=1 error=3\n```\n\nСкрытые тесты проверяют пустые строки, отрицательные числа и числа вне диапазона."
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "Display пишется так: match self { LineError::MissingField(f) => write!(out, \"missing {}\", f), ... }. Для BadNumber подставьте {} с вариантом e - у ошибки разбора уже есть готовый текст."
+    - "From<ParseIntError>: fn from(e: ParseIntError) -> Self { LineError::BadNumber(e) }. Тогда оператор ? сам преобразует ошибку из parse."
+    - "В parse_line получите слова через split_whitespace и next(): пустой итератор означает пропущенное поле. Для этого подойдёт ok_or(LineError::MissingField(\"name\"))?."
+    - "Количество разбирайте как u32: let qty: u32 = word.parse()?; - тип указан явно, а знак ? использует вашу реализацию From. После разбора проверьте qty > 100."
+  tests:
+    - id: "basic"
+      title: "Хорошая строка, не число, нет количества, слишком много"
+      stdin: |
+        tea 5
+        cake x
+        milk
+        tea 500
+      expected: |
+        ok tea x5
+        error: bad number: invalid digit found in string
+        error: missing quantity
+        error: too many: 500
+        ok=1 error=3
+      hint: "Первая строка принимается; x даёт сообщение стандартной ошибки; пропущенное количество и значение 500 имеют свои сообщения."
+    - id: "extras"
+      title: "Лишние слова и граница 100"
+      stdin: |
+        pen 100 extra words
+        ink 101
+        bag 1
+      expected: |
+        ok pen x100
+        error: too many: 101
+        ok bag x1
+        ok=2 error=1
+      hint: "Слова после количества игнорируются, 100 ещё допустимо, 101 уже слишком много."
+    - id: "empty-lines"
+      title: "Пустая строка и пробелы (скрытый)"
+      stdin: "\n   \nmilk 2\n"
+      expected: |
+        error: missing name
+        error: missing name
+        ok milk x2
+        ok=1 error=2
+      hidden: true
+      hint: "Пустая строка не содержит даже товара: ошибка missing name, а не missing quantity."
+    - id: "numbers"
+      title: "Отрицательное, огромное и пустое количество (скрытый)"
+      stdin: |
+        a -5
+        b 99999999999
+        c 0
+        d 4294967295
+      expected: |
+        error: bad number: invalid digit found in string
+        error: bad number: number too large to fit in target type
+        ok c x0
+        error: too many: 4294967295
+        ok=1 error=3
+      hidden: true
+      hint: "-5 не разбирается как u32 (invalid digit), 99999999999 не помещается (number too large), 0 допустим, а 4294967295 помещается в u32, но больше 100."

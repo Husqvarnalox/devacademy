@@ -1,0 +1,222 @@
+id: "cpp.from-zero.references"
+title: "Передача по значению и по ссылке"
+goal: "Выбирать, как передать аргумент в функцию: копией, ссылкой для изменения или константной ссылкой для чтения."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "cpp.from-zero.functions"
+objectives:
+  - "Объяснить, что обычный параметр - копия, и почему изменение копии не меняет переменную вызывающего."
+  - "Написать функцию с параметром-ссылкой T&, меняющую переменную вызывающего, и с параметром const T&, только читающую значение."
+  - "Назвать две причины использовать const T& для строк: нет копирования и нет случайных изменений."
+masteryCriteria:
+  - "Вы передаёте std::string в функцию как const std::string&, если она только читает строку."
+  - "Вы пишете T& только когда функция должна изменить аргумент вызывающего."
+  - "Вы не возвращаете ссылку на локальную переменную."
+concepts:
+  introduces:
+    - "cpp.pass-by-value"
+    - "cpp.reference"
+    - "cpp.const-reference"
+  uses:
+    - "cpp.function"
+    - "cpp.parameter"
+    - "cpp.return"
+    - "cpp.void"
+    - "cpp.scope"
+    - "cpp.int"
+    - "cpp.double"
+    - "cpp.string"
+    - "cpp.string-size"
+    - "cpp.string-index"
+    - "cpp.const"
+    - "cpp.for"
+    - "cpp.if"
+    - "cpp.fixed"
+    - "cpp.setprecision"
+    - "cpp.cin"
+    - "cpp.compile-error"
+    - "cpp.warning"
+    - "cpp.undefined-behavior"
+next:
+  - "cpp.from-zero.vector"
+tags:
+  - "cpp"
+  - "functions"
+  - "references"
+  - "const"
+facts:
+  - kind: "misconception"
+    text: "«Ссылка - это указатель с другим синтаксисом» - не совсем. Ссылка обязана быть связана с существующей переменной при создании, не может быть пустой и не переключается на другую переменную; с её помощью вы пишете имя, а не адрес. Указатели - отдельная тема следующих курсов."
+    sources: []
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        void addOne(int n) {
+            n = n + 1;
+        }
+
+        int main() {
+            int x = 7;
+            addOne(x);
+            std::cout << x << "\n";
+        }
+        ```
+      options:
+        - "7"
+        - "8"
+        - "1"
+        - "Ошибка компиляции."
+      answer: 0
+      explanation: "Параметр n - копия x. Функция меняет копию, а x остаётся прежним."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа, если изменить заголовок на `void addOne(int& n)`?
+
+        ```cpp
+        void addOne(int& n) {
+            n = n + 1;
+        }
+
+        int main() {
+            int x = 7;
+            addOne(x);
+            std::cout << x << "\n";
+        }
+        ```
+      options:
+        - "8"
+        - "7"
+        - "1"
+        - "Ошибка компиляции."
+      answer: 0
+      explanation: "Параметр int& n не копия, а второе имя для x. Изменение n изменяет сам x."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт?
+
+        ```cpp
+        void addOne(int& n) {
+            n = n + 1;
+        }
+
+        int main() {
+            addOne(5);
+        }
+        ```
+      options:
+        - "Ошибка компиляции: ссылка требует переменную, а число 5 переменной не является."
+        - "Программа соберётся и ничего не напечатает."
+        - "Напечатается 6."
+        - "Предупреждение, программа соберётся."
+      answer: 0
+      explanation: "Ссылка T& должна быть связана с переменной, которую можно изменять. Литерал 5 менять нельзя, и компилятор сообщает: candidate function not viable: expects an lvalue."
+    - id: "q4"
+      type: "single"
+      prompt: "Зачем объявлять параметр как const std::string&, а не как std::string?"
+      options:
+        - "Строка не копируется, а функция при этом не может её изменить."
+        - "Так функция сможет менять строку вызывающего."
+        - "Иначе строка не передастся в функцию."
+        - "Это нужно только для коротких строк."
+      answer: 0
+      explanation: "Параметр const T& - это чтение без копирования. Для длинных строк копия стоит дорого, а const не даёт случайно изменить чужое значение."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что не так с функцией?
+
+        ```cpp
+        const std::string& makeName() {
+            std::string local = "Anna";
+            return local;
+        }
+        ```
+      options:
+        - "Возвращается ссылка на локальную переменную, которая исчезает при выходе из функции: использование результата - неопределённое поведение."
+        - "Ничего: функция вернёт строку Anna."
+        - "Нельзя возвращать строки из функций."
+        - "Ссылку можно вернуть только на число."
+      answer: 0
+      explanation: "Переменная local уничтожается при выходе из makeName, а ссылка на неё остаётся висеть. Компилятор предупреждает -Wreturn-stack-address. Возвращайте значение: std::string makeName()."
+exercise:
+  id: "cpp.from-zero.references.exercise"
+  title: "Три функции с ссылками"
+  prompt: |
+    В заготовке написан готовый `main`: он читает `a b price percent word letter` и вызывает три функции, тела которых нужно дописать. Менять `main`, имена функций и типы параметров нельзя.
+
+    * `void swapInts(int& a, int& b)` меняет значения двух переменных местами.
+    * `void addTax(double& price, double percent)` увеличивает `price` на `percent` процентов: `price` становится `price + price * percent / 100`.
+    * `std::size_t countLetter(const std::string& text, char letter)` возвращает, сколько раз буква `letter` встречается в `text`.
+
+    Например, для ввода `3 8 200 15 banana a`:
+
+    ```
+    a=8 b=3
+    Цена с налогом: 230.00
+    Букв a: 3
+    ```
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "В swapInts понадобится временная переменная: int temp = a; a = b; b = temp; Так как параметры - ссылки, меняются переменные из main."
+    - "В addTax присвойте результат самому параметру: price = price + price * percent / 100; Возвращать ничего не нужно."
+    - "В countLetter заведите счётчик std::size_t count = 0; и цикл for (std::size_t i = 0; i < text.size(); i++) с проверкой text[i] == letter. В конце return count;"
+    - "Не меняйте заголовки функций: & и const должны остаться на месте."
+  tests:
+    - id: "basic"
+      title: "Banana"
+      stdin: |
+        3 8 200 15 banana a
+      expected: |
+        a=8 b=3
+        Цена с налогом: 230.00
+        Букв a: 3
+      hint: "Числа 3 и 8 меняются местами; 200 + 15% = 230; в banana три буквы a."
+    - id: "other"
+      title: "Другие значения"
+      stdin: |
+        -4 10 19.99 10 mississippi s
+      expected: |
+        a=10 b=-4
+        Цена с налогом: 21.99
+        Букв s: 4
+      hint: "19.99 + 10% = 21.989, печатается с двумя знаками: 21.99. В mississippi четыре s."
+    - id: "same"
+      title: "Одинаковые числа (скрытый)"
+      stdin: |
+        5 5 100 0 xyz q
+      expected: |
+        a=5 b=5
+        Цена с налогом: 100.00
+        Букв q: 0
+      hidden: true
+      hint: "Налог 0% не меняет цену, а отсутствующая буква даёт 0."
+    - id: "tax-big"
+      title: "Налог выше ста процентов (скрытый)"
+      stdin: |
+        0 -1 50 200 aaa a
+      expected: |
+        a=-1 b=0
+        Цена с налогом: 150.00
+        Букв a: 3
+      hidden: true
+      hint: "50 + 200% = 50 + 100 = 150; все три буквы совпали."
+    - id: "case"
+      title: "Регистр букв (скрытый)"
+      stdin: |
+        1 2 10 10 AaAa a
+      expected: |
+        a=2 b=1
+        Цена с налогом: 11.00
+        Букв a: 2
+      hidden: true
+      hint: "Большая и маленькая буквы - разные символы: считаются только совпадающие по регистру."

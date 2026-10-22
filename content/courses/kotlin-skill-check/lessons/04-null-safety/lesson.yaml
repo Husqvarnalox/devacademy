@@ -1,0 +1,206 @@
+id: "kotlin.check.null-safety"
+title: "Проверка: null-безопасность"
+goal: "Безопасно работать со значениями, которых может не быть: ?, ?., ?: и smart cast вместо !!."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: принимать и возвращать nullable-значения и обрабатывать null без исключений."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "null-safety"
+assessmentFor:
+  - "kotlin.first-steps.null-safety-and-val-var"
+  - "kotlin.fundamentals.types-and-null-safety"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val s: String? = null
+            println("${s?.length ?: -1} ${s.orEmpty().length}")
+        }
+        ```
+      options:
+        - "-1 0"
+        - "null 0"
+        - "-1 null"
+        - "0 0"
+      answer: 0
+      explanation: "s?.length при s == null даёт null, а ?: подставляет -1. Функция orEmpty() превращает null в пустую строку, длина которой равна 0."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun f(x: Any?): String = when (x) {
+            null -> "null"
+            is Int -> "int ${x + 1}"
+            is String -> "str ${x.length}"
+            else -> "other"
+        }
+
+        fun main() {
+            println("${f(null)} ${f(41)} ${f("abc")} ${f(1.5)}")
+        }
+        ```
+      options:
+        - "null int 42 str 3 other"
+        - "null int 41 str abc other"
+        - "other int 42 str 3 other"
+        - "null int 42 str 3 str 3"
+      answer: 0
+      explanation: "Внутри ветки is Int значение x автоматически считается Int (smart cast), поэтому x + 1 даёт 42; в ветке is String доступно x.length. Число 1.5 не подходит ни одной проверке и попадает в else."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт, если ввод пустой (данных нет)?
+
+        ```kotlin
+        fun main() {
+            val line: String? = readlnOrNull()
+            println(line!!.length)
+        }
+        ```
+      options:
+        - "Выведет 0"
+        - "Выведет null"
+        - "Бросит NullPointerException"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "readlnOrNull() возвращает null, когда данные закончились. Оператор !! утверждает, что значение не null, и при null бросает NullPointerException. Безопасный вариант: line?.length ?: 0."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val a: String? = "kotlin"
+            val b: String? = null
+            println("${a?.let { it.length }} ${b?.let { it.length }} ${a?.uppercase()}")
+        }
+        ```
+      options:
+        - "6 null KOTLIN"
+        - "6 0 KOTLIN"
+        - "6 null kotlin"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "?.let выполняет блок только для ненулевого значения и возвращает его результат; для null блок пропускается, и результатом будет null. Безопасный вызов uppercase() на непустой строке даёт KOTLIN."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        fun main() {
+            val name: String = readlnOrNull()
+            println(name)
+        }
+        ```
+      options:
+        - "Программа скомпилируется и напечатает строку"
+        - "Ошибка компиляции: String? нельзя присвоить String"
+        - "Программа скомпилируется, но упадёт на пустом вводе"
+        - "Предупреждение, но программа работает"
+      answer: 1
+      explanation: "readlnOrNull() имеет тип String?, а переменная объявлена как String. Kotlin не присваивает nullable-значение обычному типу: нужно ?:, проверка на null или объявить переменную как String?."
+exercise:
+  id: "kotlin.check.null-safety.exercise"
+  title: "Длина, слово и порт"
+  prompt: |-
+    Программа читает строки до конца ввода. Строка `-` означает «значения нет» (`null`), любая другая строка - это значение. Для каждой строки `main` вызывает три функции и печатает `длина слово порт`. Реализуйте функции.
+
+    * `safeLength(s: String?): Int` - длина строки или `-1` для `null`;
+    * `firstWord(s: String?): String` - первое слово строки после `trim()`; если значение `null` или после `trim()` строка пустая - `"?"`;
+    * `parsePort(s: String?): Int` - число из строки (пробелы по краям допустимы), если оно целое и лежит в диапазоне `1..65535`; во всех остальных случаях, включая `null`, - `8080`.
+
+    **Пример.** Ввод:
+
+    ```
+    hello world
+    -
+      
+    8000
+    99999
+    ```
+
+    (третья строка состоит из двух пробелов). Вывод:
+
+    ```
+    11 hello 8080
+    -1 ? 8080
+    2 ? 8080
+    4 8000 8000
+    5 99999 8080
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций уже есть, `main` менять не нужно. safeLength - одно выражение: s?.length ?: -1."
+    - "firstWord: `val t = s?.trim() ?: return \"?\"` выходит из функции для null; затем проверьте t.isEmpty() и верните t.split(\" \")[0]."
+    - "parsePort: `val n = s?.trim()?.toIntOrNull() ?: return 8080`, затем верните n, если n in 1..65535, иначе 8080."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "hello world\n-\n  \n8000\n99999\n"
+      expected: |
+        11 hello 8080
+        -1 ? 8080
+        2 ? 8080
+        4 8000 8000
+        5 99999 8080
+      hint: "Строка из пробелов имеет длину 2, но слова в ней нет (?); 99999 за пределом диапазона, поэтому порт 8080."
+    - id: "trim"
+      title: "Пробелы по краям"
+      stdin: " 80 \nab  cd\n"
+      expected: |
+        4 80 80
+        6 ab 8080
+      hint: "Строка ' 80 ' имеет длину 4, первое слово 80 и порт 80 (после trim); в 'ab  cd' первое слово ab, порт 8080."
+    - id: "only-null"
+      title: "Только null (скрытый)"
+      stdin: |
+        -
+        -
+      expected: |
+        -1 ? 8080
+        -1 ? 8080
+      hidden: true
+      hint: "Для null длина -1, слово ?, порт 8080; обе строки обрабатываются одинаково."
+    - id: "bounds"
+      title: "Границы порта (скрытый)"
+      stdin: |
+        1
+        65535
+        0
+        65536
+        -7
+      expected: |
+        1 1 1
+        5 65535 65535
+        1 0 8080
+        5 65536 8080
+        2 -7 8080
+      hidden: true
+      hint: "Допустимы 1 и 65535; 0, 65536 и -7 дают 8080."
+    - id: "not-int"
+      title: "Не целые числа (скрытый)"
+      stdin: "12.5\nport\n\n"
+      expected: |
+        4 12.5 8080
+        4 port 8080
+        0 ? 8080
+      hidden: true
+      hint: "12.5 и port - не целые числа: порт 8080; пустая строка (не null) имеет длину 0, слова нет, порт 8080."

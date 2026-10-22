@@ -1,0 +1,11 @@
+id: "kotlin-for-programmers"
+version: "1.0.0"
+title: "Kotlin для программистов"
+description: "Быстрый путь для тех, кто программирует на другом языке: отличия Kotlin и его ловушки. Пройденные уроки зачитывают соответствующие уроки курса «Kotlin с нуля»."
+languageId: "kotlin"
+level: 1
+track: "kotlin"
+lessons:
+  - "01-syntax-types-and-control-flow"
+  - "02-functions-collections-and-strings"
+  - "03-nullability-exceptions-and-classes"

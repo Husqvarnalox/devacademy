@@ -1,13 +1,14 @@
 id: "java.first-steps.how-java-runs"
 title: "Как выполняется Java: javac, байткод и JVM"
-goal: "Понять путь от Main.java до выполнения на JVM и написать программу, читающую числа через Scanner."
+goal: "Понять путь от Main.java до выполнения на JVM и применить это на практике: выбрать тип long для суммы, не помещающейся в int."
 difficulty: "intro"
 estimatedMinutes: 30
-prerequisites: []
+prerequisites:
+  - "java.from-zero.first-class"
 objectives:
   - "Описать роли javac, файла .class, JVM, интерпретатора и JIT-компиляторов C1 и C2."
   - "Объяснить, чем байткод отличается от машинного кода."
-  - "Читать stdin через Scanner и писать в stdout через System.out."
+  - "Выбирать long вместо int для сумм, которые не помещаются в 32 бита, и читать такие числа методом nextLong."
   - "Предсказывать поведение int при переполнении, целочисленного деления и printf с локалью."
 masteryCriteria:
   - "Вы объясняете, зачем нужна JVM и почему .class переносим между платформами."

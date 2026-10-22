@@ -1,0 +1,198 @@
+id: "kotlin.from-zero.string-methods"
+title: "Методы строк"
+goal: "Разбирать строки: убирать лишние пробелы, делить по разделителю, искать и склеивать."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "kotlin.from-zero.maps"
+objectives:
+  - "Объяснять, что строки неизменяемы, а методы возвращают новые значения."
+  - "Использовать trim, split, joinToString, substring, indexOf, contains, startsWith, endsWith, replace."
+  - "Разбирать запись «поле;поле;поле» и строку чисел через запятую."
+  - "Предсказывать пустые части после split и значение -1 у indexOf."
+masteryCriteria:
+  - "Ваша программа читает числа из одной строки с запятыми и пробелами и печатает их количество, сумму и запись суммы."
+  - "Вы предсказываете результат split для строк с подряд идущими разделителями."
+  - "Вы объясняете, почему s.replace(...) не меняет s и как сохранить результат."
+concepts:
+  introduces:
+    - "kotlin.string-method"
+    - "kotlin.trim"
+    - "kotlin.split"
+    - "kotlin.join-to-string"
+    - "kotlin.substring"
+    - "kotlin.index-of"
+  uses:
+    - "kotlin.string"
+    - "kotlin.string-length"
+    - "kotlin.string-index"
+    - "kotlin.string-case"
+    - "kotlin.int"
+    - "kotlin.boolean"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.for"
+    - "kotlin.list"
+    - "kotlin.mutable-list"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.compound-assignment"
+    - "kotlin.if"
+next:
+  - "kotlin.from-zero.exceptions"
+tags:
+  - "kotlin"
+  - "string"
+  - "split"
+  - "trim"
+  - "parsing"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val s = "  hi  "
+            println("[" + s.trim() + "]")
+        }
+        ```
+      options:
+        - "[  hi  ]"
+        - "[hi]"
+        - "[hi  ]"
+        - "[ hi]"
+      answer: 1
+      explanation: "trim() убирает пробелы в начале и в конце строки."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val s = "kotlin"
+            println(s.substring(1, 4))
+        }
+        ```
+      options:
+        - "kot"
+        - "otl"
+        - "otli"
+        - "kotl"
+      answer: 1
+      explanation: "Берутся символы с индексами 1, 2, 3: «o», «t», «l». Правая граница 4 не включается."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            println("a,b,,c".split(",").size)
+        }
+        ```
+      options:
+        - "3"
+        - "4"
+        - "5"
+        - "Ошибку выполнения."
+      answer: 1
+      explanation: "Между двумя запятыми остаётся пустая часть, поэтому частей четыре: «a», «b», пустая и «c»."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val s = "кот"
+            s.replace("к", "К")
+            println(s)
+        }
+        ```
+      options:
+        - "Кот"
+        - "кот"
+        - "К"
+        - "Ошибку компиляции."
+      answer: 1
+      explanation: "replace возвращает новую строку, а s остаётся прежней. Результат нужно было присвоить или напечатать."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт indexOf, если искомой подстроки в строке нет?"
+      options:
+        - "0"
+        - "null"
+        - "-1"
+        - "Бросит исключение."
+      answer: 2
+      explanation: "indexOf возвращает -1, если подстрока не найдена. Исключения при этом нет, но использовать -1 как индекс нельзя."
+exercise:
+  id: "kotlin.from-zero.string-methods.exercise"
+  title: "Числа в одной строке"
+  prompt: |
+    В единственной строке ввода записаны целые числа через запятую. Вокруг запятых могут быть пробелы. Пример: `3, 5,10`.
+
+    Напечатайте:
+
+    1. `Чисел: ` и количество чисел;
+    2. `Сумма: ` и сумму чисел;
+    3. `Запись: ` и сумму в виде `a + b + c = сумма`.
+
+    **Пример.** Для ввода `3, 5,10` вывод:
+
+    ```
+    Чисел: 3
+    Сумма: 18
+    Запись: 3 + 5 + 10 = 18
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Разрежьте строку на части: readln().split(\",\"). Части могут содержать пробелы по краям."
+    - "Для каждой части вызовите part.trim().toInt() и добавьте число в изменяемый список."
+    - "Количество - numbers.size, сумма - numbers.sum(), склейка - numbers.joinToString(\" + \")."
+  tests:
+    - id: "basic"
+      title: "Пример"
+      stdin: |
+        3, 5,10
+      expected: |
+        Чисел: 3
+        Сумма: 18
+        Запись: 3 + 5 + 10 = 18
+      hint: "Числа 3, 5 и 10 после очистки пробелов: сумма 18."
+    - id: "two"
+      title: "Два числа"
+      stdin: |
+        7,8
+      expected: |
+        Чисел: 2
+        Сумма: 15
+        Запись: 7 + 8 = 15
+      hint: "Числа без пробелов: 7 и 8."
+    - id: "one"
+      title: "Одно число (скрытый)"
+      stdin: |
+        42
+      expected: |
+        Чисел: 1
+        Сумма: 42
+        Запись: 42 = 42
+      hidden: true
+      hint: "Одно число: split даёт список из одной части."
+    - id: "neg"
+      title: "Отрицательные (скрытый)"
+      stdin: |
+        -3 ,  4 , -10
+      expected: |
+        Чисел: 3
+        Сумма: -9
+        Запись: -3 + 4 + -10 = -9
+      hidden: true
+      hint: "Пробелы вокруг частей нужно убрать через trim; знак минус остаётся частью числа."

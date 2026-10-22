@@ -1,13 +1,14 @@
 id: "php.first-steps.how-php-runs"
 title: "Как выполняется PHP: Zend Engine, опкоды и ввод-вывод"
-goal: "Понять, как php превращает файл в результат, и написать программу, читающую числа из STDIN."
+goal: "Понять, как php превращает файл в результат, и прочитать весь STDIN целиком, не теряя строк."
 difficulty: "intro"
 estimatedMinutes: 30
-prerequisites: []
+prerequisites:
+  - "php.from-zero.classes-intro"
 objectives:
   - "Описать путь файла: парсер, опкоды, виртуальная машина Zend; назвать роль OPcache и JIT."
   - "Объяснить, почему текст вне тегов <?php ... ?> попадает в вывод."
-  - "Читать STDIN и писать в stdout; форматировать числа через sprintf."
+  - "Читать весь STDIN одним вызовом (stream_get_contents) вместо построчного fgets и форматировать числа через sprintf."
   - "Предсказывать поведение int при переполнении, оператора / и приведения строк."
 masteryCriteria:
   - "Вы объясняете, зачем нужен OPcache и почему в CLI он выключен."

@@ -1,0 +1,194 @@
+id: "typescript.programmers.syntax-and-control-flow"
+title: "Типы, числа и управление: что TypeScript проверяет, а что нет"
+goal: "Понимать, что типы существуют только до запуска, и избегать ловушек чисел, приведения, равенства и циклов, которые остаются в TypeScript как в JavaScript."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "typescript.programmers.collections-and-functions"
+objectives:
+  - "Объяснять, что проверка типов выполняется до запуска и что типы стираются, поэтому данные снаружи не проверены."
+  - "Предсказывать результат +, Number, parseInt и ||/?? на смеси чисел и строк."
+  - "Использовать Number.isNaN, Number.isInteger, Math.trunc и округление до копеек вместо наивных сравнений."
+  - "Отличать литеральный тип константы от широкого типа переменной и читать ошибку TS2367."
+  - "Различать for...in и for...of и помнить про провал через case без break."
+masteryCriteria:
+  - "roundMoney округляет до копеек (0.1 + 0.2 даёт 0.3), classifyNumber различает NaN, бесконечность, целое и дробное, digitSum работает для нуля и отрицательных, ticketPrice учитывает порядок проверок."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "typescript"
+  - "programmers"
+  - "types"
+  - "control-flow"
+assessmentFor:
+  - "typescript.from-zero.first-program"
+  - "typescript.from-zero.reading-errors"
+  - "typescript.from-zero.values-and-types"
+  - "typescript.from-zero.variables"
+  - "typescript.from-zero.type-checking"
+  - "typescript.from-zero.arithmetic"
+  - "typescript.from-zero.strings"
+  - "typescript.from-zero.comparison-and-logic"
+  - "typescript.from-zero.functions"
+  - "typescript.from-zero.if-else"
+  - "typescript.from-zero.while-loop"
+  - "typescript.from-zero.for-loop"
+  - "typescript.from-zero.loop-control"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function half(n: number): number {
+          return n / 2;
+        }
+        const input: unknown = "10";
+        console.log(half(input as number));
+        ```
+      options:
+        - "5"
+        - "NaN"
+        - "Программа не запустится: ошибка типов"
+        - "TypeError во время работы"
+      answer: 0
+      explanation: "Утверждение as number заставляет компилятор поверить, что внутри число, и ошибки типов нет. Во время работы типов уже нет: \"10\" / 2 JavaScript приводит строку к числу и получает 5. Тип - обещание, которое никто не проверил."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log(Number(""), Number("7 "), Number("7,5"), parseInt("7,5"));
+        ```
+      options:
+        - "NaN 7 NaN 7"
+        - "0 7 NaN 7"
+        - "0 NaN NaN 7"
+        - "0 7 7.5 7"
+      answer: 1
+      explanation: "Number обрезает пробелы по краям и пустую строку считает нулём, а строку с запятой отвергает и даёт NaN. parseInt читает цифры с начала и останавливается на запятой, поэтому возвращает 7."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const marks: number[] = [4, 5];
+        let seen = "";
+        for (const i in marks) {
+          seen += i;
+        }
+        for (const m of marks) {
+          seen += m;
+        }
+        console.log(seen);
+        ```
+      options:
+        - "4545"
+        - "0145"
+        - "0101"
+        - "99"
+      answer: 1
+      explanation: "for...in перебирает ключи массива, то есть строки \"0\" и \"1\", а for...of - значения 4 и 5. Строки склеиваются: \"0\" + \"1\" + \"4\" + \"5\"."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function f(n: number): string {
+          let s = "";
+          switch (n) {
+            case 1:
+              s += "a";
+            case 2:
+              s += "b";
+              break;
+            default:
+              s += "c";
+          }
+          return s;
+        }
+        console.log(f(1), f(2), f(3));
+        ```
+      options:
+        - "a b c"
+        - "ab b c"
+        - "ab b bc"
+        - "a ab c"
+      answer: 1
+      explanation: "В ветке case 1 нет break, поэтому выполнение проваливается в case 2 и добавляет b: получается ab. Ветка case 2 завершается break (b), а для 3 срабатывает default (c)."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```typescript
+        const level = "info";
+        if (level === "error") {
+          console.log("ошибка");
+        } else {
+          console.log("всё хорошо");
+        }
+        ```
+      options:
+        - "Выведется «всё хорошо»"
+        - "Выведется «ошибка»"
+        - "Проверка типов отвергнет сравнение (TS2367), программа не запустится"
+        - "Исключение TypeError во время работы"
+      answer: 2
+      explanation: "Для const level = \"info\" выводится литеральный тип \"info\". У него нет общих значений с \"error\", поэтому tsc сообщает об ошибке TS2367 и запуск не происходит. С let level или с аннотацией : string сравнение было бы допустимо."
+exercise:
+  id: "typescript.programmers.syntax-and-control-flow.exercise"
+  title: "Округление, вид числа, сумма цифр и цена билета"
+  prompt: |
+    В файле `basics_task.ts` реализуйте четыре экспортируемые функции (слово `export` уже стоит).
+
+    1. `roundMoney(amount)` - сумма, округлённая до двух знаков: умножьте на 100, округлите через `Math.round`, поделите на 100. `roundMoney(0.1 + 0.2)` должно быть `0.3`.
+    2. `classifyNumber(x)` - строка: `"не число"` для `NaN`, `"бесконечность"` для `Infinity` и `-Infinity`, `"целое"` для целых и `"дробное"` для остальных.
+    3. `digitSum(n)` - сумма цифр целого числа, знак игнорируется. `digitSum(-907)` равно `16`, `digitSum(0)` равно `0`.
+    4. `ticketPrice(age, isStudent)` - цена в рублях: до 6 лет - `0`; от 6 до 17 включительно - `300`; от 65 лет - `250` (раньше студенческой скидки); студент остальных возрастов - `350`; все прочие - `500`.
+
+    Часть тестов скрыта: в них граничные значения.
+  entryFile: "basics_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Начните с roundMoney и classifyNumber: это одно-двухстрочные функции. Для classifyNumber нужны Number.isNaN, Number.isFinite и Number.isInteger; проверку на NaN делайте первой."
+    - "digitSum: возьмите Math.abs(n), затем while (rest > 0) { sum += rest % 10; rest = Math.floor(rest / 10); }. Для нуля цикл не выполнится, и сумма останется 0."
+    - "ticketPrice: идите сверху вниз по условиям age < 6, age <= 17, age >= 65, isStudent. Условие на 65 лет должно стоять раньше студенческого."
+    - "Если проверка типов жалуется, прочитайте номер ошибки в сообщении: вы вернули не тот тип (строку вместо числа) или забыли return в какой-то ветке."
+  tests:
+    - id: "round-basic"
+      title: "roundMoney - обычные суммы"
+      hint: "0.1 + 0.2 после округления даёт 0.3; 19.994 даёт 19.99, а 19.996 даёт 20."
+    - id: "class-basic"
+      title: "classifyNumber - основные виды"
+      hint: "5 - целое, 2.5 - дробное, NaN - «не число», Infinity - «бесконечность»."
+    - id: "digits-basic"
+      title: "digitSum - обычные числа"
+      hint: "12345 даёт 15, 100 даёт 1."
+    - id: "ticket-basic"
+      title: "ticketPrice - основные возрасты"
+      hint: "3 года - 0, 10 лет - 300, 30 лет без скидки - 500, студент 20 лет - 350, 70 лет - 250."
+    - id: "round-edge"
+      title: "roundMoney - ноль, отрицательные, крупные суммы (скрытый)"
+      hidden: true
+      hint: "Ноль остаётся нулём; -1.234 даёт -1.23; 0.1 * 3 даёт 0.3 благодаря округлению; большие суммы с копейками тоже округляются до сотых."
+    - id: "class-edge"
+      title: "classifyNumber - ноль, минус бесконечность, 0 / 0 (скрытый)"
+      hidden: true
+      hint: "0 и -3 целые, -Infinity - бесконечность, 4.0 целое (это то же число, что 4), 0 / 0 - NaN."
+    - id: "digits-edge"
+      title: "digitSum - ноль и отрицательные (скрытый)"
+      hidden: true
+      hint: "digitSum(0) равно 0, digitSum(-907) равно 16, а digitSum(1000000) равно 1."
+    - id: "ticket-edge"
+      title: "ticketPrice - границы возрастов и льгот (скрытый)"
+      hidden: true
+      hint: "Границы: 5 лет - 0, 6 - 300, 17 - 300, 18 - 500; 18-летний студент - 350; 65 лет всегда 250, даже для студента."

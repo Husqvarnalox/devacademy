@@ -1,0 +1,260 @@
+id: "rust.from-zero.first-struct"
+title: "Первая структура: struct и impl"
+goal: "Объединять связанные данные в собственный тип struct и добавлять ему функции и методы через impl: new, &self, &mut self и #[derive(Debug)]."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "rust.from-zero.errors"
+objectives:
+  - "Объявить struct с полями, создать значение и читать и менять поля через точку."
+  - "Написать impl с ассоциированной функцией new и методами с &self и &mut self."
+  - "Вызвать функцию как Student::new(...) и метод как s.describe()."
+  - "Добавить #[derive(Debug)] и печатать структуру через {:?} и {:#?}."
+  - "Хранить структуры в Vec и разбирать их из строк ввода с пропуском неверных."
+masteryCriteria:
+  - "Вы заменяете набор связанных переменных одной структурой."
+  - "Вы выбираете &self для чтения и &mut self для изменения и объясняете почему."
+  - "Вы читаете ошибки E0063, E0599, E0425 и E0277 для структур."
+concepts:
+  introduces:
+    - "rust.struct"
+    - "rust.field"
+    - "rust.impl"
+    - "rust.method-definition"
+    - "rust.derive-debug"
+  uses:
+    - "rust.string"
+    - "rust.str"
+    - "rust.i32"
+    - "rust.mut"
+    - "rust.function"
+    - "rust.parameter"
+    - "rust.return"
+    - "rust.reference"
+    - "rust.mut-reference"
+    - "rust.vec"
+    - "rust.vec-iteration"
+    - "rust.debug-format"
+    - "rust.format-macro"
+    - "rust.result"
+    - "rust.option"
+    - "rust.match"
+    - "rust.match-arm"
+    - "rust.if"
+    - "rust.if-expression"
+    - "rust.for"
+    - "rust.lines"
+    - "rust.trim"
+    - "rust.parse"
+    - "rust.stdin"
+    - "rust.read-to-string"
+    - "rust.unwrap"
+    - "rust.inline-format"
+    - "rust.comparison"
+    - "rust.compound-assignment"
+    - "rust.method-call"
+    - "rust.split"
+    - "rust.string-methods"
+    - "rust.question-mark"
+next:
+  - "rust.from-zero.mini-project"
+tags:
+  - "rust"
+  - "struct"
+  - "impl"
+  - "method"
+  - "debug"
+  - "data-modeling"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        struct Item {
+            name: String,
+            qty: i32,
+        }
+
+        fn main() {
+            let mut it = Item { name: String::from("чай"), qty: 2 };
+            it.qty += 3;
+            println!("{} {}", it.name, it.qty);
+        }
+        ```
+      options:
+        - "чай 5"
+        - "чай 2"
+        - "чай 3"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Поле qty меняется через точку: 2 + 3 = 5. Переменная объявлена как let mut, поэтому изменение допустимо."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        struct Counter {
+            value: i32,
+        }
+
+        impl Counter {
+            fn new() -> Counter {
+                Counter { value: 0 }
+            }
+
+            fn add(&mut self, n: i32) {
+                self.value += n;
+            }
+
+            fn get(&self) -> i32 {
+                self.value
+            }
+        }
+
+        fn main() {
+            let mut c = Counter::new();
+            c.add(4);
+            c.add(3);
+            println!("{}", c.get());
+        }
+        ```
+      options:
+        - "7"
+        - "0"
+        - "3"
+        - "4"
+      answer: 0
+      explanation: "new создаёт счётчик со значением 0; два вызова add увеличивают его на 4 и на 3, get возвращает 7."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Почему этот код не компилируется?
+
+        ```rust
+        struct Student {
+            name: String,
+            score: i32,
+        }
+
+        fn main() {
+            let s = Student { name: String::from("Анна"), score: 70 };
+            println!("{:?}", s);
+        }
+        ```
+      options:
+        - "Потому что поле name нельзя делать String."
+        - "Потому что для печати через {:?} структуре нужен #[derive(Debug)]."
+        - "Потому что s нужно объявить с mut."
+        - "Потому что Student нельзя создавать без new."
+      answer: 1
+      explanation: "Без #[derive(Debug)] компилятор не знает, как печатать структуру отладочным способом. Добавьте атрибут над struct."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Почему этот код не компилируется?
+
+        ```rust
+        struct P {
+            x: i32,
+            y: i32,
+        }
+
+        fn main() {
+            let p = P { x: 1 };
+            println!("{}", p.x);
+        }
+        ```
+      options:
+        - "Потому что y нельзя пропускать: при создании нужно указать все поля."
+        - "Потому что p нужно объявить с mut."
+        - "Потому что имя P слишком короткое."
+        - "Потому что x нельзя печатать через {}."
+      answer: 0
+      explanation: "При создании структуры задаются все поля. Здесь не хватает y (ошибка «missing field»)."
+    - id: "q5"
+      type: "single"
+      prompt: "В какой строке сигнатуры метод читает структуру, но не меняет её?"
+      options:
+        - "fn add(&mut self, n: i32)"
+        - "fn get(&self) -> i32"
+        - "fn new() -> Counter"
+        - "fn reset(&mut self)"
+      answer: 1
+      explanation: "&self - ссылка только для чтения. &mut self разрешает менять поля, а new без self - ассоциированная функция, а не метод."
+exercise:
+  id: "rust.from-zero.first-struct.exercise"
+  title: "Студент и ведомость"
+  prompt: |
+    В упражнении `main` уже написан. Он читает строки вида `имя;балл`, неверные строки (нет `;` или балл не число) пропускает, остальные превращает в `Student` через `Student::new`, а затем печатает `describe()` каждого и число сдавших (`is_passed()`). Структура `Student` объявлена в заготовке. Напишите четыре функции внутри `impl Student`.
+
+    1. `new(name: &str, score: i32) -> Student` - создаёт студента.
+    2. `is_passed(&self) -> bool` - `true`, если балл 60 и выше.
+    3. `label(&self) -> String` - оценка словами: 90 и выше - `отлично`, от 75 до 89 - `хорошо`, от 60 до 74 - `зачёт`, ниже 60 - `незачёт`.
+    4. `describe(&self) -> String` - строка `<имя>: <балл> (<оценка словами>)`.
+
+    Пример. Ввод:
+
+    ```
+    Анна;95
+    Борис;abc
+    Вера;60
+    Глеб;42
+    ```
+
+    Вывод:
+
+    ```
+    Анна: 95 (отлично)
+    Вера: 60 (зачёт)
+    Глеб: 42 (незачёт)
+    Сдали: 2 из 3, пропущено строк: 1
+    ```
+
+    В заготовке функции возвращают пустые значения. Замените их, `main` и объявление структуры не меняйте.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "new: верните Student { name: String::from(name), score } - если имя переменной совпадает с именем поля, можно писать score без двоеточия."
+    - "is_passed: внутри метода поле берётся как self.score, поэтому тело - self.score >= 60."
+    - "label: цепочка if / else if / else с self.score. Каждая ветка возвращает String::from(\"...\"). Проверяйте от большего порога к меньшему: сначала >= 90, потом >= 75, потом >= 60."
+    - "describe: format!(\"{}: {} ({})\", self.name, self.score, self.label()). Метод label вызывается так же, как снаружи, через self."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "Анна;95\nБорис;abc\nВера;60\nГлеб;42\n"
+      expected: "Анна: 95 (отлично)\nВера: 60 (зачёт)\nГлеб: 42 (незачёт)\nСдали: 2 из 3, пропущено строк: 1\n"
+      hint: "Борис пропущен (балл не число); Анна - отлично, Вера - зачёт, Глеб - незачёт; сдали двое из трёх."
+    - id: "mixed"
+      title: "Разные оценки"
+      stdin: "Ира;80\nОлег;70\n"
+      expected: "Ира: 80 (хорошо)\nОлег: 70 (зачёт)\nСдали: 2 из 2, пропущено строк: 0\n"
+      hint: "80 - хорошо, 70 - зачёт; оба сдали."
+    - id: "borders"
+      title: "Границы 59, 60, 74, 75, 89, 90 (скрытый)"
+      stdin: "а;59\nб;60\nв;74\nг;75\nд;89\nе;90\nж;100\nз;0\n"
+      expected: "а: 59 (незачёт)\nб: 60 (зачёт)\nв: 74 (зачёт)\nг: 75 (хорошо)\nд: 89 (хорошо)\nе: 90 (отлично)\nж: 100 (отлично)\nз: 0 (незачёт)\nСдали: 6 из 8, пропущено строк: 0\n"
+      hidden: true
+      hint: "Границы включаются в старшую категорию: 90 - отлично, 75 - хорошо, 60 - зачёт, 59 - незачёт."
+    - id: "bad-lines"
+      title: "Неверные строки (скрытый)"
+      stdin: "без разделителя\nЛена;\n;50\nМакс; 77 \n"
+      expected: ": 50 (незачёт)\nМакс: 77 (хорошо)\nСдали: 1 из 2, пропущено строк: 2\n"
+      hidden: true
+      hint: "Строки без «;» и с пустым баллом пропускаются; пустое имя допустимо; пробелы вокруг балла убираются (Макс: 77)."
+    - id: "all-bad"
+      title: "Все строки неверные (скрытый)"
+      stdin: "x\ny;z\n"
+      expected: "Сдали: 0 из 0, пропущено строк: 2\n"
+      hidden: true
+      hint: "Студентов нет: Сдали: 0 из 0, пропущено строк: 2."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "Сдали: 0 из 0, пропущено строк: 0\n"
+      hidden: true
+      hint: "Нет строк: Сдали: 0 из 0, пропущено строк: 0."

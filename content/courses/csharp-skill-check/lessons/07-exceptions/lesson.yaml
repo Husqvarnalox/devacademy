@@ -1,0 +1,210 @@
+id: "csharp.check.exceptions"
+title: "Проверка: исключения и ресурсы"
+goal: "Обрабатывать ошибки через собственные исключения и гарантированно освобождать ресурсы."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: бросать и перехватывать исключения разных типов, объявлять собственное исключение, закрывать ресурс через using."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "csharp"
+  - "check"
+  - "exceptions"
+assessmentFor:
+  - "csharp.fundamentals.exceptions-and-resources"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        try
+        {
+            Console.Write("A");
+            throw new Exception();
+        }
+        catch
+        {
+            Console.Write("B");
+        }
+        finally
+        {
+            Console.Write("C");
+        }
+        Console.Write("D");
+        ```
+      options:
+        - "ABD"
+        - "ABCD"
+        - "ACD"
+        - "AB и необработанное исключение"
+      answer: 1
+      explanation: "Исключение перехватывается блоком catch (B), блок finally выполняется всегда (C), после чего программа продолжается с кода после try (D). Вывод - ABCD."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```csharp
+        try
+        {
+            int.Parse("x");
+        }
+        catch (Exception)
+        {
+        }
+        catch (FormatException)
+        {
+        }
+        ```
+      options:
+        - "Программа соберётся и обработает FormatException во втором блоке"
+        - "Ошибка компиляции: второй блок catch недостижим, потому что первый перехватывает всё"
+        - "Программа соберётся, но второй блок никогда не выполнится, предупреждения нет"
+        - "Бросится исключение во время выполнения"
+      answer: 1
+      explanation: "Блоки catch проверяются сверху вниз, поэтому более общий тип должен идти после более конкретного. Здесь Exception перехватывает всё, и компилятор сообщает об ошибке CS0160."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```csharp
+        try
+        {
+            int.Parse("abc");
+        }
+        catch (ArgumentException)
+        {
+            Console.WriteLine("arg");
+        }
+        Console.WriteLine("done");
+        ```
+      options:
+        - "Выведется «arg», затем «done»"
+        - "Выведется только «done»"
+        - "Программа завершится необработанным FormatException, «done» не выведется"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "int.Parse бросает FormatException, а он не является наследником ArgumentException, поэтому блок catch не срабатывает. Исключение остаётся необработанным и завершает программу."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        using (new R())
+        {
+            Console.Write("1 ");
+        }
+        Console.Write("2");
+
+        class R : IDisposable
+        {
+            public void Dispose() { Console.Write("closed "); }
+        }
+        ```
+      options:
+        - "1 2"
+        - "1 closed 2"
+        - "closed 1 2"
+        - "1 2 closed"
+      answer: 1
+      explanation: "Метод Dispose вызывается при выходе из блока using, то есть после «1 » и до «2». Вывод - «1 closed 2»."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Какая запись в блоке catch сохраняет исходную трассировку стека при повторном выбрасывании исключения?
+      options:
+        - "throw;"
+        - "throw ex;"
+        - "throw new Exception(ex.Message);"
+        - "return;"
+      answer: 0
+      explanation: "Оператор throw; без выражения пробрасывает то же исключение дальше вместе с оригинальной трассировкой. Запись throw ex; сбрасывает трассировку, а throw new Exception(...) теряет исходный тип, если не передать его как InnerException."
+exercise:
+  id: "csharp.check.exceptions.exercise"
+  title: "Кошелёк: исключения и using"
+  prompt: |
+    Основная часть программы написана: каждая строка ввода - попытка снять сумму с кошелька (на старте в нём `100`). Программа печатает результат для каждой строки, а в конце остаток и число незакрытых журналов. Класс `Log` описан в файле: в конструкторе он увеличивает счётчик `Log.Open`, а в `Dispose` уменьшает. Допишите внизу `Program.cs` три вещи. Основную часть и класс `Log` не меняйте.
+
+    1. Класс `InsufficientFundsException : Exception` со свойством `Missing` (сколько не хватает) и конструктором, принимающим это число.
+    2. Метод `Wallet.Withdraw(int amount)`: при `amount <= 0` бросает `ArgumentOutOfRangeException`, при нехватке средств - `InsufficientFundsException`, иначе уменьшает баланс. При ошибке баланс не меняется.
+    3. Функцию `Handle(Wallet wallet, string line)`: открывает `Log` так, чтобы он закрывался при любом исходе, разбирает `line` через `int.Parse` и снимает сумму. Результат - одна из строк: `ок: остаток N`, `отказ: не число`, `отказ: слишком большое число` (для `OverflowException`), `отказ: сумма должна быть положительной`, `отказ: не хватает M`.
+
+    **Пример.** Для ввода
+
+    ```
+    30
+    abc
+    80
+    ```
+
+    программа печатает
+
+    ```
+    ок: остаток 70
+    отказ: не число
+    отказ: не хватает 10
+    остаток: 70
+    незакрытых: 0
+    ```
+
+    Часть тестов скрыта: в них слишком большие числа, пустые строки, пробелы и снятие всей суммы.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Handle: начните с using Log log = new Log(); - так Dispose вызовется и при return, и при исключении. Затем try { int amount = int.Parse(line); ... } и несколько блоков catch."
+    - "Порядок блоков catch: сначала конкретные типы (InsufficientFundsException, ArgumentOutOfRangeException, FormatException, OverflowException). Они не наследуют друг друга, поэтому порядок между ними не важен."
+    - "InsufficientFundsException: public int Missing { get; } и конструктор public InsufficientFundsException(int missing) : base($\"не хватает {missing}\") { Missing = missing; }"
+    - "Withdraw: сначала проверьте amount <= 0, затем amount > Balance, и только после проверок меняйте Balance."
+  tests:
+    - id: "basic"
+      title: "Снятие и нехватка средств"
+      stdin: "30\n50\n50\n"
+      expected: |
+        ок: остаток 70
+        ок: остаток 20
+        отказ: не хватает 30
+        остаток: 20
+        незакрытых: 0
+      hint: "Третья попытка снять 50 при остатке 20: не хватает 30. Баланс при отказе остаётся 20, а Log закрыт (Log.Open равен 0)."
+    - id: "bad-input"
+      title: "Не число и неположительные суммы"
+      stdin: "abc\n-5\n0\n20\n"
+      expected: |
+        отказ: не число
+        отказ: сумма должна быть положительной
+        отказ: сумма должна быть положительной
+        ок: остаток 80
+        остаток: 80
+        незакрытых: 0
+      hint: "int.Parse(\"abc\") бросает FormatException, а -5 и 0 должен отклонить Withdraw через ArgumentOutOfRangeException. Log должен закрываться и при ошибках - используйте using."
+    - id: "overflow"
+      title: "Переполнение, пустая строка, пробелы (скрытый)"
+      stdin: "99999999999\n\n 10 \n1.5\n"
+      expected: |
+        отказ: слишком большое число
+        отказ: не число
+        ок: остаток 90
+        отказ: не число
+        остаток: 90
+        незакрытых: 0
+      hidden: true
+      hint: "99999999999 не помещается в int: OverflowException. Пустая строка и 1.5 - FormatException. int.Parse допускает пробелы по краям, поэтому \" 10 \" принимается."
+    - id: "all"
+      title: "Снять всё, затем ещё раз (скрытый)"
+      stdin: "100\n1\n"
+      expected: |
+        ок: остаток 0
+        отказ: не хватает 1
+        остаток: 0
+        незакрытых: 0
+      hidden: true
+      hint: "Сумма, равная остатку, допустима: условие отказа - строго amount > Balance. После этого не хватает ровно 1."

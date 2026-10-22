@@ -1,0 +1,210 @@
+id: "rust.check.iterators"
+title: "Проверка: итераторы"
+goal: "Преобразовывать коллекции цепочками итераторов и собирать результат через `collect`."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: собрать результат цепочкой `filter`, `map`, `fold` и `collect` и знать, что итераторы ленивы."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "rust"
+  - "check"
+  - "iterators"
+assessmentFor:
+  - "rust.fundamentals.collections-and-iterators"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn main() {
+            let v = vec![1, 2];
+            let _doubled = v.iter().map(|x| {
+                println!("saw {}", x);
+                x * 2
+            });
+            println!("done");
+        }
+        ```
+      options:
+        - "saw 1, saw 2, затем done"
+        - "Только done"
+        - "done, затем saw 1 и saw 2"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "map лишь описывает преобразование и ничего не выполняет, пока нет потребителя (collect, sum, цикл). Здесь результат нигде не потребляется, поэтому замыкание не вызывается ни разу."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn main() {
+            let total: i32 = (1..=10).filter(|n| n % 3 == 0).map(|n| n * n).sum();
+            println!("{}", total);
+        }
+        ```
+      options:
+        - "126"
+        - "14"
+        - "385"
+        - "54"
+      answer: 0
+      explanation: "Числа 3, 6 и 9 делятся на 3. Их квадраты 9, 36 и 81 дают в сумме 126."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn main() {
+            let words = ["bb", "aa", "c"];
+            let best = words.iter().max_by_key(|w| w.len());
+            println!("{:?}", best);
+        }
+        ```
+      options:
+        - "Some(\"c\")"
+        - "None"
+        - "Some(\"bb\")"
+        - "Some(\"aa\")"
+      answer: 3
+      explanation: "Максимум по длине равен 2 у двух слов. Метод max_by_key возвращает последний из равных максимумов, то есть aa, а не первое слово bb."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```rust
+        fn main() {
+            let v = vec![String::from("a"), String::from("b")];
+            for s in v {
+                println!("{}", s);
+            }
+            println!("{}", v.len());
+        }
+        ```
+      options:
+        - "Паника во время выполнения"
+        - "Выведет a, b и 2"
+        - "Ошибка компиляции: v перемещён в цикл for"
+        - "Выведет a, b и 0"
+      answer: 2
+      explanation: "Цикл for x in v вызывает into_iter, который забирает владение вектором. После цикла v недоступен, поэтому v.len() не компилируется (E0382). Цикл по &v оставил бы вектор доступным."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn main() {
+            let names = ["a", "b"];
+            let ages = [10, 20, 30];
+            let pairs: Vec<_> = names.iter().zip(ages.iter()).collect();
+            println!("{:?}", pairs);
+        }
+        ```
+      options:
+        - "[(\"a\", 10), (\"b\", 20), (\"\", 30)]"
+        - "[(\"a\", 10), (\"b\", 20)]"
+        - "[(\"a\", 10), (\"b\", 20), (None, 30)]"
+        - "Ошибка компиляции: разная длина массивов"
+      answer: 1
+      explanation: "Метод zip заканчивается, как только кончается более короткий итератор. Третий возраст отбрасывается, а ошибки и паники нет."
+exercise:
+  id: "rust.check.iterators.exercise"
+  title: "Обработка списков цепочками итераторов"
+  prompt: |-
+    В `main.rs` уже написана `main`: она читает команды по одной в строке и вызывает четыре ваши функции. Допишите их над `main`; `main` не меняйте. Решайте через итераторы, без индексов.
+
+    1. `evens_squared(v: &[i32]) -> Vec<i32>` - квадраты чётных чисел в исходном порядке.
+    2. `running_sum(v: &[i32]) -> Vec<i32>` - накопленные суммы (`[1, 2, 3]` -> `[1, 3, 6]`). Числа в тестах небольшие, переполнения нет.
+    3. `longest_word(text: &str) -> Option<&str>` - самое длинное слово по числу байт; если таких несколько, нужно **первое**. Для текста без слов - `None`.
+    4. `word_freq(text: &str) -> BTreeMap<String, usize>` - сколько раз встречается каждое слово без учёта регистра (слова приводятся к нижнему регистру).
+
+    Команды: `sq числа...`, `run числа...`, `longest слова...`, `freq слова...`.
+
+    **Пример.** Для ввода
+
+    ```
+    sq 1 2 3 4 5 6
+    run 1 2 3 4
+    longest to be or not
+    freq The cat the dog THE
+    ```
+
+    программа печатает
+
+    ```
+    [4, 16, 36]
+    [1, 3, 6, 10]
+    not
+    cat=1 dog=1 the=3
+    ```
+
+    Скрытые тесты проверяют равные длины слов, пустые списки и повторы разного регистра.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "evens_squared: v.iter().filter(|n| *n % 2 == 0).map(|n| n * n).collect() - тип результата Vec<i32> подскажет collect."
+    - "running_sum удобно писать через scan: начальное значение 0, на каждом шаге прибавьте элемент к состоянию и верните Some(накопленное)."
+    - "longest_word: max_by_key(|w| w.len()) при равных длинах возвращает последнее слово, а нужно первое. Либо переберите слова с fold и заменяйте лучшее только при строго большей длине, либо возьмите max_by_key на обратном порядке (rev() для обхода с конца)."
+    - "word_freq: заведите BTreeMap и для каждого слова выполните *map.entry(word.to_lowercase()).or_insert(0) += 1."
+  tests:
+    - id: "basic"
+      title: "Четыре команды"
+      stdin: |
+        sq 1 2 3 4 5 6
+        run 1 2 3 4
+        longest to be or not
+        freq The cat the dog THE
+      expected: |
+        [4, 16, 36]
+        [1, 3, 6, 10]
+        not
+        cat=1 dog=1 the=3
+      hint: "Квадраты чётных, накопленные суммы, первое самое длинное слово (not, 3 байта, а to/be/or - по 2) и частоты без учёта регистра."
+    - id: "negatives"
+      title: "Отрицательные числа и нули"
+      stdin: |
+        sq -4 0 7 -2
+        run 5 -5 3
+        longest a
+      expected: |
+        [16, 0, 4]
+        [5, 0, 3]
+        a
+      hint: "-4 и -2 чётные, их квадраты 16 и 4, 0 тоже чётный; накопленные суммы идут через ноль."
+    - id: "ties"
+      title: "Равные длины - первое слово (скрытый)"
+      stdin: |
+        longest one two six
+        longest ab abc xyz ab
+        longest
+      expected: |
+        one
+        abc
+        none
+      hidden: true
+      hint: "При равной длине выбирается первое слово; для пустого списка слов - none."
+    - id: "empty-case"
+      title: "Пустые списки и разный регистр (скрытый)"
+      stdin: |
+        sq
+        run
+        freq
+        freq B b A a a
+      expected: |
+        []
+        []
+
+        a=3 b=2
+      hidden: true
+      hint: "Пустой ввод даёт пустой результат; слова B и b считаются одним словом, ключи идут в алфавитном порядке."

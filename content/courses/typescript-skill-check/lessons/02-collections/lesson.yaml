@@ -1,0 +1,166 @@
+id: "typescript.check.collections"
+title: "Проверка: массивы, объекты и методы массивов"
+goal: "Работать с массивами и объектами через типизированные функции, методы массивов и строк и безопасно обрабатывать отсутствующие значения."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: работать с массивами и объектами через типизированные функции, методы массивов и строк и безопасно обрабатывать отсутствующие значения"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "collections"
+assessmentFor:
+  - "typescript.from-zero.arrays"
+  - "typescript.from-zero.iterating-arrays"
+  - "typescript.from-zero.arrow-functions"
+  - "typescript.from-zero.array-methods"
+  - "typescript.from-zero.optional-values"
+  - "typescript.from-zero.string-methods"
+  - "typescript.from-zero.objects"
+  - "typescript.from-zero.arrays-of-objects"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const a = [3, 1, 2];
+        const b = a;
+        b.push(4);
+        console.log(a.length, a === b);
+        ```
+      options:
+        - "3 false"
+        - "4 false"
+        - "4 true"
+        - "3 true"
+      answer: 2
+      explanation: "Присваивание const b = a не копирует массив: обе переменные ссылаются на один и тот же объект. Поэтому push через b виден через a, а сравнение === ссылок истинно."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log([10, 9, 1].sort());
+        ```
+      options:
+        - "[ 1, 9, 10 ]"
+        - "[ 1, 10, 9 ]"
+        - "[ 10, 9, 1 ]"
+        - "[ 9, 10, 1 ]"
+      answer: 1
+      explanation: "Без компаратора sort сравнивает элементы как строки: \"1\" меньше \"10\", а \"10\" меньше \"9\". Числовой порядок даёт компаратор (a, b) => a - b."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        interface Item {
+          name: string;
+          qty?: number;
+        }
+        const items: Item[] = [{ name: "a" }, { name: "b", qty: 2 }, { name: "c", qty: 0 }];
+        let total = 0;
+        for (const item of items) {
+          total += item.qty ?? 1;
+        }
+        console.log(total);
+        ```
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "NaN"
+      answer: 1
+      explanation: "Оператор ?? подставляет 1 только для undefined. Первый товар даёт 1, второй 2, а третий - собственное количество 0 (ноль не заменяется): 1 + 2 + 0 = 3."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```typescript
+        const nums: number[] = [1, 2, 3];
+        const big = nums.find((n) => n > 5);
+        console.log(big.toFixed(1));
+        ```
+      options:
+        - "Выведется undefined"
+        - "Исключение TypeError во время работы"
+        - "Проверка типов сообщит, что big может быть undefined (TS18048), программа не запустится"
+        - "Выведется 0.0"
+      answer: 2
+      explanation: "Метод find возвращает number | undefined, потому что подходящего элемента может не быть. Проверка типов не позволяет вызвать метод, пока значение не проверено, и программа не запускается."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log("  Hello, World ".trim().toUpperCase().split(", "));
+        ```
+      options:
+        - "[ 'HELLO', 'WORLD' ]"
+        - "[ 'HELLO, WORLD' ]"
+        - "[ '  HELLO', 'WORLD ' ]"
+        - "[ 'Hello', 'World' ]"
+      answer: 0
+      explanation: "trim убирает пробелы по краям, toUpperCase переводит в верхний регистр, а split по \", \" делит строку на две части."
+exercise:
+  id: "typescript.check.collections.exercise"
+  title: "Корзина и текст"
+  prompt: |
+    В файле `collections_check.ts` реализуйте четыре экспортируемые функции (интерфейс `CartItem` уже описан).
+
+    1. `uniqueSorted(values)` - **новый** массив чисел без повторов по возрастанию. Исходный массив менять нельзя.
+    2. `longestWord(text)` - самое длинное слово текста (слова разделены любыми пробельными символами). Из нескольких одинаковой длины берётся первое. Для пустого текста или текста из одних пробелов результат - пустая строка.
+    3. `totalPrice(items)` - сумма `price * qty` по товарам; если `qty` не указано, количество равно 1 (а явное `0` остаётся нулём).
+    4. `findItem(items, name)` - первый товар с таким названием без учёта регистра и пробелов по краям запрашиваемого имени; если товара нет, результат `undefined`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "collections_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "uniqueSorted: заведите пустой массив result, в цикле for...of добавляйте число, если !result.includes(число), затем отсортируйте result с компаратором (a, b) => a - b. Исходный массив при этом не затрагивается."
+    - "longestWord: сначала text.trim(); если получилась пустая строка, верните её. Иначе делите по /\\s+/ и храните лучшее слово; заменяйте его только если новое слово строго длиннее."
+    - "totalPrice: накапливайте total += item.price * (item.qty ?? 1). Оператор ?? оставляет 0, а запись item.qty || 1 заменила бы его на 1."
+    - "findItem: приведите искомое имя к нижнему регистру и обрежьте пробелы, затем items.find((item) => item.name.toLowerCase() === wanted). Тип результата CartItem | undefined уже подходит."
+  tests:
+    - id: "unique-basic"
+      title: "uniqueSorted - обычные числа"
+      hint: "[3, 1, 3, 2, 1] превращается в [1, 2, 3]."
+    - id: "word-basic"
+      title: "longestWord - обычные тексты"
+      hint: "Из «я люблю программирование» нужно слово «программирование»."
+    - id: "total-basic"
+      title: "totalPrice - количество указано и нет"
+      hint: "Чай 100 x 2 и хлеб 40 (количество не указано) дают 240."
+    - id: "find-basic"
+      title: "findItem - найден и не найден"
+      hint: "Нужно вернуть тот же объект товара из списка, а для отсутствующего - undefined."
+    - id: "unique-edge"
+      title: "uniqueSorted - отрицательные, исходный массив (скрытый)"
+      hidden: true
+      hint: "Исходный массив не должен измениться; отрицательные числа и ноль сортируются по значению, [10, 9, 1, 100] даёт [1, 9, 10, 100]."
+    - id: "word-edge"
+      title: "longestWord - пробелы и переводы строк (скрытый)"
+      hidden: true
+      hint: "Пустой текст и текст из пробелов дают пустую строку; разделителем служит и табуляция, и перевод строки; при равной длине берётся первое слово."
+    - id: "total-edge"
+      title: "totalPrice - нулевое количество и нулевая цена (скрытый)"
+      hidden: true
+      hint: "qty равное 0 даёт 0 (его нельзя считать отсутствующим); цена 0 даёт 0."
+    - id: "find-edge"
+      title: "findItem - регистр, пробелы и повторы (скрытый)"
+      hidden: true
+      hint: "Запрос «  КОФЕ » находит «Кофе»; при двух совпадениях возвращается первый; в пустом списке - undefined."

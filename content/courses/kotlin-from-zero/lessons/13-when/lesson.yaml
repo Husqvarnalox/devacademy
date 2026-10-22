@@ -1,0 +1,225 @@
+id: "kotlin.from-zero.when"
+title: "Выбор из многих вариантов: when"
+goal: "Выбирать действие по значению с помощью when, в том числе по нескольким значениям и диапазонам."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.if-else"
+objectives:
+  - "Записывать when со значением, ветками -> и веткой else."
+  - "Перечислять несколько значений в одной ветке и проверять диапазон через in."
+  - "Использовать when без аргумента вместо цепочки else if."
+  - "Использовать when как выражение и объяснять, зачем нужна ветка else."
+masteryCriteria:
+  - "Ваша программа по номеру месяца печатает число дней, обрабатывая 12 значений четырьмя ветками."
+  - "Вы объясняете, почему в Kotlin не нужен break внутри when."
+  - "Вы предсказываете результат when, в котором подходят несколько веток."
+concepts:
+  introduces:
+    - "kotlin.when"
+    - "kotlin.when-branch"
+    - "kotlin.range-check"
+  uses:
+    - "kotlin.if"
+    - "kotlin.else"
+    - "kotlin.if-expression"
+    - "kotlin.block"
+    - "kotlin.boolean"
+    - "kotlin.int"
+    - "kotlin.char"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.comparison"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.remainder"
+next:
+  - "kotlin.from-zero.while-loop"
+tags:
+  - "kotlin"
+  - "when"
+  - "conditions"
+  - "range"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val day = 7
+            val name = when (day) {
+                1 -> "будний"
+                6, 7 -> "выходной"
+                else -> "неизвестно"
+            }
+            println(name)
+        }
+        ```
+      options:
+        - "будний"
+        - "неизвестно"
+        - "выходной"
+        - "Ошибку компиляции."
+      answer: 2
+      explanation: "Значение 7 перечислено в ветке 6, 7 ->, запятая означает «или»."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val age = 18
+            when (age) {
+                in 0..17 -> println("ребёнок")
+                in 18..64 -> println("взрослый")
+                else -> println("пенсионер")
+            }
+        }
+        ```
+      options:
+        - "взрослый"
+        - "ребёнок"
+        - "пенсионер"
+        - "Ничего."
+      answer: 0
+      explanation: "Диапазон 18..64 включает обе границы, поэтому 18 попадает во вторую ветку. В первую (0..17) число 18 не входит."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        fun main() {
+            val n = 3
+            val word = when (n) {
+                1 -> "один"
+                2 -> "два"
+            }
+            println(word)
+        }
+        ```
+      options:
+        - "Напечатается null."
+        - "Напечатается пустая строка."
+        - "Компилятор потребует ветку else."
+        - "Программа напечатает 3."
+      answer: 2
+      explanation: "Значение when сохраняется в переменную, поэтому ветки должны покрывать все случаи. Компилятор сообщает: 'when' expression must be exhaustive. Add an 'else' branch."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val t = 5
+            when {
+                t > 0 -> println("A")
+                t > 3 -> println("B")
+                else -> println("C")
+            }
+        }
+        ```
+      options:
+        - "B"
+        - "A и B"
+        - "C"
+        - "A"
+      answer: 3
+      explanation: "Выполняется только первая подошедшая ветка. Условие t > 0 истинно, после неё when заканчивается, поэтому B не печатается."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val n = 1
+            when (n) {
+                1 -> println("a")
+                2 -> println("b")
+                else -> println("c")
+            }
+        }
+        ```
+      options:
+        - "a, b и c, по одной строке"
+        - "a"
+        - "a и b"
+        - "c"
+      answer: 1
+      explanation: "В Kotlin нет «проваливания»: после выполнения подошедшей ветки when заканчивается, и break не нужен."
+exercise:
+  id: "kotlin.from-zero.when.exercise"
+  title: "Дней в месяце"
+  prompt: |
+    На вход подаётся одна строка: номер месяца (целое число). Високосный год не учитывайте.
+
+    Напечатайте количество дней в этом месяце в виде `Дней: N`:
+
+    * месяцы 1, 3, 5, 7, 8, 10, 12 - 31 день;
+    * месяцы 4, 6, 9, 11 - 30 дней;
+    * месяц 2 - 28 дней.
+
+    Если номер не от 1 до 12, напечатайте `Нет такого месяца`.
+
+    **Пример.** Для ввода `4` вывод: `Дней: 30`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Подойдёт when по значению month с несколькими значениями в одной ветке: 4, 6, 9, 11 ->."
+    - "Ветки: 1, 3, 5, 7, 8, 10, 12 -> 31 день; 4, 6, 9, 11 -> 30 дней; 2 -> 28 дней; всё остальное - else."
+    - "В каждой ветке выводите строку целиком: 4, 6, 9, 11 -> println(\"Дней: 30\"). Строка для остальных чисел: Нет такого месяца."
+  tests:
+    - id: "long"
+      title: "Месяц в 31 день"
+      stdin: |
+        3
+      expected: |
+        Дней: 31
+      hint: "Март - месяц 3, в нём 31 день."
+    - id: "short"
+      title: "Месяц в 30 дней"
+      stdin: |
+        4
+      expected: |
+        Дней: 30
+      hint: "Апрель - месяц 4, в нём 30 дней."
+    - id: "feb"
+      title: "Февраль (скрытый)"
+      stdin: |
+        2
+      expected: |
+        Дней: 28
+      hidden: true
+      hint: "Для месяца 2 нужна отдельная ветка с 28 днями."
+    - id: "december"
+      title: "Декабрь (скрытый)"
+      stdin: |
+        12
+      expected: |
+        Дней: 31
+      hidden: true
+      hint: "Месяцы 8, 10 и 12 тоже имеют 31 день: перечислите их все в первой ветке."
+    - id: "bad"
+      title: "Несуществующий месяц (скрытый)"
+      stdin: |
+        13
+      expected: |
+        Нет такого месяца
+      hidden: true
+      hint: "Для чисел вне 1..12 нужна ветка else с текстом «Нет такого месяца»."
+    - id: "zero"
+      title: "Ноль (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Нет такого месяца
+      hidden: true
+      hint: "Ноль - не номер месяца: он должен попасть в ветку else."

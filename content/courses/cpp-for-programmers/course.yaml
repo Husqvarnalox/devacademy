@@ -1,0 +1,11 @@
+id: "cpp-for-programmers"
+version: "1.0.0"
+title: "C++ для программистов"
+description: "Быстрый путь для тех, кто программирует на другом языке: отличия C++ и его ловушки. Пройденные уроки зачитывают соответствующие уроки курса «C++ с нуля»."
+languageId: "cpp"
+level: 1
+track: "cpp"
+lessons:
+  - "01-syntax-types-and-control-flow"
+  - "02-functions-collections-and-strings"
+  - "03-exceptions-and-structs"

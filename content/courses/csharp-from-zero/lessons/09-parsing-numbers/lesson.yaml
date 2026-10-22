@@ -1,0 +1,159 @@
+id: "csharp.from-zero.parsing-numbers"
+title: "Числа из ввода: Parse"
+goal: "Превращать прочитанный текст в числа методами int.Parse, double.Parse и decimal.Parse и считать с ними."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "csharp.from-zero.reading-input"
+objectives:
+  - "Объяснить, почему прочитанное из ввода нельзя сразу складывать как числа."
+  - "Превращать текст в int, double и decimal методами Parse."
+  - "Выбирать тип числа по смыслу данных: количество, измерение, деньги."
+  - "Узнавать FormatException и объяснять, из-за чего она возникает."
+masteryCriteria:
+  - "Ваша программа читает две строки ввода и печатает их сумму как число, а не как склейку."
+  - "Вы выбираете decimal для цены и int для количества."
+  - "Вы объясняете, почему строка 3.5 не подходит для int.Parse."
+concepts:
+  introduces:
+    - "csharp.parse"
+  uses:
+    - "csharp.read-line"
+    - "csharp.null-coalescing"
+    - "csharp.int"
+    - "csharp.double"
+    - "csharp.decimal"
+    - "csharp.culture"
+    - "csharp.format-specifier"
+    - "csharp.interpolation"
+next:
+  - "csharp.from-zero.comparison-and-logic"
+tags:
+  - "csharp"
+  - "input"
+  - "parse"
+  - "numbers"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        string text = "41";
+        int number = int.Parse(text);
+        Console.WriteLine(number + 1);
+        ```
+      options:
+        - "42"
+        - "411"
+        - "41"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "int.Parse превращает текст 41 в число 41, после чего number + 1 - сложение чисел. Если бы number оставалось строкой, получилось бы 411."
+    - id: "q2"
+      type: "single"
+      prompt: "Во вводе строка 3.5. Что произойдёт при int.Parse для этой строки?"
+      options:
+        - "Получится 3."
+        - "Получится 4."
+        - "Программа остановится с FormatException."
+        - "Получится 3.5."
+      answer: 2
+      explanation: "int принимает только целые числа в записи без дробной части. Для 3.5 нужен double.Parse или decimal.Parse; int.Parse не округляет и не отбрасывает дробную часть, а останавливает программу."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой тип выбрать для цены товара, которую читают из ввода?"
+      options:
+        - "int"
+        - "double"
+        - "decimal"
+        - "string"
+      answer: 2
+      explanation: "Деньги хранят в decimal: он точно хранит десятичные дроби. Разбирается строка методом decimal.Parse."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Ввод: две строки, 3 и 4. Что напечатает программа?
+
+        ```csharp
+        int a = int.Parse(Console.ReadLine() ?? "");
+        int b = int.Parse(Console.ReadLine() ?? "");
+        Console.WriteLine(a + b);
+        ```
+      options:
+        - "34"
+        - "7"
+        - "3 4"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Обе строки превращены в числа, поэтому + складывает. Без Parse (с обычными строками) получилось бы 34."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Ввод пуст. Что произойдёт?
+
+        ```csharp
+        int n = int.Parse(Console.ReadLine() ?? "");
+        ```
+      options:
+        - "n станет равно 0."
+        - "Программа остановится с FormatException, потому что пустая строка - не число."
+        - "n станет равно null."
+        - "Ошибка компиляции."
+      answer: 1
+      explanation: "?? заменит null пустой строкой, но пустая строка не является записью числа, поэтому Parse сообщает о неверном формате. Как обрабатывать такие случаи без остановки программы - в уроке про исключения."
+exercise:
+  id: "csharp.from-zero.parsing-numbers.exercise"
+  title: "Сумма покупки"
+  prompt: |
+    Программа читает две строки ввода: цену одной тетради (дробное число с точкой, деньги) и количество тетрадей (целое). Она печатает сумму покупки и сдачу с 1000 рублей, оба числа с двумя знаками после точки.
+
+    **Пример.** Ввод:
+
+    ```
+    120.50
+    4
+    ```
+
+    Вывод:
+
+    ```
+    Сумма: 482.00
+    Сдача с 1000: 518.00
+    ```
+
+    В заготовке только первые две строки (подключение культуры, чтобы разделителем была точка) и план в комментариях. Остальное напишите самостоятельно: цена хранится в `decimal`, количество - в `int`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Прочитайте строку и превратите её в число одной записью: decimal.Parse(Console.ReadLine() ?? \"\")."
+    - "Количество - целое, поэтому для него int.Parse. Переменные назовите price и count."
+    - "Сумма - decimal total = price * count; умножение decimal на int допустимо без приведения."
+    - "Для вывода используйте формат :F2, например {total:F2}. Сдача - {1000 - total:F2}."
+  tests:
+    - id: "basic"
+      title: "120.50 x 4"
+      stdin: "120.50\n4\n"
+      expected: |
+        Сумма: 482.00
+        Сдача с 1000: 518.00
+      hint: "120.50 умножить на 4 - 482.00; сдача 1000 минус 482 - 518.00. Оба числа с двумя знаками после точки."
+    - id: "whole"
+      title: "Целая цена (скрытый)"
+      stdin: "45\n3\n"
+      expected: |
+        Сумма: 135.00
+        Сдача с 1000: 865.00
+      hidden: true
+      hint: "Цена без дробной части тоже читается decimal.Parse, а формат :F2 допишет нули."
+    - id: "cents"
+      title: "Копейки (скрытый)"
+      stdin: "19.99\n10\n"
+      expected: |
+        Сумма: 199.90
+        Сдача с 1000: 800.10
+      hidden: true
+      hint: "Для денег нужен decimal: так копейки считаются точно. 19.99 * 10 равно 199.90, сдача 800.10."

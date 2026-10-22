@@ -1,0 +1,237 @@
+id: "kotlin.programmers.nullability-exceptions-and-classes"
+title: "Null-безопасность, исключения и классы: ловушки Kotlin"
+goal: "Пользоваться типами T и T?, не злоупотреблять !!, обрабатывать неверные данные через null и исключения и писать классы и data-классы, понимая равенство, copy и поверхностную копию."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "kotlin.first-steps.how-kotlin-runs"
+objectives:
+  - "Различать T и T?, применять ?., ?:, smart cast и объяснять, почему !! и платформенные типы возвращают NullPointerException."
+  - "Выбирать между toIntOrNull, исключением и require/check и использовать try как выражение."
+  - "Писать классы с первичным конструктором и объяснять, чем data class отличается от обычного класса: equals, toString, copy, деструктуризация."
+  - "Понимать, что copy поверхностный, а свойства вне первичного конструктора не участвуют в equals."
+masteryCriteria:
+  - "parseOrder, checkOrder и addMore верно обрабатывают плохие строки, граничные количества и повторы товара."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "kotlin"
+  - "programmers"
+  - "null-safety"
+  - "exceptions"
+  - "classes"
+assessmentFor:
+  - "kotlin.from-zero.nullable-values"
+  - "kotlin.from-zero.exceptions"
+  - "kotlin.from-zero.first-class"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        data class Box(var count: Int)
+
+        fun main() {
+            val a = Box(1)
+            val b = a.copy()
+            val c = a
+            a.count = 5
+            println("${b.count} ${c.count} ${a == c} ${a == b}")
+        }
+        ```
+      options:
+        - "1 5 true false"
+        - "1 1 true true"
+        - "5 5 true true"
+        - "1 5 false false"
+      answer: 0
+      explanation: "copy создаёт новый объект, поэтому b не видит изменения a. c - вторая ссылка на тот же объект, поэтому c.count тоже 5 и a == c истинно. a и b после изменения имеют разные count, и data class сравнивает именно их: a == b ложно. Заметьте: val не мешает менять var-свойство объекта."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val s: String? = null
+            println(s?.length)
+            println(s?.length ?: -1)
+            try {
+                println(s!!.length)
+            } catch (e: NullPointerException) {
+                println("NPE")
+            }
+        }
+        ```
+      options:
+        - "null -1 NPE"
+        - "0 -1 NPE"
+        - "null -1 null"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "s?.length при s == null даёт null (в println попадает слово null). Цепочка ?: подставляет -1. Оператор !! превращает значение null в NullPointerException, который здесь перехвачен."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске? Переменная окружения NO_SUCH_VARIABLE не задана.
+
+        ```kotlin
+        fun main() {
+            val home = System.getenv("NO_SUCH_VARIABLE")
+            println("start")
+            println(home.length)
+        }
+        ```
+      options:
+        - "Ошибка компиляции: тип String? не допускает length"
+        - "Выведет start, затем бросит NullPointerException"
+        - "Выведет start и 0"
+        - "Выведет start и null"
+      answer: 1
+      explanation: "System.getenv - метод Java, поэтому у результата платформенный тип String!, и компилятор не требует проверки на null. Код компилируется, start печатается, а home.length бросает NullPointerException. Явное объявление val home: String? заставило бы обработать null."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun parse(s: String): Int = try {
+            s.toInt()
+        } catch (e: NumberFormatException) {
+            -1
+        }
+
+        fun main() {
+            println("${parse("42")} ${parse("4x")} ${"7".toIntOrNull()} ${"x".toIntOrNull()}")
+        }
+        ```
+      options:
+        - "42 -1 7 null"
+        - "42 -1 7 -1"
+        - "42 4 7 null"
+        - "42 -1 null null"
+      answer: 0
+      explanation: "try - выражение: при успехе его значение - результат toInt(), при NumberFormatException - значение из catch. toIntOrNull возвращает число или null без исключения, а null в шаблоне строки печатается как слово null."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        class P(val x: Int)
+        data class Q(val x: Int)
+
+        fun main() {
+            println("${P(1) == P(1)} ${Q(1) == Q(1)} ${Q(1)}")
+        }
+        ```
+      options:
+        - "false true Q(x=1)"
+        - "true true Q(x=1)"
+        - "false false Q(x=1)"
+        - "false true Q@1"
+      answer: 0
+      explanation: "У обычного класса equals по умолчанию сравнивает ссылки, поэтому два разных объекта P не равны. У data class equals и toString создаются по свойствам первичного конструктора: Q(1) == Q(1), и строка выглядит как Q(x=1)."
+exercise:
+  id: "kotlin.programmers.nullability-exceptions-and-classes.exercise"
+  title: "Заказы: разбор, проверка и объединение"
+  prompt: |-
+    Программа читает строки вида `товар;количество` до конца ввода, объединяет повторы и печатает итог. `main` и класс `Order` уже написаны; реализуйте три функции.
+
+    * `parseOrder(line: String): Order?` - разбирает строку: две части, разделённые `;`; название и количество без пробелов по краям; название не пустое, количество - целое число. Для любой неверной строки возвращает `null`.
+    * `checkOrder(order: Order): Order` - возвращает заказ, если количество от 1 до 100 включительно, иначе бросает `IllegalArgumentException("Количество должно быть от 1 до 100: <количество>")`.
+    * `addMore(order: Order, extra: Int): Order` - новый заказ с тем же названием и количеством, увеличенным на `extra`. Исходный заказ менять нельзя: используйте `copy`.
+
+    **Пример.** Ввод:
+
+    ```
+    tea;3
+    jam; 2
+    bad line
+    coffee;x
+    tea;4
+    cake;500
+    ;5
+    ```
+
+    Вывод:
+
+    ```
+    Отклонено: Количество должно быть от 1 до 100: 500
+    Order(item=tea, qty=7)
+    Order(item=jam, qty=2)
+    Неверных строк: 3
+    Отклонено заказов: 1
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций и `main` уже есть. Начните с parseOrder: `line.split(\";\")` должен дать ровно два элемента, оба обрежьте через trim()."
+    - "Количество разбирайте через toIntOrNull(): оно возвращает null, а не бросает исключение. Конструкция `val qty = ... ?: return null` выходит из функции сразу."
+    - "checkOrder: `if (order.qty < 1 || order.qty > 100) throw IllegalArgumentException(\"Количество должно быть от 1 до 100: ${order.qty}\")`, иначе верните order."
+    - "addMore: `order.copy(qty = order.qty + extra)` - data class создаёт новый объект, меняя только указанное свойство."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: |
+        tea;3
+        jam; 2
+        bad line
+        coffee;x
+        tea;4
+        cake;500
+        ;5
+      expected: |
+        Отклонено: Количество должно быть от 1 до 100: 500
+        Order(item=tea, qty=7)
+        Order(item=jam, qty=2)
+        Неверных строк: 3
+        Отклонено заказов: 1
+      hint: "Неверные строки: bad line, coffee;x и пустое название - три. cake;500 отклонён, tea объединён в 3 + 4 = 7, количество jam после trim равно 2."
+    - id: "merge"
+      title: "Повторы товара"
+      stdin: |
+        pen;1
+        pen;1
+      expected: |
+        Order(item=pen, qty=2)
+        Неверных строк: 0
+        Отклонено заказов: 0
+      hint: "Два заказа pen объединяются в Order(item=pen, qty=2); неверных и отклонённых нет."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Неверных строк: 0
+        Отклонено заказов: 0
+      hidden: true
+      hint: "Без строк печатаются только два итога: Неверных строк: 0 и Отклонено заказов: 0."
+    - id: "bounds"
+      title: "Границы количества (скрытый)"
+      stdin: |
+        a;100
+        b;0
+        c;-5
+        d;1
+      expected: |
+        Отклонено: Количество должно быть от 1 до 100: 0
+        Отклонено: Количество должно быть от 1 до 100: -5
+        Order(item=a, qty=100)
+        Order(item=d, qty=1)
+        Неверных строк: 0
+        Отклонено заказов: 2
+      hidden: true
+      hint: "Допустимы 1 и 100; 0 и -5 отклоняются с сообщением, содержащим само количество. Отрицательное число разбирается как число, а не как неверная строка."
+    - id: "malformed"
+      title: "Лишние части и пробелы (скрытый)"
+      stdin: "a;1;2\n  x ; 7 \n\n;\nz;\n"
+      expected: |
+        Order(item=x, qty=7)
+        Неверных строк: 4
+        Отклонено заказов: 0
+      hidden: true
+      hint: "a;1;2 - три части, пустая строка - одна, ';' и 'z;' имеют пустое название или количество: четыре неверные строки. Строка '  x ; 7 ' после trim даёт x и 7."

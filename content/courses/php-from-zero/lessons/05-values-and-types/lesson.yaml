@@ -1,0 +1,153 @@
+id: "php.from-zero.values-and-types"
+title: "Значения и их типы"
+goal: "Различать целые и дробные числа, текст, логические значения и null и проверять тип значения."
+difficulty: "intro"
+estimatedMinutes: 25
+prerequisites:
+  - "php.from-zero.variables"
+objectives:
+  - "Назвать пять типов: int, float, string, bool и null - и записать значение каждого типа."
+  - "Узнать тип значения функциями var_dump и get_debug_type."
+  - "Объяснить, чем число 42 отличается от текста \"42\"."
+masteryCriteria:
+  - "Вы записываете в переменную целое число, дробное число, текст, true/false и null."
+  - "Вы предсказываете вывод var_dump для значения и объясняете, что показывают его части."
+  - "Вы знаете, что echo не печатает false и null, а true печатает как 1."
+concepts:
+  introduces:
+    - "php.int"
+    - "php.float"
+    - "php.string"
+    - "php.bool"
+    - "php.null"
+    - "php.var-dump"
+  uses:
+    - "php.variable"
+    - "php.assignment"
+    - "php.echo"
+    - "php.interpolation"
+next:
+  - "php.from-zero.arithmetic"
+tags:
+  - "php"
+  - "types"
+  - "var-dump"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        var_dump("42");
+        ```
+      options:
+        - "int(42)"
+        - "string(2) \"42\""
+        - "float(42)"
+        - "bool(true)"
+      answer: 1
+      explanation: "Число в кавычках - это текст. var_dump показывает тип string, число в скобках - длину текста в байтах (два символа), и само значение в кавычках."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        echo "[", false, "]\n";
+        ```
+      options:
+        - "[false]"
+        - "[0]"
+        - "[]"
+        - "[null]"
+      answer: 2
+      explanation: "Для echo значение false превращается в пустую строку, поэтому между скобками ничего нет. А true напечаталось бы как 1. Чтобы увидеть bool как слово, используют var_dump."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие значения имеют тип float?"
+      options:
+        - "7"
+        - "7.0"
+        - "\"7.0\""
+        - "0.5"
+      answer:
+        - 1
+        - 3
+      explanation: "Число с десятичной точкой - float, даже если дробная часть равна нулю (7.0). Целое число 7 имеет тип int, а \"7.0\" в кавычках - текст."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        $a = 10;
+        $a = "десять";
+        echo get_debug_type($a), "\n";
+        ```
+      options:
+        - "int"
+        - "string"
+        - "float"
+        - "Ошибку: тип переменной менять нельзя"
+      answer: 1
+      explanation: "Тип принадлежит значению, а не переменной. Новое присваивание кладёт в $a текст, поэтому get_debug_type возвращает string."
+    - id: "q5"
+      type: "single"
+      prompt: "Какая из этих команд вызовет Parse error?"
+      options:
+        - "$x = 3.5;"
+        - "$x = 3,5;"
+        - "$x = .5;"
+        - "$x = 35e-1;"
+      answer: 1
+      explanation: "В коде дробную часть отделяют точкой. Запятая в PHP - это разделитель, поэтому $x = 3,5; вызывает Parse error."
+exercise:
+  id: "php.from-zero.values-and-types.exercise"
+  title: "Правильные типы значений"
+  prompt: |
+    В заготовке пять переменных, но у некоторых не тот тип. Измените **только значения** переменных (строки с `echo` не трогайте) так, чтобы программа напечатала:
+
+    ```
+    count: int
+    price: float
+    title: string
+    inStock: bool
+    discount: null
+    ```
+
+    Требования: `$count` - целое число 12, `$price` - дробное число 99.5, `$title` - текст `Чай`, `$inStock` - логическое значение «истина», `$discount` - значение `null`.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "get_debug_type показывает тип значения. Заготовка печатает типы string для count, int для price, string для inStock и string для discount: значения записаны не тем способом."
+    - "Целое число пишут без кавычек: 12. Дробное - с точкой: 99.5. Логические значения - слова true и false без кавычек."
+    - "Для «пусто» используют слово null без кавычек. Пустые кавычки \"\" - это текст нулевой длины, а не null."
+    - "$count = 12; $price = 99.5; $inStock = true; $discount = null; Строку с $title оставьте."
+  tests:
+    - id: "basic"
+      title: "Пять типов"
+      stdin: ""
+      expected: |
+        count: int
+        price: float
+        title: string
+        inStock: bool
+        discount: null
+      hint: "Должно быть ровно пять строк с типами: int, float, string, bool, null в этом порядке."
+    - id: "exact"
+      title: "Типы определены значениями (скрытый)"
+      stdin: ""
+      expected: |
+        count: int
+        price: float
+        title: string
+        inStock: bool
+        discount: null
+      hidden: true
+      hint: "Тип задаётся записью значения: 12 без кавычек - int, 99.5 - float, true без кавычек - bool, null без кавычек - null. Значения в кавычках всегда будут string."

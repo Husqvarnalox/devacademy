@@ -1,0 +1,219 @@
+id: "kotlin.programmers.functions-collections-and-strings"
+title: "Функции, коллекции и строки: ловушки Kotlin"
+goal: "Писать функции с аргументами по умолчанию, пользоваться List и MutableList, Map и строковыми методами и не попадаться в ловушки: val не делает коллекцию неизменяемой, map[key] возвращает V?, split оставляет пустые элементы."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "kotlin.programmers.nullability-exceptions-and-classes"
+objectives:
+  - "Объявлять функции с выражением-телом, значениями по умолчанию и именованными аргументами и объяснять, что параметры неизменяемы."
+  - "Различать List и MutableList, val и неизменяемость и понимать, когда список - копия, а когда представление."
+  - "Работать с Map: результат V?, getOrDefault, getValue, порядок вставки, обход пар."
+  - "Использовать строковые методы (trim, split, substring, replace, joinToString) и помнить про пустые элементы split и конец substring."
+masteryCriteria:
+  - "wordCounts, topWord, average и titleCase дают верные результаты на пустых словах, ничьей по частоте и пустом списке чисел."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "kotlin"
+  - "programmers"
+  - "functions"
+  - "collections"
+  - "strings"
+assessmentFor:
+  - "kotlin.from-zero.functions"
+  - "kotlin.from-zero.lists"
+  - "kotlin.from-zero.maps"
+  - "kotlin.from-zero.string-methods"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val items = mutableListOf(1, 2, 3)
+            val view: List<Int> = items
+            items.add(4)
+            println(view.size)
+        }
+        ```
+      options:
+        - "3"
+        - "4"
+        - "Ошибка компиляции"
+        - "UnsupportedOperationException"
+      answer: 1
+      explanation: "View - не копия, а второе имя для того же списка с урезанным интерфейсом. После items.add(4) в нём четыре элемента. Копию создаёт toList()."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val names = mutableListOf("a")
+            val copy = names.toList()
+            names.add("b")
+            println("${names.size} ${copy.size}")
+        }
+        ```
+      options:
+        - "2 1"
+        - "2 2"
+        - "1 1"
+        - "1 2"
+      answer: 0
+      explanation: "toList() создаёт копию на момент вызова. Добавление в names её не затрагивает, поэтому в names два элемента, а в copy один. Слово val тут ни при чём: оно запрещает переприсвоение names, но не изменение списка."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val stock = mapOf("tea" to 3, "jam" to 0)
+            println("${stock["tea"]} ${stock["milk"]} ${stock["milk"] ?: -1} ${stock.getOrDefault("jam", 9)}")
+        }
+        ```
+      options:
+        - "3 null -1 0"
+        - "3 0 -1 0"
+        - "3 null -1 9"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "stock[\"milk\"] возвращает Int?, то есть null, потому что ключа нет, и в шаблон строки попадает слово null. Оператор ?: подставляет -1. Для \"jam\" ключ есть, поэтому getOrDefault возвращает 0, а не значение по умолчанию 9."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val a = "kot"
+            val b = a + "lin"
+            println("${b == "kotlin"} ${b === "kotlin"} ${b.substring(1, 3)} ${b[0]}")
+        }
+        ```
+      options:
+        - "true false ot k"
+        - "true true ot k"
+        - "true false otl k"
+        - "false false ot k"
+      answer: 0
+      explanation: "== сравнивает содержимое строк, поэтому b == \"kotlin\" истинно. === сравнивает ссылки: b собрана во время работы и является другим объектом, поэтому ложно. substring(1, 3) берёт символы с индексами 1 и 2 (конец не включается): ot. b[0] - символ k."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val m = mutableMapOf("pear" to 1, "apple" to 2)
+            m["fig"] = 3
+            m["pear"] = 10
+            println("${m.keys} ${m.values.sum()} ${"a  b".split(" ").size}")
+        }
+        ```
+      options:
+        - "[pear, apple, fig] 15 3"
+        - "[apple, fig, pear] 15 2"
+        - "[pear, apple, fig] 6 2"
+        - "[fig, pear, apple] 15 3"
+      answer: 0
+      explanation: "mutableMapOf сохраняет порядок вставки; присваивание существующему ключу pear меняет значение, но не позицию: [pear, apple, fig]. Значения 10 + 2 + 3 = 15. split(\" \") не удаляет пустые элементы: из \"a  b\" получается три элемента (a, пустая строка, b)."
+exercise:
+  id: "kotlin.programmers.functions-collections-and-strings.exercise"
+  title: "Частота слов, среднее и имя"
+  prompt: |-
+    Программа читает три строки: текст из слов, целые числа через пробел и имя. `main` уже написан; реализуйте четыре функции.
+
+    * `wordCounts(text: String): Map<String, Int>` - сколько раз встречается каждое слово. Слова разделены пробелами (пробелов может быть несколько, текст может быть пустым), регистр не различается: слова приводятся к нижнему регистру. Порядок слов в результате - порядок первого появления.
+    * `topWord(counts: Map<String, Int>): String` - слово с наибольшей частотой; при равенстве - то, что идёт раньше по алфавиту; для пустого словаря - `"-"`.
+    * `average(nums: List<Int>): Double` - среднее арифметическое; для пустого списка `0.0`.
+    * `titleCase(name: String): String` - имя без пробелов по краям, первая буква заглавная, остальные строчные.
+
+    **Пример.** Ввод:
+
+    ```
+    the cat and the dog and the bird
+    4 8 15 16
+      aLICE
+    ```
+
+    Вывод:
+
+    ```
+    Уникальных слов: 5
+    Чаще всего: the (3)
+    Среднее: 10.75
+    Имя: Alice
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций уже есть, `main` менять не нужно. Начните с wordCounts: пройдите по `text.lowercase().split(\" \")` и увеличивайте счётчик в `mutableMapOf<String, Int>()`."
+    - "split(\" \") оставляет пустые элементы, если пробелов несколько или текст пуст: пропускайте слова, у которых isEmpty()."
+    - "topWord: пройдите по парам `for ((w, n) in counts)` и запоминайте слово с наибольшим n; при n == bestN выбирайте меньшее слово (w < best)."
+    - "average: для пустого списка верните 0.0, иначе nums.sum().toDouble() / nums.size. titleCase: trim, затем substring(0, 1).uppercase() + substring(1).lowercase() (учтите пустую строку)."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "the cat and the dog and the bird\n4 8 15 16\n  aLICE\n"
+      expected: |
+        Уникальных слов: 5
+        Чаще всего: the (3)
+        Среднее: 10.75
+        Имя: Alice
+      hint: "Слов 8, уникальных 5; the встречается 3 раза; среднее (4+8+15+16)/4 = 10.75; имя после trim - Alice."
+    - id: "tie"
+      title: "Ничья по частоте"
+      stdin: |
+        b a b a c
+        1 2
+        bob
+      expected: |
+        Уникальных слов: 3
+        Чаще всего: a (2)
+        Среднее: 1.50
+        Имя: Bob
+      hint: "a и b встречаются по два раза: побеждает a (раньше по алфавиту). Среднее 1.5, имя Bob."
+    - id: "spaces-case"
+      title: "Несколько пробелов и разный регистр (скрытый)"
+      stdin: "  Hello   hello WORLD \n\nmARIA\n"
+      expected: |
+        Уникальных слов: 2
+        Чаще всего: hello (2)
+        Среднее: 0.00
+        Имя: Maria
+      hidden: true
+      hint: "split(\" \") даёт пустые элементы: их нужно пропускать. Hello и hello - одно слово (2 раза), пустой список чисел даёт среднее 0.00."
+    - id: "empty-text"
+      title: "Пустой текст (скрытый)"
+      stdin: |
+
+        -3 4
+        zed
+      expected: |
+        Уникальных слов: 0
+        Чаще всего: - (0)
+        Среднее: 0.50
+        Имя: Zed
+      hidden: true
+      hint: "Для пустого текста уникальных слов 0, самое частое слово - '-' с частотой 0. Среднее (-3 + 4) / 2 = 0.50."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: |
+        x y x
+        1 2 2
+        ÉMILE
+      expected: |
+        Уникальных слов: 2
+        Чаще всего: x (2)
+        Среднее: 1.67
+        Имя: Émile
+      hidden: true
+      hint: "Среднее 5/3 печатается с двумя знаками после точки: 1.67. Имя ÉMILE - Émile."

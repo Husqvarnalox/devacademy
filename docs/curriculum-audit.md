@@ -497,6 +497,9 @@
 | `python-stdlib`, `python-concurrency` | `requires` не отражали prerequisites уроков | `requires` дополнены |
 | `javascript-from-zero`, `javascript-for-programmers`, `javascript-skill-check` | - | новые: 23 урока с нуля (`concepts` у всех), 3 урока для программистов, 9 проверок; маршрут `content/routes/javascript.yaml` |
 | `javascript-first-steps`, `javascript-fundamentals` | `javascript-fundamentals` без `requires`: React и Express формально не требовали знания языка | `first-steps` требует `javascript-from-zero`, `fundamentals` требует `first-steps`; содержание не менялось |
+| `<язык>-from-zero` для TypeScript, C#, Java, Kotlin, C++, Rust, PHP | - | новые: по 24 урока уровня 0 (`concepts` у всех), одно понятие на урок, упражнения A→D, мини-проект с пропуском плохих строк; планы - `docs/curriculum/<язык>.md` |
+| `<язык>-for-programmers`, `<язык>-skill-check` для тех же языков | - | новые: по 3 урока для программистов (зачитывают уроки курса с нуля) и по 8 проверок (3 на курс с нуля, остальные на `first-steps` / `fundamentals`); маршруты `content/routes/<язык>.yaml` |
+| `<язык>-first-steps` тех же языков | курс для программистов без входа для новичка | `requires: [<язык>-from-zero]`, первый урок зависит от урока курса с нуля; цели, повторявшие курс с нуля, сдвинуты к устройству запуска (JVM, CLR, tsc, rustc, препроцессор и компоновщик, Zend). `typescript-first-steps` больше не требует `javascript-first-steps` |
 
 Перенос прогресса (`formerIds`, только эквивалентное содержание): `go.first-steps.how-go-runs` → `go.first-steps.number-stream`
 (то же упражнение и тесты), `go.first-steps.slices-len-cap-and-append` → `go.pro.slice-internals`,
@@ -505,10 +508,10 @@
 (новый id упражнения `...exercise-v2`): прежний зачёт остаётся, потому что умение то же или уже; старые черновики этих
 упражнений не переносятся. Удалены два испытания (`python.fundamentals.loops.challenge`, `lists.challenge`).
 
-Не переработано (честный статус): курсы «с нуля» для C++, C#, Java, Kotlin, PHP, Rust, TypeScript; дубли
-first-steps / fundamentals в этих треках; профессиональные треки Python (AsyncIO, профилирование, packaging) кроме
-существующих курсов; проверки компетенций для языков, кроме Go, Python и JavaScript. Фреймворковые курсы (React, FastAPI, Spring Boot,
-ASP.NET Core) по-прежнему опираются на курсы языков через `requires`.
+Не переработано (честный статус): курс «с нуля» для Node.js (`nodejs-first-steps` остаётся курсом для программистов);
+дубли между `first-steps` и `fundamentals` внутри языковых треков (курсы `fundamentals` не менялись); профессиональные курсы
+уровня `go-professional` для языков, кроме Go; профессиональные треки Python (AsyncIO, профилирование, packaging) кроме
+существующих курсов. Фреймворковые курсы (React, FastAPI, Spring Boot, ASP.NET Core) по-прежнему опираются на курсы языков через `requires`.
 
 ## 11. Педагогическая проверка (экспертная оценка, не исследование с участниками)
 
@@ -517,13 +520,13 @@ ASP.NET Core) по-прежнему опираются на курсы язык�
 
 **Автоматически (валидатор, на каждом запуске):**
 
-* «Используется до объяснения»: у всех 29 уроков `go-first-steps` и 15 уроков `python-fundamentals` заполнены `concepts`;
+* «Используется до объяснения»: у всех уроков курсов уровня 0 (`go-first-steps`, `python-fundamentals` и всех `*-from-zero`) заполнены `concepts`;
   валидатор не нашёл ни одного понятия, используемого раньше, чем его ввели.
 * Цепочка prerequisites в курсах уровня 0 без разрывов; сложность только `intro` / `easy` (эвристика, предупреждений нет).
 * Эталоны проходят все тесты, заготовки - нет; запускаемые примеры теории дают объявленный вывод (`--run-solutions`).
 * Маршруты: точки входа и уроки-проверки существуют, у проверок есть `assessmentFor` и упражнение, порядок `after` без циклов.
 
-**Выборочно вручную (уроки 01, 07, 12, 14, 22, 29 Go; 01, 08 Python):**
+**Выборочно вручную (уроки 01, 07, 12, 14, 22, 29 Go; 01, 08 Python; 01 C#; 17 PHP; согласованность описания переполнения в Rust):**
 
 | Вопрос стандарта | Результат |
 |---|---|

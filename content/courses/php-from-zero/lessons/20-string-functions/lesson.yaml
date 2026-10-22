@@ -1,0 +1,185 @@
+id: "php.from-zero.string-functions"
+title: "Строковые функции"
+goal: "Разрезать, искать, заменять и форматировать текст готовыми функциями, выбирая многобайтовые версии для кириллицы."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "php.from-zero.associative-arrays"
+objectives:
+  - "Использовать explode, implode, str_contains и str_replace."
+  - "Брать часть строки через mb_substr и объяснять, почему substr ломает кириллицу."
+  - "Менять регистр и выравнивать строки функциями mb_strtoupper, mb_ucfirst, str_pad и mb_str_pad."
+masteryCriteria:
+  - "Ваша программа превращает ФИО в «Фамилия И. О.» и пропускает лишние пробелы."
+  - "Вы выбираете mb_-версии функций для русского текста."
+  - "Вы присваиваете результат строковой функции переменной, а не ждёте изменения исходной строки."
+concepts:
+  introduces:
+    - "php.string-functions"
+  uses:
+    - "php.string"
+    - "php.strlen"
+    - "php.mb-string"
+    - "php.concatenation"
+    - "php.array"
+    - "php.count"
+    - "php.foreach"
+    - "php.for"
+    - "php.if"
+    - "php.break-continue"
+    - "php.array-functions"
+    - "php.function"
+    - "php.strict-types"
+    - "php.strict-equality"
+    - "php.stdin"
+    - "php.fgets"
+    - "php.trim"
+next:
+  - "php.from-zero.reading-all-input"
+tags:
+  - "php"
+  - "strings"
+  - "mbstring"
+  - "explode"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        echo count(explode(",", "a,b,,c"));
+        ```
+      options:
+        - "3"
+        - "4"
+        - "5"
+        - "2"
+      answer: 1
+      explanation: "Две запятые подряд дают пустую часть между ними: получается a, b, пустая строка и c - четыре элемента."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        echo str_replace("кот", "пёс", "кот и кот");
+        ```
+      options:
+        - "пёс и кот"
+        - "пёс и пёс"
+        - "кот и кот"
+        - "пёс"
+      answer: 1
+      explanation: "str_replace заменяет все вхождения, а не только первое."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        echo mb_substr("Привет", 1, 3);
+        ```
+      options:
+        - "При"
+        - "рив"
+        - "ривет"
+        - "Прив"
+      answer: 1
+      explanation: "Отсчёт идёт с нуля: символ с индексом 1 - «р». Берутся три символа: «рив»."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        echo ucfirst("ёлка");
+        ```
+      options:
+        - "Ёлка"
+        - "ёлка"
+        - "ЁЛКА"
+        - "Ошибку"
+      answer: 1
+      explanation: "ucfirst работает с байтами и меняет только латиницу. Для кириллицы нужна mb_ucfirst или mb_strtoupper(mb_substr(...))."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        echo str_pad("5", 3, "0", STR_PAD_LEFT);
+        ```
+      options:
+        - "500"
+        - "005"
+        - "5"
+        - "050"
+      answer: 1
+      explanation: "STR_PAD_LEFT дополняет строку слева до длины 3: к «5» добавляются два нуля слева."
+exercise:
+  id: "php.from-zero.string-functions.exercise"
+  title: "ФИО: фамилия и инициалы"
+  prompt: |
+    На вход подаётся одна строка: фамилия, имя и, возможно, отчество, записанные строчными буквами через пробелы. Между словами может быть несколько пробелов, а по краям - пробелы. Напечатайте две строки:
+
+    1. фамилию с заглавной буквы, а затем каждое следующее слово как инициал с точкой: `Иванов И. И.`;
+    2. `Слов: <сколько слов в записи>`.
+
+    В строке всегда есть хотя бы одно слово. Слова не содержат дефисов.
+
+    **Пример.** Ввод:
+
+    ```
+    иванов иван иванович
+    ```
+
+    Вывод:
+
+    ```
+    Иванов И. И.
+    Слов: 3
+    ```
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Разрежьте строку: explode(\" \", $line). Если слов разделяют несколько пробелов, в массиве появятся пустые элементы - пропускайте их через if ($part === \"\") { continue; }."
+    - "Первое слово с заглавной буквы: mb_ucfirst($words[0]). Для остальных нужна первая буква: mb_substr($word, 0, 1)."
+    - "Инициал: mb_strtoupper(mb_substr($word, 0, 1)) . \".\". Собирайте результат в строку: $result .= \" \" . ...;"
+    - "Обычные substr и ucfirst не работают с кириллицей, используйте mb_-версии."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "иванов иван иванович\n"
+      expected: "Иванов И. И.\nСлов: 3\n"
+      hint: "Три слова: фамилия с заглавной, затем инициалы «И.» и «И.»."
+    - id: "two-words"
+      title: "Без отчества"
+      stdin: "петрова анна\n"
+      expected: "Петрова А.\nСлов: 2\n"
+      hint: "Два слова: фамилия и один инициал, без лишнего пробела в конце."
+    - id: "spaces"
+      title: "Лишние пробелы (скрытый)"
+      stdin: "   сидоров    пётр   алексеевич  \n"
+      expected: "Сидоров П. А.\nСлов: 3\n"
+      hidden: true
+      hint: "Пустые части после explode пропускайте: слов должно быть три, а не больше."
+    - id: "one-word"
+      title: "Только фамилия (скрытый)"
+      stdin: "кузнецов\n"
+      expected: "Кузнецов\nСлов: 1\n"
+      hidden: true
+      hint: "Одно слово: инициалов нет, вывод - просто фамилия с заглавной буквы."
+    - id: "yo"
+      title: "Буква Ё (скрытый)"
+      stdin: "ёлкин ёж ёжикович\n"
+      expected: "Ёлкин Ё. Ё.\nСлов: 3\n"
+      hidden: true
+      hint: "Заглавная для «ё» - «Ё»: нужны mb_-функции, обычные ucfirst и substr её не обработают."

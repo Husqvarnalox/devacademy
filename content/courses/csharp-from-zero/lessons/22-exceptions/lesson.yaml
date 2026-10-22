@@ -1,0 +1,224 @@
+id: "csharp.from-zero.exceptions"
+title: "Исключения и TryParse"
+goal: "Обрабатывать ошибки во время работы: перехватывать исключения через try/catch, разбирать текст через int.TryParse и бросать исключение через throw."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "csharp.from-zero.string-methods"
+objectives:
+  - "Объяснять, что такое исключение и почему необработанное исключение останавливает программу."
+  - "Писать try/catch для конкретного типа исключения."
+  - "Разбирать число через int.TryParse и обрабатывать неудачу без исключения."
+  - "Бросать исключение через throw, когда метод получил недопустимые данные."
+masteryCriteria:
+  - "Вы выбираете TryParse для ожидаемо неверного ввода и try/catch для неожиданных сбоев."
+  - "Вы всегда проверяете значение, которое вернул TryParse."
+  - "Вы ставите более частные catch выше более общих."
+concepts:
+  introduces:
+    - "csharp.exception"
+    - "csharp.try-catch"
+    - "csharp.try-parse"
+    - "csharp.throw"
+  uses:
+    - "csharp.parse"
+    - "csharp.int"
+    - "csharp.bool"
+    - "csharp.if"
+    - "csharp.while"
+    - "csharp.end-of-input"
+    - "csharp.read-line"
+    - "csharp.method"
+    - "csharp.return"
+    - "csharp.try-get-value"
+    - "csharp.interpolation"
+next:
+  - "csharp.from-zero.classes-basics"
+tags:
+  - "csharp"
+  - "exceptions"
+  - "tryparse"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        try
+        {
+            int n = int.Parse("abc");
+            Console.WriteLine("число");
+        }
+        catch (FormatException)
+        {
+            Console.WriteLine("ошибка");
+        }
+        Console.WriteLine("дальше");
+        ```
+      options:
+        - "число, дальше"
+        - "ошибка, затем дальше"
+        - "только ошибка"
+        - "Программа остановится с Unhandled exception."
+      answer: 1
+      explanation: "Parse создаёт FormatException, остаток try пропускается, срабатывает catch и печатает «ошибка». После блока программа продолжает работу и печатает «дальше»."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        bool ok = int.TryParse("12x", out int v);
+        Console.WriteLine($"{ok} {v}");
+        ```
+      options:
+        - "True 12"
+        - "False 12"
+        - "False 0"
+        - "Программа остановится с FormatException."
+      answer: 2
+      explanation: "Текст «12x» не число. TryParse возвращает false, а переменная v получает 0. Исключения не возникает."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int a = 7;
+        int b = 0;
+        try
+        {
+            Console.WriteLine(a / b);
+            Console.WriteLine("после");
+        }
+        catch (DivideByZeroException)
+        {
+            Console.WriteLine("деление на ноль");
+        }
+        ```
+      options:
+        - "после"
+        - "деление на ноль"
+        - "деление на ноль, затем после"
+        - "0"
+      answer: 1
+      explanation: "Деление создаёт исключение, остальные строки блока try пропускаются, и выполняется только catch."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что не так в этом коде?
+
+        ```csharp
+        try
+        {
+            Console.WriteLine(1);
+        }
+        catch (Exception)
+        {
+            Console.WriteLine("a");
+        }
+        catch (FormatException)
+        {
+            Console.WriteLine("b");
+        }
+        ```
+      options:
+        - "Всё правильно."
+        - "Ошибка CS0160: общий catch стоит выше частного."
+        - "Ошибка CS1620: нет слова out."
+        - "Ошибка CS0103: переменная не существует."
+      answer: 1
+      explanation: "Блоки проверяются сверху вниз. catch (Exception) ловит всё, поэтому второй блок недостижим, и компилятор сообщает об ошибке CS0160."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Для чего стоит выбрать int.TryParse, а не try/catch?
+      options:
+        - "Когда неверный текст - обычная, ожидаемая ситуация (например, ввод пользователя)."
+        - "Когда нужно перехватить любую ошибку программы."
+        - "Когда нужно бросить исключение из своего метода."
+        - "Когда число нужно получить из double."
+      answer: 0
+      explanation: "TryParse подходит там, где неверные данные ожидаются: он сообщает об этом значением bool и не создаёт исключение. Для бросания исключения служит throw."
+exercise:
+  id: "csharp.from-zero.exceptions.exercise"
+  title: "Принять и усреднить"
+  prompt: |
+    Основная часть программы читает строки до конца ввода. Каждая строка - количество товара. Для каждой строки она вызывает ваш метод `ParseQuantity`: если он вернул число не меньше нуля, строка принимается, иначе пропускается. В конце программа печатает результат и вызывает ваш метод `SafeDivide`. Напишите два метода:
+
+    * `ParseQuantity(string text)` - возвращает целое число, которое записано в `text`, если это целое число не меньше нуля. Для всего остального (буквы, дроби, пустая строка, отрицательное число) возвращает `-1`. Используйте `int.TryParse`;
+    * `SafeDivide(int total, int count)` - возвращает `total / count`, а если `count` равно нулю, возвращает `0`. Используйте `try`/`catch`.
+
+    **Пример.** Для ввода
+
+    ```
+    3
+    5
+    abc
+    4
+    ```
+
+    программа печатает
+
+    ```
+    Принято: 3
+    Пропущено: 1
+    Среднее: 4
+    ```
+
+    Основную часть не меняйте.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "ParseQuantity: вызовите int.TryParse(text, out int value). Если вызов вернул true и value не меньше нуля, верните value; иначе верните -1."
+    - "Условие можно записать в одну строку: if (int.TryParse(text, out int value) && value >= 0)."
+    - "SafeDivide: поместите return total / count; в блок try, а в блоке catch (DivideByZeroException) верните 0."
+    - "if (int.TryParse(text, out int value) && value >= 0) { return value; } return -1; и try { return total / count; } catch (DivideByZeroException) { return 0; }"
+  tests:
+    - id: "basic"
+      title: "Три числа и одна плохая строка"
+      stdin: "3\n5\nabc\n4\n"
+      expected: |
+        Принято: 3
+        Пропущено: 1
+        Среднее: 4
+      hint: "Строка abc пропускается; сумма принятых равна 12, их три, среднее равно 4."
+    - id: "no-input"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Принято: 0
+        Пропущено: 0
+        Среднее: 0
+      hidden: true
+      hint: "Если принятых строк нет, count равен нулю. SafeDivide не должна останавливать программу и возвращает 0."
+    - id: "bad-kinds"
+      title: "Разные виды плохих строк (скрытый)"
+      stdin: "10\n-2\n2.5\n\n7\n"
+      expected: |
+        Принято: 2
+        Пропущено: 3
+        Среднее: 8
+      hidden: true
+      hint: "Отрицательное число, дробь и пустая строка должны давать -1. Принятых двое (10 и 7), сумма 17, среднее 8 (деление целых)."
+    - id: "all-bad"
+      title: "Все строки плохие (скрытый)"
+      stdin: "x\ny\n"
+      expected: |
+        Принято: 0
+        Пропущено: 2
+        Среднее: 0
+      hidden: true
+      hint: "Если все строки пропущены, принятых нет, и деление на ноль нужно обработать."
+    - id: "spaces"
+      title: "Пробелы вокруг числа (скрытый)"
+      stdin: " 8 \n2\n"
+      expected: |
+        Принято: 2
+        Пропущено: 0
+        Среднее: 5
+      hidden: true
+      hint: "TryParse принимает число с пробелами по краям, поэтому обе строки принимаются: 10 / 2 = 5."

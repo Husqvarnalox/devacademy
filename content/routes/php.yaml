@@ -1,0 +1,45 @@
+track: php
+entry:
+  beginner: php.from-zero.first-program
+  programmer: php.programmers.syntax-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, условия, циклы, функции
+    description: Типы значений, переменные, арифметика, строки, if и else, циклы while и for, функции с параметрами и return.
+    check: php.check.basics
+    after: []
+  - id: collections
+    title: Массивы, ассоциативные массивы и строки
+    description: Списки и ассоциативные массивы, обход через foreach, sort, isset и ??, explode и implode, функции mb_ для текста в UTF-8.
+    check: php.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Чтение ввода и исключения
+    description: Чтение STDIN до конца через fgets, trim, строгий разбор чисел через filter_var, throw и try/catch/finally.
+    check: php.check.errors-input
+    after: [collections]
+  - id: types
+    title: Типы, strict_types и равенство
+    description: Объявления типов, declare(strict_types=1) и TypeError, приведение значений, различие == и ===, разбор ввода в типизированные значения.
+    check: php.check.types
+    after: [basics]
+  - id: array-functions
+    title: Массивы и функции высшего порядка
+    description: array_map, array_filter, array_reduce, usort с оператором <=>, array_column, замыкания и стрелочные функции, деструктуризация и оператор ...
+    check: php.check.array-functions
+    after: [collections]
+  - id: classes
+    title: Классы, интерфейсы и перечисления
+    description: Классы с promoted-свойствами и readonly, enum с from и tryFrom, интерфейсы, static и позднее статическое связывание, клонирование объектов.
+    check: php.check.classes
+    after: [array-functions]
+  - id: exceptions
+    title: Исключения и match
+    description: Иерархия Exception и Error, свои классы исключений, цепочки getPrevious, finally, выражение match и UnhandledMatchError.
+    check: php.check.exceptions
+    after: [errors-input, types]
+  - id: strings-io
+    title: Строки в UTF-8, форматирование и ввод-вывод
+    description: Байты и символы, mbstring, printf и number_format, выравнивание таблиц, разбор токенов и чтение STDIN, вывод вне тегов PHP.
+    check: php.check.strings-io
+    after: [errors-input]

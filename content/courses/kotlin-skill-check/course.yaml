@@ -1,0 +1,16 @@
+id: "kotlin-skill-check"
+version: "1.0.0"
+title: "Проверка знаний Kotlin"
+description: "Короткие проверки по компетенциям: задача с запуском кода и вопросы на чтение кода. Пройденная проверка засчитывает уроки темы, непройденная ничего не меняет и показывает, какие уроки закрывают пробел. Проверку можно пройти повторно."
+languageId: "kotlin"
+level: 1
+track: "kotlin"
+lessons:
+  - "01-basics"
+  - "02-collections"
+  - "03-errors-input"
+  - "04-null-safety"
+  - "05-classes"
+  - "06-functional-collections"
+  - "07-error-handling"
+  - "08-coroutines"

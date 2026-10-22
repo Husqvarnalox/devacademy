@@ -1,0 +1,172 @@
+id: "typescript.programmers.collections-and-functions"
+title: "Массивы, объекты, Map и функции: структурные типы, ссылки, сортировка"
+goal: "Работать с массивами, объектами и словарями так, чтобы ссылки, сортировка по строкам, необязательные свойства и обещания типов не давали неожиданных результатов."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "typescript.programmers.syntax-and-control-flow"
+next:
+  - "typescript.programmers.errors-and-input"
+objectives:
+  - "Объяснять, почему массивы и объекты сравниваются по ссылке, и отличать поверхностную копию от глубокой."
+  - "Сортировать числа с компаратором и различать методы, которые меняют массив, и методы, возвращающие новый."
+  - "Читать тип T | undefined у at, find и необязательных свойств и обрабатывать его через проверку, ?. и ??."
+  - "Применять структурную совместимость, readonly и проверку избыточных свойств и знать, чего они не гарантируют."
+  - "Выбирать между Record и Map для словарей с пользовательскими ключами."
+masteryCriteria:
+  - "sortedNumbers не меняет исходный (в том числе замороженный) массив и сортирует по значению, totalsByCategory считает категории constructor и __proto__ как обычные, cheapest корректно работает с ценой 0 и товарами без цены, sameItems сравнивает по ===, но считает NaN равным NaN."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "typescript"
+  - "programmers"
+  - "collections"
+  - "functions"
+assessmentFor:
+  - "typescript.from-zero.arrays"
+  - "typescript.from-zero.iterating-arrays"
+  - "typescript.from-zero.arrow-functions"
+  - "typescript.from-zero.array-methods"
+  - "typescript.from-zero.optional-values"
+  - "typescript.from-zero.string-methods"
+  - "typescript.from-zero.objects"
+  - "typescript.from-zero.arrays-of-objects"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        interface Order {
+          id: number;
+          note?: string;
+        }
+        const orders: Order[] = [{ id: 1 }, { id: 2, note: "срочно" }];
+        console.log(orders.map((o) => o.note?.length ?? 0));
+        ```
+      options:
+        - "[ 0, 6 ]"
+        - "[ undefined, 6 ]"
+        - "[ 0, 0 ]"
+        - "Программа не запустится: note может быть undefined"
+      answer: 0
+      explanation: "Оператор ?. возвращает undefined, если note отсутствует, а ?? подставляет 0. Слово «срочно» состоит из шести букв. Ошибки типов нет: необязательное свойство обработано."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const data = [10, 9, 100, 1];
+        const copy = data;
+        copy.sort();
+        console.log(data);
+        ```
+      options:
+        - "[ 10, 9, 100, 1 ]"
+        - "[ 1, 9, 10, 100 ]"
+        - "[ 1, 10, 100, 9 ]"
+        - "[ 100, 10, 9, 1 ]"
+      answer: 2
+      explanation: "copy и data - одна и та же ссылка на массив, а sort меняет массив на месте, так что data тоже отсортирован. Без компаратора сортировка строковая: \"1\" < \"10\" < \"100\" < \"9\"."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const rows: number[][] = [[1, 2], [3]];
+        const clone = [...rows];
+        clone[0][0] = 99;
+        console.log(rows[0][0], clone === rows);
+        ```
+      options:
+        - "1 false"
+        - "99 false"
+        - "99 true"
+        - "1 true"
+      answer: 1
+      explanation: "Оператор расширения создаёт новый внешний массив, поэтому clone !== rows. Но внутренние массивы общие (копия поверхностная), и запись в clone[0][0] видна через rows."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const make = () => { a: 1 };
+        console.log(make());
+        ```
+      options:
+        - "{ a: 1 }"
+        - "undefined"
+        - "Ошибка проверки типов"
+        - "1"
+      answer: 1
+      explanation: "Фигурные скобки после стрелки - тело функции, а не литерал объекта. Внутри a: 1 - метка с выражением, а return нет, поэтому функция возвращает undefined; проверка типов эту запись допускает. Чтобы вернуть объект, литерал берут в круглые скобки: () => ({ a: 1 })."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log(["1", "2", "3"].map(parseInt));
+        ```
+      options:
+        - "[ 1, 2, 3 ]"
+        - "[ 1, NaN, NaN ]"
+        - "[ NaN, NaN, NaN ]"
+        - "Ошибка проверки типов: parseInt принимает два аргумента"
+      answer: 1
+      explanation: "map передаёт колбэку элемент, индекс и массив. Типы совпадают (string и number), поэтому проверка молчит, но второй параметр parseInt - основание системы счисления: parseInt(\"2\", 1) и parseInt(\"3\", 2) дают NaN, а parseInt(\"1\", 0) считает основание десятичным и возвращает 1."
+exercise:
+  id: "typescript.programmers.collections-and-functions.exercise"
+  title: "Сортировка, расходы по категориям, самый дешёвый товар и сравнение массивов"
+  prompt: |
+    В файле `collections_task.ts` реализуйте четыре экспортируемые функции (интерфейсы `Expense` и `Product` уже описаны).
+
+    1. `sortedNumbers(values)` - **новый** массив чисел по возрастанию. Параметр имеет тип `readonly number[]`, исходный массив менять нельзя (в том числе замороженный).
+    2. `totalsByCategory(expenses)` - `Map`: категория -> сумма расходов, ключи в порядке первого появления. Категории приходят от пользователя, поэтому `"constructor"`, `"toString"` и `"__proto__"` - обычные категории. Свойство `note` на сумму не влияет.
+    3. `cheapest(products)` - самый дешёвый среди товаров, у которых указана цена (цена `0` тоже цена). Товары без `price` пропускаются. При равных ценах выигрывает тот, что раньше в списке. Если подходящих нет, результат `undefined`.
+    4. `sameItems(a, b)` - `true`, если массивы одной длины и элементы на одинаковых местах равны по `===`. `NaN` считается равным `NaN`, `0` равен `-0`. Вложенные массивы и объекты сравниваются по ссылке.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "collections_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Для sortedNumbers вспомните два факта: sort без компаратора сравнивает строки, а sort меняет массив на месте. Скопируйте массив ([...values]) и передайте компаратор (a, b) => a - b."
+    - "totalsByCategory: создайте new Map<string, number>() и пользуйтесь get/set: totals.set(category, (totals.get(category) ?? 0) + amount). Обычный объект здесь не подходит из-за ключей constructor и __proto__."
+    - "cheapest: заведите переменную best типа Product | undefined, идите циклом for...of и пропускайте товары с price === undefined. Не пишите if (product.price): цена 0 ложна, но это допустимая цена."
+    - "sameItems: сначала сравните длины, затем в цикле a[i] === b[i] или Number.isNaN у обоих элементов (Number.isNaN принимает любой тип и не приводит значение к числу)."
+  tests:
+    - id: "sort-basic"
+      title: "sortedNumbers - числовой порядок"
+      hint: "[10, 9, 1, 100] после сортировки без компаратора превращается в [1, 10, 100, 9]. Нужен компаратор (a, b) => a - b."
+    - id: "totals-basic"
+      title: "totalsByCategory - суммы по категориям"
+      hint: "Сложите суммы с одинаковой категорией: «еда» 200 + 150 = 350, «транспорт» 120; порядок ключей - порядок первого появления."
+    - id: "cheapest-basic"
+      title: "cheapest - обычный список"
+      hint: "Верните сам объект товара из списка (а не его копию): из цен 120, 90 и 150 нужен товар с ценой 90."
+    - id: "same-basic"
+      title: "sameItems - одинаковые и разные массивы"
+      hint: "Сравнивайте длину и элементы по местам; [1, 2] и [2, 1] не равны."
+    - id: "sort-edge"
+      title: "sortedNumbers - исходный массив, замороженный массив, повторы (скрытый)"
+      hidden: true
+      hint: "Входной массив не должен измениться, а результат - быть другим массивом; замороженный массив нельзя сортировать на месте (будет TypeError). Отрицательные числа и повторы сортируются верно."
+    - id: "totals-edge"
+      title: "totalsByCategory - constructor, toString и __proto__ (скрытый)"
+      hidden: true
+      hint: "В обычном объекте эти ключи ведут себя особо. Map хранит их как любые другие ключи; для пустого списка результат пустая Map."
+    - id: "cheapest-edge"
+      title: "cheapest - цена 0, без цены, равные цены (скрытый)"
+      hidden: true
+      hint: "Пустой список и список без цен дают undefined; цена 0 побеждает остальные; при равных ценах выигрывает первый; товар без цены пропускается."
+    - id: "same-edge"
+      title: "sameItems - NaN, нули, ссылки, null (скрытый)"
+      hidden: true
+      hint: "NaN равен NaN, 0 равен -0, [[1]] и [[1]] различны (разные ссылки), а undefined и null не равны."

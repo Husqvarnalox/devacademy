@@ -1,0 +1,177 @@
+id: "typescript.check.unions-narrowing"
+title: "Проверка: объединения и сужение типов"
+goal: "Описывать объединения и размеченные объединения, сужать тип проверками typeof, null и kind и находить необработанные варианты."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: описывать объединения и размеченные объединения, сужать тип проверками typeof, null и kind и находить необработанные варианты"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "unions"
+assessmentFor:
+  - "typescript.fundamentals.unions-and-narrowing"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        function f(value: string | number): string {
+          return value.toUpperCase();
+        }
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2339: у типа number нет метода toUpperCase"
+        - "Ошибка TS2322 в строке return"
+        - "Ошибка во время работы только при передаче числа"
+      answer: 1
+      explanation: "Обратиться можно только к тому, что есть у каждого варианта объединения. У number нет toUpperCase, поэтому нужно сначала сузить тип через typeof value === \"string\"."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function show(n: number | undefined): string {
+          if (n) {
+            return "значение " + n;
+          }
+          return "нет";
+        }
+        console.log(show(5), show(0), show(undefined));
+        ```
+      options:
+        - "значение 5 нет нет"
+        - "значение 5 значение 0 нет"
+        - "значение 5 значение 0 значение undefined"
+        - "Ошибка типов"
+      answer: 0
+      explanation: "Проверка if (n) отсекает не только undefined, но и 0 (как и NaN). Тип сужается верно, но логика теряет допустимое значение 0; для явной проверки нужно n !== undefined."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        type Shape =
+          | { kind: "circle"; radius: number }
+          | { kind: "square"; side: number }
+          | { kind: "triangle"; base: number };
+
+        function area(shape: Shape): number {
+          switch (shape.kind) {
+            case "circle":
+              return 3 * shape.radius * shape.radius;
+            case "square":
+              return shape.side * shape.side;
+          }
+        }
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2366: не во всех ветках есть return"
+        - "Ошибка TS2339 в ветке case \"square\""
+        - "Предупреждение во время работы про triangle"
+      answer: 1
+      explanation: "Вариант triangle не обработан, поэтому функция может завершиться без значения, а объявленный результат - number. Так компилятор помогает найти необработанный вариант после расширения объединения."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function len(value: string | string[]): number {
+          if (typeof value === "string") {
+            return value.length;
+          }
+          return value.length * 10;
+        }
+        console.log(len("abc"), len(["a", "b"]));
+        ```
+      options:
+        - "3 2"
+        - "3 20"
+        - "30 20"
+        - "Ошибка типов: у объединения нет общего length"
+      answer: 1
+      explanation: "После проверки typeof в первой ветке value - string, а во второй остаётся string[]. Поэтому длина строки 3, а для массива из двух элементов 2 * 10 = 20."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function kind(x: object | null): string {
+          if (typeof x === "object") {
+            return "объект";
+          }
+          return "другое";
+        }
+        console.log(kind({}), kind(null));
+        ```
+      options:
+        - "объект другое"
+        - "объект объект"
+        - "другое другое"
+        - "Ошибка типов: typeof нельзя применить к null"
+      answer: 1
+      explanation: "typeof null равен \"object\" - историческая особенность JavaScript, которая сохраняется. Поэтому для проверки на null нужно сравнение x === null, и только затем остальное."
+exercise:
+  id: "typescript.check.unions-narrowing.exercise"
+  title: "Платежи и фигуры"
+  prompt: |
+    В файле `unions_check.ts` реализуйте четыре экспортируемые функции (типы `Shape` и `Payment` уже описаны).
+
+    1. `normalizeId(id)` - для числа строка из 5 знаков с нулями слева (`42` -> `"00042"`, число длиннее 5 знаков остаётся как есть); для строки - без пробелов по краям и в верхнем регистре.
+    2. `area(shape)` - площадь фигуры. Для круга округлите до двух знаков после запятой.
+    3. `describePayment(payment)` - `"Наличные: 100"`, `"Карта *1234: 100"`, `"Возврат: 100"`; если у возврата указана причина (в том числе пустая строка), добавьте её в скобках: `"Возврат: 100 (брак)"`.
+    4. `firstString(items)` - первая строка в списке; числа и `null` пропускаются. Если строк нет, верните `undefined`. Пустая строка - тоже строка.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "unions_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "normalizeId: разветвитесь по typeof id === \"number\"; для числа подойдёт String(id).padStart(5, \"0\"), для строки - trim() и toUpperCase()."
+    - "area и describePayment: switch по полю kind или method; в каждой ветке доступны только поля этого варианта."
+    - "describePayment для возврата: reason необязательное, сравните его с undefined, а не проверяйте истинность - пустая причина тоже указана."
+    - "firstString: в цикле for...of проверяйте typeof item === \"string\" и возвращайте найденное сразу; после цикла верните undefined."
+  tests:
+    - id: "normalize-basic"
+      title: "normalizeId - число и строка"
+      hint: "Число дополняется нулями до 5 знаков, строка очищается от пробелов и переводится в верхний регистр."
+    - id: "area-basic"
+      title: "area - квадрат, прямоугольник, круг"
+      hint: "Площадь зависит от kind; для круга - округление до двух знаков."
+    - id: "payment-basic"
+      title: "describePayment - наличные и карта"
+      hint: "Формат: «Наличные: сумма» и «Карта *последние4: сумма»."
+    - id: "first-string-basic"
+      title: "firstString - первая строка"
+      hint: "Числа и null пропускаются, возвращается первая строка."
+    - id: "normalize-edge"
+      title: "normalizeId - ноль, длинное число, пустая строка (скрытый)"
+      hidden: true
+      hint: "Ноль даёт «00000», число из 6 знаков не меняется, строка из пробельных символов даёт пустую или обрезанную строку."
+    - id: "area-edge"
+      title: "area - нулевые размеры и радиус 2 (скрытый)"
+      hidden: true
+      hint: "Радиус 0 даёт 0; круг радиуса 2 округляется до 12.57."
+    - id: "payment-edge"
+      title: "describePayment - возврат с причиной и без (скрытый)"
+      hidden: true
+      hint: "Причина необязательна; пустая строка считается указанной; сумма 0 выводится как 0."
+    - id: "first-string-edge"
+      title: "firstString - нет строк, пустая строка (скрытый)"
+      hidden: true
+      hint: "Пустой список и список без строк дают undefined; пустая строка - это строка."

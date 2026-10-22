@@ -1,0 +1,170 @@
+id: "typescript.from-zero.string-methods"
+title: "Методы строк"
+goal: "Приводить текст в порядок и разбирать его на части методами trim, split, slice, includes и replaceAll."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "typescript.from-zero.optional-values"
+objectives:
+  - "Применить trim, toUpperCase, toLowerCase, split, slice, includes и replaceAll и предсказать результат."
+  - "Объяснить, почему методы строк возвращают новые строки, а исходная не меняется."
+  - "Разрезать строку на части, очистить их от пустых и склеить обратно."
+  - "Предвидеть краевые случаи: пустая строка, подряд идущие пробелы, регистр."
+masteryCriteria:
+  - "Функции обработки текста верны для пустой строки, лишних пробелов и разного регистра."
+  - "Результат каждого метода строки сохраняется или используется сразу."
+concepts:
+  introduces:
+    - "ts.string-methods"
+  uses:
+    - "ts.string"
+    - "ts.string-length"
+    - "ts.concatenation"
+    - "ts.template-literal"
+    - "ts.array"
+    - "ts.array-methods"
+    - "ts.arrow-function"
+    - "ts.for-of"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.function"
+    - "ts.return"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.objects"
+tags:
+  - "typescript"
+  - "strings"
+  - "split"
+  - "slice"
+  - "trim"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const text: string = "  Кот  ";
+        console.log(text.trim().toUpperCase());
+        ```
+      options:
+        - "КОТ"
+        - "  КОТ  "
+        - "кот"
+        - "Кот"
+      answer: 0
+      explanation: "Сначала trim убирает пробелы по краям, затем toUpperCase переводит буквы в заглавные: КОТ."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const word: string = "Привет";
+        console.log(word.slice(1, 4));
+        ```
+      options:
+        - "рив"
+        - "При"
+        - "ривет"
+        - "риве"
+      answer: 0
+      explanation: "slice берёт символы с позиции 1 до позиции 4, не включая её: позиции 1, 2 и 3 дают «рив»."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Сколько элементов в массиве?
+
+        ```typescript
+        const parts: string[] = "a  b".split(" ");
+        console.log(parts.length);
+        ```
+      options:
+        - "3"
+        - "2"
+        - "1"
+        - "4"
+      answer: 0
+      explanation: "Два пробела подряд дают пустую часть между ними: [\"a\", \"\", \"b\"]. Поэтому перед подсчётом слов пустые части отбрасывают."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const text: string = "hello";
+        text.toUpperCase();
+        console.log(text);
+        ```
+      options:
+        - "hello"
+        - "HELLO"
+        - "undefined"
+        - "Проверка сообщит об ошибке"
+      answer: 0
+      explanation: "Строки неизменяемы: toUpperCase возвращает новую строку, но она нигде не сохранена. Переменная text осталась прежней."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        const raw: string = "  hi  ";
+        const clean: string = raw.trim;
+        ```
+      options:
+        - "TS2322: тип () => string нельзя присвоить типу string; нужны скобки raw.trim()"
+        - "TS2551: у строки нет метода trim"
+        - "TS2345: неверный аргумент"
+        - "Ничего, clean получит строку hi"
+      answer: 0
+      explanation: "Без скобок записана сама функция, а не результат её вызова. Метод нужно вызвать: raw.trim()."
+exercise:
+  id: "typescript.from-zero.string-methods.exercise"
+  title: "Обработка текста"
+  prompt: |
+    В файле `string_task.ts` четыре функции:
+
+    * `capitalize(word)` - слово с заглавной первой буквой, остальные буквы строчные. `capitalize("пРИВЕТ")` равно `"Привет"`; для пустой строки результат пустая строка.
+    * `initials(fullName)` - первые буквы всех слов, заглавными, без разделителей. Слова разделены пробелами, пробелов может быть несколько, в том числе по краям. `initials("  иван  петрович  сидоров ")` равно `"ИПС"`; для пустой строки результат пустая строка.
+    * `slugify(title)` - заголовок в адрес страницы: пробелы по краям убраны, буквы строчные, пробелы между словами заменены на `-`. `slugify("  Hello World  ")` равно `"hello-world"`. Считайте, что внутри заголовка слова разделены ровно одним пробелом.
+    * `countWords(text)` - сколько слов в тексте (слова разделены пробелами, пробелов может быть много, в том числе по краям). `countWords("  один  два три ")` равно `3`, `countWords("   ")` равно `0`.
+
+    Функции должны **возвращать** значение.
+  entryFile: "string_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "capitalize: если слово пустое, верните \"\". Иначе word.slice(0, 1).toUpperCase() + word.slice(1).toLowerCase()."
+    - "initials и countWords: сначала text.trim().split(\" \"), затем .filter((w) => w !== \"\") убирает пустые части от повторяющихся пробелов. Для countWords верните длину, для initials склейте w.slice(0, 1).toUpperCase()."
+    - "slugify: title.trim().toLowerCase().replaceAll(\" \", \"-\"). Метод replaceAll заменяет все пробелы, а не только первый."
+    - "Пустая строка и строка из одних пробелов: \"\".split(\" \") даёт [\"\"] (один элемент!). После filter пустая часть исчезнет, поэтому count равно 0, а инициалов нет."
+  tests:
+    - id: "capitalize-basic"
+      title: "capitalize: обычные слова"
+      hint: "Первая буква заглавная, остальные строчные: \"пРИВЕТ\" даёт \"Привет\", \"Мир\" остаётся \"Мир\"."
+    - id: "initials-basic"
+      title: "initials: обычные имена"
+      hint: "Первые буквы слов заглавными: \"иван петров\" даёт \"ИП\"; лишние пробелы между словами и по краям не должны давать лишних символов."
+    - id: "slug-basic"
+      title: "slugify: обычные заголовки"
+      hint: "Строчные буквы и дефис вместо пробела: \"  Hello World  \" даёт \"hello-world\"."
+    - id: "words-basic"
+      title: "countWords: обычный текст"
+      hint: "В \"  один  два три \" три слова: лишние пробелы слов не добавляют."
+    - id: "capitalize-edge"
+      title: "capitalize: пустая, одна буква, цифры (скрытый)"
+      hidden: true
+      hint: "Для \"\" результат \"\"; для \"а\" - \"А\"; \"ПАРИЖ\" даёт \"Париж\"; цифра остаётся цифрой."
+    - id: "initials-edge"
+      title: "initials: пустая, только пробелы, дефис (скрытый)"
+      hidden: true
+      hint: "Для \"\" и \"   \" результат пустая строка; дефис не разделитель: в \"Анна-Мария Ли\" два слова - \"А\" и \"Л\"."
+    - id: "slug-words-edge"
+      title: "slugify и countWords: границы (скрытый)"
+      hidden: true
+      hint: "slugify(\"\") - пустая строка, все пробелы заменяются; countWords(\"\") и countWords(\"   \") равны 0, у одного слова результат 1."

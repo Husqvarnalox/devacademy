@@ -1,0 +1,225 @@
+id: "php.from-zero.functions"
+title: "Функции, параметры и strict_types"
+goal: "Объявлять функции с типизированными параметрами и результатом, вызывать их и понимать, что видно внутри функции."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "php.from-zero.loop-control"
+objectives:
+  - "Объявить функцию с параметрами, значениями по умолчанию, типом результата и return."
+  - "Различать параметры и аргументы, возвращаемое значение и печать."
+  - "Объяснить, что локальные переменные и параметры не видны снаружи, а внешние переменные не видны внутри."
+  - "Объяснить действие declare(strict_types=1) и прочитать сообщение TypeError."
+masteryCriteria:
+  - "Ваши функции возвращают верные значения при любых входных данных, а не только в одном примере."
+  - "Вы начинаете файл с <?php и declare(strict_types=1); и передаёте в функции числа, а не строки."
+  - "Вы объясняете, почему функция не видит внешнюю переменную."
+concepts:
+  introduces:
+    - "php.function"
+    - "php.parameter"
+    - "php.return"
+    - "php.type-declaration"
+    - "php.strict-types"
+    - "php.default-parameter"
+    - "php.local-scope"
+  uses:
+    - "php.variable"
+    - "php.assignment"
+    - "php.arithmetic"
+    - "php.intdiv"
+    - "php.int"
+    - "php.float"
+    - "php.string"
+    - "php.bool"
+    - "php.interpolation"
+    - "php.concatenation"
+    - "php.echo"
+    - "php.var-dump"
+    - "php.stdin"
+    - "php.fgets"
+    - "php.trim"
+    - "php.cast"
+    - "php.type-juggling"
+next:
+  - "php.from-zero.arrays"
+tags:
+  - "php"
+  - "functions"
+  - "strict_types"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function square(int $n): int
+        {
+            return $n * $n;
+        }
+        echo square(3) + square(4);
+        ```
+      options:
+        - "25"
+        - "49"
+        - "7"
+        - "34"
+      answer: 0
+      explanation: "square(3) вернёт 9, square(4) вернёт 16; 9 + 16 равно 25. Вызов функции - выражение, и его результат можно складывать."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        $x = 10;
+        function show(): void
+        {
+            $x = 5;
+            echo $x;
+        }
+        show();
+        echo $x;
+        ```
+      options:
+        - "510"
+        - "1010"
+        - "55"
+        - "Warning: Undefined variable $x"
+      answer: 0
+      explanation: "Переменная $x внутри функции - локальная, это другая переменная. show() печатает 5, а внешняя $x остаётся равной 10."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function f(int $n): int
+        {
+            return $n;
+        }
+        echo f("7");
+        ```
+      options:
+        - "Напечатается 7"
+        - "Fatal error: Uncaught TypeError: f(): Argument #1 ($n) must be of type int, string given"
+        - "Напечатается 0"
+        - "Warning: A non-numeric value encountered"
+      answer: 1
+      explanation: "В строгом режиме строка не превращается в число автоматически. Без declare(strict_types=1) результат был бы 7."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function greet(string $name, string $hi = "Привет"): string
+        {
+            return "{$hi}, {$name}!";
+        }
+        echo greet("Анна"), " ", greet("Иван", "Здравствуй");
+        ```
+      options:
+        - "Привет, Анна! Здравствуй, Иван!"
+        - "Привет, Анна! Привет, Иван!"
+        - "Здравствуй, Анна! Здравствуй, Иван!"
+        - "ArgumentCountError"
+      answer: 0
+      explanation: "В первом вызове параметр $hi берёт значение по умолчанию, во втором - переданное «Здравствуй»."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при вызове `echo twice(4);`?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function twice(int $n): int
+        {
+            $n * 2;
+        }
+        ```
+      options:
+        - "Напечатается 8"
+        - "Напечатается 0"
+        - "TypeError: twice(): Return value must be of type int, none returned"
+        - "Parse error"
+      answer: 2
+      explanation: "Выражение $n * 2 посчитано, но не возвращено. Функция с типом результата int обязана вернуть число через return."
+exercise:
+  id: "php.from-zero.functions.exercise"
+  title: "Строка чека со скидкой"
+  prompt: |
+    В заготовке `main.php` две функции, которые нужно дописать. Остальной код читает ввод и вызывает их, менять его не нужно.
+
+    **`totalPrice(int $price, int $quantity, int $discountPercent = 0): int`** возвращает стоимость покупки: цена, умноженная на количество, минус скидка. Размер скидки в рублях - целая часть от «сумма * процент / 100» (используйте `intdiv`). Если процент не передан, скидки нет.
+
+    **`receiptLine(string $name, int $quantity, int $total): string`** возвращает строку чека в формате `<название> x <количество> = <итог> руб.`
+
+    На вход подаются четыре строки: название, цена за штуку, количество и скидка в процентах (от 0 до 100). Программа печатает строку чека со скидкой и строку `Без скидки: <сумма> руб.`.
+
+    **Пример.** Ввод:
+
+    ```
+    Хлеб
+    45
+    3
+    10
+    ```
+
+    Вывод:
+
+    ```
+    Хлеб x 3 = 122 руб.
+    Без скидки: 135 руб.
+    ```
+
+    Сумма 135, скидка `intdiv(135 * 10, 100)` = 13, итог 122.
+
+    **Как проверяется.** Кнопка «Проверить» запускает программу с разными входными данными. Менять сигнатуры функций нельзя.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Тело totalPrice: сначала найдите полную сумму ($price * $quantity), затем размер скидки через intdiv($full * $discountPercent, 100) и вычтите его."
+    - "Если скидку не передали, $discountPercent равен 0: intdiv(.., 100) даёт 0, и итог равен полной сумме - отдельная ветка не нужна."
+    - "receiptLine возвращает строку с подстановками: return \"{$name} x {$quantity} = {$total} руб.\";"
+    - "Функции должны именно возвращать значения (return), а не печатать: печатает код ниже. Использовать intdiv нужно, чтобы результат остался целым и строгий тип int не нарушился."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "Хлеб\n45\n3\n10\n"
+      expected: "Хлеб x 3 = 122 руб.\nБез скидки: 135 руб.\n"
+      hint: "Сумма 135, скидка 13 руб. (целая часть 13.5), итог 122; без скидки - 135."
+    - id: "no-discount"
+      title: "Без скидки"
+      stdin: "Молоко\n80\n2\n0\n"
+      expected: "Молоко x 2 = 160 руб.\nБез скидки: 160 руб.\n"
+      hint: "При скидке 0 итог равен полной сумме: 160."
+    - id: "full-discount"
+      title: "Скидка 100% (скрытый)"
+      stdin: "Чай\n250\n1\n100\n"
+      expected: "Чай x 1 = 0 руб.\nБез скидки: 250 руб.\n"
+      hidden: true
+      hint: "Скидка 100% обнуляет итог, а вызов без третьего аргумента всё равно возвращает 250."
+    - id: "rounding"
+      title: "Округление скидки (скрытый)"
+      stdin: "Сок\n33\n3\n15\n"
+      expected: "Сок x 3 = 85 руб.\nБез скидки: 99 руб.\n"
+      hidden: true
+      hint: "Скидка = intdiv(99 * 15, 100) = 14 (целая часть от 14.85), итог 99 - 14 = 85."
+    - id: "zero-quantity"
+      title: "Нулевое количество (скрытый)"
+      stdin: "Сыр\n500\n0\n20\n"
+      expected: "Сыр x 0 = 0 руб.\nБез скидки: 0 руб.\n"
+      hidden: true
+      hint: "При количестве 0 сумма 0, а скидка и итог тоже 0."

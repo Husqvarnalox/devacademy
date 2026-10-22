@@ -1,0 +1,185 @@
+id: "php.check.collections"
+title: "Проверка: массивы, ассоциативные массивы и строки"
+goal: "Работать со списками, ассоциативными массивами и текстом: считать, искать, сортировать, разбирать и собирать строки."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: работать с массивами и строками: считать частоты, искать максимум, сортировать и менять регистр."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "php"
+  - "check"
+  - "collections"
+assessmentFor:
+  - "php.from-zero.arrays"
+  - "php.from-zero.array-functions"
+  - "php.from-zero.associative-arrays"
+  - "php.from-zero.string-functions"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $a = [3, 1, 2];
+        sort($a);
+        echo implode(",", $a), "|", $a[0];
+        ```
+      options:
+        - "1,2,3|1"
+        - "3,1,2|3"
+        - "1,2,3|3"
+        - "3,1,2|1"
+      answer: 0
+      explanation: "Функция sort упорядочивает массив на месте по возрастанию, поэтому после неё первым идёт 1. Изменение видно и в implode, и в $a[0]."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $p = ["a" => 1, "b" => 2];
+        $p["c"] = 3;
+        unset($p["a"]);
+        foreach ($p as $k => $v) {
+            echo $k;
+        }
+        ```
+      options:
+        - "bc"
+        - "abc"
+        - "ab"
+        - "cb"
+      answer: 0
+      explanation: "Ключ \"c\" добавился в конец, а ключ \"a\" удалён. Обход идёт в порядке добавления: сначала b, затем c."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $s = ["x" => null, "y" => 0];
+        echo isset($s["x"]) ? "A" : "B";
+        echo isset($s["y"]) ? "C" : "D";
+        echo $s["z"] ?? "E";
+        ```
+      options:
+        - "BCE"
+        - "ACE"
+        - "BDE"
+        - "ACD"
+      answer: 0
+      explanation: "isset ложно для ключа, значение которого null, и истинно для 0, поэтому получаются B и C. Оператор ?? подставляет запасное значение «E» для отсутствующего ключа."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo implode("-", explode(" ", "a b c")), count(explode(",", ""));
+        ```
+      options:
+        - "a-b-c1"
+        - "a-b-c0"
+        - "a b c1"
+        - "a-b-c3"
+      answer: 0
+      explanation: "explode разбивает строку по пробелам, а implode склеивает части через дефис. Пустая строка разбивается на массив из одного элемента (пустой строки), поэтому count даёт 1."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo strlen("héllo"), mb_strlen("héllo"), strtoupper("héllo");
+        ```
+      options:
+        - "65HéLLO"
+        - "55HÉLLO"
+        - "56HÉLLO"
+        - "66héllo"
+      answer: 0
+      explanation: "Буква é занимает в UTF-8 два байта: strlen возвращает 6, mb_strlen считает символы и возвращает 5. Функция strtoupper преобразует только латинские буквы ASCII, поэтому é остаётся без изменений."
+exercise:
+  id: "php.check.collections.exercise"
+  title: "Медиана, слова и частоты"
+  prompt: |-
+    Основная часть программы готова: она читает команды (по одной на строку) и печатает результат вызова ваших функций. Допишите четыре функции в `main.php`, основную часть не меняйте.
+
+    1. `median(array $numbers): float` - медиана непустого списка целых: при чётном числе элементов - среднее двух средних. Список может прийти несортированным.
+    2. `longestWord(string $text): string` - самое длинное слово по числу **символов**; из равных - первое; для пустого текста - пустая строка.
+    3. `titleCase(string $text): string` - каждое слово с заглавной буквы, остальные буквы строчные; слова разделены одним пробелом; работает и для кириллицы.
+    4. `mostCommon(string $text): string` - слово (в нижнем регистре), которое встречается чаще всех; при равенстве - то, что появилось раньше.
+
+    **Пример.** Для ввода
+
+    ```
+    median 5 1 3
+    longest the quick brown fox
+    title hello wORLD
+    top a b a c b a
+    ```
+
+    программа печатает
+
+    ```
+    3.0
+    quick
+    Hello World
+    a
+    ```
+
+    Часть тестов скрыта: в них кириллица, равные длины, отрицательные числа и ничьи.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "median: скопируйте список в sort($numbers), найдите середину через intdiv(count($numbers), 2); для чётного количества сложите два средних элемента и разделите на 2."
+    - "longestWord: пройдите по explode(\" \", $text), сравнивайте mb_strlen($word) с длиной лучшего слова строго (>), чтобы из равных остаётся первое. strlen считает байты и ошибётся на кириллице."
+    - "titleCase: для каждого слова mb_strtoupper(mb_substr($word, 0, 1)) . mb_strtolower(mb_substr($word, 1)); ucfirst на кириллице не работает."
+    - "mostCommon: приведите текст к нижнему регистру через mb_strtolower, посчитайте $counts[$word] = ($counts[$word] ?? 0) + 1, затем обойдите массив и обновляйте ответ только при строгом превосходстве счётчика."
+  tests:
+    - id: "median-longest"
+      title: "Медиана и самое длинное слово"
+      stdin: "median 5 1 3\nmedian 4 1 3 2\nlongest the quick brown fox\nlongest aa bb\n"
+      expected: "3.0\n2.5\nquick\naa\n"
+      hint: "Медиана 5 1 3 - это 3.0; для 4 1 3 2 (1 2 3 4) - среднее 2 и 3, то есть 2.5; самое длинное слово - quick; при равных длинах выигрывает первое: aa."
+    - id: "title-top"
+      title: "Заглавные буквы и частое слово"
+      stdin: "title hello wORLD\ntitle one\ntop a b a c b a\ntop x y\n"
+      expected: "Hello World\nOne\na\nx\n"
+      hint: "hello wORLD превращается в Hello World; чаще всех встречается a (3 раза); при ничьей x и y побеждает x."
+    - id: "median-edge"
+      title: "Медиана: одно число и отрицательные (скрытый)"
+      stdin: "median 7\nmedian -1 -5 -3 -2\nmedian 2 2 2 2\nmedian 10 0\n"
+      expected: "7.0\n-2.5\n2.0\n5.0\n"
+      hidden: true
+      hint: "Для одного числа медиана равна ему (7.0); для -1 -5 -3 -2 после сортировки -5 -3 -2 -1 среднее средних равно -2.5."
+    - id: "longest-edge"
+      title: "Самое длинное слово: символы, а не байты (скрытый)"
+      stdin: "longest абвгд abcdefg\nlongest привет мир\nlongest\nlongest ёжик\n"
+      expected: "abcdefg\nпривет\n\nёжик\n"
+      hidden: true
+      hint: "В слове «абвгд» 5 символов, но 10 байт; в abcdefg 7 символов - оно длиннее. Нужна mb_strlen. Для пустого текста вывод пустая строка."
+    - id: "title-edge"
+      title: "Заглавные буквы: кириллица и регистр (скрытый)"
+      stdin: "title привет МИР\ntitle ёЖИК и Ёлка\ntitle ПРИВЕТ\n"
+      expected: "Привет Мир\nЁжик И Ёлка\nПривет\n"
+      hidden: true
+      hint: "Нужны mb_strtoupper, mb_strtolower и mb_substr: ucfirst и strtolower кириллицу не обрабатывают."
+    - id: "top-edge"
+      title: "Частое слово: регистр и ничья (скрытый)"
+      stdin: "top Чай чай ЧАЙ кофе\ntop b a\ntop 7 07 7\ntop\n"
+      expected: "чай\nb\n7\n\n"
+      hidden: true
+      hint: "Слова «Чай», «чай», «ЧАЙ» - одно слово «чай»; при ничьей побеждает слово, появившееся раньше (b); числовые слова 7 и 07 считаются отдельно, 7 встречается дважды."

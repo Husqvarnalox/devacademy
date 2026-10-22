@@ -1,0 +1,232 @@
+id: "java.programmers.syntax-types-and-control-flow"
+title: "Типы, числа и управление потоком: ловушки Java"
+goal: "Писать числовые вычисления, преобразования символов, ввод и switch так, чтобы переполнение int, целочисленное деление и вывод зависящих от локали дробных чисел не искажали результат."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "java.programmers.methods-collections-and-strings"
+objectives:
+  - "Предсказывать результат арифметики с int и long: переполнение, целочисленное деление, знак остатка."
+  - "Различать расширяющее и сужающее преобразования, понимать неявное приведение в составном присваивании и арифметику с char."
+  - "Читать ввод через Scanner без ловушки nextLine после nextInt и печатать дроби независимо от локали."
+  - "Выбирать между стрелочной и классической формой switch и объяснять проваливание."
+masteryCriteria:
+  - "totalCents, percent, caesar и dayType дают верные результаты на больших суммах, отрицательном сдвиге и неизвестных значениях."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "java"
+  - "programmers"
+  - "types"
+  - "control-flow"
+assessmentFor:
+  - "java.from-zero.first-program"
+  - "java.from-zero.compiler-errors"
+  - "java.from-zero.output"
+  - "java.from-zero.variables"
+  - "java.from-zero.basic-types"
+  - "java.from-zero.arithmetic"
+  - "java.from-zero.strings"
+  - "java.from-zero.reading-input"
+  - "java.from-zero.type-conversion"
+  - "java.from-zero.formatted-output"
+  - "java.from-zero.comparison-and-logic"
+  - "java.from-zero.if-else"
+  - "java.from-zero.switch"
+  - "java.from-zero.while-loop"
+  - "java.from-zero.for-loop"
+  - "java.from-zero.loop-control"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        int big = Integer.MAX_VALUE;
+        System.out.println(big + 1);
+        ```
+      options:
+        - "2147483648"
+        - "-2147483648"
+        - "Ошибка компиляции"
+        - "ArithmeticException"
+      answer: 1
+      explanation: "int занимает 32 бита, и сложение молча переходит через границу: Integer.MAX_VALUE + 1 даёт Integer.MIN_VALUE, то есть -2147483648. Ни ошибки компиляции, ни исключения нет. Если переполнение недопустимо, нужен long или Math.addExact."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        System.out.println('a' + 1 + "b" + 'c');
+        ```
+      options:
+        - "98bc"
+        - "abc"
+        - "bbc"
+        - "a1bc"
+      answer: 0
+      explanation: "'a' + 1 - сложение двух чисел (код символа 97 плюс 1), результат 98 имеет тип int. Дальше 98 + \"b\" даёт строку \"98b\", и к ней дописывается символ c. Чтобы получить следующую букву, нужно приведение: (char) ('a' + 1)."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        int i = 10;
+        i += 2.7;
+        System.out.println(i);
+        ```
+      options:
+        - "12"
+        - "12.7"
+        - "13"
+        - "Ошибка компиляции: possible lossy conversion"
+      answer: 0
+      explanation: "Составное присваивание i += x означает i = (int) (i + x): приведение к типу переменной вставляется автоматически. 10 + 2.7 = 12.7, после приведения дробная часть отбрасывается, получается 12. Запись i = i + 2.7 не скомпилировалась бы."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        Scanner in = new Scanner("5\nИван\n");
+        int n = in.nextInt();
+        String s = in.nextLine();
+        System.out.println("[" + s + "]");
+        ```
+      options:
+        - "[Иван]"
+        - "[]"
+        - "[5]"
+        - "InputMismatchException"
+      answer: 1
+      explanation: "nextInt читает только число 5 и останавливается перед переводом строки. nextLine возвращает остаток текущей строки - пустую строку. Чтобы прочитать следующую строку, nextLine нужно вызвать ещё раз либо читать всё через next / nextLine без смешивания."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        int n = 2;
+        switch (n) {
+            case 1: System.out.print("a");
+            case 2: System.out.print("b");
+            case 3: System.out.print("c"); break;
+            default: System.out.print("d");
+        }
+        ```
+      options:
+        - "b"
+        - "bc"
+        - "bcd"
+        - "abc"
+      answer: 1
+      explanation: "В классической форме switch выполнение начинается с подходящей метки и продолжается дальше, пока не встретится break: напечатаются b и c, а на break выход. Стрелочная форма case 2 -> ... так не работает: проваливания в ней нет."
+exercise:
+  id: "java.programmers.syntax-types-and-control-flow.exercise"
+  title: "Сумма, доля, шифр и тип дня"
+  prompt: |-
+    Программа читает данные и печатает четыре строки. `main` уже написан; реализуйте четыре метода.
+
+    Вход (все значения разделены пробелами или переводами строк): цена в копейках `price`, количество `qty`, `part`, `total`, слово `word`, сдвиг `shift`, день `day`.
+
+    Методы:
+
+    * `totalCents(int priceCents, int qty)` - стоимость `priceCents * qty` типа `long`; на больших значениях int-арифметика переполняется;
+    * `percent(int part, int total)` - доля `part` от `total` в процентах, **округлённая до целого по правилам Math.round** (половина вверх);
+    * `caesar(String word, int shift)` - сдвиг строчных латинских букв `a`-`z` по кругу на `shift` позиций (сдвиг может быть отрицательным или больше 26); остальные символы не меняются;
+    * `dayType(String day)` - `"weekend"` для `sat` и `sun`, `"weekday"` для `mon`-`fri`, иначе `"unknown"`; используйте `switch` со стрелками.
+
+    **Пример.** Ввод:
+
+    ```
+    250 4 1 8 abc 3 sat
+    ```
+
+    Вывод:
+
+    ```
+    Сумма: 1000
+    Доля: 13%
+    Шифр: def
+    День: weekend
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Заготовки всех четырёх методов уже есть, `main` менять не нужно. Начните с totalCents: вопрос в том, на каком шаге умножения число должно стать long."
+    - "totalCents: приведите один из множителей к long до умножения - (long) priceCents * qty. percent: делите дробные числа - part * 100.0 / total - и округляйте Math.round, результат приведите к int."
+    - "caesar: для строчной буквы c вычислите 'a' + Math.floorMod(c - 'a' + shift, 26) и приведите результат к (char). Обычный % даёт отрицательный остаток для отрицательного сдвига."
+    - "dayType: switch (day) { case \"sat\", \"sun\" -> \"weekend\"; ... default -> \"unknown\"; } как выражение с return."
+  tests:
+    - id: "basic"
+      title: "Обычные значения"
+      stdin: |
+        250 4 1 8 abc 3 sat
+      expected: |
+        Сумма: 1000
+        Доля: 13%
+        Шифр: def
+        День: weekend
+      hint: "Проверяются все четыре строки: 250 * 4 = 1000; 1/8 = 12,5% округляется вверх до 13; abc сдвигается на 3 в def; sat - weekend."
+    - id: "weekday"
+      title: "Будний день и нулевой сдвиг"
+      stdin: |
+        1999 3
+        50 200
+        hello 0
+        mon
+      expected: |
+        Сумма: 5997
+        Доля: 25%
+        Шифр: hello
+        День: weekday
+      hint: "Сдвиг 0 оставляет слово без изменений, 50 из 200 - ровно 25%, mon - weekday."
+    - id: "overflow"
+      title: "Большая сумма не должна переполнять int (скрытый)"
+      stdin: |
+        2000000000 3 1 3 xyz 3 sun
+      expected: |
+        Сумма: 6000000000
+        Доля: 33%
+        Шифр: abc
+        День: weekend
+      hidden: true
+      hint: "2000000000 * 3 не помещается в int. Приведите множитель к long до умножения, а не результат после."
+    - id: "negative-shift"
+      title: "Отрицательный сдвиг (скрытый)"
+      stdin: |
+        10 10 2 3 abc -3 wed
+      expected: |
+        Сумма: 100
+        Доля: 67%
+        Шифр: xyz
+        День: weekday
+      hidden: true
+      hint: "При сдвиге -3 буква a переходит к x. Остаток % от отрицательного числа отрицателен - используйте Math.floorMod."
+    - id: "symbols"
+      title: "Заглавные буквы, дефис и сдвиг больше 26 (скрытый)"
+      stdin: |
+        5 5 3 4 Hi-There 27 holiday
+      expected: |
+        Сумма: 25
+        Доля: 75%
+        Шифр: Hj-Tifsf
+        День: unknown
+      hidden: true
+      hint: "Меняются только строчные a-z; H, T и дефис остаются. Сдвиг 27 равен сдвигу 1. Незнакомый день даёт unknown."
+    - id: "rounding"
+      title: "Округление дроби (скрытый)"
+      stdin: |
+        1 1 1 6 z 1 fri
+      expected: |
+        Сумма: 1
+        Доля: 17%
+        Шифр: a
+        День: weekday
+      hidden: true
+      hint: "1 из 6 - это 16,67%: целочисленное деление даёт 16, а нужно округление до 17."

@@ -1,0 +1,236 @@
+id: "cpp.check.errors-ub"
+title: "Проверка: ошибки, исключения и неопределённое поведение"
+goal: "Безопасно разбирать числа, проверять переполнение, правильно использовать исключения и не допускать неопределённого поведения."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: использовать optional и from_chars, проверять переполнение до операции, бросать нужные исключения, отличать [] от at."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "errors-ub"
+assessmentFor:
+  - "cpp.fundamentals.error-handling"
+  - "cpp.fundamentals.undefined-behaviour"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Какая из строк содержит неопределённое поведение?
+
+        ```cpp
+        int a = std::numeric_limits<int>::max();
+        unsigned u = std::numeric_limits<unsigned>::max();
+
+        int r1 = a - 1;         // A
+        unsigned r2 = u + 1;    // B
+        unsigned r3 = 0u - 1u;  // C
+        int r4 = a + 1;         // D
+        ```
+      options:
+        - "Строка A"
+        - "Строка B"
+        - "Строка C"
+        - "Строка D"
+      answer: 3
+      explanation: "Для знаковых типов переполнение - неопределённое поведение: a + 1 при a = INT_MAX (строка D). Беззнаковые типы переполняются по модулю 2^N (строки B и C дают 0 и UINT_MAX), а a - 1 помещается в int (строка A)."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        int main() {
+            std::string s = "12abc";
+            int v = 0;
+            auto [p, ec] = std::from_chars(s.data(), s.data() + s.size(), v);
+            std::cout << v << " " << (ec == std::errc()) << " " << (p - s.data());
+        }
+        ```
+      options:
+        - "12 1 2"
+        - "0 0 0"
+        - "12 0 2"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "std::from_chars разбирает число с начала строки и останавливается на первом неподходящем символе. Ошибки нет (ec равен значению по умолчанию, выражение даёт 1), прочитано 12, а указатель p стоит на символе с индексом 2. Поэтому строку 12abc нужно отвергать отдельной проверкой p != конец."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        int main() {
+            try {
+                throw std::out_of_range("x");
+            } catch (const std::runtime_error&) {
+                std::cout << "R";
+            } catch (const std::logic_error&) {
+                std::cout << "L";
+            } catch (const std::exception&) {
+                std::cout << "E";
+            }
+        }
+        ```
+      options:
+        - "R"
+        - "E"
+        - "L"
+        - "Программа аварийно завершится"
+      answer: 2
+      explanation: "std::out_of_range наследуется от std::logic_error, а не от std::runtime_error. Первый обработчик не подходит, второй подходит, поэтому выводится L. Обработчики проверяются сверху вниз, выбирается первый подходящий."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```cpp
+        void f() noexcept {
+            throw 1;
+        }
+
+        int main() {
+            try {
+                f();
+            } catch (...) {
+                std::cout << "caught";
+            }
+            std::cout << "end";
+        }
+        ```
+      options:
+        - "Выведется caught, затем end"
+        - "Вызовется std::terminate: программа аварийно завершится, ни caught, ни end не будут напечатаны"
+        - "Выведется только end"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Если исключение покидает функцию, объявленную noexcept, вызывается std::terminate, и обработчик в main не получает управления. Это определённое стандартом поведение, а не неопределённое, но оно завершает программу."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что происходит при выполнении каждого из двух обращений (каждое выполняется отдельно)?
+
+        ```cpp
+        std::vector<int> v{1, 2, 3};
+        int a = v.at(5);
+        int b = v[5];
+        ```
+      options:
+        - "Оба бросают std::out_of_range"
+        - "at(5) - неопределённое поведение, а v[5] бросает исключение"
+        - "Оба обращения - неопределённое поведение"
+        - "at(5) бросает std::out_of_range, а v[5] - неопределённое поведение"
+      answer: 3
+      explanation: "Метод at проверяет границы и бросает std::out_of_range. Оператор [] границ не проверяет: выход за пределы вектора - неопределённое поведение (чтение чужой памяти, падение или тихая порча данных)."
+exercise:
+  id: "cpp.check.errors-ub.exercise"
+  title: "Безопасный разбор, переполнение и исключения"
+  prompt: |
+    В заготовке есть готовый `main`: он читает команды и вызывает ваши функции, перехватывая исключения. Допишите тела пяти функций. Основную часть (после комментария «Дальше основная часть») менять не нужно.
+
+    1. `std::optional<int> parseStrict(const std::string& text)` - разбирает всю строку как целое число (допустим ведущий минус). Если строка пуста, содержит посторонние символы (в том числе пробелы и `+`) или число не помещается в `int`, возвращается `std::nullopt`. Используйте `std::from_chars`.
+    2. `std::optional<int> checkedAdd(int a, int b)` - сумма двух `int`; если она не помещается в `int`, возвращается `std::nullopt`. Само переполнение происходить не должно.
+    3. `int divide(int a, int b)` - деление нацело. При `b == 0` бросайте `std::invalid_argument`, при `INT_MIN / -1` (результат не помещается в `int`) - `std::overflow_error`.
+    4. `int elementAt(const std::vector<int>& v, std::size_t index)` - элемент по индексу; при выходе за границы должно бросаться `std::out_of_range`.
+    5. `std::size_t distanceOrZero(std::size_t a, std::size_t b)` - разность `a - b`, а если `b` больше `a`, то `0`.
+
+    **Пример.** Для ввода
+
+    ```
+    parse 42
+    parse 12x
+    add 2147483647 1
+    div 7 0
+    at 3 10 20 30
+    dist 3 5
+    ```
+
+    программа печатает
+
+    ```
+    42
+    none
+    overflow
+    invalid
+    out of range
+    0
+    ```
+
+    Команда `at i числа...` берёт элемент с индексом `i` из списка чисел. Часть тестов скрыта: в них границы типа `int`, знаки, пустая строка и индекс за границей.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "parseStrict: int value = 0; auto result = std::from_chars(text.data(), text.data() + text.size(), value); Успех - это result.ec == std::errc() и result.ptr == text.data() + text.size(); иначе return std::nullopt."
+    - "checkedAdd: проверяйте до сложения. Если b > 0 и a > INT_MAX - b, то переполнение сверху; если b < 0 и a < INT_MIN - b, то снизу. Подключите <climits>."
+    - "divide: if (b == 0) throw std::invalid_argument(\"...\"); if (a == INT_MIN && b == -1) throw std::overflow_error(\"...\"); return a / b; Текст сообщения проверять не будут."
+    - "elementAt: return v.at(index); - at бросает std::out_of_range, а [] не проверяет границы. distanceOrZero: return a >= b ? a - b : 0; - вычитание для беззнаковых при a < b даёт огромное число."
+  tests:
+    - id: "basic"
+      title: "Шесть команд"
+      stdin: "parse 42\nparse 12x\nadd 2147483647 1\ndiv 7 0\nat 3 10 20 30\ndist 3 5\n"
+      expected: |
+        42
+        none
+        overflow
+        invalid
+        out of range
+        0
+      hint: "12x - не число целиком; INT_MAX + 1 переполняется; деление на ноль даёт invalid; индекса 3 нет в списке из трёх; 3 - 5 для беззнаковых нужно вернуть как 0."
+    - id: "normal"
+      title: "Обычные значения"
+      stdin: "parse -7\nparse 007\nadd 20 22\nadd -5 -6\ndiv -7 2\nat 1 10 20 30\ndist 9 4\n"
+      expected: |
+        -7
+        7
+        42
+        -11
+        -3
+        20
+        5
+      hint: "Ведущие нули допустимы, а деление нацело усекает к нулю: -7 / 2 = -3. Индексация с нуля: индекс 1 - второй элемент."
+    - id: "parse-edge"
+      title: "Строгий разбор: границы int и мусор (скрытый)"
+      stdin: "parse -2147483648\nparse 2147483647\nparse 2147483648\nparse +5\nparse 1 2\nparse -\nparse 3.5\nparse\n"
+      expected: |
+        -2147483648
+        2147483647
+        none
+        none
+        none
+        none
+        none
+        none
+      hidden: true
+      hint: "Границы int принимаются, на единицу больше - уже нет. Плюс, пробел внутри, один минус, дробная часть и пустая строка - не числа для std::from_chars."
+    - id: "overflow-edge"
+      title: "Переполнение и деление INT_MIN (скрытый)"
+      stdin: "add -2147483648 -1\nadd 2147483647 -1\nadd -2147483648 2147483647\ndiv -2147483648 -1\ndiv -2147483648 1\ndiv 5 -1\ndiv 0 5\n"
+      expected: |
+        overflow
+        2147483646
+        -1
+        overflow
+        -2147483648
+        -5
+        0
+      hidden: true
+      hint: "Складывать крайние значения разных знаков безопасно. Деление INT_MIN на -1 даёт 2147483648, которое не помещается в int, поэтому бросается overflow_error, а деление на 1 допустимо."
+    - id: "at-dist-edge"
+      title: "Индексы и беззнаковая разность (скрытый)"
+      stdin: "at 0 5\nat 1 5\nat 0\nat 100 1 2 3\ndist 0 0\ndist 0 1\ndist 7 7\n"
+      expected: |
+        5
+        out of range
+        out of range
+        out of range
+        0
+        0
+        0
+      hidden: true
+      hint: "Для списка из одного элемента допустим только индекс 0; пустой список не содержит ни одного индекса. Разность равных чисел 0, а 0 - 1 для беззнаковых нужно вернуть как 0."

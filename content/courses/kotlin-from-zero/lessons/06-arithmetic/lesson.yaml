@@ -1,0 +1,143 @@
+id: "kotlin.from-zero.arithmetic"
+title: "Арифметика"
+goal: "Считать выражения из чисел, понимать целочисленное деление и остаток и обновлять значение переменной."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.basic-types"
+objectives:
+  - "Использовать операции + - * / % и скобки."
+  - "Объяснять, почему 7 / 2 равно 3, и получать 3.5 с помощью дробного числа."
+  - "Применять остаток от деления для задач «сколько осталось»."
+  - "Обновлять переменную через +=, -=, *= и ++."
+masteryCriteria:
+  - "Вы предсказываете результат выражения с учётом приоритета и целочисленного деления."
+  - "Ваша программа считает полные коробки и остаток с помощью / и %."
+  - "Вы узнаёте ArithmeticException при делении целого числа на ноль."
+concepts:
+  introduces:
+    - "kotlin.arithmetic"
+    - "kotlin.integer-division"
+    - "kotlin.remainder"
+    - "kotlin.compound-assignment"
+  uses:
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.int"
+    - "kotlin.double"
+    - "kotlin.string-template"
+    - "kotlin.assignment"
+    - "kotlin.println"
+next:
+  - "kotlin.from-zero.strings"
+tags:
+  - "kotlin"
+  - "arithmetic"
+  - "integer-division"
+  - "remainder"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: |
+        Чему равно выражение?
+
+        ```kotlin
+        println(17 / 5)
+        ```
+      answer: 3
+      tolerance: 0
+      explanation: "Оба числа целые, поэтому деление целочисленное: дробная часть отбрасывается. 17 / 5 = 3 (остаток 2)."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Чему равно выражение?
+
+        ```kotlin
+        println(17 % 5)
+        ```
+      answer: 2
+      tolerance: 0
+      explanation: "Оператор % возвращает остаток от деления: 17 = 3 * 5 + 2."
+    - id: "q3"
+      type: "numeric"
+      prompt: |
+        Чему равно выражение?
+
+        ```kotlin
+        println(2 + 3 * 4)
+        ```
+      answer: 14
+      tolerance: 0
+      explanation: "Умножение выполняется раньше сложения: сначала 3 * 4 = 12, затем 2 + 12 = 14. Скобки (2 + 3) * 4 дали бы 20."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            var score = 10
+            score += 5
+            score *= 2
+            println(score)
+        }
+        ```
+      options:
+        - "30"
+        - "25"
+        - "20"
+        - "15"
+      answer: 0
+      explanation: "score += 5 даёт 15, затем score *= 2 даёт 30."
+    - id: "q5"
+      type: "single"
+      prompt: "Как получить в Kotlin результат 3.5 от деления 7 на 2?"
+      options:
+        - "7 / 2.0"
+        - "7 / 2"
+        - "7 % 2"
+        - "7 // 2"
+      answer: 0
+      explanation: "Если хотя бы один операнд - Double, деление дробное: 7 / 2.0 = 3.5. 7 / 2 - целочисленное и даёт 3."
+exercise:
+  id: "kotlin.from-zero.arithmetic.exercise"
+  title: "Коробки с яблоками"
+  prompt: |
+    Яблоки раскладывают по коробкам: в коробку входит 6 яблок. Всего 47 яблок, одна полная коробка стоит 350 руб.
+
+    Допишите программу, чтобы она посчитала и напечатала:
+
+    ```
+    Полных коробок: 7
+    Осталось яблок: 5
+    Стоимость коробок: 2450 руб.
+    ```
+
+    В заготовке значения подставлены как заглушки `0`. Вычислите `fullBoxes`, `rest` и `cost` арифметикой по подсказкам в комментариях и напечатайте их шаблонами.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Число полных коробок - результат целочисленного деления: apples / perBox."
+    - "Остаток яблок - остаток от деления: apples % perBox."
+    - "Стоимость - число полных коробок, умноженное на цену коробки: fullBoxes * boxPrice."
+    - "Замените нули в println шаблонами: println(\"Полных коробок: $fullBoxes\") и так далее."
+  tests:
+    - id: "basic"
+      title: "Коробки, остаток и стоимость"
+      stdin: ""
+      expected: |
+        Полных коробок: 7
+        Осталось яблок: 5
+        Стоимость коробок: 2450 руб.
+      hint: "47 яблок по 6 в коробке: 7 полных коробок, 5 яблок осталось, 7 * 350 = 2450."
+    - id: "exact"
+      title: "Точный формат строк (скрытый)"
+      stdin: ""
+      expected: |
+        Полных коробок: 7
+        Осталось яблок: 5
+        Стоимость коробок: 2450 руб.
+      hidden: true
+      hint: "Проверяется точное совпадение: три строки с подписями из условия и значениями 7, 5 и 2450; перед числами стоит одна пробельная позиция после двоеточия."

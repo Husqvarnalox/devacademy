@@ -1,0 +1,237 @@
+id: "cpp.check.classes"
+title: "Проверка: классы, наследование и виртуальные функции"
+goal: "Писать классы с конструкторами, использовать виртуальные функции и перегрузку операторов и избегать срезки."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: написать иерархию с абстрактной базой, override, операторами == и << и не потерять полиморфизм."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "classes"
+assessmentFor:
+  - "cpp.fundamentals.classes-inheritance-virtual"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        struct B {
+            virtual std::string f() const { return "B"; }
+        };
+
+        struct D : B {
+            std::string f() const override { return "D"; }
+        };
+
+        void show(B b) {
+            std::cout << b.f();
+        }
+
+        int main() {
+            D d;
+            show(d);
+        }
+        ```
+      options:
+        - "D"
+        - "B"
+        - "Ошибка компиляции"
+        - "Неопределённое поведение"
+      answer: 1
+      explanation: "Параметр B b принимается по значению: из объекта D копируется только часть B (срезка). Копия имеет тип B, поэтому виртуальный вызов f() выбирает B::f и печатается B. Чтобы вызвать D::f, параметр должен быть ссылкой: const B& b."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        struct M {
+            M(const char* s) { std::cout << s; }
+        };
+
+        struct C {
+            M a;
+            M b;
+            C() : b("2"), a("1") {}
+        };
+
+        int main() {
+            C c;
+        }
+        ```
+      options:
+        - "12"
+        - "21"
+        - "Порядок не определён стандартом"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Члены класса инициализируются в порядке объявления (сначала a, потом b), а не в порядке перечисления в списке инициализации. Поэтому выводится 12. Компилятор может предупредить о несовпадении порядка, но это не ошибка."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что не так с этим кодом?
+
+        ```cpp
+        struct B {
+            ~B() {}
+        };
+
+        struct D : B {
+            ~D() {}
+        };
+
+        int main() {
+            std::unique_ptr<B> p = std::make_unique<D>();
+        }
+        ```
+      options:
+        - "Ошибка компиляции"
+        - "Вызовется только ~B, ~D не вызовется, но программа остаётся корректной"
+        - "Неопределённое поведение: объект D удаляется через указатель на B, деструктор которого не виртуальный"
+        - "Всё корректно: вызовутся ~D, затем ~B"
+      answer: 2
+      explanation: "unique_ptr<B> удаляет объект через указатель типа B*. Если деструктор B не виртуальный, а динамический тип - D, это неопределённое поведение. Исправление: virtual ~B() = default; в базовом классе."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Какая строка в main не скомпилируется?
+
+        ```cpp
+        struct Shape {
+            virtual int area() const = 0;
+        };
+
+        struct Sq : Shape {
+            int area() const override { return 4; }
+        };
+
+        struct Bad : Shape {};
+
+        int main() {
+            Sq a;           // строка 1
+            Shape& r = a;   // строка 2
+            Shape* p = &a;  // строка 3
+            Bad b;          // строка 4
+        }
+        ```
+      options:
+        - "Строка 1"
+        - "Строка 2"
+        - "Строка 3"
+        - "Строка 4"
+      answer: 3
+      explanation: "Класс Bad не переопределил чисто виртуальную функцию area, поэтому он остаётся абстрактным, и создать его объект нельзя. Sq переопределяет area и создаётся нормально; ссылку и указатель на Shape на объект Sq получить можно."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```cpp
+        struct B {
+            virtual int f() const { return 1; }
+        };
+
+        struct D : B {
+            int f() override { return 2; }
+        };
+
+        int main() {
+            D d;
+            std::cout << d.f();
+        }
+        ```
+      options:
+        - "Выведется 2"
+        - "Выведется 1"
+        - "Ошибка компиляции: D::f не переопределяет виртуальную функцию базового класса"
+        - "Неопределённое поведение"
+      answer: 2
+      explanation: "В B функция f объявлена как const, а в D - без const: это другая сигнатура, переопределения нет. Благодаря ключевому слову override компилятор сообщает об ошибке, а без него получилась бы новая невиртуальная функция D::f."
+exercise:
+  id: "cpp.check.classes.exercise"
+  title: "Фигуры: Rect, Square, == и <<"
+  prompt: |
+    В заготовке есть абстрактный класс `Shape` и готовый `main`: он читает команды и пользуется вашими классами. Допишите классы `Rect` и `Square` и две свободные функции. Основную часть (после комментария «Дальше основная часть») менять не нужно.
+
+    1. `Rect(int w, int h)` - конструктор, который сохраняет ширину и высоту в списке инициализации. `area()` возвращает `w * h`, `name()` возвращает `"rect"`.
+    2. `Square(int side)` - наследник `Rect`: вызывает конструктор `Rect` с двумя одинаковыми сторонами и переопределяет `name()`, возвращая `"square"`. Площадь он наследует.
+    3. `bool operator==(const Rect& a, const Rect& b)` - прямоугольники равны, если равны ширина и высота.
+    4. `std::ostream& operator<<(std::ostream& out, const Shape& shape)` - печатает фигуру в виде `имя(площадь)`, например `rect(6)`. Функция должна работать для любой фигуры, переданной по ссылке на `Shape`.
+
+    Команды: `rect w h`, `square s`, `same w1 h1 w2 h2` (сравнение двух прямоугольников), `slice s` (имя квадрата, переданного по ссылке и по значению в функции, принимающие `Rect`), `total` с набором фигур `r w h` и `s side`.
+
+    **Пример.** Для ввода
+
+    ```
+    rect 2 3
+    square 4
+    same 2 3 2 3
+    slice 5
+    total r 2 3 s 4
+    ```
+
+    программа печатает
+
+    ```
+    rect(6)
+    square(16)
+    equal
+    square rect
+    rect(6) square(16) total=22
+    ```
+
+    Часть тестов скрыта: в них неравные прямоугольники, нули и длинный список фигур.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Rect: конструктор пишется как Rect(int w, int h) : w_(w), h_(h) {}, area возвращает w_ * h_, name - \"rect\"."
+    - "Square: explicit Square(int side) : Rect(side, side) {} и std::string name() const override { return \"square\"; } - area() наследуется от Rect."
+    - "operator==: return a.width() == b.width() && a.height() == b.height(); (используйте методы width() и height())."
+    - "operator<<: return out << shape.name() << \"(\" << shape.area() << \")\"; - принимайте const Shape&, тогда виртуальные name() и area() вызовутся для настоящего типа."
+  tests:
+    - id: "basic"
+      title: "Фигуры, сравнение и срезка"
+      stdin: "rect 2 3\nsquare 4\nsame 2 3 2 3\nslice 5\ntotal r 2 3 s 4\n"
+      expected: |
+        rect(6)
+        square(16)
+        equal
+        square rect
+        rect(6) square(16) total=22
+      hint: "Печать идёт через виртуальные name() и area(); при передаче Square по значению в функцию с параметром Rect остаётся только часть Rect, поэтому второе имя - rect."
+    - id: "compare"
+      title: "Равные и неравные прямоугольники"
+      stdin: "same 2 3 3 2\nsame 4 4 4 4\nsame 1 2 1 3\n"
+      expected: |
+        different
+        equal
+        different
+      hint: "Прямоугольники 2x3 и 3x2 не равны: сравниваются ширина с шириной и высота с высотой."
+    - id: "zeros"
+      title: "Нули и квадраты (скрытый)"
+      stdin: "rect 0 5\nsquare 0\nsquare 1\nslice 1\n"
+      expected: |
+        rect(0)
+        square(0)
+        square(1)
+        square rect
+      hidden: true
+      hint: "Площадь прямоугольника 0x5 равна 0. Квадрат наследует area(), а его имя переопределено."
+    - id: "many"
+      title: "Много фигур в одном списке (скрытый)"
+      stdin: "total r 1 1 s 2 r 3 4 s 5 s 1\ntotal s 3\nsame 5 5 5 5\n"
+      expected: |
+        rect(1) square(4) rect(12) square(25) square(1) total=43
+        square(9) total=9
+        equal
+      hidden: true
+      hint: "Каждая фигура в векторе печатается по своему настоящему типу; итоговая площадь - сумма area() всех фигур: 1 + 4 + 12 + 25 + 1 = 43."

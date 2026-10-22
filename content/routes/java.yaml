@@ -1,0 +1,45 @@
+track: java
+entry:
+  beginner: java.from-zero.first-program
+  programmer: java.programmers.syntax-types-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, ввод, условия, циклы
+    description: Типы и переменные, арифметика и целочисленное деление, чтение ввода через Scanner, if и switch, циклы while и for.
+    check: java.check.basics
+    after: []
+  - id: collections
+    title: Методы, массивы, списки, словари и строки
+    description: Методы с параметрами, массивы, ArrayList, HashMap, строковые методы, сравнение строк.
+    check: java.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ошибки и разбор ввода
+    description: Чтение строк ввода, Integer.parseInt и NumberFormatException, try/catch, подсчёт неверных строк, форматирование с Locale.ROOT.
+    check: java.check.errors-input
+    after: [collections]
+  - id: equality
+    title: Равенство, упаковка и null
+    description: Разница между == и equals, кэш Integer, Objects.equals, распаковка null.
+    check: java.check.equality
+    after: [basics]
+  - id: classes
+    title: Классы, записи и перечисления
+    description: Записи и компактные конструкторы, перечисления с методами, равенство объектов и HashSet.
+    check: java.check.classes
+    after: [collections]
+  - id: generics
+    title: Обобщения и коллекции
+    description: Обобщённые методы, extends и super в шаблонах, инвариантность, стирание типов, TreeMap.
+    check: java.check.generics
+    after: [classes]
+  - id: streams
+    title: Лямбды, Streams API и Optional
+    description: filter, map, sorted, коллекторы, группировка, ленивость потоков, Optional вместо null.
+    check: java.check.streams
+    after: [generics]
+  - id: concurrency
+    title: Потоки и ExecutorService
+    description: Thread, start и join, гонки данных, AtomicInteger и synchronized, ExecutorService и Future, виртуальные потоки.
+    check: java.check.concurrency
+    after: [classes]

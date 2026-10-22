@@ -1,0 +1,166 @@
+id: "java.check.equality"
+title: "Проверка: равенство - == против equals и упаковка"
+goal: "Сравнивать строки и объекты-числа по значению и не полагаться на ==, кэш Integer и null."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: выбирать equals вместо == для строк и упакованных чисел и безопасно сравнивать значения, которые могут быть null."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "java"
+  - "check"
+  - "equality"
+  - "equality"
+  - "boxing"
+assessmentFor:
+  - "java.first-steps.primitives-objects-and-equality"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        Integer a = 127, b = 127, c = 1000, d = 1000;
+        System.out.println((a == b) + " " + (c == d) + " " + c.equals(d));
+        ```
+      options:
+        - "true true true"
+        - "true false true"
+        - "false false true"
+        - "true false false"
+      answer: 1
+      explanation: "Упаковка значений от -128 до 127 использует кэш, и a с b - один объект. Для 1000 создаются два разных объекта, == сравнивает ссылки и даёт false, а equals сравнивает значения и даёт true."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        String s = new String("hi");
+        System.out.println((s == "hi") + " " + s.equals("hi") + " " + (s.intern() == "hi"));
+        ```
+      options:
+        - "false true true"
+        - "true true true"
+        - "false true false"
+        - "false false true"
+      answer: 0
+      explanation: "new String создаёт новый объект, отличный от литерала, поэтому == даёт false, а equals - true. Метод intern возвращает строку из общего пула, ту же, что и литерал \"hi\", поэтому последнее сравнение истинно."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```java
+        Integer n = null;
+        int m = n;
+        ```
+      options:
+        - "m станет 0"
+        - "m станет null"
+        - "NullPointerException"
+        - "ошибка компиляции"
+      answer: 2
+      explanation: "Присваивание Integer переменной int распаковывает значение вызовом intValue(), а для null это NullPointerException. Компилятор такой код пропускает."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        Long y = 5L;
+        System.out.println(y.equals(5) + " " + y.equals(5L));
+        ```
+      options:
+        - "true true"
+        - "false true"
+        - "true false"
+        - "false false"
+      answer: 1
+      explanation: "Аргумент 5 упаковывается в Integer, а Long.equals считает равными только объекты типа Long. Поэтому y.equals(5) ложно, а y.equals(5L) истинно."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        List<Integer> xs = new ArrayList<>(List.of(1000, 1000));
+        System.out.println(xs.get(0) == xs.get(1));
+        ```
+      options:
+        - "true"
+        - "false"
+        - "ClassCastException"
+        - "ошибка компиляции"
+      answer: 1
+      explanation: "Элементы списка - два объекта Integer, упакованные по отдельности (1000 вне кэша). Оператор == сравнивает ссылки, поэтому результат false. Для значений нужно использовать equals."
+exercise:
+  id: "java.check.equality.exercise"
+  title: "Сравнение строк и чисел"
+  prompt: |-
+    Реализуйте три метода; `main` уже написан. Каждая непустая строка ввода содержит слова и числа через пробел: два слова, затем два или больше чисел. Значение `null` (слово `null`) означает отсутствие.
+
+    * `sameWord(String a, String b)` - `true`, если строки равны по содержимому (две `null` тоже равны);
+    * `sameNumber(Integer a, Integer b)` - `true`, если числа равны по значению (два `null` равны);
+    * `countEqual(List<Integer> xs, Integer target)` - сколько элементов списка равны `target` по значению.
+
+    `main` создаёт объекты так, что `==` на равных данных может дать `false`.
+
+    **Пример.** Ввод:
+
+    ```
+    java java 1000 1000 1000
+    ```
+
+    Вывод:
+
+    ```
+    Строки: true, числа: true, совпадений: 3
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Заготовки трёх методов уже есть и сравнивают через ==. Именно это и нужно исправить."
+    - "Для двух значений, любое из которых может быть null, используйте Objects.equals(a, b): он возвращает true для двух null и false для null и не null."
+    - "countEqual: в цикле for (Integer x : xs) сравнивайте Objects.equals(x, target) и увеличивайте счётчик."
+  tests:
+    - id: "basic"
+      title: "Равные строки и большие числа"
+      stdin: |
+        java java 1000 1000 1000
+      expected: |
+        Строки: true, числа: true, совпадений: 3
+      hint: "Строки созданы через new String и числа вне кэша от -128 до 127: == даст false, а нужно сравнение по содержимому. Совпадений с первым числом три."
+    - id: "different"
+      title: "Разные значения"
+      stdin: |
+        java Java 5 6
+      expected: |
+        Строки: false, числа: false, совпадений: 1
+      hint: "Java и java различаются регистром, 5 и 6 разные, совпадение только само число: 1."
+    - id: "nulls"
+      title: "Значения null (скрытый)"
+      stdin: |
+        null null null null 5
+        null hello null 5
+      expected: |
+        Строки: true, числа: true, совпадений: 2
+        Строки: false, числа: false, совпадений: 1
+      hidden: true
+      hint: "Две null равны, null и строка не равны; сравнение с null не должно бросать исключение. В первой строке два null равны между собой, поэтому совпадений 2; во второй совпадение одно."
+    - id: "cache"
+      title: "Границы кэша Integer (скрытый)"
+      stdin: |
+        hello hello 127 127 128
+        hello hello 128 128 127 128 128
+      expected: |
+        Строки: true, числа: true, совпадений: 2
+        Строки: true, числа: true, совпадений: 4
+      hidden: true
+      hint: "Числа 127 и 128 лежат по разные стороны кэша Integer: == даёт разные ответы, equals - одинаково верные."

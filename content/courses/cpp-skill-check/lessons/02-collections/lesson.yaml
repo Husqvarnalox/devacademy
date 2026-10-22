@@ -1,0 +1,234 @@
+id: "cpp.check.collections"
+title: "Проверка: функции, vector, map и строки"
+goal: "Писать функции с правильной передачей параметров и работать с vector, map и строками."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разбирать строку через find и substr, накапливать суммы в std::map и искать наибольший элемент."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "collections"
+assessmentFor:
+  - "cpp.from-zero.functions"
+  - "cpp.from-zero.references"
+  - "cpp.from-zero.vector"
+  - "cpp.from-zero.map"
+  - "cpp.from-zero.text-lines"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (int x : v) {
+                x *= 2;
+            }
+            std::cout << v[0] << v[1] << v[2] << "\n";
+        }
+        ```
+      options:
+        - "246"
+        - "123"
+        - "Ошибка компиляции"
+        - "222"
+      answer: 1
+      explanation: "В цикле for (int x : v) переменная x - копия элемента. Удвоение меняет копию, а вектор остаётся прежним. Чтобы изменить элементы, переменная должна быть ссылкой: for (int& x : v)."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        void bump(int& a, int b) {
+            a += 1;
+            b += 1;
+        }
+
+        int main() {
+            int x = 1;
+            int y = 1;
+            bump(x, y);
+            std::cout << x << y << "\n";
+        }
+        ```
+      options:
+        - "11"
+        - "22"
+        - "21"
+        - "12"
+      answer: 2
+      explanation: "Первый параметр - ссылка на x, поэтому a += 1 меняет x. Второй параметр b - копия y, и её изменение пропадает при выходе из функции. Получается x = 2 и y = 1, то есть 21."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, int> m;
+            m["a"] = 1;
+            int n = m["z"];
+            std::cout << m.size() << " " << n << "\n";
+        }
+        ```
+      options:
+        - "1 0"
+        - "2 0"
+        - "1 1"
+        - "Бросится std::out_of_range"
+      answer: 1
+      explanation: "Оператор [] для отсутствующего ключа вставляет запись со значением по умолчанию (0 для int). Поэтому после чтения m[\"z\"] в словаре две записи, а n равно 0. Исключение бросил бы метод at."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string s = "key=value";
+            std::size_t p = s.find('=');
+            std::cout << s.substr(p + 1) << " " << s.substr(0, p).size() << "\n";
+        }
+        ```
+      options:
+        - "value 3"
+        - "=value 3"
+        - "value 4"
+        - "key 5"
+      answer: 0
+      explanation: "find возвращает индекс символа =, то есть 3. substr(p + 1) берёт всё после него: value. substr(0, p) берёт первые три символа, key, их размер 3."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        На вход подаются две строки: `3` и `hello`. Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            int n = 0;
+            std::cin >> n;
+            std::string line;
+            std::getline(std::cin, line);
+            std::cout << "[" << line << "]\n";
+        }
+        ```
+      options:
+        - "[hello]"
+        - "[]"
+        - "[3]"
+        - "[3 hello]"
+      answer: 1
+      explanation: "Оператор >> читает число 3, но оставляет в потоке перевод строки. getline сразу находит его и возвращает пустую строку. Чтобы прочитать hello, нужно сначала пропустить остаток строки, например вызовом std::cin.ignore или вторым getline."
+exercise:
+  id: "cpp.check.collections.exercise"
+  title: "Расходы по категориям"
+  prompt: |
+    Готовая функция `main` читает строки вида `категория;сумма`, собирает суммы по категориям и печатает итог. Допишите три функции над `main` в `main.cpp`. Функцию `main` не меняйте.
+
+    1. `bool splitPair(const std::string& line, std::string& name, int& value)` - разбирает строку `имя;число`: записывает в `name` текст до первой `;`, в `value` - число после неё и возвращает `true`. Если в строке нет `;`, имя пустое или после `;` ничего нет, возвращает `false` и ничего не записывает. После `;` стоят только цифры или ничего.
+    2. `std::map<std::string, int> totalsByCategory(const std::vector<std::string>& categories, const std::vector<int>& amounts)` - сумма по каждой категории; `categories[i]` соответствует `amounts[i]`.
+    3. `std::string biggest(const std::map<std::string, int>& totals)` - категория с наибольшей суммой; при равенстве - первая по алфавиту; для пустого словаря - `-`.
+
+    `main` печатает суммы по категориям в алфавитном порядке, затем `top: <категория>` и `skipped: <число пропущенных строк>`.
+
+    **Пример.** Для ввода
+
+    ```
+    food;120
+    books;300
+    food;80
+    bad line
+    books;50
+    travel;350
+    ```
+
+    программа печатает
+
+    ```
+    books: 350
+    food: 200
+    travel: 350
+    top: books
+    skipped: 1
+    ```
+
+    Часть тестов скрыта: в них пустой ввод, ничьи и неверные строки.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "В заготовке функции возвращают приближённый результат. Начните с splitPair: проверьте, что s.find(';') не равно std::string::npos."
+    - "splitPair: semicolon = line.find(';'); имя - line.substr(0, semicolon), число - std::stoi(line.substr(semicolon + 1)). Вернуть false нужно, если semicolon равен npos или 0, либо после ; нет символов."
+    - "totalsByCategory: в цикле по индексу пишите totals[categories[i]] += amounts[i]; запись для новой категории создаётся со значением 0."
+    - "biggest: обход словаря идёт по алфавиту. Заведите ответ \"-\" и обновляйте его, если ответ ещё не выбран или текущая сумма строго больше лучшей."
+  tests:
+    - id: "basic"
+      title: "Суммы по категориям и неверная строка"
+      stdin: "food;120\nbooks;300\nfood;80\nbad line\nbooks;50\ntravel;350\n"
+      expected: |
+        books: 350
+        food: 200
+        travel: 350
+        top: books
+        skipped: 1
+      hint: "books = 300 + 50 = 350, food = 120 + 80 = 200, travel = 350. Ничья между books и travel решается по алфавиту: books. Строка bad line без ; пропускается."
+    - id: "single-category"
+      title: "Одна категория"
+      stdin: "x;1\nx;2\nx;3\n"
+      expected: |
+        x: 6
+        top: x
+        skipped: 0
+      hint: "Все три строки относятся к категории x: 1 + 2 + 3 = 6."
+    - id: "bad-lines"
+      title: "Пустое имя, пустое число, нет разделителя (скрытый)"
+      stdin: "a;5\nb;5\n;7\nc;\nc\n"
+      expected: |
+        a: 5
+        b: 5
+        top: a
+        skipped: 3
+      hidden: true
+      hint: "Строки ;7 (нет имени), c; (нет числа) и c (нет ;) пропускаются. Суммы a и b равны, поэтому лучшая - a по алфавиту."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        top: -
+        skipped: 0
+      hidden: true
+      hint: "Если данных нет, словарь пуст, и biggest возвращает -. Итоговых строк категорий нет."
+    - id: "ties"
+      title: "Ничья и нулевые суммы (скрытый)"
+      stdin: "z;0\nb;4\na;4\nb;1\na;1\nz;0\n"
+      expected: |
+        a: 5
+        b: 5
+        z: 0
+        top: a
+        skipped: 0
+      hidden: true
+      hint: "a и b набрали по 5, ничья решается алфавитом: a. Категория z со всеми нулями остаётся в списке с суммой 0."

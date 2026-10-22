@@ -1,0 +1,211 @@
+id: "csharp.check.delegates-async"
+title: "Проверка: делегаты, события и async/await"
+goal: "Использовать лямбды, события и асинхронные методы, понимая их порядок выполнения."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: возвращать лямбды как Func, объявлять и вызывать событие, писать async-метод с Task.WhenAll."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "csharp"
+  - "check"
+  - "delegates"
+  - "async"
+assessmentFor:
+  - "csharp.fundamentals.delegates-lambdas-events"
+  - "csharp.fundamentals.async-await"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        List<Action> actions = new List<Action>();
+        for (int i = 0; i < 3; i++)
+        {
+            actions.Add(() => Console.Write(i + " "));
+        }
+        foreach (Action a in actions)
+        {
+            a();
+        }
+        ```
+      options:
+        - "0 1 2"
+        - "3 3 3"
+        - "2 2 2"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Лямбда захватывает саму переменную i, а не её значение на момент создания. К моменту вызова цикл завершён и i равна 3. Чтобы получить 0 1 2, нужно внутри цикла скопировать значение: int copy = i; и захватить copy."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Func<int, int> f = x => x * 2;
+        Func<int, int> g = f;
+        f = x => x + 100;
+        Console.WriteLine(g(1));
+        ```
+      options:
+        - "2"
+        - "101"
+        - "3"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Переменная g хранит ссылку на исходный делегат. Присвоение f нового делегата не меняет того, на что ссылается g, поэтому g(1) по-прежнему умножает на 2 и возвращает 2."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.Write("A ");
+        Task t = Work();
+        Console.Write("C ");
+        await t;
+
+        static async Task Work()
+        {
+            Console.Write("B ");
+            await Task.Delay(10);
+            Console.Write("D ");
+        }
+        ```
+      options:
+        - "A B C D"
+        - "A C B D"
+        - "A B D C"
+        - "A C D B"
+      answer: 0
+      explanation: "Метод async выполняется синхронно до первого await, который не завершился сразу. Поэтому «B » печатается внутри вызова Work(), затем управление возвращается и печатается «C », а «D » появляется после задержки."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```csharp
+        Counter c = new Counter();
+        c.Add(1);
+
+        class Counter
+        {
+            public event Action<int>? Changed;
+
+            public void Add(int n)
+            {
+                Changed(n);
+            }
+        }
+        ```
+      options:
+        - "Событие вызовется без подписчиков, ошибки нет"
+        - "Бросится NullReferenceException, потому что подписчиков нет"
+        - "Ошибка компиляции: событие нельзя вызывать внутри класса"
+        - "Бросится InvalidOperationException"
+      answer: 1
+      explanation: "Событие без подписчиков равно null, и его прямой вызов бросает NullReferenceException (компилятор ещё и выдаёт предупреждение о возможном null). Безопасная запись - Changed?.Invoke(n)."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Action a = () => Console.Write("1 ");
+        a += () => Console.Write("2 ");
+        a -= () => Console.Write("1 ");
+        a();
+        ```
+      options:
+        - "2"
+        - "1 2"
+        - "1"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Каждая лямбда создаёт отдельный делегат, а оператор -= удаляет делегат, равный переданному. Вторая лямбда с тем же телом - другой объект, поэтому ничего не удаляется, и вызываются оба: «1 2 »."
+exercise:
+  id: "csharp.check.delegates-async.exercise"
+  title: "Конвейер операций, события и async"
+  prompt: |
+    Основная часть программы написана: она читает команды (по одной на строку), собирает конвейер из операций и печатает результаты. Допишите внизу `Program.cs` три вещи. Основную часть не меняйте.
+
+    1. `MakeOp(string name, int arg)` - возвращает функцию `Func<int, int>?`: для `add` - `x + arg`, для `sub` - `x - arg`, для `mul` - `x * arg`, для любого другого имени - `null`.
+    2. `SumSquaresAsync(List<int> values)` - асинхронный метод: считает квадраты значений через `Task.Run`, дожидается всех задач (`Task.WhenAll`) и возвращает сумму квадратов; для пустого списка - `0`.
+    3. Класс `Counter` с полем `Value` (только чтение извне), событием `Changed` типа `Action<int>?` и методом `Add(int n)`. При `n == 0` метод ничего не делает; иначе изменяет `Value` и вызывает `Changed` с новым значением. Если подписчиков нет, вызов не должен падать.
+
+    Команды: `op имя число` (добавить операцию в конвейер), `reset` (очистить конвейер), `run число` (прогнать число через операции по порядку), `count числа...` (создать счётчик и добавить числа, печатая каждое изменение), `squares числа...`.
+
+    **Пример.** Для ввода
+
+    ```
+    op add 3
+    op mul 2
+    run 5
+    count 2 3 0
+    squares 1 2 3
+    ```
+
+    программа печатает
+
+    ```
+    16
+    значение: 2
+    значение: 5
+    итого: 5
+    14
+    ```
+
+    Часть тестов скрыта: в них неизвестные операции, сброс конвейера, пустые списки и отрицательные числа.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "MakeOp: switch по name, в каждой ветке return x => x + arg; (и аналогично). Лямбда захватывает параметр arg - он у каждого вызова свой."
+    - "SumSquaresAsync: объявите метод как static async Task<int>. values.Select(v => Task.Run(() => v * v)) даёт набор задач, await Task.WhenAll(...) - массив результатов."
+    - "Counter.Add: if (n == 0) return; затем Value += n; и Changed?.Invoke(Value); - оператор ?. не вызывает событие без подписчиков."
+    - "Метод Sum() из LINQ вернёт сумму массива int[]; для пустого массива результат 0."
+  tests:
+    - id: "pipeline"
+      title: "Конвейер операций"
+      stdin: "op add 3\nop mul 2\nrun 5\nrun 0\n"
+      expected: |
+        16
+        6
+      hint: "Операции применяются по порядку: (5 + 3) * 2 = 16 и (0 + 3) * 2 = 6. Каждая лямбда должна использовать свой arg."
+    - id: "count-squares"
+      title: "События и async"
+      stdin: "count 2 3 0 -1\nsquares 1 2 3\n"
+      expected: |
+        значение: 2
+        значение: 5
+        значение: 4
+        итого: 4
+        14
+      hint: "Счётчик не вызывает событие для 0: подписчик печатает три значения - 2, 5 и 4. Сумма квадратов 1 + 4 + 9 - это 14."
+    - id: "unknown"
+      title: "Неизвестная операция и reset (скрытый)"
+      stdin: "op pow 2\nop sub 4\nrun 10\nreset\nrun 10\n"
+      expected: |
+        неизвестная операция: pow
+        6
+        10
+      hidden: true
+      hint: "MakeOp возвращает null для неизвестного имени, и операция в конвейер не попадает. После reset конвейер пуст, и run возвращает число как есть."
+    - id: "edge"
+      title: "Пустые и отрицательные значения (скрытый)"
+      stdin: "squares\nsquares -3 4\ncount 0\ncount 5\nop add 1\nop add 10\nrun 0\n"
+      expected: |
+        0
+        25
+        итого: 0
+        значение: 5
+        итого: 5
+        11
+      hidden: true
+      hint: "Пустой список даёт сумму 0, квадрат -3 равен 9. count 0 не вызывает событие. Две операции add с разными аргументами не должны мешать друг другу: 0 + 1 + 10 = 11."

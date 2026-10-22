@@ -1,0 +1,225 @@
+id: "java.from-zero.string-methods"
+title: "Методы строк: equals, trim, split, substring"
+goal: "Очищать, сравнивать и разбирать строки методами equals, trim, split, substring, indexOf, contains и replace."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "java.from-zero.hashmap"
+objectives:
+  - "Сравнивать строки методом equals и объяснять, почему == для текста не подходит."
+  - "Помнить, что методы строк возвращают новую строку, и сохранять результат."
+  - "Разрезать строку по разделителю методом split и обращаться к частям массива."
+  - "Вырезать часть строки методами indexOf и substring, учитывая, что конец не включается."
+masteryCriteria:
+  - "Метод поля записи возвращает часть строки без пробелов по краям."
+  - "Метод домена возвращает пустую строку, если в адресе нет символа @."
+  - "Сравнение имён не зависит от регистра и крайних пробелов."
+concepts:
+  introduces:
+    - "java.equals"
+    - "java.string-methods"
+    - "java.split"
+  uses:
+    - "java.string"
+    - "java.string-length"
+    - "java.char-at"
+    - "java.index"
+    - "java.string-case"
+    - "java.array"
+    - "java.array-length"
+    - "java.for-each"
+    - "java.method"
+    - "java.parameter"
+    - "java.return"
+    - "java.static"
+    - "java.if"
+    - "java.boolean"
+    - "java.concatenation"
+    - "java.int"
+    - "java.scanner"
+    - "java.next-line"
+    - "java.parse-int"
+    - "java.number-format-exception"
+    - "java.println"
+    - "java.compile-error"
+next:
+  - "java.from-zero.exceptions"
+tags:
+  - "java"
+  - "string"
+  - "equals"
+  - "split"
+  - "substring"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        String s = "  кот ";
+        s.trim();
+        System.out.println("[" + s + "]");
+        ```
+      options:
+        - "[  кот ]"
+        - "[кот]"
+        - "[ кот ]"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Строки неизменяемы: trim вернул новую строку, но результат нигде не сохранён, поэтому s осталась прежней. Верно было бы s = s.trim();"
+    - id: "q2"
+      type: "single"
+      prompt: "Строка `word` прочитана через `in.next()` и содержит слово «да». Какое выражение гарантированно истинно?"
+      options:
+        - "word.equals(\"да\")"
+        - "word == \"да\""
+        - "word.indexOf(\"да\") == 1"
+        - "word.length == 2"
+      answer: 0
+      explanation: "equals сравнивает текст. == сравнивает объекты, и для строки из ввода даёт false. В индексе слова «да» первая буква стоит на позиции 0, а length без скобок для строки не компилируется."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        String s = "abcdef";
+        System.out.println(s.substring(1, 4));
+        ```
+      options:
+        - "bcd"
+        - "bcde"
+        - "abcd"
+        - "cde"
+      answer: 0
+      explanation: "substring(1, 4) берёт символы с индекса 1 по индекс 3 включительно; символ с индексом 4 не входит. Длина результата 4 - 1 = 3."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        String[] p = "a;b;c".split(";");
+        System.out.println(p.length + p[1]);
+        ```
+      options:
+        - "3b"
+        - "2b"
+        - "b3"
+        - "4"
+      answer: 0
+      explanation: "split даёт массив из трёх частей: a, b, c. p.length равно 3, p[1] - строка b; число плюс строка склеиваются в 3b."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт `\"hello\".indexOf(\"z\")`?"
+      options:
+        - "-1"
+        - "0"
+        - "Исключение"
+        - "null"
+      answer: 0
+      explanation: "Если подстроки нет, indexOf возвращает -1. Исключения нет, а индекс 0 означал бы совпадение с первой буквы."
+exercise:
+  id: "java.from-zero.string-methods.exercise"
+  title: "Контактная запись"
+  prompt: |
+    В заготовке уже есть `main`: он читает две строки. Первая - запись контакта в формате `имя;email;город`, вторая - имя, с которым нужно сравнить. Затем `main` печатает четыре строки:
+
+    ```
+    Имя: <имя без пробелов по краям>
+    Город: <город без пробелов по краям>
+    Домен: <часть email после @>
+    Совпадает: <true или false>
+    ```
+
+    Напишите три метода:
+
+    * `field(String line, int index)` - возвращает часть записи с номером `index` (счёт с нуля), разрезав строку по `;`, без пробелов по краям;
+    * `domain(String email)` - возвращает часть адреса после символа `@`; если символа `@` нет, возвращает пустую строку;
+    * `sameName(String a, String b)` - `true`, если имена совпадают без учёта регистра и крайних пробелов.
+
+    Во всех тестах запись содержит ровно три поля.
+
+    **Пример.** Ввод:
+
+    ```
+    Анна Петрова ; anna@example.com ; Москва
+     анна петрова
+    ```
+
+    Вывод:
+
+    ```
+    Имя: Анна Петрова
+    Город: Москва
+    Домен: example.com
+    Совпадает: true
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "field: разрежьте line.split(\";\") и верните нужную часть с вызовом trim()."
+    - "domain: найдите индекс символа @ через email.indexOf(\"@\"). Если он равен -1, верните \"\". Иначе верните email.substring(индекс + 1)."
+    - "sameName: приведите обе строки к одному виду цепочкой trim().toLowerCase() и сравните через equals, а не ==."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: |
+        Анна Петрова ; anna@example.com ; Москва
+         анна петрова
+      expected: |
+        Имя: Анна Петрова
+        Город: Москва
+        Домен: example.com
+        Совпадает: true
+      hint: "Пробелы по краям частей убираются, домен - всё после @, имена совпадают без учёта регистра."
+    - id: "different"
+      title: "Другое имя"
+      stdin: |
+        Олег;oleg@mail.ru;Казань
+        Игорь
+      expected: |
+        Имя: Олег
+        Город: Казань
+        Домен: mail.ru
+        Совпадает: false
+      hint: "Разные имена дают false; домен берётся из email."
+    - id: "no-at"
+      title: "Адрес без @ (скрытый)"
+      stdin: |
+        Мария; не указан ;Тверь
+        Мария
+      expected: |
+        Имя: Мария
+        Город: Тверь
+        Домен: 
+        Совпадает: true
+      hidden: true
+      hint: "Если в адресе нет символа @, домен - пустая строка, то есть после слова «Домен:» ничего не печатается."
+    - id: "spaces-case"
+      title: "Пробелы и регистр (скрытый)"
+      stdin: |
+        ИВАН   ;ivan@site.org;  Пермь  
+          иван 
+      expected: |
+        Имя: ИВАН
+        Город: Пермь
+        Домен: site.org
+        Совпадает: true
+      hidden: true
+      hint: "Имена сравниваются без учёта регистра и крайних пробелов: «ИВАН» и «иван» совпадают."
+    - id: "prefix"
+      title: "Имя - часть другого (скрытый)"
+      stdin: |
+        Анна;a@b.c;Омск
+        Анн
+      expected: |
+        Имя: Анна
+        Город: Омск
+        Домен: b.c
+        Совпадает: false
+      hidden: true
+      hint: "Совпадение должно быть полным: «Анна» и «Анн» - разные имена, поэтому false."

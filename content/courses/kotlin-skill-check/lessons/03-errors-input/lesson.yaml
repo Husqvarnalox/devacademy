@@ -1,0 +1,227 @@
+id: "kotlin.check.errors-input"
+title: "Проверка: ошибки и разбор ввода"
+goal: "Читать ввод до конца данных, отличать неверные строки от допустимых и не падать на ошибках."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: читать строки до конца ввода, безопасно преобразовывать их в числа и считать неверные значения."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "errors"
+  - "input"
+  - "parsing"
+assessmentFor:
+  - "kotlin.from-zero.reading-input"
+  - "kotlin.from-zero.type-conversion"
+  - "kotlin.from-zero.nullable-values"
+  - "kotlin.from-zero.exceptions"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val a = "12".toIntOrNull()
+            val b = " 12".toIntOrNull()
+            val c = "1.5".toIntOrNull()
+            println("$a $b $c ${(a ?: 0) + (b ?: 0)}")
+        }
+        ```
+      options:
+        - "12 null null 12"
+        - "12 12 1 24"
+        - "12 null null 0"
+        - "12 12 null 24"
+      answer: 0
+      explanation: "toIntOrNull не обрезает пробелы: \" 12\" и \"1.5\" - не целые числа, результат null. Оператор ?: заменяет null нулём, поэтому сумма равна 12 + 0."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun parse(s: String): Int {
+            try {
+                return s.toInt()
+            } catch (e: NumberFormatException) {
+                println("err")
+            }
+            return 0
+        }
+
+        fun main() {
+            println(parse("5") + parse("x"))
+        }
+        ```
+      options:
+        - "err 5"
+        - "5 err"
+        - "5"
+        - "err 0"
+      answer: 0
+      explanation: "Сначала вычисляются оба вызова: parse(\"5\") возвращает 5, а parse(\"x\") печатает err и возвращает 0. Только после этого println печатает сумму 5."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа, если ввод пустой (данных нет)?
+
+        ```kotlin
+        fun main() {
+            val x = readlnOrNull() ?: "none"
+            println(x)
+        }
+        ```
+      options:
+        - "none"
+        - "null"
+        - "Пустую строку"
+        - "ReadAfterEOFException"
+      answer: 0
+      explanation: "readlnOrNull() возвращает null, когда данные закончились, и оператор ?: подставляет \"none\". Вызов readln() на том же вводе бросил бы ReadAfterEOFException."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            try {
+                throw IllegalArgumentException("bad")
+            } catch (e: Exception) {
+                println(e.message)
+            } finally {
+                println("done")
+            }
+        }
+        ```
+      options:
+        - "bad done"
+        - "done bad"
+        - "bad"
+        - "done"
+      answer: 0
+      explanation: "Исключение перехватывается в catch, и печатается его сообщение bad. Блок finally выполняется после catch и печатает done."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что произойдёт, если во входных данных одна строка abc?
+
+        ```kotlin
+        fun main() {
+            val n = readln().toInt()
+            println(n * 2)
+        }
+        ```
+      options:
+        - "Выведет 0"
+        - "Выведет abcabc"
+        - "Бросит NumberFormatException"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "toInt() не может превратить abc в число и бросает NumberFormatException, а программа без try / catch завершается с ошибкой. Безопасный вариант - toIntOrNull()."
+exercise:
+  id: "kotlin.check.errors-input.exercise"
+  title: "Оценки с неверными строками"
+  prompt: |-
+    Программа читает строки до конца ввода. В каждой строке должно быть целое число от `0` до `100` (оценка); пробелы по краям строки допустимы. Печатается четыре строки:
+
+    ```
+    Принято: <сколько допустимых оценок>
+    Не числа: <сколько строк, не являющихся целым числом>
+    Вне диапазона: <сколько целых чисел меньше 0 или больше 100>
+    Сумма: <сумма допустимых оценок>
+    ```
+
+    Неверные строки не прерывают программу, они только учитываются.
+
+    **Пример.** Ввод:
+
+    ```
+    10
+    abc
+     20 
+    150
+    -1
+    5.5
+    ```
+
+    Вывод:
+
+    ```
+    Принято: 2
+    Не числа: 2
+    Вне диапазона: 2
+    Сумма: 30
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Читайте строки в цикле while (true) и выходите, когда readlnOrNull() вернул null: val line = readlnOrNull() ?: break."
+    - "Для каждой строки вычислите line.trim().toIntOrNull(). Если результат null - увеличьте счётчик «не числа»."
+    - "Если число есть, проверьте диапазон: n < 0 || n > 100 - это «вне диапазона», иначе число принимается и прибавляется к сумме."
+    - "Пустая строка не является числом: toIntOrNull() вернёт null, и она попадёт в «не числа»."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "10\nabc\n 20 \n150\n-1\n5.5\n"
+      expected: |
+        Принято: 2
+        Не числа: 2
+        Вне диапазона: 2
+        Сумма: 30
+      hint: "10 и 20 принимаются (пробелы вокруг 20 обрезаются); abc и 5.5 - не целые числа; 150 и -1 вне диапазона; сумма 30."
+    - id: "all-good"
+      title: "Все строки верные"
+      stdin: |
+        0
+        100
+        50
+      expected: |
+        Принято: 3
+        Не числа: 0
+        Вне диапазона: 0
+        Сумма: 150
+      hint: "Граничные значения 0 и 100 допустимы: принято 3, сумма 150."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Принято: 0
+        Не числа: 0
+        Вне диапазона: 0
+        Сумма: 0
+      hidden: true
+      hint: "Когда данных нет, все четыре значения равны 0; чтение должно остановиться на конце ввода."
+    - id: "blank-lines"
+      title: "Пустые строки (скрытый)"
+      stdin: "7\n\n   \n8\n"
+      expected: |
+        Принято: 2
+        Не числа: 2
+        Вне диапазона: 0
+        Сумма: 15
+      hidden: true
+      hint: "Пустая строка и строка из пробелов - не числа: не числа 2, принято 2, сумма 15."
+    - id: "out-of-range"
+      title: "Только неверные (скрытый)"
+      stdin: |
+        101
+        -5
+        x
+        1e3
+      expected: |
+        Принято: 0
+        Не числа: 2
+        Вне диапазона: 2
+        Сумма: 0
+      hidden: true
+      hint: "101 и -5 вне диапазона, x и 1e3 - не целые числа; принятых нет, сумма 0."

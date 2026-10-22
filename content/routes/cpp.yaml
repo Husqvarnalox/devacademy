@@ -1,0 +1,45 @@
+track: cpp
+entry:
+  beginner: cpp.from-zero.first-program
+  programmer: cpp.programmers.syntax-types-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, ввод, условия, циклы
+    description: Типы и переменные, арифметика и целочисленное деление, вывод с std::fixed, чтение через std::cin, if и switch, циклы while и for, break и continue.
+    check: cpp.check.basics
+    after: []
+  - id: collections
+    title: Функции, vector, map и строки
+    description: Параметры по значению, T& и const T&, std::vector и std::map, обход коллекций, find и substr, getline и разбор строк.
+    check: cpp.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ввод и ошибки
+    description: Проверка чтения через std::cin, строгий разбор чисел через stoi и stod, исключения invalid_argument и out_of_range, подсчёт неверных строк.
+    check: cpp.check.errors-input
+    after: [collections]
+  - id: values-raii
+    title: Значения, ссылки и RAII
+    description: Когда C++ копирует объекты, ссылки и const&, порядок конструкторов и деструкторов, RAII и висячие ссылки.
+    check: cpp.check.values-raii
+    after: [collections]
+  - id: classes
+    title: Классы, наследование и виртуальные функции
+    description: Конструкторы и списки инициализации, перегрузка операторов, virtual и override, виртуальный деструктор, абстрактные классы, срезка.
+    check: cpp.check.classes
+    after: [values-raii]
+  - id: smart-pointers
+    title: Умные указатели
+    description: Владение через unique_ptr, shared_ptr и weak_ptr, перемещение, фабрики, счётчик владельцев и разрыв циклов.
+    check: cpp.check.smart-pointers
+    after: [values-raii]
+  - id: stl
+    title: Контейнеры STL и алгоритмы
+    description: Выбор контейнера, рост и инвалидация итераторов, удаление элементов, алгоритмы и лямбды, string_view.
+    check: cpp.check.stl
+    after: [collections, values-raii]
+  - id: errors-ub
+    title: Исключения и неопределённое поведение
+    description: Безопасные по исключениям функции, noexcept, optional и строгий разбор, проверка арифметики и индексов, источники UB и санитайзеры.
+    check: cpp.check.errors-ub
+    after: [errors-input, classes]

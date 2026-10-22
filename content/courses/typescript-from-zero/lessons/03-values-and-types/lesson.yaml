@@ -1,0 +1,143 @@
+id: "typescript.from-zero.values-and-types"
+title: "Значения и их типы: число, текст, да/нет"
+goal: "Различать числа, текст и логические значения и узнавать вид значения операцией typeof."
+difficulty: "intro"
+estimatedMinutes: 25
+prerequisites:
+  - "typescript.from-zero.reading-errors"
+objectives:
+  - "Записать число, строку и логическое значение true или false."
+  - "Объяснить, чем число 5 отличается от строки \"5\"."
+  - "Узнать вид значения операцией typeof и назвать его: number, string, boolean."
+masteryCriteria:
+  - "Вы выводите число без кавычек, текст в кавычках и логическое значение true или false."
+  - "Вы предсказываете, что напечатает typeof для значения."
+concepts:
+  introduces:
+    - "ts.number"
+    - "ts.string"
+    - "ts.boolean"
+    - "ts.typeof"
+  uses:
+    - "ts.console-log"
+    - "ts.string-literal"
+    - "ts.error-message"
+next:
+  - "typescript.from-zero.variables"
+tags:
+  - "typescript"
+  - "types"
+  - "typeof"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        console.log(typeof "42");
+        ```
+      options:
+        - "number"
+        - "string"
+        - "boolean"
+        - "42"
+      answer: 1
+      explanation: "Всё, что записано в кавычках, - текст, даже если внутри только цифры. typeof возвращает название вида значения, а значение здесь строка."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        console.log(typeof 5, typeof "5");
+        ```
+      options:
+        - "number number"
+        - "string string"
+        - "number string"
+        - "string number"
+      answer: 2
+      explanation: "5 без кавычек - число, \"5\" в кавычках - текст. console.log печатает оба результата через пробел."
+    - id: "q3"
+      type: "single"
+      prompt: "Какое из значений имеет вид boolean?"
+      options:
+        - "\"true\""
+        - "1"
+        - "true"
+        - "\"да\""
+      answer: 2
+      explanation: "Логическое значение true записывается без кавычек. \"true\" в кавычках - это текст из четырёх букв."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка?
+
+        ```typescript
+        console.log(True);
+        ```
+      options:
+        - "Напечатается True."
+        - "TS2304: Cannot find name 'True': логическое значение пишется строчными буквами, true."
+        - "Напечатается true."
+        - "Ничего, это допустимая запись."
+      answer: 1
+      explanation: "В TypeScript регистр важен: true - логическое значение, а True - неизвестное имя. Проверка остановит запуск."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        console.log(2.5, "2.5");
+        ```
+      options:
+        - "2.5 2.5"
+        - "2.5 \"2.5\""
+        - "2,5 2.5"
+        - "Ошибка: нельзя печатать число и текст вместе."
+      answer: 0
+      explanation: "Число и текст печатаются одинаково, поэтому по выводу их не отличить. Различает их typeof. Десятичный разделитель в числах - точка, а не запятая."
+exercise:
+  id: "typescript.from-zero.values-and-types.exercise"
+  title: "Карточка товара"
+  prompt: |
+    Заготовка печатает карточку товара, но вместо значений везде стоит `"???"`. Замените их так, чтобы программа напечатала:
+
+    ```
+    Название: Хлеб
+    Цена: 45
+    В наличии: true
+    Тип цены: number
+    ```
+
+    Название - текст в кавычках. Цена - **число**, то есть без кавычек: тогда `typeof` покажет `number`. Наличие - логическое значение `true` без кавычек. В последней строке `typeof` должен получить то же значение, что и во второй.
+  entryFile: "main.ts"
+  evaluation: "io"
+  hints:
+    - "В каждой строке замените только \"???\": кавычки у текста оставьте, у числа и у true уберите."
+    - "Вторая строка: console.log(\"Цена:\", 45); - число без кавычек. Четвёртая строка должна применить typeof к числу."
+    - "Если в строке «Тип цены» напечатано string, значит, у цены остались кавычки: \"45\" - это текст."
+  tests:
+    - id: "basic"
+      title: "Карточка товара"
+      stdin: ""
+      expected: |
+        Название: Хлеб
+        Цена: 45
+        В наличии: true
+        Тип цены: number
+      hint: "Программа печатает четыре строки: название «Хлеб», цену 45, наличие true и вид цены number."
+    - id: "types"
+      title: "Цена - число, а не текст (скрытый)"
+      stdin: ""
+      expected: |
+        Название: Хлеб
+        Цена: 45
+        В наличии: true
+        Тип цены: number
+      hidden: true
+      hint: "Последняя строка должна содержать слово number: значит, typeof применяется к числу 45 без кавычек. Остальные строки совпадают с примером."

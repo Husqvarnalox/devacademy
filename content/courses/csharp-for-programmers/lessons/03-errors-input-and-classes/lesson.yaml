@@ -1,0 +1,214 @@
+id: "csharp.programmers.errors-input-and-classes"
+title: "Ввод, исключения и классы: строгий разбор и защита данных"
+goal: "Читать ввод до конца, разбирать числа строго без исключений, бросать исключения подходящего типа и писать классы со свойствами, которые защищают свои данные."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "csharp.programmers.methods-and-collections"
+next:
+  - "csharp.first-steps.how-csharp-runs"
+objectives:
+  - "Обрабатывать конец ввода (ReadLine возвращает null) и пустые строки."
+  - "Выбирать между Parse и TryParse и задавать NumberStyles и InvariantCulture для строгого разбора."
+  - "Записывать try, catch, finally и throw и выбирать тип исключения (ArgumentException, InvalidOperationException)."
+  - "Писать класс со свойством private set, конструктором и методами, проверяющими входные данные."
+  - "Работать со значениями, которые могут быть null, через is null, ?. и ??."
+masteryCriteria:
+  - "TryParseAmount отвергает пробелы, запятые, экспоненту и буквы, Account бросает ArgumentException и InvalidOperationException в нужных случаях, Describe обрабатывает null."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "csharp"
+  - "programmers"
+  - "exceptions"
+  - "classes"
+assessmentFor:
+  - "csharp.from-zero.reading-input"
+  - "csharp.from-zero.parsing-numbers"
+  - "csharp.from-zero.exceptions"
+  - "csharp.from-zero.classes-basics"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.WriteLine(int.Parse(" 12 ") + 1);
+        ```
+      options:
+        - "Бросится FormatException"
+        - "13"
+        - "121"
+        - "13 с пробелами"
+      answer: 1
+      explanation: "int.Parse по умолчанию разрешает пробелы по краям и знак, поэтому строка разбирается в 12, и вывод 13. Строгий разбор без пробелов нужно задавать явно через NumberStyles."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        static int F()
+        {
+            try
+            {
+                return 1;
+            }
+            finally
+            {
+                Console.Write("f ");
+            }
+        }
+
+        Console.WriteLine(F());
+        ```
+      options:
+        - "1"
+        - "f 1"
+        - "1 f"
+        - "f"
+      answer: 1
+      explanation: "Блок finally выполняется до фактического выхода из метода, поэтому «f » печатается раньше, чем результат вызова попадает в WriteLine. Выводится f 1."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```csharp
+        try { int.Parse("x"); }
+        catch (Exception) { }
+        catch (FormatException) { }
+        ```
+      options:
+        - "Программа соберётся, второй catch сработает для FormatException"
+        - "Программа соберётся, но второй catch никогда не выполнится"
+        - "Ошибка компиляции: предыдущий catch уже ловит этот тип"
+        - "Бросится исключение во время выполнения"
+      answer: 2
+      explanation: "Блоки catch проверяются сверху вниз, и общий тип Exception перехватывает всё. Компилятор замечает, что второй блок недостижим, и сообщает об ошибке CS0160. Частные типы должны идти перед общими."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Point p = new Point();
+        p.X = 1;
+        Point q = p;
+        q.X = 5;
+        Console.WriteLine(p.X);
+
+        class Point
+        {
+            public int X { get; set; }
+        }
+        ```
+      options:
+        - "1"
+        - "5"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Point - класс, ссылочный тип. Присваивание q = p копирует ссылку, и обе переменные указывают на один объект, поэтому изменение через q видно через p. У struct значения копировались бы."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        string? s = null;
+        Console.WriteLine(s?.Length ?? -1);
+        ```
+      options:
+        - "0"
+        - "-1"
+        - "Бросится NullReferenceException"
+        - "Ничего не выведется"
+      answer: 1
+      explanation: "Оператор ?. возвращает null, если слева null, не обращаясь к Length, а ?? подставляет значение справа. Поэтому вывод -1. Без ?. обращение к s.Length бросило бы NullReferenceException."
+exercise:
+  id: "csharp.programmers.errors-input-and-classes.exercise"
+  title: "Счета: строгий разбор суммы, класс Account и null"
+  prompt: |
+    Основная часть программы написана: она читает команды (по одной на строку) и работает с вашим кодом. Допишите в `Program.cs` два метода и класс. Основную часть не меняйте.
+
+    1. `TryParseAmount(string text, out decimal amount)` - строгий разбор суммы: допустимы цифры, одна точка и знак в начале; пробелы, запятая-разделитель тысяч, экспонента (`1e3`) и буквы недопустимы. Культура - `InvariantCulture`. При неудаче метод возвращает `false`.
+    2. `Describe(Account? account)` - строка `нет счёта`, если `account` равен `null`, иначе `Владелец: баланс` с двумя знаками после точки (`Anna: 120.50`).
+    3. Класс `Account`: свойства `Owner` и `Balance` (менять баланс снаружи нельзя), конструктор `Account(string owner, decimal opening)`, методы `Deposit(decimal amount)` и `Withdraw(decimal amount)`.
+       * Конструктор бросает `ArgumentException`, если `opening` меньше нуля (ноль допустим).
+       * `Deposit` и `Withdraw` бросают `ArgumentException`, если `amount` не больше нуля, а `Withdraw` ещё и `InvalidOperationException`, если `amount` больше баланса.
+
+    **Пример.** Для ввода
+
+    ```
+    open Alice 100
+    deposit Alice 50.5
+    withdraw Alice 500
+    show Bob
+    ```
+
+    программа печатает
+
+    ```
+    открыт: Alice: 100.00
+    Alice: 150.50
+    недостаточно средств
+    нет счёта
+    ```
+
+    Часть тестов скрыта: в них правила суммы, форматы чисел и повторные команды.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "В заготовке TryParseAmount всегда возвращает false, Describe - пустую строку, а методы Account ничего не делают. Основная часть вызывает их для команд open, deposit, withdraw и show."
+    - "TryParseAmount: decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out amount). Без указания стилей запятая тысяч и пробелы считаются допустимыми."
+    - "Account: свойство Balance объявите как { get; private set; }. В конструкторе проверьте opening < 0 и бросьте new ArgumentException(...); в Withdraw сначала проверьте amount <= 0 (ArgumentException), затем amount > Balance (InvalidOperationException)."
+    - "Describe: if (account == null) return \"нет счёта\"; иначе $\"{account.Owner}: {account.Balance:F2}\". Культура уже выставлена основной частью, поэтому точка в :F2 гарантирована."
+  tests:
+    - id: "open-deposit-withdraw"
+      title: "Открытие счёта, пополнение, снятие и показ"
+      stdin: "open Alice 100\ndeposit Alice 50.5\nwithdraw Alice 30\nshow Alice\n"
+      expected: |
+        открыт: Alice: 100.00
+        Alice: 150.50
+        Alice: 120.50
+        Alice: 120.50
+      hint: "100 + 50.5 = 150.50, затем 150.50 - 30 = 120.50. Баланс печатается с двумя знаками после точки."
+    - id: "bad-input"
+      title: "Неверные суммы и отсутствующий счёт"
+      stdin: "open Bob abc\nopen Bob 1,000\nshow Carol\ndeposit Carol 5\n"
+      expected: |
+        неверная сумма
+        неверная сумма
+        нет счёта
+        нет счёта: Carol
+      hint: "Строка abc не число, а 1,000 с запятой тоже недопустима: TryParseAmount должен вернуть false. show для неизвестного владельца печатает «нет счёта» (Describe с null)."
+    - id: "business-rules"
+      title: "Правила суммы и баланса (скрытый)"
+      stdin: "open Dan 10\nwithdraw Dan 10.01\nwithdraw Dan -1\ndeposit Dan 0\ndeposit Dan -5\nopen Dan 5\nopen Eve -5\nwithdraw Dan 10\n"
+      expected: |
+        открыт: Dan: 10.00
+        недостаточно средств
+        неверная сумма
+        неверная сумма
+        неверная сумма
+        счёт уже есть
+        неверная сумма
+        Dan: 0.00
+      hidden: true
+      hint: "Снять можно ровно весь баланс (10), но не больше (10.01 - InvalidOperationException). Суммы 0 и отрицательные для deposit и withdraw - ArgumentException; отрицательный начальный баланс тоже ArgumentException в конструкторе."
+    - id: "formats"
+      title: "Форматы чисел и неизвестные команды (скрытый)"
+      stdin: "open Zed +20\ndeposit Zed 0.5\ndeposit Zed 1e3\ndeposit Zed 12abc\ndeposit Zed --5\nfoo Zed 1\nshow\n"
+      expected: |
+        открыт: Zed: 20.00
+        Zed: 20.50
+        неверная сумма
+        неверная сумма
+        неверная сумма
+        неизвестная команда
+        неизвестная команда
+      hidden: true
+      hint: "Знак + в начале допустим (+20 это 20). Экспонента 1e3, буквы 12abc и двойной знак --5 недопустимы: нужны NumberStyles.AllowLeadingSign и AllowDecimalPoint без AllowExponent."

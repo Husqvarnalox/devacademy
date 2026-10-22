@@ -1,0 +1,186 @@
+id: "csharp.check.collections"
+title: "Проверка: массивы, списки, словари и строки"
+goal: "Хранить данные в массивах, списках и словарях и обрабатывать строки методами Split, Substring и другими."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: считать частоты в словаре, строить новые коллекции и разбирать строки."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "csharp"
+  - "check"
+  - "collections"
+assessmentFor:
+  - "csharp.from-zero.arrays"
+  - "csharp.from-zero.lists"
+  - "csharp.from-zero.dictionaries"
+  - "csharp.from-zero.string-methods"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        var xs = new List<int> { 5, 3, 8, 1 };
+        xs.Sort();
+        xs.RemoveAt(0);
+        Console.WriteLine(string.Join(",", xs));
+        ```
+      options:
+        - "5,3,8"
+        - "3,5,8"
+        - "1,3,5"
+        - "3,5,8,1"
+      answer: 1
+      explanation: "Sort упорядочивает список: 1, 3, 5, 8. RemoveAt(0) удаляет первый элемент, то есть 1. Остаётся 3,5,8."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        var d = new Dictionary<string, int>();
+        foreach (string w in "a b a c a".Split(' '))
+        {
+            d[w] = d.GetValueOrDefault(w) + 1;
+        }
+        Console.WriteLine(d["a"] + d.Count);
+        ```
+      options:
+        - "3"
+        - "4"
+        - "6"
+        - "Бросится KeyNotFoundException"
+      answer: 2
+      explanation: "Слово a встречается три раза, а различных слов три (a, b, c), поэтому d[\"a\"] равно 3 и d.Count равно 3. Сумма 3 + 3 равна 6. GetValueOrDefault возвращает 0 для отсутствующего ключа, поэтому исключения нет."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        int[] a = new int[3];
+        a[1] = 4;
+        Console.WriteLine(a.Sum() + a.Length);
+        ```
+      options:
+        - "4"
+        - "7"
+        - "3"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Новый массив из трёх int заполнен нулями, затем a[1] становится 4. Сумма элементов равна 4, длина равна 3, итого 7."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.WriteLine("2024-05-17".Split('-')[1] + 1);
+        ```
+      options:
+        - "6"
+        - "051"
+        - "2025"
+        - "1"
+      answer: 1
+      explanation: "Split('-') возвращает массив строк \"2024\", \"05\", \"17\". Элемент с индексом 1 - строка \"05\", а + 1 склеивает её с числом 1: получается 051."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.WriteLine(string.Join("|", "a,b,,c".Split(',')));
+        ```
+      options:
+        - "a|b|c"
+        - "a|b||c"
+        - "a|b|,|c"
+        - "Ошибка выполнения"
+      answer: 1
+      explanation: "Split без параметра RemoveEmptyEntries сохраняет пустые элементы: между двумя запятыми остаётся пустая строка. Получается четыре элемента a, b, пустая строка, c."
+exercise:
+  id: "csharp.check.collections.exercise"
+  title: "Накопленные суммы, частота слов, уникальные значения, палиндром"
+  prompt: |
+    Основная часть программы написана: она читает команды (по одной на строку) и печатает результат вызова ваших методов. Напишите четыре метода в `Program.cs`. Основную часть не меняйте.
+
+    1. `RunningSum(int[] values)` - **новый** массив накопленных сумм: для `1 2 3 4` получится `1 3 6 10`. Исходный массив менять нельзя.
+    2. `MostCommonWord(string text)` - самое частое слово текста (слова разделены пробелами, регистр не важен, результат строчными). Если частота одинаковая, побеждает слово, меньшее по `StringComparer.Ordinal`. Для пустого текста - пустая строка.
+    3. `Unique(List<string> items)` - **новый** список без повторов, отсортированный по `StringComparer.Ordinal`.
+    4. `IsPalindrome(string text)` - читается ли текст одинаково в обе стороны, если учитывать только буквы и не различать регистр. Текст без букв считается палиндромом.
+
+    **Пример.** Для ввода
+
+    ```
+    sum 1 2 3 4
+    common the cat and the dog
+    unique b a b c
+    pal A man, a plan, a canal: Panama
+    ```
+
+    программа печатает
+
+    ```
+    1 3 6 10
+    the
+    a b c
+    да
+    ```
+
+    Часть тестов скрыта: в них пустые данные, ничья и регистр.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "RunningSum: заведите счётчик total и новый массив той же длины; на каждом шаге прибавляйте values[i] к total и записывайте total в result[i]."
+    - "MostCommonWord: считайте слова в Dictionary<string, int> (ключ - слово в нижнем регистре, значение - счётчик через GetValueOrDefault), затем в цикле выберите максимум; при равенстве сравнивайте ключи через string.CompareOrdinal."
+    - "Unique: new HashSet<string>(items) убирает повторы, затем new List<string>(set) и Sort(StringComparer.Ordinal)."
+    - "IsPalindrome: соберите в список только буквы (char.IsLetter) в нижнем регистре и сравнивайте i-й элемент с элементом Count - 1 - i для первой половины."
+  tests:
+    - id: "sum-and-unique"
+      title: "Накопленные суммы и уникальные слова"
+      stdin: "sum 1 2 3 4\nsum 5\nunique b a b c\n"
+      expected: |
+        1 3 6 10
+        5
+        a b c
+      hint: "Накопленные суммы 1, 1+2, 1+2+3, 1+2+3+4. Из b a b c остаются a, b, c по порядку кодов."
+    - id: "common-and-pal"
+      title: "Частое слово и палиндром"
+      stdin: "common the cat and the dog\ncommon b a b a\npal A man, a plan, a canal: Panama\npal hello\n"
+      expected: |
+        the
+        a
+        да
+        нет
+      hint: "the встречается дважды. Для b a b a частоты равны (по 2), побеждает меньшее слово a. В палиндроме учитываются только буквы без регистра."
+    - id: "edge-collections"
+      title: "Пустые данные и сортировка по кодам (скрытый)"
+      stdin: "sum -1 1 -1\nsum\nunique B a b A\nunique\ncommon b a B A\nsum 2\n"
+      expected: |
+        -1 0 -1
+
+        A B a b
+
+        a
+        2
+      hidden: true
+      hint: "Пустой список даёт пустую строку. Ordinal ставит заглавные буквы перед строчными: A B a b. Для b a B A слова a и b встречаются по 2 раза, побеждает a."
+    - id: "edge-text"
+      title: "Регистр, пустой текст, текст без букв (скрытый)"
+      stdin: "common Кот пёс кот ПЁС Кот\ncommon\npal\npal 12 21\npal Ab\n"
+      expected: |
+        кот
+        (пусто)
+        да
+        да
+        нет
+      hidden: true
+      hint: "ToLowerInvariant приводит и кириллицу к одному регистру: кот встречается 3 раза. Пустой текст не содержит слов, а без букв проверять нечего: такой текст считается палиндромом. Строка Ab - не палиндром."

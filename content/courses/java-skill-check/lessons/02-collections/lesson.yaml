@@ -1,0 +1,199 @@
+id: "java.check.collections"
+title: "Проверка: методы, массивы, списки, словари и строки"
+goal: "Читать и писать небольшие программы с методами, массивами, ArrayList, HashMap и строковыми методами."
+difficulty: "easy"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: считать частоты слов в словаре, сохранять порядок появления в списке и выбирать правильные методы коллекций и строк."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "java"
+  - "check"
+  - "collections"
+  - "collections"
+  - "strings"
+assessmentFor:
+  - "java.from-zero.methods"
+  - "java.from-zero.arrays"
+  - "java.from-zero.arraylist"
+  - "java.from-zero.hashmap"
+  - "java.from-zero.string-methods"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        int[] a = {1, 2, 3};
+        int[] b = a;
+        b[0] = 9;
+        System.out.println(a[0] + " " + a.length);
+        ```
+      options:
+        - "1 3"
+        - "9 3"
+        - "9 2"
+        - "1 2"
+      answer: 1
+      explanation: "Присваивание b = a копирует ссылку, а не массив, поэтому b и a указывают на один и тот же массив. Запись b[0] = 9 видна через a, длина массива остаётся 3."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        ArrayList<Integer> xs = new ArrayList<>(List.of(4, 5, 6));
+        xs.remove(0);
+        xs.add(1, 7);
+        System.out.println(xs);
+        ```
+      options:
+        - "[4, 7, 5, 6]"
+        - "[5, 7, 6]"
+        - "[5, 6, 7]"
+        - "[7, 5, 6]"
+      answer: 1
+      explanation: "Сначала remove(0) удаляет первый элемент (индекс 0): остаётся [5, 6]. Затем add(1, 7) вставляет 7 на позицию 1 и сдвигает остальные: [5, 7, 6]."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        Map<String, Integer> m = new HashMap<>();
+        m.put("a", 1);
+        m.put("a", 2);
+        m.put("b", 3);
+        System.out.println(m.size() + " " + m.get("a") + " " + m.getOrDefault("z", -1));
+        ```
+      options:
+        - "3 1 -1"
+        - "2 2 -1"
+        - "2 1 null"
+        - "2 2 null"
+      answer: 1
+      explanation: "Повторный put с тем же ключом заменяет значение, поэтому в словаре два ключа, а m.get(\"a\") равен 2. Для отсутствующего ключа getOrDefault возвращает запасное значение -1."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        System.out.println("x, y,z".split(",")[1].trim().toUpperCase());
+        ```
+      options:
+        - "Y"
+        - "y"
+        - "\" Y\""
+        - "Ошибка выполнения"
+      answer: 0
+      explanation: "split(\",\") даёт массив {\"x\", \" y\", \"z\"}. Элемент с индексом 1 - \" y\"; trim убирает пробел, toUpperCase делает заглавную букву: Y."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        static void add(ArrayList<Integer> xs) {
+            xs.add(1);
+            xs = new ArrayList<>();
+            xs.add(2);
+        }
+
+        public static void main(String[] args) {
+            ArrayList<Integer> list = new ArrayList<>();
+            add(list);
+            System.out.println(list);
+        }
+        ```
+      options:
+        - "[]"
+        - "[1]"
+        - "[2]"
+        - "[1, 2]"
+      answer: 1
+      explanation: "Метод получает копию ссылки. Вызов xs.add(1) меняет общий список, а присваивание xs = new ArrayList<>() переставляет только локальную ссылку, поэтому 2 попадает в другой список. В main виден список [1]."
+exercise:
+  id: "java.check.collections.exercise"
+  title: "Частоты слов в порядке появления"
+  prompt: |-
+    Программа читает одну строку текста. Слова разделяются одним или несколькими пробелами; регистр не учитывается (приводите к нижнему). Для каждого отличного слова в порядке **первого появления** напечатайте строку `<слово>: <сколько раз встретилось>`, затем строку `Самое частое: <слово>`. Если слов с одинаковой наибольшей частотой несколько, выбирается то, что встретилось раньше.
+
+    Если строка пуста или состоит из пробелов (или ввода нет), напечатайте одну строку `Слов нет`.
+
+    **Пример.** Ввод:
+
+    ```
+    to be or not to be
+    ```
+
+    Вывод:
+
+    ```
+    to: 2
+    be: 2
+    or: 1
+    not: 1
+    Самое частое: to
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Заведите список order для порядка появления и словарь counts для частот. Слово добавляйте в order, только когда его ещё нет в counts."
+    - "Разбивайте строку так: line.trim().toLowerCase().split(\"\\\\s+\"), а пустую строку обрабатывайте до split."
+    - "Для самого частого заведите best = order.get(0) и обновляйте его, только если счётчик слова строго больше счётчика best - тогда при равенстве останется более раннее слово."
+  tests:
+    - id: "basic"
+      title: "Повторы и ничья"
+      stdin: |
+        to be or not to be
+      expected: |
+        to: 2
+        be: 2
+        or: 1
+        not: 1
+        Самое частое: to
+      hint: "Слова выводятся в порядке первого появления; to и be встречаются по два раза, самым частым считается to - оно встретилось раньше."
+    - id: "cyrillic"
+      title: "Кириллица и регистр"
+      stdin: |
+        Привет привет МИР
+      expected: |
+        привет: 2
+        мир: 1
+        Самое частое: привет
+      hint: "Регистр не учитывается: Привет и привет - одно слово, у него частота 2."
+    - id: "empty"
+      title: "Нет ввода (скрытый)"
+      stdin: ""
+      expected: |
+        Слов нет
+      hidden: true
+      hint: "Без слов программа печатает единственную строку Слов нет."
+    - id: "spaces"
+      title: "Лишние пробелы (скрытый)"
+      stdin: |
+        a   b  a 
+      expected: |
+        a: 2
+        b: 1
+        Самое частое: a
+      hidden: true
+      hint: "Несколько пробелов подряд и пробел в конце не создают пустых слов."
+    - id: "tie"
+      title: "Ничья в начале списка (скрытый)"
+      stdin: |
+        b a a b c
+      expected: |
+        b: 2
+        a: 2
+        c: 1
+        Самое частое: b
+      hidden: true
+      hint: "При равенстве частот выбирается слово, которое встретилось раньше: здесь b."

@@ -1,0 +1,195 @@
+id: "kotlin.from-zero.formatted-output"
+title: "Форматированный вывод"
+goal: "Печатать числа с нужным числом знаков после точки и собирать строку по шаблону формата."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.type-conversion"
+objectives:
+  - "Форматировать Double с заданным числом знаков командой \"%.2f\".format(Locale.ROOT, x)."
+  - "Использовать спецификаторы %d, %s, %.Nf, ширину и выравнивание."
+  - "Объяснять, зачем в format передаётся Locale.ROOT."
+  - "Узнавать IllegalFormatConversionException и MissingFormatArgumentException."
+masteryCriteria:
+  - "Ваша программа печатает денежную сумму ровно с двумя знаками после точки."
+  - "Вы подбираете спецификатор под тип значения: %d для Int, %f для Double, %s для текста."
+  - "Вы объясняете, почему 0.1 + 0.2 печатается как 0.30000000000000004, а с %.2f - как 0.30."
+concepts:
+  introduces:
+    - "kotlin.format"
+    - "kotlin.format-specifier"
+    - "kotlin.locale-root"
+  uses:
+    - "kotlin.double"
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.string-template"
+    - "kotlin.to-double"
+    - "kotlin.to-int"
+    - "kotlin.readln"
+    - "kotlin.arithmetic"
+next:
+  - "kotlin.from-zero.comparison-and-logic"
+tags:
+  - "kotlin"
+  - "format"
+  - "Locale"
+  - "output"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        import java.util.Locale
+
+        fun main() {
+            println("%.2f".format(Locale.ROOT, 3.14159))
+        }
+        ```
+      options:
+        - "3.14"
+        - "3.1"
+        - "3.14159"
+        - "3.142"
+      answer: 0
+      explanation: "Спецификатор %.2f выводит Double с двумя знаками после точки; лишние цифры округляются."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой спецификатор печатает Double ровно с тремя знаками после точки?"
+      options:
+        - "%.3f"
+        - "%.3d"
+        - "%3f"
+        - "%d.3"
+      answer: 0
+      explanation: "Запись %.Nf задаёт число знаков после точки. %d - для целых, а %3f задаёт ширину 3 и оставляет шесть знаков после точки."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```kotlin
+        import java.util.Locale
+
+        fun main() {
+            println("%d".format(Locale.ROOT, 2.5))
+        }
+        ```
+      options:
+        - "IllegalFormatConversionException: d != java.lang.Double"
+        - "Напечатается 2"
+        - "Напечатается 2.5"
+        - "Ошибка компиляции."
+      answer: 0
+      explanation: "Компилятор не проверяет формат, поэтому программа собирается. При запуске %d получает Double и бросает IllegalFormatConversionException."
+    - id: "q4"
+      type: "single"
+      prompt: "Зачем в вызов format передают Locale.ROOT?"
+      options:
+        - "Чтобы результат не зависел от настроек компьютера: разделитель всегда точка."
+        - "Чтобы число округлялось в большую сторону."
+        - "Чтобы формат принимал и Int, и Double."
+        - "Без него format не компилируется."
+      answer: 0
+      explanation: "Без Locale формат берёт региональные настройки системы: на компьютере с русской локалью получится 2,50 вместо 2.50. Locale.ROOT делает вывод одинаковым везде."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        import java.util.Locale
+
+        fun main() {
+            println("Скидка %d%%".format(Locale.ROOT, 15))
+        }
+        ```
+      options:
+        - "Скидка 15%"
+        - "Скидка 15%%"
+        - "Скидка %d%%"
+        - "MissingFormatArgumentException"
+      answer: 0
+      explanation: "Чтобы напечатать сам знак процента в формате, пишут %%. Одиночный % начинает спецификатор."
+exercise:
+  id: "kotlin.from-zero.formatted-output.exercise"
+  title: "Чек с двумя знаками после точки"
+  prompt: |
+    На вход подаются три строки: название товара, цена за штуку (дробное число с точкой) и количество (целое).
+
+    Напечатайте две строки:
+
+    ```
+    Товар: <название>
+    Сумма: <цена * количество с двумя знаками после точки>
+    ```
+
+    **Пример.** Для ввода
+
+    ```
+    Чай
+    12.5
+    3
+    ```
+
+    вывод:
+
+    ```
+    Товар: Чай
+    Сумма: 37.50
+    ```
+
+    Используйте `"%.2f".format(Locale.ROOT, ...)` и `import java.util.Locale` в начале файла - в стартовом коде это уже есть.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Сейчас сумма печатается как есть, без форматирования, поэтому после точки может быть не две цифры."
+    - "Форматируйте значение: \"%.2f\".format(Locale.ROOT, total)."
+    - "Вставьте результат в шаблон: println(\"Сумма: ${\"%.2f\".format(Locale.ROOT, total)}\"), либо сохраните его в переменную и вставьте её."
+  tests:
+    - id: "basic"
+      title: "Чай, 12.5 за штуку, 3 штуки"
+      stdin: |
+        Чай
+        12.5
+        3
+      expected: |
+        Товар: Чай
+        Сумма: 37.50
+      hint: "12.5 * 3 = 37.5; с двумя знаками - 37.50. Нужен нуль в конце."
+    - id: "whole"
+      title: "Целая сумма"
+      stdin: |
+        Хлеб
+        40.0
+        2
+      expected: |
+        Товар: Хлеб
+        Сумма: 80.00
+      hint: "Сумма 80.0 должна быть напечатана с двумя знаками: 80.00."
+    - id: "rounding"
+      title: "Длинный хвост у суммы (скрытый)"
+      stdin: |
+        Конфеты
+        0.1
+        3
+      expected: |
+        Товар: Конфеты
+        Сумма: 0.30
+      hidden: true
+      hint: "0.1 * 3 в Double равно 0.30000000000000004; формат с двумя знаками должен вывести 0.30."
+    - id: "up"
+      title: "Округление вверх (скрытый)"
+      stdin: |
+        Сыр
+        99.995
+        1
+      expected: |
+        Товар: Сыр
+        Сумма: 100.00
+      hidden: true
+      hint: "При форматировании %.2f лишние цифры округляются: 99.995 превращается в 100.00."

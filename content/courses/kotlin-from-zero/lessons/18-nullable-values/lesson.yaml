@@ -1,0 +1,222 @@
+id: "kotlin.from-zero.nullable-values"
+title: "Значения, которых может не быть"
+goal: "Работать с типами Int? и String?, безопасно разбирать числа и читать ввод до конца."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "kotlin.from-zero.functions"
+objectives:
+  - "Объяснять, чем Int? отличается от Int, и записывать null."
+  - "Использовать toIntOrNull(), проверку == null и оператор ?: со значением по умолчанию."
+  - "Читать ввод до конца через readlnOrNull() ?: break."
+  - "Понимать сообщения компилятора о необязательных значениях."
+masteryCriteria:
+  - "Ваша программа читает строки до конца ввода и считает корректные числа и ошибки, не падая."
+  - "Вы предсказываете результат toIntOrNull() для «42», «abc», «4.5» и пустой строки."
+  - "Вы заменяете падение на значение по умолчанию через ?:."
+concepts:
+  introduces:
+    - "kotlin.nullable"
+    - "kotlin.null"
+    - "kotlin.toint-or-null"
+    - "kotlin.elvis"
+    - "kotlin.read-until-end"
+  uses:
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.if"
+    - "kotlin.else"
+    - "kotlin.while"
+    - "kotlin.break"
+    - "kotlin.comparison"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.compound-assignment"
+    - "kotlin.string-template"
+    - "kotlin.string-length"
+    - "kotlin.arithmetic"
+    - "kotlin.number-format-exception"
+    - "kotlin.function"
+next:
+  - "kotlin.from-zero.lists"
+tags:
+  - "kotlin"
+  - "null"
+  - "nullable"
+  - "elvis"
+  - "input"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val a = "42".toIntOrNull()
+            println(a)
+        }
+        ```
+      options:
+        - "null"
+        - "\"42\""
+        - "Ошибку компиляции."
+        - "42"
+      answer: 3
+      explanation: "Строка «42» разбирается как целое число, поэтому toIntOrNull() возвращает 42. Тип переменной - Int?, но значение есть."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val n = "abc".toIntOrNull() ?: 0
+            println(n + 1)
+        }
+        ```
+      options:
+        - "1"
+        - "abc1"
+        - "null"
+        - "Ошибку выполнения."
+      answer: 0
+      explanation: "Текст «abc» числом не является, toIntOrNull() возвращает null, и оператор ?: подставляет 0. Затем 0 + 1 = 1."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая из строк не скомпилируется?"
+      options:
+        - "val a: Int? = null"
+        - "val b: Int = 5"
+        - "val c: Int = null"
+        - "val d: String? = \"текст\""
+      answer: 2
+      explanation: "Обычный тип Int не допускает null. Для значения «числа нет» нужен тип Int?."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        fun main() {
+            val a = "5".toIntOrNull()
+            println(a + 1)
+        }
+        ```
+      options:
+        - "Напечатается 6."
+        - "Напечатается null."
+        - "Компилятор сообщит об операции над значением, которое может быть null."
+        - "Программа упадёт при запуске."
+      answer: 2
+      explanation: "Переменная a имеет тип Int? и может быть null. Арифметику над ней компилятор не разрешает: нужна проверка или значение по умолчанию (a ?: 0)."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа, если запустить её с пустым вводом?
+
+        ```kotlin
+        fun main() {
+            val line = readlnOrNull()
+            println(line)
+        }
+        ```
+      options:
+        - "Пустую строку."
+        - "null"
+        - "Ошибку ReadAfterEOFException."
+        - "0"
+      answer: 1
+      explanation: "На конце ввода readlnOrNull() возвращает null вместо ошибки, а println печатает слово null."
+exercise:
+  id: "kotlin.from-zero.nullable-values.exercise"
+  title: "Чеки с ошибками"
+  prompt: |
+    На вход подаются суммы чеков - по одной в строке, сколько угодно строк (ввод заканчивается сам). Корректная сумма - целое число (может быть отрицательным для возврата). Любая другая строка (текст, дробное число, пустая строка) - ошибка ввода.
+
+    Прочитайте весь ввод до конца и напечатайте три строки: сколько корректных сумм принято, сколько строк было ошибочных и чему равна сумма принятых.
+
+    **Пример.** Для ввода
+
+    ```
+    120
+    80
+    абв
+    50
+    ```
+
+    вывод:
+
+    ```
+    Принято: 3
+    Ошибок: 1
+    Итого: 250
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Читайте строки в цикле while (true) и выходите из него, когда ввод закончился: val line = readlnOrNull() ?: break."
+    - "Для проверки используйте line.toIntOrNull(): оно вернёт null, если строка не целое число."
+    - "Если результат null - увеличьте errors, иначе увеличьте accepted и прибавьте число к total. Для пустого ввода должны получиться нули."
+  tests:
+    - id: "basic"
+      title: "Одна ошибка"
+      stdin: |
+        120
+        80
+        абв
+        50
+      expected: |
+        Принято: 3
+        Ошибок: 1
+        Итого: 250
+      hint: "Три корректных числа (120, 80, 50) и одна строка «абв»."
+    - id: "empty"
+      title: "Пустой ввод"
+      stdin: ""
+      expected: |
+        Принято: 0
+        Ошибок: 0
+        Итого: 0
+      hint: "Если строк нет, цикл заканчивается сразу, и все три значения равны 0. Для этого нужен readlnOrNull(), а не readln()."
+    - id: "mixed"
+      title: "Дробные, отрицательные, пробел (скрытый)"
+      stdin: |
+        12.5
+        7
+        -3
+         
+      expected: |
+        Принято: 2
+        Ошибок: 2
+        Итого: 4
+      hidden: true
+      hint: "Строки 12.5 и « » (пробел) - ошибки; 7 и -3 корректны, их сумма 4."
+    - id: "allbad"
+      title: "Все строки ошибочные (скрытый)"
+      stdin: |
+        a
+
+        b
+      expected: |
+        Принято: 0
+        Ошибок: 3
+        Итого: 0
+      hidden: true
+      hint: "Пустая строка тоже ошибка: toIntOrNull() от неё возвращает null."
+    - id: "returns"
+      title: "Возвраты (скрытый)"
+      stdin: |
+        -100
+        -20
+        300
+      expected: |
+        Принято: 3
+        Ошибок: 0
+        Итого: 180
+      hidden: true
+      hint: "Отрицательные суммы корректны и входят в итог: -100 - 20 + 300 = 180."

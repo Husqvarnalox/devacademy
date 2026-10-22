@@ -1,0 +1,256 @@
+id: "cpp.check.basics"
+title: "Проверка: основы - значения, ввод, условия, циклы"
+goal: "Писать программы с числами, вводом, условиями и циклами и предсказывать их результат."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: читать числа до конца ввода, накапливать сумму в long long, искать максимум и считать среднее с двумя знаками."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "basics"
+assessmentFor:
+  - "cpp.from-zero.first-program"
+  - "cpp.from-zero.compiler-errors"
+  - "cpp.from-zero.output"
+  - "cpp.from-zero.variables"
+  - "cpp.from-zero.basic-types"
+  - "cpp.from-zero.arithmetic"
+  - "cpp.from-zero.strings"
+  - "cpp.from-zero.reading-input"
+  - "cpp.from-zero.type-conversion"
+  - "cpp.from-zero.formatted-output"
+  - "cpp.from-zero.comparison-and-logic"
+  - "cpp.from-zero.if-else"
+  - "cpp.from-zero.switch"
+  - "cpp.from-zero.while-loop"
+  - "cpp.from-zero.for-loop"
+  - "cpp.from-zero.loop-control"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            int a = 7;
+            int b = 2;
+            double d = a / b;
+            std::cout << d << " " << a % b << "\n";
+        }
+        ```
+      options:
+        - "3.5 1"
+        - "3 1"
+        - "3.5 0.5"
+        - "3 3"
+      answer: 1
+      explanation: "Деление int на int целочисленное: 7 / 2 равно 3, и только это значение превращается в double (3). Остаток от деления 7 на 2 равен 1. Чтобы получить 3.5, одно из чисел приводят к double: static_cast<double>(a) / b."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            for (int i = 1; i <= 6; i++) {
+                if (i % 2 == 0) {
+                    continue;
+                }
+                if (i > 4) {
+                    break;
+                }
+                std::cout << i << " ";
+            }
+            std::cout << "\n";
+        }
+        ```
+      options:
+        - "2 4 6"
+        - "1 3 5"
+        - "1 3"
+        - "1 2 3 4"
+      answer: 2
+      explanation: "Чётные числа пропускает continue. При i = 5 число нечётное, но условие i > 4 истинно, и break завершает цикл до вывода. Печатаются только 1 и 3."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            int level = 2;
+            switch (level) {
+            case 1:
+                std::cout << "A";
+            case 2:
+                std::cout << "B";
+            case 3:
+                std::cout << "C";
+                break;
+            default:
+                std::cout << "D";
+            }
+            std::cout << "\n";
+        }
+        ```
+      options:
+        - "B"
+        - "BC"
+        - "ABC"
+        - "BCD"
+      answer: 1
+      explanation: "Выполнение входит в case 2 и печатает B. Там нет break, поэтому оно продолжается в case 3 и печатает C. Здесь break останавливает switch; метка default не выполняется."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            int x = 0;
+            bool ok = (x != 0) && (10 / x > 1);
+            std::cout << ok << "\n";
+        }
+        ```
+      options:
+        - "1"
+        - "0"
+        - "Деление на ноль: неопределённое поведение"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Оператор && вычисляет правую часть только если левая истинна. Условие x != 0 ложно, поэтому деление 10 / x не выполняется, и результат равен false, то есть 0. Это короткое вычисление."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        На вход подаётся строка `4 7 x 9`. Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            int x = 0;
+            int sum = 0;
+            while (std::cin >> x) {
+                sum += x;
+            }
+            std::cout << sum << "\n";
+        }
+        ```
+      options:
+        - "20"
+        - "11"
+        - "4"
+        - "Программа не завершится"
+      answer: 1
+      explanation: "Чтение числа успешно для 4 и 7, сумма равна 11. На слове x чтение целого не удаётся, условие цикла становится ложным, и цикл заканчивается. Число 9 после x уже не читается."
+exercise:
+  id: "cpp.check.basics.exercise"
+  title: "Статистика шагов за дни"
+  prompt: |
+    Программа читает целые числа до конца ввода: число шагов, которое человек сделал за каждый день (значения неотрицательные и могут быть большими). Напишите программу в `main.cpp`, которая печатает пять строк:
+
+    ```
+    days=<число прочитанных значений>
+    total=<сумма всех значений>
+    best=<наибольшее значение>
+    avg=<среднее с двумя знаками после запятой>
+    goal=<сколько дней с результатом не менее 10000 шагов>
+    ```
+
+    Для пустого ввода все числа равны нулю, а среднее - `0.00`. Сумма может не поместиться в `int`.
+
+    **Пример.** Для ввода
+
+    ```
+    8000 12000 10000
+    9999
+    ```
+
+    программа печатает
+
+    ```
+    days=4
+    total=39999
+    best=12000
+    avg=9999.75
+    goal=2
+    ```
+
+    Часть тестов скрыта: в них пустой ввод, большие значения и граница в 10000 шагов.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "В заготовке выводятся нули вместо суммы, максимума и числа дней с целью. Заведите переменные long long total, long long best и int goalDays до цикла и меняйте их внутри цикла."
+    - "Сумму накапливайте в long long: она может быть больше 2147483647."
+    - "Максимум: если steps > best, присвойте best = steps. Дни с целью: steps >= 10000."
+    - "Среднее: static_cast<double>(total) / days, но только если days больше нуля; иначе оставьте 0.0."
+  tests:
+    - id: "basic"
+      title: "Обычные значения"
+      stdin: "8000 12000 10000\n9999\n"
+      expected: |
+        days=4
+        total=39999
+        best=12000
+        avg=9999.75
+        goal=2
+      hint: "Сумма 8000 + 12000 + 10000 + 9999 = 39999, среднее 39999 / 4 = 9999.75. Дней с целью 10000 и более два: 12000 и 10000."
+    - id: "single-line"
+      title: "Один день и числа на нескольких строках"
+      stdin: "5000\n7000\n300\n"
+      expected: |
+        days=3
+        total=12300
+        best=7000
+        avg=4100.00
+        goal=0
+      hint: "Числа могут идти по одному на строке: цикл while (std::cin >> steps) читает их все. Среднее 12300 / 3 = 4100.00; целей нет."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        days=0
+        total=0
+        best=0
+        avg=0.00
+        goal=0
+      hidden: true
+      hint: "Если данных нет, делить на число дней нельзя: при days равном нулю оставьте среднее 0.00."
+    - id: "big-values"
+      title: "Большие значения (скрытый)"
+      stdin: "3000000000 2000000000 1\n"
+      expected: |
+        days=3
+        total=5000000001
+        best=3000000000
+        avg=1666666667.00
+        goal=2
+      hidden: true
+      hint: "Значения больше двух миллиардов и их сумма не помещаются в int: используйте long long для суммы и максимума. Среднее 5000000001 / 3 = 1666666667.00."
+    - id: "boundary"
+      title: "Граница цели и малые значения (скрытый)"
+      stdin: "9999 10000 0 1\n"
+      expected: |
+        days=4
+        total=20000
+        best=10000
+        avg=5000.00
+        goal=1
+      hidden: true
+      hint: "Цель достигается при 10000 и более: значение 9999 не считается, 10000 считается. Нулевые значения тоже дни."

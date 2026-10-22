@@ -1,0 +1,232 @@
+id: "rust.from-zero.option-and-result"
+title: "Option и Result: значения, которых может не быть"
+goal: "Обрабатывать операции, которые могут не дать результат: разбирать Option (Some/None) и Result (Ok/Err) через match, if let и unwrap_or вместо паники unwrap."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "rust.from-zero.ownership-basics"
+objectives:
+  - "Объяснить, что Option<T> - это «значение или ничего» (Some/None), а Result<T, E> - «значение или причина ошибки» (Ok/Err)."
+  - "Разобрать результат parse() и lines.next() через match, if let и unwrap_or."
+  - "Написать функцию, возвращающую Option<i32>, и вызвать её с обработкой обоих случаев."
+  - "Объяснять ошибки: арифметика над Option, неполный match, возврат значения без Some."
+masteryCriteria:
+  - "Ваша программа не падает на неверном вводе: она сообщает об ошибке или считает такие строки."
+  - "Вы применяете unwrap только там, где ошибка невозможна или программа должна остановиться."
+  - "Вы выбираете между match, if let и unwrap_or по тому, сколько действий нужно в каждом случае."
+concepts:
+  introduces:
+    - "rust.option"
+    - "rust.result"
+    - "rust.if-let"
+    - "rust.unwrap-or"
+  uses:
+    - "rust.unwrap"
+    - "rust.parse"
+    - "rust.match"
+    - "rust.match-arm"
+    - "rust.wildcard"
+    - "rust.function"
+    - "rust.parameter"
+    - "rust.return"
+    - "rust.if"
+    - "rust.if-expression"
+    - "rust.for"
+    - "rust.lines"
+    - "rust.trim"
+    - "rust.stdin"
+    - "rust.read-to-string"
+    - "rust.i32"
+    - "rust.string"
+    - "rust.str"
+    - "rust.inline-format"
+    - "rust.format-macro"
+    - "rust.comparison"
+    - "rust.logical-operators"
+    - "rust.mut"
+    - "rust.compound-assignment"
+    - "rust.range-pattern"
+next:
+  - "rust.from-zero.vectors"
+tags:
+  - "rust"
+  - "option"
+  - "result"
+  - "match"
+  - "error-handling"
+  - "parse"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn show(t: &str) {
+            match t.parse::<i32>() {
+                Ok(n) => println!("{}", n + 1),
+                Err(_) => println!("ошибка"),
+            }
+        }
+
+        fn main() {
+            show("12");
+            show("x12");
+        }
+        ```
+      options:
+        - "13 и ошибка (две строки)"
+        - "12 и 12"
+        - "Паника на второй строке"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Первое значение разобралось (Ok(12)), печатается 13. Второе не число (Err), срабатывает вторая ветка. Программа не падает."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn safe_divide(a: i32, b: i32) -> Option<i32> {
+            if b == 0 { None } else { Some(a / b) }
+        }
+
+        fn main() {
+            println!("{} {}", safe_divide(7, 0).unwrap_or(-1), safe_divide(7, 2).unwrap_or(-1));
+        }
+        ```
+      options:
+        - "-1 3"
+        - "-1 -1"
+        - "0 3"
+        - "-1 3.5"
+      answer: 0
+      explanation: "При делителе 0 функция возвращает None, и unwrap_or подставляет -1. При делителе 2 внутри Some лежит 7 / 2 = 3 (целочисленное деление)."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Почему этот код не компилируется?
+
+        ```rust
+        fn main() {
+            let x: Option<i32> = Some(4);
+            println!("{}", x + 1);
+        }
+        ```
+      options:
+        - "Потому что Some нельзя создавать вручную."
+        - "Потому что x - это Option, а не число: сначала нужно разобрать Some и None."
+        - "Потому что 1 нужно записать как 1.0."
+        - "Потому что x нужно объявить с mut."
+      answer: 1
+      explanation: "Option<i32> - это «число или ничего». Арифметика определена для чисел, поэтому нужен match, if let или unwrap_or. Например, x.unwrap_or(0) + 1."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```rust
+        fn main() {
+            let x: Option<i32> = None;
+            println!("до");
+            let y = x.unwrap();
+            println!("{y}");
+        }
+        ```
+      options:
+        - "Напечатается до, затем 0."
+        - "Напечатается до, затем программа остановится с паникой."
+        - "Программа не скомпилируется."
+        - "Ничего не напечатается, потому что unwrap выполнится первым."
+      answer: 1
+      explanation: "Программа компилируется: unwrap разрешён для Option. Но на None он останавливает программу сообщением об ошибке. До этого успевает напечататься «до»."
+    - id: "q5"
+      type: "single"
+      prompt: "Что вернёт \"abc\".parse::<i32>()?"
+      options:
+        - "Ok(0)"
+        - "Err с описанием ошибки разбора"
+        - "None"
+        - "Программа остановится с паникой"
+      answer: 1
+      explanation: "parse возвращает Result: для текста, который не число, это Err(...). Паника возникает только если вызвать unwrap на этом Err. None относится к Option, а не к Result."
+exercise:
+  id: "rust.from-zero.option-and-result.exercise"
+  title: "Проверка баллов"
+  prompt: |
+    В упражнении `main` уже написан: он читает строки ввода (в каждой - предполагаемый балл), для каждой печатает ответ функции `describe` и в конце считает верные баллы. Вам нужно написать две функции.
+
+    1. `parse_score(text: &str) -> Option<i32>`. Балл верный, если после `trim()` текст разбирается в целое число от 0 до 100 включительно. Тогда вернуть `Some(балл)`, иначе `None`.
+    2. `describe(text: &str) -> String` - строка для вывода:
+       * для верного балла 60 и выше: `Балл <число>: зачёт`;
+       * для верного балла меньше 60: `Балл <число>: незачёт`;
+       * для неверной строки: `Некорректный балл: <текст>` (текст как передан в функцию).
+
+    Пример. Ввод:
+
+    ```
+    75
+    abc
+    101
+    ```
+
+    Вывод:
+
+    ```
+    Балл 75: зачёт
+    Некорректный балл: abc
+    Некорректный балл: 101
+    Верных баллов: 1
+    ```
+
+    В заготовке функции пока возвращают `None` и пустую строку. Замените их, `main` не меняйте.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "parse_score: разберите text.trim().parse::<i32>() через match. В ветке Ok(n) проверьте границы, в ветке Err(_) верните None."
+    - "Внутри Ok(n): if n >= 0 && n <= 100 { Some(n) } else { None }. Это if как выражение, его результат и есть результат ветки."
+    - "describe вызывает parse_score и разбирает результат: match parse_score(text) { Some(score) => ..., None => ... }. Текст собирайте через format!."
+    - "Для зачёта: if score >= 60 { format!(\"Балл {score}: зачёт\") } else { format!(\"Балл {score}: незачёт\") }. Для ошибки: format!(\"Некорректный балл: {text}\")."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "75\nabc\n101\n"
+      expected: "Балл 75: зачёт\nНекорректный балл: abc\nНекорректный балл: 101\nВерных баллов: 1\n"
+      hint: "75 - верный балл, «abc» не число, 101 вне диапазона; верных один."
+    - id: "fail"
+      title: "Незачёт"
+      stdin: "59\n0\n"
+      expected: "Балл 59: незачёт\nБалл 0: незачёт\nВерных баллов: 2\n"
+      hint: "Балл меньше 60 - незачёт; 0 - верный балл (границы включены)."
+    - id: "borders"
+      title: "Границы 0, 59, 60, 100 (скрытый)"
+      stdin: "60\n100\n59\n0\n"
+      expected: "Балл 60: зачёт\nБалл 100: зачёт\nБалл 59: незачёт\nБалл 0: незачёт\nВерных баллов: 4\n"
+      hidden: true
+      hint: "Границы 0 и 100 допустимы; 60 - уже зачёт, 59 - ещё незачёт."
+    - id: "out-of-range"
+      title: "Вне диапазона (скрытый)"
+      stdin: "-1\n101\n1000\n"
+      expected: "Некорректный балл: -1\nНекорректный балл: 101\nНекорректный балл: 1000\nВерных баллов: 0\n"
+      hidden: true
+      hint: "Числа меньше 0 и больше 100 разбираются в число, но не являются верным баллом."
+    - id: "spaces"
+      title: "Пробелы и дробные числа (скрытый)"
+      stdin: " 88 \n12.5\n7,5\n"
+      expected: "Балл 88: зачёт\nНекорректный балл: 12.5\nНекорректный балл: 7,5\nВерных баллов: 1\n"
+      hidden: true
+      hint: "Пробелы по краям убираются, а 12.5 и 7,5 не целые числа: для них parse возвращает Err."
+    - id: "all-bad"
+      title: "Только неверные строки (скрытый)"
+      stdin: "--\nх\n\n"
+      expected: "Некорректный балл: --\nНекорректный балл: х\nНекорректный балл: \nВерных баллов: 0\n"
+      hidden: true
+      hint: "Пустая строка тоже неверная: parse от пустой строки - ошибка. Верных баллов 0."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "Верных баллов: 0\n"
+      hidden: true
+      hint: "Если строк нет, функции не вызываются и печатается только «Верных баллов: 0»."

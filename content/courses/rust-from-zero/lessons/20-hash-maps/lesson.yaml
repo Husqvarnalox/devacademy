@@ -1,0 +1,235 @@
+id: "rust.from-zero.hash-maps"
+title: "Словари HashMap: значения по ключу"
+goal: "Хранить пары «ключ - значение» в HashMap<String, i32>: добавлять, искать, считать повторения через entry().or_insert() и выводить содержимое в предсказуемом порядке."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "rust.from-zero.vectors"
+objectives:
+  - "Подключить HashMap через use и создать HashMap<String, i32> с insert, get, contains_key и len."
+  - "Считать повторения через *map.entry(ключ).or_insert(0) += 1."
+  - "Перебирать пары (ключ, значение) и объяснить, почему порядок HashMap не определён."
+  - "Получить стабильный вывод: собрать ключи в Vec, отсортировать и обратиться к значениям по ключу."
+  - "Передавать словарь в функции как &HashMap и &mut HashMap."
+masteryCriteria:
+  - "Вы выбираете HashMap, когда данные ищутся по имени, а не по номеру, и Vec - когда важен порядок."
+  - "Вы никогда не полагаетесь на порядок обхода HashMap в выводе: вы сортируете ключи."
+  - "Вы читаете get как Option и не используете map[ключ] для ключа, которого может не быть."
+concepts:
+  introduces:
+    - "rust.hash-map"
+    - "rust.key-value"
+    - "rust.map-iteration"
+  uses:
+    - "rust.vec"
+    - "rust.vec-index"
+    - "rust.vec-iteration"
+    - "rust.debug-format"
+    - "rust.option"
+    - "rust.if-let"
+    - "rust.match"
+    - "rust.match-arm"
+    - "rust.function"
+    - "rust.parameter"
+    - "rust.return"
+    - "rust.reference"
+    - "rust.mut-reference"
+    - "rust.clone"
+    - "rust.for"
+    - "rust.if"
+    - "rust.lines"
+    - "rust.trim"
+    - "rust.stdin"
+    - "rust.read-to-string"
+    - "rust.unwrap"
+    - "rust.i32"
+    - "rust.mut"
+    - "rust.compound-assignment"
+    - "rust.inline-format"
+    - "rust.comparison"
+    - "rust.logical-operators"
+    - "rust.method-call"
+    - "rust.string"
+    - "rust.str"
+next:
+  - "rust.from-zero.string-methods"
+tags:
+  - "rust"
+  - "hashmap"
+  - "map"
+  - "dictionary"
+  - "counting"
+  - "collections"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        use std::collections::HashMap;
+
+        fn main() {
+            let mut m: HashMap<String, i32> = HashMap::new();
+            m.insert(String::from("a"), 1);
+            m.insert(String::from("b"), 2);
+            m.insert(String::from("a"), 10);
+            println!("{} {}", m.len(), m["a"]);
+        }
+        ```
+      options:
+        - "2 10"
+        - "3 10"
+        - "2 1"
+        - "3 1"
+      answer: 0
+      explanation: "Ключ \"a\" записан дважды: вторая запись заменила значение 1 на 10, пар осталось две (a и b)."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        use std::collections::HashMap;
+
+        fn main() {
+            let mut m: HashMap<String, i32> = HashMap::new();
+            for w in vec!["x", "y", "x", "x"] {
+                *m.entry(String::from(w)).or_insert(0) += 1;
+            }
+            println!("{} {}", m["x"], m["y"]);
+        }
+        ```
+      options:
+        - "3 1"
+        - "1 3"
+        - "2 1"
+        - "3 0"
+      answer: 0
+      explanation: "Для каждого слова entry создаёт запись со значением 0, если её не было, и затем прибавляет 1. Слово x встречается три раза, y - один."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        use std::collections::HashMap;
+
+        fn main() {
+            let mut m: HashMap<String, i32> = HashMap::new();
+            m.insert(String::from("чай"), 4);
+            println!("{:?} {:?}", m.get("чай"), m.get("кофе"));
+        }
+        ```
+      options:
+        - "Some(4) None"
+        - "4 0"
+        - "Some(4) Some(0)"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "get возвращает Option: Some(значение), если ключ есть, и None, если ключа нет. Паники нет, в отличие от m[\"кофе\"]."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Почему этот код не компилируется?
+
+        ```rust
+        use std::collections::HashMap;
+
+        fn main() {
+            let mut m: HashMap<String, i32> = HashMap::new();
+            m.insert("яблоки", 3);
+            println!("{}", m.len());
+        }
+        ```
+      options:
+        - "Потому что у HashMap нет метода insert."
+        - "Потому что ключ должен быть String, а \"яблоки\" - это &str."
+        - "Потому что значение 3 нужно писать как 3.0."
+        - "Потому что после insert нельзя вызывать len()."
+      answer: 1
+      explanation: "Ключи объявлены как String, а строковый литерал имеет тип &str. Нужно String::from(\"яблоки\")."
+    - id: "q5"
+      type: "single"
+      prompt: "Программа выводит пары, перебирая HashMap циклом `for (k, v) in &m`. Что можно гарантировать о порядке строк в выводе?"
+      options:
+        - "Порядок вставки."
+        - "Порядок по возрастанию ключей."
+        - "Ничего: порядок не определён и может меняться между запусками."
+        - "Порядок по убыванию значений."
+      answer: 2
+      explanation: "HashMap не хранит порядок. Для предсказуемого вывода сначала соберите ключи в вектор, отсортируйте их и берите значения по ключу."
+exercise:
+  id: "rust.from-zero.hash-maps.exercise"
+  title: "Подсчёт голосов"
+  prompt: |
+    В упражнении `main` уже написан. Он читает ввод - по одному имени на строке, пропускает пустые строки, для каждого имени вызывает вашу функцию `add_vote`, затем печатает результаты в алфавитном порядке (`имя: голоса`) и победителя. Напишите две функции.
+
+    1. `add_vote(votes: &mut HashMap<String, i32>, name: &str)` - добавить один голос за `name` (если имени ещё нет, оно начинает с 1).
+    2. `winner(votes: &HashMap<String, i32>) -> Option<String>` - имя с наибольшим числом голосов, или `None`, если голосов нет. При равенстве побеждает имя, которое идёт раньше по алфавиту (сравнение `<` для строк).
+
+    Пример. Ввод:
+
+    ```
+    Анна
+    Борис
+    Анна
+    Вера
+    Борис
+    Анна
+    ```
+
+    Вывод:
+
+    ```
+    Анна: 3
+    Борис: 2
+    Вера: 1
+    Победитель: Анна
+    ```
+
+    В заготовке функции пока ничего не делают (`add_vote`) и возвращают `None` (`winner`). Замените их, `main` не меняйте.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "add_vote: одна строка. *votes.entry(String::from(name)).or_insert(0) += 1; Звёздочка в начале обязательна: or_insert отдаёт ссылку на значение."
+    - "winner: заведите let mut best_name = String::new(); и let mut best_count = 0; и перебирайте пары: for (name, count) in votes { ... }. Здесь name и count - ссылки."
+    - "Условие замены: *count > best_count || (*count == best_count && *name < best_name). Тогда best_name = name.clone(); best_count = *count;"
+    - "После цикла: если best_count == 0, верните None, иначе Some(best_name). Равенство голосов решается сравнением имён, а не порядком обхода HashMap - он не определён."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "Анна\nБорис\nАнна\nВера\nБорис\nАнна\n"
+      expected: "Анна: 3\nБорис: 2\nВера: 1\nПобедитель: Анна\n"
+      hint: "Анна 3, Борис 2, Вера 1; победитель - Анна."
+    - id: "single"
+      title: "Один кандидат"
+      stdin: "Вера\nВера\n"
+      expected: "Вера: 2\nПобедитель: Вера\n"
+      hint: "Единственный кандидат с двумя голосами: он и победитель."
+    - id: "tie"
+      title: "Ничья (скрытый)"
+      stdin: "Борис\nАнна\nБорис\nАнна\nВера\n"
+      expected: "Анна: 2\nБорис: 2\nВера: 1\nПобедитель: Анна\n"
+      hidden: true
+      hint: "Анна и Борис по 2 голоса: побеждает Анна, она раньше по алфавиту. Порядок обхода HashMap использовать нельзя."
+    - id: "tie-three"
+      title: "Ничья трёх (скрытый)"
+      stdin: "Яна\nДима\nГлеб\n"
+      expected: "Глеб: 1\nДима: 1\nЯна: 1\nПобедитель: Глеб\n"
+      hidden: true
+      hint: "У всех по 1 голосу: побеждает имя, раньше идущее по алфавиту (Глеб)."
+    - id: "blank-and-spaces"
+      title: "Пустые строки и пробелы (скрытый)"
+      stdin: "\n Анна \nАнна\n\n  \nБорис\n"
+      expected: "Анна: 2\nБорис: 1\nПобедитель: Анна\n"
+      hidden: true
+      hint: "Пустые строки и строки из пробелов пропускаются, пробелы по краям убираются: Анна 2, Борис 1."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "Победитель: нет\n"
+      hidden: true
+      hint: "Голосов нет: список пуст, а победителя нет."

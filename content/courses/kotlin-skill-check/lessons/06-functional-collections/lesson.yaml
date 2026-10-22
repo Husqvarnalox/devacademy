@@ -1,0 +1,203 @@
+id: "kotlin.check.functional-collections"
+title: "Проверка: коллекции и функции высшего порядка"
+goal: "Строить цепочки filter, map, groupBy и fold и осознанно выбирать между списками и последовательностями."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: преобразовывать коллекции функциями высшего порядка и пользоваться ленивыми последовательностями."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "collections"
+  - "lambdas"
+  - "sequences"
+assessmentFor:
+  - "kotlin.fundamentals.collections-and-sequences"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val r = listOf(1, 2, 3)
+                .filter { print("f$it "); it > 1 }
+                .map { print("m$it "); it * 2 }
+            println(r)
+        }
+        ```
+      options:
+        - "f1 f2 f3 m2 m3 [4, 6]"
+        - "f1 f2 m2 f3 m3 [4, 6]"
+        - "f2 f3 m2 m3 [4, 6]"
+        - "[4, 6]"
+      answer: 0
+      explanation: "Операции над List выполняются жадно: filter сначала проходит весь список (f1 f2 f3) и создаёт новый список из 2 и 3, и только затем map обрабатывает его элементы (m2 m3). После этого println печатает итоговый список."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val r = sequenceOf(1, 2, 3, 4)
+                .filter { print("f$it "); it % 2 == 0 }
+                .map { print("m$it "); it * 10 }
+                .first()
+            println(r)
+        }
+        ```
+      options:
+        - "f1 f2 m2 20"
+        - "f1 f2 f3 f4 m2 m4 20"
+        - "f1 m1 f2 m2 20"
+        - "20"
+      answer: 0
+      explanation: "Последовательность ленивая: каждый элемент проходит всю цепочку до терминальной операции first. 1 не проходит filter (f1), 2 проходит (f2) и сразу попадает в map (m2); first получает значение 20 и вычисление останавливается, f3 и f4 не вызываются."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val (small, big) = listOf(5, 12, 7, 20).partition { it < 10 }
+            println("$small $big")
+        }
+        ```
+      options:
+        - "[5, 7] [12, 20]"
+        - "[5, 12] [7, 20]"
+        - "[12, 20] [5, 7]"
+        - "[5] [12]"
+      answer: 0
+      explanation: "partition делит коллекцию на два списка: элементы, для которых условие истинно (меньше 10), и остальные. Порядок элементов в каждом списке сохраняется."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            println(listOf(1, 2, 3, 4).fold(100) { acc, x -> acc - x * x })
+        }
+        ```
+      options:
+        - "70"
+        - "-70"
+        - "90"
+        - "100"
+      answer: 0
+      explanation: "fold начинает с 100 и для каждого x вычитает его квадрат: 100 - 1 - 4 - 9 - 16 = 70."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val a = mutableListOf(1, 2)
+            val b: List<Int> = a
+            a.add(3)
+            println("$b ${b.size}")
+        }
+        ```
+      options:
+        - "[1, 2, 3] 3"
+        - "[1, 2] 2"
+        - "[1, 2, 3] 2"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Тип List только скрывает методы изменения, но не копирует данные: b - второе имя того же списка. После a.add(3) в нём три элемента. Неизменяемую копию даёт toList()."
+exercise:
+  id: "kotlin.check.functional-collections.exercise"
+  title: "Квадраты, группы и последовательность"
+  prompt: |-
+    Программа читает три строки: целые числа через пробел, слова через пробел и число `limit`. `main` уже написан; реализуйте три функции.
+
+    * `evenSquares(xs: List<Int>): List<Int>` - квадраты **чётных** чисел списка в исходном порядке;
+    * `groupByLength(words: List<String>): Map<Int, List<String>>` - слова, сгруппированные по длине; внутри группы порядок исходный;
+    * `firstSquareAbove(limit: Int): Int` - наименьший квадрат натурального числа, строго больший `limit`. Решите через ленивую последовательность: `limit` может быть большим.
+
+    **Пример.** Ввод:
+
+    ```
+    1 2 3 4 5 6
+    kotlin is fun and so is java
+    50
+    ```
+
+    Вывод:
+
+    ```
+    Чётные квадраты: [4, 16, 36]
+    2: [is, so, is]
+    3: [fun, and]
+    4: [java]
+    6: [kotlin]
+    Первый квадрат больше 50: 64
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций уже есть. evenSquares - цепочка `xs.filter { it % 2 == 0 }.map { it * it }`; groupByLength - `words.groupBy { it.length }`."
+    - "firstSquareAbove: `generateSequence(1) { it + 1 }` даёт 1, 2, 3, ...; к нему добавьте `.map { it * it }` и возьмите первый подходящий `first { it > limit }`."
+    - "Не создавайте список всех квадратов заранее: `limit` бывает большим, а последовательность вычисляет элементы по мере необходимости."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: |
+        1 2 3 4 5 6
+        kotlin is fun and so is java
+        50
+      expected: |
+        Чётные квадраты: [4, 16, 36]
+        2: [is, so, is]
+        3: [fun, and]
+        4: [java]
+        6: [kotlin]
+        Первый квадрат больше 50: 64
+      hint: "Чётные 2, 4, 6 дают [4, 16, 36]; группы выводятся по возрастанию длины; первый квадрат больше 50 - 64 (8 * 8)."
+    - id: "negative"
+      title: "Отрицательные и ноль (скрытый)"
+      stdin: |
+        -2 -1 0 3
+        a bb a
+        0
+      expected: |
+        Чётные квадраты: [4, 0]
+        1: [a, a]
+        2: [bb]
+        Первый квадрат больше 0: 1
+      hidden: true
+      hint: "Чётные -2 и 0 дают [4, 0]; слова: a дважды в группе длины 1; первый квадрат больше 0 - это 1."
+    - id: "empty"
+      title: "Пустые списки (скрытый)"
+      stdin: |
+
+
+        1000000
+      expected: |
+        Чётные квадраты: []
+        Первый квадрат больше 1000000: 1002001
+      hidden: true
+      hint: "Для пустых строк результаты пустые: чётные квадраты [], групп нет; первый квадрат больше 1000000 - 1002001 (1001 * 1001)."
+    - id: "exact"
+      title: "Предел - точный квадрат (скрытый)"
+      stdin: |
+        2 2
+        ab cd ef
+        49
+      expected: |
+        Чётные квадраты: [4, 4]
+        2: [ab, cd, ef]
+        Первый квадрат больше 49: 64
+      hidden: true
+      hint: "Квадраты должны быть строго больше предела: после 49 идёт 64, а не 49."

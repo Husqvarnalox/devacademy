@@ -1,0 +1,164 @@
+id: "kotlin.from-zero.strings"
+title: "Строки: длина, символы, регистр"
+goal: "Узнавать длину строки, брать из неё символ по индексу и менять регистр букв."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.arithmetic"
+objectives:
+  - "Получать длину строки через length."
+  - "Брать символ по индексу text[i] и объяснять, почему индексы начинаются с нуля."
+  - "Менять регистр через uppercase() и lowercase()."
+  - "Понимать, что строку нельзя изменить на месте."
+masteryCriteria:
+  - "Ваша программа печатает длину, первый, последний символ и версию строки в верхнем регистре."
+  - "Вы указываете последний индекс строки как length - 1."
+  - "Вы узнаёте StringIndexOutOfBoundsException по сообщению Index N out of bounds."
+concepts:
+  introduces:
+    - "kotlin.string-length"
+    - "kotlin.string-index"
+    - "kotlin.string-case"
+  uses:
+    - "kotlin.string"
+    - "kotlin.char"
+    - "kotlin.val"
+    - "kotlin.int"
+    - "kotlin.arithmetic"
+    - "kotlin.string-template"
+    - "kotlin.println"
+next:
+  - "kotlin.from-zero.reading-input"
+tags:
+  - "kotlin"
+  - "string"
+  - "index"
+  - "length"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "numeric"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val city = "Минск"
+            println(city.length)
+        }
+        ```
+      answer: 5
+      tolerance: 0
+      explanation: "В слове «Минск» пять букв. length считает символы, поэтому результат 5."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val word = "привет"
+            println(word[1])
+        }
+        ```
+      options:
+        - "р"
+        - "п"
+        - "и"
+        - "Ошибку: индекс 1 не существует."
+      answer: 0
+      explanation: "Индексы начинаются с нуля: word[0] - это «п», word[1] - «р»."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Какое выражение вернёт последний символ непустой строки s?
+
+        ```kotlin
+        val s = "абвг"
+        ```
+      options:
+        - "s[s.length - 1]"
+        - "s[s.length]"
+        - "s[-1]"
+        - "s[last]"
+      answer: 0
+      explanation: "Индексы идут от 0 до length - 1. Индекс s.length уже за границей и даст ошибку, а s[-1] в Kotlin не работает как «с конца»."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val name = "Анна"
+            name.uppercase()
+            println(name)
+        }
+        ```
+      options:
+        - "Анна"
+        - "АННА"
+        - "анна"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "Строки не изменяются на месте: uppercase() возвращает новую строку, а name остаётся прежней. Результат нужно сохранить или напечатать: println(name.uppercase())."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```kotlin
+        fun main() {
+            val word = "кот"
+            println(word[3])
+        }
+        ```
+      options:
+        - "StringIndexOutOfBoundsException: Index 3 out of bounds for length 3"
+        - "Напечатается т"
+        - "Напечатается пустая строка"
+        - "Ошибка компиляции."
+      answer: 0
+      explanation: "В строке из трёх символов допустимы индексы 0, 1, 2. Индекс 3 выходит за границы, и программа останавливается во время работы."
+exercise:
+  id: "kotlin.from-zero.strings.exercise"
+  title: "Разбор фразы"
+  prompt: |
+    В программе есть строка `phrase`. Допишите программу, чтобы она напечатала:
+
+    ```
+    Длина: 15
+    Первая буква: K
+    Последняя буква: а
+    Крупными: KOTLIN ПРАКТИКА
+    ```
+
+    Значения вычисляйте из `phrase`, а не вписывайте вручную. Последняя буква - русская «а».
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Длина строки - phrase.length. Вставьте её в текст шаблоном: ${phrase.length}."
+    - "Первый символ - phrase[0], последний - phrase[phrase.length - 1]."
+    - "Версия в верхнем регистре - phrase.uppercase(). Скобки нужны."
+    - "Все четыре строки: println(\"Длина: ${phrase.length}\"), println(\"Первая буква: ${phrase[0]}\") и так далее."
+  tests:
+    - id: "basic"
+      title: "Длина, первая и последняя буквы, верхний регистр"
+      stdin: ""
+      expected: |
+        Длина: 15
+        Первая буква: K
+        Последняя буква: а
+        Крупными: KOTLIN ПРАКТИКА
+      hint: "В «Kotlin Практика» 15 символов вместе с пробелом; первая буква K, последняя а, весь текст переводится в верхний регистр."
+    - id: "exact"
+      title: "Точный вывод четырёх строк (скрытый)"
+      stdin: ""
+      expected: |
+        Длина: 15
+        Первая буква: K
+        Последняя буква: а
+        Крупными: KOTLIN ПРАКТИКА
+      hidden: true
+      hint: "Проверяется точное совпадение: латинская K в первой букве, строчная русская «а» в последней, верхний регистр для всей фразы, включая русские буквы."

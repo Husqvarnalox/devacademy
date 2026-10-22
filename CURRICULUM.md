@@ -15,7 +15,9 @@
 | Go | да (эталон) | `go-first-steps` «Go с нуля» (29 уроков, уровень 0), `go-for-programmers` (4, зачитывают базовые), `go-skill-check` (11 проверок), `go-fundamentals` (9), `go-professional` (8); маршрут `content/routes/go.yaml` |
 | Python | ядро | `python-fundamentals` (15 уроков, уровень 0), `python-for-programmers`, `python-skill-check`; маршрут `content/routes/python.yaml`; `python-advanced`, `python-stdlib`, `python-concurrency` и др. - прежние |
 | JavaScript | да | `javascript-from-zero` «JavaScript с нуля» (23 урока, уровень 0), `javascript-for-programmers` (3, зачитывают базовые), `javascript-skill-check` (9 проверок), `javascript-first-steps` и `javascript-fundamentals` - прежние, теперь связаны `requires`; маршрут `content/routes/javascript.yaml` |
-| C++, C#, Java, Kotlin, PHP, Rust, TypeScript, Node.js | нет | курсы `*-first-steps` честно помечены как курсы для программистов (уровень 1); курсов «с нуля» нет |
+| TypeScript | да | `typescript-from-zero` «TypeScript с нуля» (24 урока, уровень 0, знание JavaScript не требуется), `typescript-for-programmers` (3), `typescript-skill-check` (8 проверок); `typescript-first-steps` теперь требует `typescript-from-zero`; маршрут `content/routes/typescript.yaml` |
+| C#, Java, Kotlin, C++, Rust, PHP | да | в каждом треке `<язык>-from-zero` (24 урока, уровень 0), `<язык>-for-programmers` (3, зачитывают базовые), `<язык>-skill-check` (8 проверок) и маршрут `content/routes/<язык>.yaml`; `*-first-steps` требуют курс с нуля и начинаются с того, как язык выполняет программу; `*-fundamentals` - прежние. Планы треков - `docs/curriculum/<язык>.md` |
+| Node.js | нет | `nodejs-first-steps` - курс для программистов (уровень 1), курса «с нуля» нет |
 | Фреймворки, алгоритмы, SQL, сети, ОС, ML | нет | прежние курсы; `requires` выровнены с prerequisites уроков там, где аудит нашёл расхождения |
 
 ## 2. Уровни 0-6: ориентир, а не квалификация
