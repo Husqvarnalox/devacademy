@@ -91,7 +91,7 @@ public static class Util
         var sw = System.Diagnostics.Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < ms)
         {
-            if (probe() is { } v) return v;
+            if (Try(probe) is { } v) return v;
             await Task.Delay(10);
         }
         throw new TimeoutException("timed out waiting for " + what);
@@ -100,10 +100,20 @@ public static class Util
     public static async Task UntilAsync(Func<bool> cond, string what, int ms = 15000)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        while (!cond())
+        while (Try(() => cond() ? "" : null) is null)
         {
             if (sw.ElapsedMilliseconds > ms) throw new TimeoutException("timed out waiting for " + what);
             await Task.Delay(10);
         }
+    }
+
+    /// <summary>
+    /// Probes read view-model collections that the debug session fills from its own thread; a probe that hits
+    /// "collection was modified" mid-update just means "not yet", so it is retried instead of failing the test.
+    /// </summary>
+    private static T? Try<T>(Func<T?> probe) where T : class
+    {
+        try { return probe(); }
+        catch (InvalidOperationException) { return null; }
     }
 }

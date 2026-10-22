@@ -122,7 +122,7 @@
   <data name="Mode_Practice" xml:space="preserve"><value>Практика</value></data>
   <data name="Mode_Quiz" xml:space="preserve"><value>Тест</value></data>
   <data name="Mode_Theory" xml:space="preserve"><value>Теория</value></data>
-  <data name="Nav_Catalog" xml:space="preserve"><value>Каталог</value></data>
+  <data name="Nav_Catalog" xml:space="preserve"><value>Обучение</value></data>
   <data name="Nav_Dashboard" xml:space="preserve"><value>Главная</value></data>
   <data name="Nav_Settings" xml:space="preserve"><value>Настройки</value></data>
   <data name="Onboarding_Depth" xml:space="preserve"><value>Глубина изучения</value></data>
@@ -135,13 +135,13 @@
   <data name="Onboarding_Subtitle" xml:space="preserve"><value>Расскажите о себе, чтобы мы подобрали маршрут. Всё хранится только на этом компьютере.</value></data>
   <data name="Onboarding_Title" xml:space="preserve"><value>Добро пожаловать в DevAcademy</value></data>
   <data name="Out_Compile" xml:space="preserve"><value>Вывод компилятора</value></data>
-  <data name="Out_Console" xml:space="preserve"><value>Консоль</value></data>
+  <data name="Out_Console" xml:space="preserve"><value>Вывод</value></data>
   <data name="Out_Hints" xml:space="preserve"><value>Подсказки</value></data>
-  <data name="Out_NoRun" xml:space="preserve"><value>Нажмите «Запустить» (⌘↵), чтобы увидеть вывод программы.</value></data>
-  <data name="Out_NoSubmit" xml:space="preserve"><value>Нажмите «Проверить решение» (⇧⌘↵), чтобы увидеть результаты тестов.</value></data>
+  <data name="Out_NoRun" xml:space="preserve"><value>Здесь появится то, что программа выводит на экран. Нажмите «Запустить».</value></data>
+  <data name="Out_NoSubmit" xml:space="preserve"><value>Проверка ещё не запускалась. Нажмите «Проверить решение»: код прогонят через тесты из условия и скрытые тесты.</value></data>
   <data name="Out_Stdin" xml:space="preserve"><value>Ввод программы (stdin)</value></data>
-  <data name="Out_Tests" xml:space="preserve"><value>Тесты</value></data>
-  <data name="Practice_HowTo" xml:space="preserve"><value>Напишите решение в редакторе, запустите его и отправьте на проверку.</value></data>
+  <data name="Out_Tests" xml:space="preserve"><value>Проверка</value></data>
+  <data name="Practice_HowTo" xml:space="preserve"><value>Напишите решение в редакторе справа. «Запустить» показывает, что выводит программа; «Проверить решение» прогоняет тесты, часть которых скрыта. Урок засчитывается, когда пройдены все тесты.</value></data>
   <data name="Quiz_Answer" xml:space="preserve"><value>Ответ</value></data>
   <data name="Quiz_Best" xml:space="preserve"><value>Лучший результат: {0}%</value></data>
   <data name="Quiz_Correct" xml:space="preserve"><value>Верно</value></data>
@@ -244,8 +244,8 @@
   <data name="Roadmap_Review" xml:space="preserve"><value>Повторить</value></data>
   <data name="Roadmap_Continue" xml:space="preserve"><value>Продолжить</value></data>
   <data name="Roadmap_Start" xml:space="preserve"><value>Начать</value></data>
-  <data name="Nav_Problems" xml:space="preserve"><value>Задачи</value></data>
-  <data name="Problems_Title" xml:space="preserve"><value>Задачи</value></data>
+  <data name="Nav_Problems" xml:space="preserve"><value>Практика</value></data>
+  <data name="Problems_Title" xml:space="preserve"><value>Практика</value></data>
   <data name="Problems_Difficulty" xml:space="preserve"><value>Сложность</value></data>
   <data name="Problems_State" xml:space="preserve"><value>Статус</value></data>
   <data name="Problems_AllDifficulties" xml:space="preserve"><value>Любая сложность</value></data>
@@ -992,7 +992,7 @@
   <data name="Editor_ResetTip" xml:space="preserve"><value>Сбросить код к исходному состоянию</value></data>
   <data name="Editor_HintTip" xml:space="preserve"><value>Показать следующую подсказку</value></data>
   <data name="Dbg_Tip" xml:space="preserve"><value>Пошаговый запуск: можно останавливать программу на строках и смотреть значения переменных (F5)</value></data>
-  <data name="Out_TestsCount" xml:space="preserve"><value>Тесты ({0}/{1})</value></data>
+  <data name="Out_TestsCount" xml:space="preserve"><value>Проверка ({0}/{1})</value></data>
   <data name="Out_HintsCount" xml:space="preserve"><value>Подсказки ({0}/{1})</value></data>
   <data name="Out_StdinHint" xml:space="preserve"><value>Если программа читает ввод (input(), Scanner и т. п.), впишите его сюда: одна строка на одно значение.</value></data>
   <data name="Out_ShowDiff" xml:space="preserve"><value>Ожидалось и получено</value></data>
@@ -1180,4 +1180,56 @@
   <data name="Engine_Runtime_PhpOld" xml:space="preserve"><value>Этот PHP старше 8.4. Курсы по PHP проверены на PHP 8.5 и используют функции, добавленные в 8.4 (mb_trim, array_find, хуки свойств); эти примеры на данной версии не заработают. Обновите PHP до 8.4 или новее.</value></data>
   <data name="Engine_Runtime_CppNoExpected" xml:space="preserve"><value>Компилятор собирает C++23, но в его стандартной библиотеке нет std::expected (например, clang с libstdc++ 13), поэтому примеры с ним не скомпилируются. Установите g++ 13 или новее, либо Clang 17+ с libc++, чтобы собиралось всё.</value></data>
   <data name="Engine_Debug_LldbWindowsUnsupported" xml:space="preserve"><value>Отладка C++ и Rust на Windows пока не поддерживается (lldb-dap там не проверен). Программы запускаются как обычно; проверяйте их по выводу в консоли.</value></data>
+  <data name="Practice_Subtitle" xml:space="preserve"><value>Решайте задачи в любом порядке, не проходя курс с начала. Решение проверяется теми же тестами, что и в уроке, а результат сохраняется в прогрессе.</value></data>
+  <data name="Practice_ScopeAlgorithms" xml:space="preserve"><value>Алгоритмы</value></data>
+  <data name="Practice_ScopeExercises" xml:space="preserve"><value>Упражнения курсов</value></data>
+  <data name="Practice_Search" xml:space="preserve"><value>Поиск по задаче или курсу</value></data>
+  <data name="Practice_Language" xml:space="preserve"><value>Язык</value></data>
+  <data name="Practice_AllLanguages" xml:space="preserve"><value>Любой язык</value></data>
+  <data name="Practice_ColTask" xml:space="preserve"><value>Задача</value></data>
+  <data name="Practice_ColCourse" xml:space="preserve"><value>Курс</value></data>
+  <data name="Practice_LockedTip" xml:space="preserve"><value>Предыдущие уроки курса ещё не пройдены. Задачу можно открыть, приложение попросит подтверждение.</value></data>
+  <data name="Practice_ChecksTitle" xml:space="preserve"><value>Проверка знаний</value></data>
+  <data name="Practice_ChecksText" xml:space="preserve"><value>Тест по темам, которые вы, возможно, уже знаете. Если он пройден, перечисленные уроки засчитываются и их можно пропустить. При неудаче прогресс не меняется.</value></data>
+  <data name="Practice_ChecksEmpty" xml:space="preserve"><value>Сейчас доступных проверок нет: они пройдены или их темы уже изучены.</value></data>
+  <data name="Practice_CheckMeta" xml:space="preserve"><value>{0} вопросов · порог {1}% · засчитает уроков: {2}</value></data>
+  <data name="Practice_CheckStart" xml:space="preserve"><value>Начать проверку</value></data>
+  <data name="Practice_TopicsTitle" xml:space="preserve"><value>Решено по курсам</value></data>
+  <data name="Practice_TopicsText" xml:space="preserve"><value>Задача считается решённой, когда решение прошло все тесты.</value></data>
+  <data name="Practice_TopicCount" xml:space="preserve"><value>{0} из {1}</value></data>
+  <data name="Lesson_CurrentMeta" xml:space="preserve"><value>Текущий урок · ~{0} мин</value></data>
+  <data name="Lesson_Overline" xml:space="preserve"><value>Урок {0} из {1} · {2}</value></data>
+  <data name="Lesson_CourseProgress" xml:space="preserve"><value>Пройдено {0} из {1} уроков</value></data>
+  <data name="Theory_All" xml:space="preserve"><value>Всё сразу</value></data>
+  <data name="Theory_Next" xml:space="preserve"><value>Дальше: {0}</value></data>
+  <data name="Theory_SectionsLabel" xml:space="preserve"><value>Раздел теории</value></data>
+  <data name="Section_deep-dive" xml:space="preserve"><value>Глубже</value></data>
+  <data name="Section_facts" xml:space="preserve"><value>Факты</value></data>
+  <data name="Lesson_CurrentCourse" xml:space="preserve"><value>Текущий курс</value></data>
+  <data name="Lesson_SavedLocally" xml:space="preserve"><value>Прогресс и черновики сохраняются на этом компьютере</value></data>
+  <data name="Practice_Task" xml:space="preserve"><value>Задание</value></data>
+  <data name="Practice_HowToTitle" xml:space="preserve"><value>Как сдать</value></data>
+  <data name="Tutor_Close" xml:space="preserve"><value>Закрыть AI-наставника</value></data>
+  <data name="Tutor_ToggleTip" xml:space="preserve"><value>Открыть или закрыть AI-наставника. Он видит контекст урока, который вы разрешили отправить; отвечает только текстом и не меняет код.</value></data>
+  <data name="Editor_ShortcutsMac" xml:space="preserve"><value>⌘↵ запустить · ⇧⌘↵ проверить</value></data>
+  <data name="Editor_ShortcutsPc" xml:space="preserve"><value>Ctrl+Enter запустить · Ctrl+Shift+Enter проверить</value></data>
+  <data name="Out_Stdout" xml:space="preserve"><value>Вывод (stdout)</value></data>
+  <data name="Out_Stderr" xml:space="preserve"><value>Ошибки (stderr)</value></data>
+  <data name="Dashboard_PracticeText" xml:space="preserve"><value>Задачи и упражнения в любом порядке, а также проверки знаний, которые засчитывают уже знакомые темы.</value></data>
+  <data name="Dashboard_OpenPractice" xml:space="preserve"><value>Открыть практику</value></data>
+  <data name="Catalog_Search" xml:space="preserve"><value>Поиск курсов</value></data>
+  <data name="Catalog_FilterAll" xml:space="preserve"><value>Все курсы</value></data>
+  <data name="Catalog_FilterStarted" xml:space="preserve"><value>Начатые</value></data>
+  <data name="Catalog_FilterCompleted" xml:space="preserve"><value>Пройденные</value></data>
+  <data name="Catalog_ColCourse" xml:space="preserve"><value>Курс</value></data>
+  <data name="Catalog_ColLevel" xml:space="preserve"><value>Уровень</value></data>
+  <data name="Catalog_ColLessons" xml:space="preserve"><value>Уроков</value></data>
+  <data name="Catalog_ColStatus" xml:space="preserve"><value>Статус</value></data>
+  <data name="Catalog_StatusCompleted" xml:space="preserve"><value>Пройден</value></data>
+  <data name="Catalog_StatusNotStarted" xml:space="preserve"><value>Не начат</value></data>
+  <data name="Catalog_PlannedBadge" xml:space="preserve"><value>Запланирован</value></data>
+  <data name="Catalog_ProgressShort" xml:space="preserve"><value>{0} из {1}</value></data>
+  <data name="Catalog_NoMatches" xml:space="preserve"><value>По запросу «{0}» ничего не найдено.</value></data>
+  <data name="Catalog_NoFilterMatches" xml:space="preserve"><value>В этом разделе пока нет курсов.</value></data>
+  <data name="Catalog_ResetSearch" xml:space="preserve"><value>Сбросить поиск</value></data>
 </root>

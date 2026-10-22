@@ -20,7 +20,6 @@
 
         <!-- Learning group -->
         <StackPanel DockPanel.Dock="Top" Spacing="2">
-          <TextBlock Classes="overline" Text="{loc:TU Nav_Group_Learning}" Margin="10,0,0,6" IsVisible="{Binding IsSidebarExpanded}" />
           <Button Classes="navitem topnav" Command="{Binding ShowDashboardCommand}" Classes.current="{Binding IsDashboardSection}"
                   ToolTip.Tip="{loc:T Nav_Dashboard}" AutomationProperties.Name="{loc:T Nav_Dashboard}">
             <Grid ColumnDefinitions="Auto,Auto,*">
@@ -37,7 +36,7 @@
               <TextBlock Grid.Column="2" Text="{loc:T Nav_Catalog}" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
             </Grid>
           </Button>
-          <Button Classes="navitem topnav" Command="{Binding ShowProblemsCommand}" Classes.current="{Binding IsProblemsSection}" IsVisible="{Binding HasProblems}"
+          <Button Classes="navitem topnav" Command="{Binding ShowProblemsCommand}" Classes.current="{Binding IsProblemsSection}" IsVisible="{Binding HasPractice}"
                   ToolTip.Tip="{loc:T Nav_Problems}" AutomationProperties.Name="{loc:T Nav_Problems}">
             <Grid ColumnDefinitions="Auto,Auto,*">
               <Border Classes="marker" />

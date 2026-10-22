@@ -24,17 +24,17 @@
           <Border Classes="codeout"><SelectableTextBlock Text="{Binding CompileOutput}" Classes="mono" TextWrapping="Wrap" /></Border>
         </StackPanel>
         <StackPanel Spacing="4" IsVisible="{Binding HasStdout}">
-          <TextBlock Text="stdout" Classes="overline" />
+          <TextBlock Text="{loc:TU Out_Stdout}" Classes="overline" />
           <Border Classes="codeout"><SelectableTextBlock Text="{Binding Stdout}" Classes="mono" TextWrapping="Wrap" /></Border>
         </StackPanel>
         <StackPanel Spacing="4" IsVisible="{Binding HasStderr}">
-          <TextBlock Text="stderr" Classes="overline" />
+          <TextBlock Text="{loc:TU Out_Stderr}" Classes="overline" />
           <Border Classes="codeout"><SelectableTextBlock Text="{Binding Stderr}" Classes="mono danger" TextWrapping="Wrap" /></Border>
         </StackPanel>
       </StackPanel>
     </DataTemplate>
     <DataTemplate x:DataType="vm:TestReportViewModel">
-      <StackPanel Spacing="8">
+      <StackPanel Spacing="10">
         <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6">
           <ctl:Icon Kind="circle-check" Stroke="{DynamicResource SuccessBrush}" IsVisible="{Binding IsPassed}" VerticalAlignment="Center" />
           <ctl:Icon Kind="circle-x" Stroke="{DynamicResource DangerBrush}" IsVisible="{Binding !IsPassed}" VerticalAlignment="Center" />
@@ -43,21 +43,21 @@
           <Border Classes="badge" Classes.warn="{Binding IsWeakIsolation}" ToolTip.Tip="{Binding IsolationBadge}"><TextBlock Text="{Binding IsolationBadge}" TextWrapping="Wrap" /></Border>
         </WrapPanel>
         <Border Classes="codeout" IsVisible="{Binding HasMessage}"><SelectableTextBlock Text="{Binding Message}" Classes="mono" TextWrapping="Wrap" /></Border>
-        <TextBlock Text="{loc:T Tests_DurationNote}" Classes="small muted" TextWrapping="Wrap" IsVisible="{Binding HasCaseDurations}" />
-        <Border Classes="panel" ClipToBounds="True" IsVisible="{Binding Cases.Count}">
-          <ItemsControl Classes="rows" ItemsSource="{Binding Cases}">
+        <StackPanel IsVisible="{Binding Cases.Count}">
+          <Border Classes="hairline" />
+          <ItemsControl ItemsSource="{Binding Cases}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:TestCaseViewModel">
-                <Border Background="{DynamicResource SurfaceBrush}" Padding="12,8">
-                  <StackPanel Spacing="6">
+                <Border Classes="tablerow" Classes.failed="{Binding !Passed}" Padding="8,8">
+                  <StackPanel Spacing="4">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                      <ctl:Icon Kind="circle-check" Stroke="{DynamicResource SuccessBrush}" IsVisible="{Binding Passed}" VerticalAlignment="Center" />
-                      <ctl:Icon Kind="circle-x" Stroke="{DynamicResource DangerBrush}" IsVisible="{Binding !Passed}" VerticalAlignment="Center" />
+                      <ctl:Icon Kind="check" Size="14" Stroke="{DynamicResource SuccessBrush}" IsVisible="{Binding Passed}" VerticalAlignment="Center" />
+                      <ctl:Icon Kind="x" Size="14" Stroke="{DynamicResource DangerBrush}" IsVisible="{Binding !Passed}" VerticalAlignment="Center" />
                       <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
                       <TextBlock Grid.Column="2" Text="{Binding DurationText}" Classes="small muted mono" VerticalAlignment="Center" IsVisible="{Binding HasDuration}" />
                     </Grid>
-                    <TextBlock Text="{Binding Message}" Classes="small secondary" TextWrapping="Wrap" Margin="26,0,0,0" IsVisible="{Binding HasMessage}" />
-                    <Expander Header="{loc:T Out_ShowDiff}" Margin="22,0,0,0" IsVisible="{Binding HasDetail}">
+                    <TextBlock Text="{Binding Message}" Classes="small" Classes.danger="{Binding !Passed}" Classes.secondary="{Binding Passed}" TextWrapping="Wrap" Margin="24,0,0,0" IsVisible="{Binding HasMessage}" />
+                    <Expander Header="{loc:T Out_ShowDiff}" Margin="20,0,0,0" IsVisible="{Binding HasDetail}">
                       <Border Classes="codeout">
                         <StackPanel Spacing="2">
                           <TextBlock Text="{Binding Stdin, StringFormat='stdin: {0}'}" Classes="mono muted" IsVisible="{Binding Stdin, Converter={x:Static ObjectConverters.IsNotNull}}" TextWrapping="Wrap" />
@@ -71,7 +71,8 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
-        </Border>
+        </StackPanel>
+        <TextBlock Text="{loc:T Tests_DurationNote}" Classes="caption" FontWeight="Regular" TextWrapping="Wrap" IsVisible="{Binding HasCaseDurations}" />
       </StackPanel>
     </DataTemplate>
   </UserControl.DataTemplates>
@@ -83,17 +84,15 @@
     <KeyBinding Gesture="Shift+F11" Command="{Binding Debug.StepOutCommand}" />
   </UserControl.KeyBindings>
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
-    <!-- Toolbar: Run, Check and Debug stay visible and never wrap; hint / reset / save live in the overflow menu. -->
-    <Border Grid.Row="0" Classes="bar" Padding="8,6">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
-        <Button Name="RunButton" Command="{Binding RunCommand}" IsVisible="{Binding CanRun}" Classes="primary compact" Margin="0,0,6,0"
-                ToolTip.Tip="{loc:T Editor_RunTip}">
-          <StackPanel Orientation="Horizontal" Spacing="6"><ctl:Icon Kind="play" Size="14" /><TextBlock Text="{loc:T Editor_Run}" /></StackPanel>
-        </Button>
-        <Button Grid.Column="1" Content="{loc:T Editor_Submit}" Command="{Binding SubmitCommand}" IsVisible="{Binding CanSubmit}" Classes="compact" Margin="0,0,6,0"
-                ToolTip.Tip="{loc:T Editor_SubmitTip}" />
-        <Button Grid.Column="2" Name="DebugButton" Command="{Binding Debug.StartOrContinueCommand}" IsVisible="{Binding CanRun}" Classes="ghost compact" Margin="0,0,6,0"
-                IsEnabled="{Binding Debug.IsAvailable}">
+    <!-- Toolbar: file name left; Debug, Check and Run (primary) right and never wrap; hint / reset / save live in the overflow menu. -->
+    <Border Grid.Row="0" Classes="bar" MinHeight="44" Padding="12,0,8,0">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" ClipToBounds="True">
+          <Ellipse Width="6" Height="6" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding SelectedFile.Path}" Classes="mono" FontWeight="Medium" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </StackPanel>
+        <Button Grid.Column="1" Name="DebugButton" Command="{Binding Debug.StartOrContinueCommand}" IsVisible="{Binding CanRun}" Classes="quiet compact"
+                IsEnabled="{Binding Debug.IsAvailable}" AutomationProperties.Name="{loc:T Dbg_Button}">
           <ToolTip.Tip>
             <StackPanel Spacing="2" MaxWidth="280">
               <TextBlock Text="{loc:T Dbg_Tip}" TextWrapping="Wrap" />
@@ -102,8 +101,14 @@
           </ToolTip.Tip>
           <StackPanel Orientation="Horizontal" Spacing="6"><ctl:Icon Kind="bug" Size="14" /><TextBlock Text="{loc:T Dbg_Button}" /></StackPanel>
         </Button>
-        <Button Name="MoreButton" Grid.Column="4" Classes="ghost compact icon" Foreground="{DynamicResource TextSecondaryBrush}" ToolTip.Tip="{loc:T Editor_More}" AutomationProperties.Name="{loc:T Editor_More}">
-          <ctl:Icon Kind="ellipsis" Size="18" StrokeWidth="3" Stroke="{DynamicResource TextSecondaryBrush}" />
+        <Button Grid.Column="2" Name="SubmitButton" Content="{loc:T Editor_Submit}" Command="{Binding SubmitCommand}" IsVisible="{Binding CanSubmit}" Classes="compact"
+                ToolTip.Tip="{loc:T Editor_SubmitTip}" />
+        <Button Grid.Column="3" Name="RunButton" Command="{Binding RunCommand}" IsVisible="{Binding CanRun}" Classes="primary compact"
+                ToolTip.Tip="{loc:T Editor_RunTip}">
+          <StackPanel Orientation="Horizontal" Spacing="6"><ctl:Icon Kind="play" Size="14" /><TextBlock Text="{loc:T Editor_Run}" /></StackPanel>
+        </Button>
+        <Button Name="MoreButton" Grid.Column="4" Classes="quiet compact icon" ToolTip.Tip="{loc:T Editor_More}" AutomationProperties.Name="{loc:T Editor_More}">
+          <ctl:Icon Kind="ellipsis" Size="18" StrokeWidth="3" />
           <Button.Flyout>
             <MenuFlyout Placement="BottomEdgeAlignedRight">
               <MenuItem Header="{Binding HintButtonText}" Command="{Binding RevealHintCommand}" IsVisible="{Binding HasHints}"
@@ -122,19 +127,24 @@
       </Grid>
     </Border>
 
-    <!-- Language selector + runtime warning -->
+    <!-- Info strip: language (switchable for multi-language exercises), missing runtime, shortcuts; then environment notices -->
     <StackPanel Grid.Row="1">
-    <Border Classes="bar" Padding="8,4" IsVisible="{Binding IsMultiLanguage}">
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock Text="{loc:T Lang_Label}" VerticalAlignment="Center" Classes="small secondary" />
-        <ComboBox Name="LanguageBox" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" MinWidth="150"
-                  AutomationProperties.Name="{loc:T Lang_Label}" />
-        <TextBlock Text="{Binding RuntimeHint}" Classes="warn" VerticalAlignment="Center" TextWrapping="Wrap" IsVisible="{Binding IsRuntimeMissing}" />
-      </StackPanel>
+    <Border Classes="bar" Padding="12,0" MinHeight="32">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock Text="{Binding LanguageName}" Classes="small secondary" VerticalAlignment="Center" IsVisible="{Binding !IsMultiLanguage}" />
+          <TextBlock Text="{loc:T Lang_Label}" Classes="small muted" VerticalAlignment="Center" IsVisible="{Binding IsMultiLanguage}" />
+          <ComboBox Name="LanguageBox" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" MinWidth="140" MinHeight="26" FontSize="13"
+                    IsVisible="{Binding IsMultiLanguage}" AutomationProperties.Name="{loc:T Lang_Label}" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="{Binding RuntimeHint}" Classes="small warn" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,6"
+                   IsVisible="{Binding IsRuntimeMissing}" />
+        <TextBlock Grid.Column="2" Text="{x:Static vm:ExerciseSessionViewModel.ShortcutsText}" Classes="caption" FontWeight="Regular" VerticalAlignment="Center" />
+      </Grid>
     </Border>
-    <Border Name="EnvironmentBar" Classes="bar" Padding="8,4" IsVisible="{Binding HasEnvironmentNotice}">
+    <Border Name="EnvironmentBar" Classes="bar" Padding="12,6" IsVisible="{Binding HasEnvironmentNotice}">
       <StackPanel Spacing="6">
-        <TextBlock Name="EnvironmentNoticeText" Text="{Binding EnvironmentText}" Classes="warn" TextWrapping="Wrap"
+        <TextBlock Name="EnvironmentNoticeText" Text="{Binding EnvironmentText}" Classes="small warn" TextWrapping="Wrap"
                    IsVisible="{Binding EnvironmentText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasInstallSet}">
           <Button Name="InstallSetButton" Content="{Binding InstallSetText}" Command="{Binding InstallSetCommand}" Classes="primary compact" />
@@ -176,25 +186,32 @@
       </Grid>
     </Border>
 
-    <GridSplitter Grid.Row="4" Height="5" HorizontalAlignment="Stretch" Background="Transparent" ResizeDirection="Rows" />
+    <GridSplitter Grid.Row="4" Classes="hairline rows" Height="5" HorizontalAlignment="Stretch" ResizeDirection="Rows" />
 
     <!-- Output -->
-    <TabControl Grid.Row="5" Height="250" SelectedIndex="{Binding OutputTab}" Padding="0">
+    <!-- Tab order must match ExerciseSessionViewModel.ConsoleTab..DebugTab. -->
+    <TabControl Grid.Row="5" Height="260" SelectedIndex="{Binding OutputTab}" Padding="0">
       <TabItem Header="{loc:T Out_Console}" IsVisible="{Binding CanRun}">
-        <Grid RowDefinitions="Auto,*" Margin="12,10">
-          <StackPanel Spacing="4" Margin="0,0,0,10">
-            <TextBlock Text="{loc:T Out_Stdin}" Classes="label" />
-            <TextBox Text="{Binding Stdin}" AcceptsReturn="True" Height="52" FontFamily="{StaticResource MonoFont}" FontSize="13"
-                     AutomationProperties.Name="{loc:T Out_Stdin}" />
-            <TextBlock Text="{loc:T Out_StdinHint}" Classes="small muted" TextWrapping="Wrap" />
-          </StackPanel>
-          <ScrollViewer Grid.Row="1">
-            <StackPanel Spacing="8">
-              <TextBlock Text="{loc:T Out_NoRun}" Classes="secondary" TextWrapping="Wrap" IsVisible="{Binding ConsoleResult, Converter={x:Static ObjectConverters.IsNull}}" />
-              <ContentControl Content="{Binding ConsoleResult}" />
+        <ScrollViewer>
+          <StackPanel Margin="12,10" Spacing="10">
+            <StackPanel Spacing="6">
+              <ToggleButton Name="StdinToggle" Classes="disclosure" IsChecked="{Binding Stdin, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            AutomationProperties.Name="{loc:T Out_Stdin}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <ctl:Icon Name="StdinChevron" Kind="chevron-right" Size="12" />
+                  <TextBlock Text="{loc:T Out_Stdin}" Classes="small" />
+                </StackPanel>
+              </ToggleButton>
+              <StackPanel Spacing="4" IsVisible="{Binding #StdinToggle.IsChecked}">
+                <TextBox Text="{Binding Stdin}" AcceptsReturn="True" Height="52" FontFamily="{StaticResource MonoFont}" FontSize="13"
+                         AutomationProperties.Name="{loc:T Out_Stdin}" />
+                <TextBlock Text="{loc:T Out_StdinHint}" Classes="small muted" TextWrapping="Wrap" />
+              </StackPanel>
             </StackPanel>
-          </ScrollViewer>
-        </Grid>
+            <TextBlock Text="{loc:T Out_NoRun}" Classes="secondary" TextWrapping="Wrap" IsVisible="{Binding ConsoleResult, Converter={x:Static ObjectConverters.IsNull}}" />
+            <ContentControl Content="{Binding ConsoleResult}" />
+          </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
       <TabItem Header="{Binding TestsHeader}" IsVisible="{Binding CanSubmit}">
@@ -234,9 +251,6 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
-      <TabItem Header="{loc:T Dbg_Tab}" IsVisible="{Binding CanRun}">
-        <views:DebugPanelView DataContext="{Binding Debug}" IsHorizontal="True" />
-      </TabItem>
       <TabItem Header="{Binding ProblemsHeader}" IsVisible="{Binding HasLsp}">
         <ScrollViewer>
           <StackPanel Margin="12,10" Spacing="2">
@@ -257,6 +271,9 @@
             </ItemsControl>
           </StackPanel>
         </ScrollViewer>
+      </TabItem>
+      <TabItem Header="{loc:T Dbg_Tab}" IsVisible="{Binding CanRun}">
+        <views:DebugPanelView DataContext="{Binding Debug}" IsHorizontal="True" />
       </TabItem>
     </TabControl>
   </Grid>

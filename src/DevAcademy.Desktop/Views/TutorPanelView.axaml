@@ -4,18 +4,22 @@
              xmlns:md="using:DevAcademy.Desktop.Markdown"
              xmlns:tutor="using:DevAcademy.Application.Tutor"
              xmlns:loc="using:DevAcademy.Desktop.Localization"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
              x:Class="DevAcademy.Desktop.Views.TutorPanelView"
              x:DataType="vm:TutorPanelViewModel">
-  <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource LineBrush}" Background="{DynamicResource SurfaceBrush}">
-    <Expander Name="TutorExpander" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" HorizontalAlignment="Stretch"
-              HorizontalContentAlignment="Stretch" Padding="12,6" AutomationProperties.Name="{loc:T Tutor_Title}">
-      <Expander.Header>
-        <StackPanel Orientation="Horizontal" Spacing="10">
-          <TextBlock Text="{loc:T Tutor_Title}" Classes="h3" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding HeaderNote}" Classes="small muted" VerticalAlignment="Center" />
-        </StackPanel>
-      </Expander.Header>
-      <ScrollViewer MaxHeight="380" VerticalScrollBarVisibility="Auto">
+  <!-- Opened from the lesson footer; never shown by itself. The lesson stays fully usable while it is closed. -->
+  <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource LineBrush}" Background="{DynamicResource SurfaceBrush}" IsVisible="{Binding IsExpanded}"
+          AutomationProperties.Name="{loc:T Tutor_Title}">
+    <DockPanel Margin="16,8,8,12">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="0,0,0,8">
+        <TextBlock Text="{loc:T Tutor_Title}" Classes="h3" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding HeaderNote}" Classes="small muted" VerticalAlignment="Center" />
+        <Button Grid.Column="2" Name="TutorCloseButton" Classes="quiet compact icon" Command="{Binding ToggleCommand}"
+                ToolTip.Tip="{loc:T Tutor_Close}" AutomationProperties.Name="{loc:T Tutor_Close}">
+          <ctl:Icon Kind="x" Size="14" />
+        </Button>
+      </Grid>
+      <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="10" Margin="0,0,8,0">
           <StackPanel Spacing="6" IsVisible="{Binding IsOffNoticeVisible}">
             <TextBlock Text="{Binding StatusText}" Classes="muted" TextWrapping="Wrap" />
@@ -83,6 +87,6 @@
           <TextBlock Text="{loc:T Tutor_TextOnly}" Classes="caption muted" TextWrapping="Wrap" />
         </StackPanel>
       </ScrollViewer>
-    </Expander>
+    </DockPanel>
   </Border>
 </UserControl>

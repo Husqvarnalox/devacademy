@@ -252,8 +252,8 @@ public class DebugFlowTests : IDisposable
         string program = (string)fake.LaunchArguments!["program"]!;
         Assert.StartsWith(host.Services.Debug.RunsDirectory.Replace("/private", ""), program.Replace("/private", ""));
         Assert.Equal(Script, File.ReadAllText(program));
-        Assert.Equal(3, file.Debug.ExecutionLine);
-        Assert.Equal(ExerciseSessionViewModel.DebugTab, session.OutputTab);
+        // The execution marker and the Debug tab follow the selected frame; on a loaded runner they can land just after it.
+        await Util.UntilAsync(() => file.Debug.ExecutionLine == 3 && session.OutputTab == ExerciseSessionViewModel.DebugTab, "the execution line and the Debug tab");
 
         await session.Debug.ContinueCommand.ExecuteAsync(null);
         await Util.UntilAsync(() => !session.Debug.IsActive, "end");

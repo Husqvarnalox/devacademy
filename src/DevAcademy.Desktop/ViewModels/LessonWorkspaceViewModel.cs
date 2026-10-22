@@ -11,9 +11,13 @@ namespace DevAcademy.Desktop.ViewModels;
 
 public enum LessonMode { Theory, Practice, Quiz, Challenge }
 
-public sealed partial class LessonNavItemViewModel(LessonStatus status, bool isCurrent, Func<string, Task> open) : ObservableObject
+public sealed partial class LessonNavItemViewModel(LessonStatus status, bool isCurrent, Func<string, Task> open, int number = 0) : ObservableObject
 {
     public string LessonId { get; } = status.Lesson.Id;
+    /// <summary>Position in the course, two digits ("04"), shown while the lesson is neither done nor locked.</summary>
+    public string Number { get; } = number.ToString("00");
+    public bool ShowNumber { get; } = status.State is not (LessonState.Completed or LessonState.Locked);
+    public string CurrentMeta { get; } = Loc.F("Lesson_CurrentMeta", status.Lesson.EstimatedMinutes);
     public string Title { get; } = status.Lesson.Title;
     public LessonState State { get; } = status.State;
     public string StateText { get; } = Display.State(status.State);
@@ -41,6 +45,17 @@ public sealed class SourceLinkViewModel(string url, ILauncherOpen launcher)
 
 public interface ILauncherOpen { Task OpenAsync(string url); }
 
+/// <summary>One step of the theory switch: a content section (simple, precise, ...) or "everything on one page" (empty key).</summary>
+public sealed partial class TheorySectionViewModel(string key, string title, Action<string> select) : ObservableObject
+{
+    public string Key { get; } = key;
+    public string Title { get; } = title;
+    [ObservableProperty] private bool _isSelected;
+
+    [RelayCommand]
+    private void Select() => select(Key);
+}
+
 public sealed class FactViewModel(Fact fact, ILauncherOpen launcher)
 {
     public string KindText { get; } = Display.Fact(fact.Kind);
@@ -65,6 +80,12 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
         Quiz = lesson.Quiz is { } q ? new QuizViewModel(s, lesson.Id, q) : null;
         if (Quiz is not null) Quiz.Attempted += u => _ = HandleUpdateAsync(u);
         Tutor = new TutorPanelViewModel(s, nav, lesson.Id, () => ActiveSession);
+        _sections = SectionMarker().Matches(lesson.Theory.Markdown)
+            .Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal)
+            .Where(k => lesson.Theory.Sections.TryGetValue(k, out var body) && body.Length > 0)
+            .Select(k => (k, lesson.Theory.Sections[k])).ToList();
+        TheorySections = _sections.Count < 2 ? [] :
+            [.. _sections.Select(x => new TheorySectionViewModel(x.Key, SectionTitle(x.Key), SelectSection)), new TheorySectionViewModel("", Loc.T("Theory_All"), SelectSection)];
     }
 
     public TutorPanelViewModel Tutor { get; }
@@ -74,6 +95,63 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     public string CourseTitle => _s.Content.Current.FindCourse(Lesson.CourseId)?.Title ?? "";
     public string Goal => Lesson.Goal;
     public string TheoryMarkdown => Lesson.Theory.Markdown;
+
+    // ---- theory, one section at a time ----
+    /// <summary>Remembers "everything on one page"; otherwise each lesson opens on its first section.</summary>
+    public const string TheoryViewKey = "ui.theory.all";
+    private readonly List<(string Key, string Markdown)> _sections;
+    /// <summary>The section switch: the lesson's sections in content order, then "all". Empty when the theory has fewer than two sections.</summary>
+    public IReadOnlyList<TheorySectionViewModel> TheorySections { get; }
+    public bool HasTheorySections => TheorySections.Count > 0;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(VisibleTheoryMarkdown), nameof(NextSectionTitle), nameof(HasNextSection), nameof(IsTheoryStart), nameof(IsTheoryEnd))]
+    private string _selectedSection = "";
+    /// <summary>The Markdown of the selected section (the text before the first section marker goes with the first one), or the whole theory.</summary>
+    public string VisibleTheoryMarkdown
+    {
+        get
+        {
+            var i = _sections.FindIndex(x => x.Key == SelectedSection);
+            if (i < 0) return TheoryMarkdown;
+            return i == 0 ? Preamble(TheoryMarkdown) + _sections[0].Markdown : _sections[i].Markdown;
+        }
+    }
+    private int SelectedIndex => _sections.FindIndex(x => x.Key == SelectedSection);
+    public bool HasNextSection => SelectedIndex >= 0 && SelectedIndex < _sections.Count - 1;
+    public string? NextSectionTitle => HasNextSection ? Loc.F("Theory_Next", SectionTitle(_sections[SelectedIndex + 1].Key)) : null;
+    /// <summary>Goal and objectives are shown with the first section (or the whole page).</summary>
+    public bool IsTheoryStart => SelectedIndex <= 0;
+    /// <summary>Facts, requirements and messages close the last section (or the whole page).</summary>
+    public bool IsTheoryEnd => SelectedIndex < 0 || SelectedIndex == _sections.Count - 1;
+
+    private static string SectionTitle(string key) => Loc.Has("Section_" + key) ? Loc.T("Section_" + key) : key;
+
+    private static string Preamble(string markdown)
+    {
+        var m = SectionMarker().Match(markdown);
+        return m.Success ? markdown[..m.Index].Trim() + "\n\n" : "";
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[ \t]*<!--\s*section:\s*([A-Za-z0-9_-]+)\s*-->[ \t]*$", System.Text.RegularExpressions.RegexOptions.Multiline)]
+    private static partial System.Text.RegularExpressions.Regex SectionMarker();
+
+    [RelayCommand]
+    public void SelectSection(string key)
+    {
+        ShowSection(key);
+        _ = _s.Settings.SetAsync(TheoryViewKey, key.Length == 0 ? "1" : "0");
+    }
+
+    private void ShowSection(string key)
+    {
+        SelectedSection = key;
+        foreach (var t in TheorySections) t.IsSelected = t.Key == key;
+    }
+
+    [RelayCommand]
+    private void NextSection()
+    {
+        if (HasNextSection) ShowSection(_sections[SelectedIndex + 1].Key);
+    }
     public IReadOnlyList<string> Objectives { get; }
     public IReadOnlyList<FactViewModel> Facts { get; }
     public QuizViewModel? Quiz { get; }
@@ -82,6 +160,10 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     public ObservableCollection<LessonNavItemViewModel> NavItems { get; } = [];
 
     public string MetaText => Loc.F("Lesson_Meta", Display.Difficulty(Lesson.Difficulty), Lesson.EstimatedMinutes);
+    /// <summary>"Урок 04 из 10 · Лёгкий · ~35 мин" above the title.</summary>
+    [ObservableProperty] private string _overlineText = "";
+    [ObservableProperty] private string _courseProgressText = "";
+    [ObservableProperty] private double _courseProgress;
     public bool HasPractice => Lesson.Exercise is not null;
     public bool HasQuiz => Quiz is not null;
     public bool HasChallenge => Lesson.Challenge is not null;
@@ -134,6 +216,8 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     public async Task LoadAsync()
     {
         await _s.Progress.StartLessonAsync(Lesson.Id);
+        if (HasTheorySections)
+            ShowSection(await _s.Settings.GetAsync(TheoryViewKey) == "1" ? "" : _sections[0].Key);
         if (Lesson.Exercise is { } ex)
         {
             Practice = await ExerciseSessionViewModel.CreateAsync(_s, Lesson.Id, ex);
@@ -275,7 +359,11 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
         NavItems.Clear();
         if (path is not null)
             foreach (var l in path.Lessons)
-                NavItems.Add(new LessonNavItemViewModel(l, l.Lesson.Id == Lesson.Id, id => _nav.OpenLessonAsync(id)));
+                NavItems.Add(new LessonNavItemViewModel(l, l.Lesson.Id == Lesson.Id, id => _nav.OpenLessonAsync(id), NavItems.Count + 1));
+        var position = NavItems.ToList().FindIndex(n => n.IsCurrent) + 1;
+        OverlineText = position > 0 ? Loc.F("Lesson_Overline", position.ToString("00"), NavItems.Count, MetaText) : MetaText;
+        CourseProgressText = path is null ? "" : Loc.F("Lesson_CourseProgress", path.Completed, path.Total);
+        CourseProgress = path is null || path.Total == 0 ? 0 : (double)path.Completed / path.Total;
 
         await ComputeNextAsync(path);
         NextLessonCommand.NotifyCanExecuteChanged();

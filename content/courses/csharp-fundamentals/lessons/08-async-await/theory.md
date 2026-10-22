@@ -83,23 +83,26 @@ string[] results = await Task.WhenAll(Fetch("a", 60), Fetch("b", 5), Fetch("c", 
 Console.WriteLine(string.Join(",", results));
 
 var sw = Stopwatch.StartNew();
-await Task.WhenAll(Fetch("x", 100), Fetch("y", 100), Fetch("z", 100));
-Console.WriteLine("параллельно быстрее 250 мс: " + (sw.ElapsedMilliseconds < 250));
+await Task.WhenAll(Fetch("x", 200), Fetch("y", 200), Fetch("z", 200));
+long parallel = sw.ElapsedMilliseconds;
 sw.Restart();
-await Fetch("x", 100);
-await Fetch("y", 100);
-Console.WriteLine("последовательно не быстрее 190 мс: " + (sw.ElapsedMilliseconds >= 190));
+await Fetch("x", 200);
+await Fetch("y", 200);
+await Fetch("z", 200);
+long sequential = sw.ElapsedMilliseconds;
+Console.WriteLine("параллельно быстрее, чем по очереди: " + (parallel < sequential));
+Console.WriteLine("по очереди не быстрее 590 мс: " + (sequential >= 590));
 ```
 ```output
 до await, поток пула: False
 управление вернулось вызывающему
 после await, поток пула: True
 a,b,c
-параллельно быстрее 250 мс: True
-последовательно не быстрее 190 мс: True
+параллельно быстрее, чем по очереди: True
+по очереди не быстрее 590 мс: True
 ```
 
-Тело метода выполняется синхронно до первого `await`, а продолжение - в потоке пула. Параллельные 100 мс складываются в ~100 мс, последовательные - в ~200 мс (границы в выводе намеренно грубые).
+Тело метода выполняется синхронно до первого `await`, а продолжение - в потоке пула. Три параллельные задачи по 200 мс занимают ~200 мс, те же три по очереди - ~600 мс. Пример сравнивает два замера между собой, а не с точным числом: на загруженной машине время плавает.
 
 **Пример 2. Отмена и исключения в `WhenAll`.**
 

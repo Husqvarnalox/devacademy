@@ -2,13 +2,28 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DevAcademy.Desktop.ViewModels"
              xmlns:loc="using:DevAcademy.Desktop.Localization"
+             xmlns:ctl="using:DevAcademy.Desktop.Controls"
              x:Class="DevAcademy.Desktop.Views.CatalogView"
              x:DataType="vm:CatalogViewModel">
   <ScrollViewer>
-    <StackPanel MaxWidth="1040" Margin="32,32,32,48" Spacing="32" HorizontalAlignment="Stretch">
-      <StackPanel Spacing="4">
-        <TextBlock Text="{loc:T Catalog_Eyebrow}" Classes="overline" />
-        <TextBlock Text="{loc:T Catalog_Title}" Classes="display" />
+    <StackPanel MaxWidth="1040" Margin="32,28,32,48" Spacing="24" HorizontalAlignment="Stretch">
+      <StackPanel Spacing="16">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="4">
+            <TextBlock Text="{loc:T Catalog_Eyebrow}" Classes="overline" />
+            <TextBlock Text="{loc:T Catalog_Title}" Classes="display" />
+          </StackPanel>
+          <TextBox Grid.Column="1" Width="280" VerticalAlignment="Bottom" Text="{Binding SearchText}" PlaceholderText="{loc:T Catalog_Search}">
+            <TextBox.InnerLeftContent><ctl:Icon Kind="search" Size="14" Margin="10,0,0,0" Stroke="{DynamicResource TextMutedBrush}" /></TextBox.InnerLeftContent>
+          </TextBox>
+        </Grid>
+        <Border Classes="segmented">
+          <StackPanel Orientation="Horizontal" Spacing="2">
+            <Button Classes="segment" Classes.active="{Binding IsAllFilter}" Content="{loc:T Catalog_FilterAll}" Command="{Binding SetFilterCommand}" CommandParameter="{x:Static vm:CatalogFilter.All}" />
+            <Button Classes="segment" Classes.active="{Binding IsStartedFilter}" Content="{loc:T Catalog_FilterStarted}" Command="{Binding SetFilterCommand}" CommandParameter="{x:Static vm:CatalogFilter.Started}" />
+            <Button Classes="segment" Classes.active="{Binding IsCompletedFilter}" Content="{loc:T Catalog_FilterCompleted}" Command="{Binding SetFilterCommand}" CommandParameter="{x:Static vm:CatalogFilter.Completed}" />
+          </StackPanel>
+        </Border>
       </StackPanel>
 
       <Border Classes="callout warn" IsVisible="{Binding HasContentWarning}">
@@ -17,7 +32,7 @@
       <TextBlock Text="{loc:T Catalog_Empty}" Classes="secondary" IsVisible="{Binding IsEmpty}" />
 
       <!-- Recommended path: one prominent card; everything else lives below or under "All paths" -->
-      <StackPanel Spacing="12" IsVisible="{Binding HasFeaturedPath}">
+      <StackPanel Spacing="12" IsVisible="{Binding ShowFeaturedPath}">
         <TextBlock Text="{loc:T Catalog_Featured}" Classes="overline" />
         <Border Classes="panel" Padding="24" DataContext="{Binding FeaturedPath}" x:DataType="vm:PathCardViewModel">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
@@ -34,54 +49,72 @@
         </Border>
       </StackPanel>
 
+      <!-- No results -->
+      <StackPanel Spacing="8" IsVisible="{Binding ShowNoMatches}">
+        <TextBlock Text="{Binding NoMatchesText}" Classes="secondary" TextWrapping="Wrap" />
+        <Button Classes="link" Content="{loc:T Catalog_ResetSearch}" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Left" IsVisible="{Binding HasQuery}" />
+      </StackPanel>
+
       <!-- Tracks and courses, grouped by kind -->
-      <ItemsControl ItemsSource="{Binding Groups}">
+      <ItemsControl ItemsSource="{Binding VisibleGroups}">
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:TrackGroupViewModel">
-            <StackPanel Spacing="16" Margin="0,0,0,32">
+            <StackPanel Spacing="12" Margin="0,0,0,32">
               <TextBlock Text="{Binding Title}" Classes="h2" />
               <ItemsControl ItemsSource="{Binding Tracks}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:TrackCardViewModel">
-                    <StackPanel Spacing="12" Margin="0,0,0,8">
-                      <!-- planned: muted, inert -->
-                      <Border Classes="panel" Padding="16,12" IsVisible="{Binding IsPlanned}" Opacity="0.75">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel>
+                      <!-- planned: compact, inert -->
+                      <Border Classes="tablerow" IsVisible="{Binding IsPlanned}" Margin="0,0,0,0">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                           <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
-                            <TextBlock Text="{Binding Description}" Classes="small muted" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Title}" FontWeight="Medium" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Description}" Classes="small muted" MaxLines="1" TextTrimming="CharacterEllipsis" />
                           </StackPanel>
-                          <Border Grid.Column="1" Classes="badge" VerticalAlignment="Top"><TextBlock Text="{loc:T Catalog_Soon}" /></Border>
+                          <Border Grid.Column="1" Classes="badge" VerticalAlignment="Center"><TextBlock Text="{loc:T Catalog_PlannedBadge}" /></Border>
                         </Grid>
                       </Border>
                       <!-- available -->
-                      <StackPanel Spacing="12" IsVisible="{Binding IsAvailable}">
+                      <StackPanel Spacing="12" Margin="0,8,0,16" IsVisible="{Binding IsAvailable}">
                         <StackPanel Spacing="2">
                           <TextBlock Text="{Binding Title}" Classes="h3" />
-                          <TextBlock Text="{Binding Description}" Classes="secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Text="{Binding Description}" Classes="small secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
-                        <ItemsControl ItemsSource="{Binding Courses}" IsVisible="{Binding HasCourses}" Margin="0,0,-12,0">
-                          <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:CourseCardViewModel">
-                              <Button Classes="tile" Command="{Binding OpenCommand}" Margin="0,0,12,12" MinHeight="132">
-                                <DockPanel>
-                                  <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,12,0,0">
-                                    <TextBlock Text="{Binding Meta}" Classes="small muted" />
-                                    <StackPanel Spacing="4" IsVisible="{Binding HasProgress}">
-                                      <ProgressBar Minimum="0" Maximum="1" Value="{Binding Fraction}" ShowProgressText="False" />
-                                      <TextBlock Text="{Binding ProgressText}" Classes="small muted" />
+                        <StackPanel IsVisible="{Binding HasCourses}">
+                          <Border Classes="tablehead">
+                            <Grid ColumnDefinitions="*,110,90,170" ColumnSpacing="16">
+                              <TextBlock Grid.Column="0" Classes="overline" Text="{loc:TU Catalog_ColCourse}" />
+                              <TextBlock Grid.Column="1" Classes="overline" Text="{loc:TU Catalog_ColLevel}" />
+                              <TextBlock Grid.Column="2" Classes="overline" Text="{loc:TU Catalog_ColLessons}" />
+                              <TextBlock Grid.Column="3" Classes="overline" Text="{loc:TU Catalog_ColStatus}" />
+                            </Grid>
+                          </Border>
+                          <ItemsControl ItemsSource="{Binding Courses}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:CourseCardViewModel">
+                                <Button Classes="row tablerow" Command="{Binding OpenCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                  <Grid ColumnDefinitions="*,110,90,170" ColumnSpacing="16">
+                                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                      <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                                      <TextBlock Text="{Binding Description}" Classes="small muted" MaxLines="1" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
-                                  </StackPanel>
-                                  <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Description}" Classes="secondary" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
-                                  </StackPanel>
-                                </DockPanel>
-                              </Button>
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                    <TextBlock Grid.Column="1" Text="{Binding LevelText}" Classes="small secondary" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2" Text="{Binding LessonCount}" Classes="small muted num" VerticalAlignment="Center" />
+                                    <Panel Grid.Column="3" VerticalAlignment="Center">
+                                      <Border Classes="badge success" HorizontalAlignment="Left" IsVisible="{Binding IsCompleted}"><TextBlock Text="{loc:T Catalog_StatusCompleted}" /></Border>
+                                      <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsStarted}">
+                                        <TextBlock Text="{Binding ShortProgressText}" Classes="small num" VerticalAlignment="Center" />
+                                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding Fraction}" ShowProgressText="False" Width="80" VerticalAlignment="Center" />
+                                      </StackPanel>
+                                      <TextBlock Text="{loc:T Catalog_StatusNotStarted}" Classes="small muted" IsVisible="{Binding IsNotStarted}" />
+                                    </Panel>
+                                  </Grid>
+                                </Button>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
                       </StackPanel>
                     </StackPanel>
                   </DataTemplate>
@@ -92,7 +125,7 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
 
-      <StackPanel Spacing="12" IsVisible="{Binding HasComparisons}">
+      <StackPanel Spacing="12" IsVisible="{Binding ShowComparisons}">
         <TextBlock Text="{loc:T Catalog_Comparisons}" Classes="h2" />
         <Border Classes="panel" ClipToBounds="True">
           <ItemsControl Classes="rows" ItemsSource="{Binding Comparisons}">
@@ -112,8 +145,8 @@
       </StackPanel>
 
       <!-- Paths: rows, one primary action each, the whole row opens the path -->
-      <TextBlock Text="{loc:T Catalog_PathsIntro}" Classes="muted" TextWrapping="Wrap" MaxWidth="680" HorizontalAlignment="Left" IsVisible="{Binding ShowPathsIntro}" />
-      <Expander IsExpanded="False" IsVisible="{Binding HasPaths}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+      <TextBlock Text="{loc:T Catalog_PathsIntro}" Classes="muted" TextWrapping="Wrap" MaxWidth="680" HorizontalAlignment="Left" IsVisible="{Binding ShowPathsIntroHint}" />
+      <Expander IsExpanded="False" IsVisible="{Binding ShowPathsExpander}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
         <Expander.Header><TextBlock Text="{Binding AllPathsTitle}" Classes="h2" /></Expander.Header>
         <Border Classes="panel" ClipToBounds="True" Margin="0,12,0,0">
           <ItemsControl Classes="rows" ItemsSource="{Binding Paths}">
