@@ -1,0 +1,177 @@
+id: "javascript.check.async"
+title: "Проверка: промисы и async/await"
+goal: "Предсказывать порядок выполнения асинхронного кода и ограничивать параллелизм и время ожидания промисов."
+difficulty: "hard"
+estimatedMinutes: 30
+prerequisites: []
+objectives:
+  - "Показать на практике умение: предсказывать порядок выполнения асинхронного кода, ограничивать параллелизм и время ожидания."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "async"
+  - "promises"
+assessmentFor:
+  - "javascript.fundamentals.promises-and-async"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        В каком порядке выведутся числа?
+
+        ```javascript
+        console.log("1");
+        setTimeout(() => console.log("2"), 0);
+        Promise.resolve().then(() => console.log("3"));
+        (async () => {
+          console.log("4");
+          await null;
+          console.log("5");
+        })();
+        console.log("6");
+        ```
+      options:
+        - "1 4 6 3 5 2"
+        - "1 4 6 2 3 5"
+        - "1 2 3 4 5 6"
+        - "1 6 4 3 5 2"
+      answer: 0
+      explanation: "Синхронный код выполняется целиком: 1, 4 (тело async-функции до первого await) и 6. Затем очередь микрозадач (then и продолжение после await) в порядке постановки: 3, 5. Таймер, даже с задержкой 0, - макрозадача и срабатывает позже."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа (по одной строке на вывод)?
+
+        ```javascript
+        const wait = (ms, v, fail) =>
+          new Promise((res, rej) => setTimeout(() => (fail ? rej(new Error(v)) : res(v)), ms));
+
+        Promise.allSettled([wait(50, "a"), wait(10, "b", true)])
+          .then((r) => console.log(r.map((x) => x.status).join()));
+        Promise.race([wait(50, "c"), wait(10, "d", true)])
+          .catch((e) => console.log(e.message));
+        ```
+      options:
+        - "d, затем fulfilled,rejected"
+        - "fulfilled,rejected, затем d"
+        - "d, затем rejected,fulfilled"
+        - "fulfilled,rejected, затем c"
+      answer: 0
+      explanation: "race завершается по первому завершённому промису, даже если он отклонён: через 10 мс приходит ошибка d. allSettled ждёт все промисы (50 мс) и никогда не отклоняется, а статусы идут в порядке исходного массива."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        async function f() {
+          try { return Promise.reject(new Error("x")); } catch (e) { return "caught"; }
+        }
+        async function g() {
+          try { return await Promise.reject(new Error("x")); } catch (e) { return "caught"; }
+        }
+        Promise.allSettled([f(), g()]).then((r) =>
+          console.log(r.map((x) => x.status + ":" + (x.value ?? x.reason.message)).join(" ")));
+        ```
+      options:
+        - "rejected:x fulfilled:caught"
+        - "fulfilled:caught fulfilled:caught"
+        - "rejected:x rejected:x"
+        - "fulfilled:caught rejected:x"
+      answer: 0
+      explanation: "return без await отдаёт промис наружу, и ошибка происходит уже после выхода из try, поэтому catch её не видит. С await отклонение превращается в исключение внутри try и перехватывается."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        Promise.resolve(1)
+          .then(() => { throw new Error("boom"); })
+          .then(() => console.log("A"))
+          .catch(() => console.log("B"))
+          .then(() => console.log("C"));
+        ```
+      options:
+        - "B, затем C"
+        - "A, затем C"
+        - "B"
+        - "A, B, C"
+      answer: 0
+      explanation: "Исключение в then отклоняет цепочку, и обработчик A пропускается. catch перехватывает ошибку, возвращает undefined, и цепочка снова становится успешной, поэтому следующий then выводит C."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        async function main() {
+          const out = [];
+          [1, 2].forEach(async (n) => {
+            await null;
+            out.push(n);
+          });
+          console.log(out.length);
+          await new Promise((r) => setTimeout(r, 100));
+          console.log(out.length);
+        }
+        main();
+        ```
+      options:
+        - "0, затем 2"
+        - "2, затем 2"
+        - "0, затем 0"
+        - "2, затем 0"
+      answer: 0
+      explanation: "forEach не ждёт промисы, которые возвращают async-колбэки: управление сразу идёт дальше, и out ещё пуст. Пока main ждёт таймер, продолжения после await выполняются, и массив заполняется."
+exercise:
+  id: "javascript.check.async.exercise"
+  title: "Пул промисов и тайм-аут"
+  prompt: |
+    В файле `async_check.mjs` реализуйте две экспортируемые функции.
+
+    1. `promisePool(tasks, limit)` - запускает задачи (массив функций без аргументов, каждая возвращает промис или обычное значение) так, чтобы одновременно выполнялось не больше `limit` задач, и возвращает промис с массивом результатов **в порядке задач** (а не в порядке завершения). Новая задача стартует, как только освободилось место (скользящее окно, не пачками). Пустой массив даёт `[]`. Если задача отклонена, пул отклоняется той же ошибкой и **не запускает** новых задач (уже запущенные просто досчитываются). Если `limit` не целое число не меньше 1, возвращается **отклонённый** промис с `RangeError` (функция не бросает исключение синхронно).
+    2. `withTimeout(task, ms)` - вызывает `task(signal)`, где `signal` - `AbortSignal` созданного `AbortController`. Если промис завершился раньше, чем прошло `ms` миллисекунд, возвращается его результат (или ошибка). Иначе вызывается `controller.abort()` и промис отклоняется ошибкой, у которой `name === "TimeoutError"`. Таймер должен быть остановлен во всех случаях, когда он уже не нужен. Используйте `Promise.race`.
+
+    Проверка не измеряет время: она смотрит на порядок событий, результаты и число одновременных задач. Часть тестов скрыта.
+  entryFile: "async_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Пул удобно строить из limit «рабочих»: каждый в цикле берёт следующий номер задачи из общего счётчика, ждёт её и записывает результат в results[index]. Общий результат - await Promise.all(workers)."
+    - "Счётчик next++ увеличивается синхронно, поэтому два рабочих не возьмут одну задачу. Для ошибки заведите флаг failed: рабочий проверяет его перед взятием новой задачи. Проверку limit делайте в async-функции, тогда throw станет отклонением."
+    - "withTimeout: const controller = new AbortController(); const timer = new Promise((_, reject) => { id = setTimeout(() => { controller.abort(); reject(err) }, ms) }); затем try { return await Promise.race([Promise.resolve(task(controller.signal)), timer]) } finally { clearTimeout(id) }."
+    - "Ошибка тайм-аута: const err = new Error(\"timeout\"); err.name = \"TimeoutError\". Не забудьте, что task может бросить синхронно: оберните вызов так, чтобы это тоже стало отклонением (например, внутри async-функции)."
+  tests:
+    - id: "pool-basic"
+      title: "promisePool - результаты в порядке задач"
+      hint: "Записывайте результат в results[index], а не добавляйте по мере завершения."
+    - id: "timeout-ok"
+      title: "withTimeout - успешное завершение"
+      hint: "Если задача успела, верните её результат; signal ещё не отменён."
+    - id: "pool-limit"
+      title: "promisePool - лимит и скользящее окно (скрытый)"
+      hidden: true
+      hint: "Одновременно активных задач не больше limit, но как только одна завершилась, должна стартовать следующая, не дожидаясь остальных."
+    - id: "pool-error"
+      title: "promisePool - ошибка останавливает запуск (скрытый)"
+      hidden: true
+      hint: "Рабочий перед взятием новой задачи проверяет флаг failed; общий промис отклоняется первой ошибкой."
+    - id: "pool-edge"
+      title: "promisePool - пустой список, обычные значения, неверный limit (скрытый)"
+      hidden: true
+      hint: "Оберните значение задачи в await, чтобы поддержать и обычные значения; неверный limit должен отклонять промис с RangeError, а не бросать синхронно."
+    - id: "timeout-fires"
+      title: "withTimeout - TimeoutError и отмена сигнала (скрытый)"
+      hidden: true
+      hint: "При срабатывании таймера вызовите controller.abort() и отклоните промис ошибкой с name \"TimeoutError\"."
+    - id: "timeout-clean"
+      title: "withTimeout - таймер останавливается (скрытый)"
+      hidden: true
+      hint: "Вызывайте clearTimeout в finally, чтобы после быстрой задачи таймер не оставался ждать."

@@ -1,0 +1,180 @@
+id: "javascript.from-zero.loop-control"
+title: "Управление циклом"
+goal: "Останавливать цикл командой break, пропускать шаги командой continue и вкладывать циклы друг в друга."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "javascript.from-zero.for-loop"
+objectives:
+  - "Остановить цикл досрочно командой break и пропустить шаг командой continue."
+  - "Записать вложенные циклы и объяснить, сколько раз выполнится внутреннее тело."
+  - "Собрать строку-таблицу из двух вложенных циклов."
+masteryCriteria:
+  - "Функции правильно работают на краях: isPrime(0), isPrime(1), sumOfOdd(0), multiplicationTable(0)."
+  - "Результат вложенного цикла имеет точный формат: пробелы между числами, переносы строк между строками, без лишнего в конце."
+concepts:
+  introduces:
+    - "js.break-continue"
+    - "js.nested-loops"
+  uses:
+    - "js.for"
+    - "js.while"
+    - "js.if"
+    - "js.comparison"
+    - "js.arithmetic"
+    - "js.concatenation"
+    - "js.function"
+    - "js.return"
+    - "js.let"
+next:
+  - "javascript.from-zero.arrays"
+tags:
+  - "javascript"
+  - "break"
+  - "continue"
+  - "nested-loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        for (let i = 1; i <= 5; i++) {
+          if (i === 3) {
+            break;
+          }
+          console.log(i);
+        }
+        ```
+      options:
+        - "1 2"
+        - "1 2 3"
+        - "1 2 4 5"
+        - "3"
+      answer: 0
+      explanation: "На i равном 3 срабатывает break и цикл завершается целиком, не выполнив печать для 3. Печатаются только 1 и 2."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        for (let i = 1; i <= 5; i++) {
+          if (i === 3) {
+            continue;
+          }
+          console.log(i);
+        }
+        ```
+      options:
+        - "1 2"
+        - "1 2 3 4 5"
+        - "1 2 4 5"
+        - "3"
+      answer: 2
+      explanation: "continue пропускает остаток тела только для текущего шага. Для 3 печать не выполняется, но цикл идёт дальше: 4 и 5 печатаются."
+    - id: "q3"
+      type: "numeric"
+      prompt: |
+        Сколько раз выполнится команда count++?
+
+        ```javascript
+        let count = 0;
+        for (let i = 0; i < 3; i++) {
+          for (let j = 0; j < 4; j++) {
+            count++;
+          }
+        }
+        console.log(count);
+        ```
+      answer: 12
+      tolerance: 0
+      explanation: "На каждый из 3 шагов внешнего цикла внутренний делает 4 шага: 3 * 4 = 12."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        for (let i = 1; i <= 2; i++) {
+          for (let j = 1; j <= 3; j++) {
+            if (j === 2) {
+              break;
+            }
+            console.log(i, j);
+          }
+        }
+        ```
+      options:
+        - "1 1, затем 2 1"
+        - "1 1, затем 1 2, затем 1 3"
+        - "1 1 и остановка всей программы"
+        - "1 1, 1 3, 2 1, 2 3"
+      answer: 0
+      explanation: "break завершает только тот цикл, в котором стоит, - внутренний. Внешний продолжает работу: для каждого i внутренний цикл печатает пару с j = 1 и обрывается на j = 2."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        В этом цикле поиска первого числа, делящегося на 7, не хватает одной команды. Какой?
+
+        ```javascript
+        let found = 0;
+        for (let i = 1; i <= 100; i++) {
+          if (i % 7 === 0) {
+            found = i;
+            // здесь
+          }
+        }
+        ```
+      options:
+        - "continue; - иначе цикл остановится"
+        - "break; - иначе в found окажется последнее такое число, а не первое"
+        - "return; - иначе будет ошибка"
+        - "Ничего: found уже содержит первое число"
+      answer: 1
+      explanation: "Без break цикл дойдёт до 100 и записывает найденные числа поверх предыдущих: в found останется 98. Чтобы получить первое число, цикл нужно остановить сразу после находки."
+exercise:
+  id: "javascript.from-zero.loop-control.exercise"
+  title: "Простое число, нечётные и таблица"
+  prompt: |
+    В файле `loop_control.mjs` три функции без тела. Напишите их:
+
+    * `isPrime(n)` - `true`, если `n` простое число (больше 1 и делится без остатка только на 1 и на себя), иначе `false`. Например, `isPrime(7)` даёт `true`, `isPrime(9)` - `false`, `isPrime(1)` - `false`. Как только найден делитель, цикл можно остановить командой `break`.
+    * `sumOfOdd(limit)` - сумма нечётных чисел от 1 до `limit` включительно; `sumOfOdd(5)` даёт `9`. Если `limit` меньше 1, результат `0`. Чётные числа пропускайте командой `continue`.
+    * `multiplicationTable(n)` - таблица умножения `n` на `n` одной строкой: числа в ряду разделены одним пробелом, ряды - символом переноса `"\n"`, после последнего ряда переноса нет. `multiplicationTable(3)` даёт `"1 2 3\n2 4 6\n3 6 9"`, а `multiplicationTable(0)` - пустую строку.
+
+    Функции должны возвращать результат, а не печатать. Скрытые тесты проверяют 0, 1, отрицательные числа и большие простые числа.
+  entryFile: "loop_control.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "isPrime: числа меньше 2 сразу не простые. Для остальных ищите делитель циклом; нашли - запомните это и остановите цикл. sumOfOdd: в теле цикла сначала проверьте, чётное ли число. multiplicationTable: нужен цикл в цикле."
+    - "Делится ли i на n без остатка: n % i === 0. Чётное число: i % 2 === 0, тогда continue. В таблице значение клетки - i * j, где i - номер строки, j - номер столбца."
+    - "Для isPrime заведите переменную prime = true, в цикле for (let i = 2; i < n; i++) при n % i === 0 запишите prime = false и вызовите break. Для таблицы добавляйте \" \" перед каждым числом кроме первого в строке и \"\\n\" перед каждой строкой кроме первой."
+    - "Скелет таблицы: let table = \"\"; for (let i = 1; i <= n; i++) { if (i > 1) { table = table + \"\\n\"; } for (let j = 1; j <= n; j++) { if (j > 1) { table = table + \" \"; } table = table + i * j; } } return table;"
+  tests:
+    - id: "prime-basic"
+      title: "isPrime: небольшие числа"
+      hint: "2, 7 и 13 простые; 9 и 10 составные. Число, у которого есть делитель кроме 1 и себя, простым не считается."
+    - id: "odd-basic"
+      title: "sumOfOdd: небольшие limit"
+      hint: "Сумма нечётных до 5 равна 1 + 3 + 5 = 9, до 10 - 25 (граница включается, чётные пропускаются)."
+    - id: "table-basic"
+      title: "multiplicationTable: 2 на 2 и 3 на 3"
+      hint: "Для 3 ожидается строка «1 2 3», перенос, «2 4 6», перенос, «3 6 9» - без пробела и переноса в конце."
+    - id: "prime-edge"
+      title: "isPrime: 0, 1, отрицательные, квадраты и большие простые (скрытый)"
+      hidden: true
+      hint: "Числа меньше 2 не простые (0, 1, -7). 4, 25 и 49 - квадраты простых и не простые. 97 и 7919 простые, а 7917 делится на 3."
+    - id: "odd-edge"
+      title: "sumOfOdd: ноль, отрицательные, единица (скрытый)"
+      hidden: true
+      hint: "Для limit 0 и -4 ответ 0; для 1 - 1; для 2 - тоже 1 (чётное пропускается); для 100 - 2500."
+    - id: "table-edge"
+      title: "multiplicationTable: 0, 1 и таблица 4 на 4 (скрытый)"
+      hidden: true
+      hint: "Для 0 - пустая строка, для 1 - строка «1» без пробелов и переносов; для 4 - ровно четыре ряда, числа разделены одним пробелом."

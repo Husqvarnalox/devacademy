@@ -63,8 +63,6 @@ public sealed class ProgressService(
         var current = await GetOrNew(lessonId, ct);
         var best = Math.Max(current.QuizBestScore ?? 0, result.Score);
         var update = await SaveAsync(lesson, current with { QuizBestScore = best }, ct);
-        if (result.Passed && lesson.AssessmentFor.Count > 0)
-            update = update with { CreditedLessonIds = await RecordAssessmentAsync(lesson.AssessmentFor, true, ct) };
         return (result, update);
     }
 
@@ -265,7 +263,13 @@ public sealed class ProgressService(
             p = p with { CompletedAt = now, CompletionSource = source, ReviewStep = review.Step, NextReviewAt = review.DueAt };
         }
         await progress.SaveAsync(p, ct);
-        return new ProgressUpdate(p, completes);
+
+        // A check (assessmentFor) credits its lessons once its own completion rule holds: quiz passed and, when it has
+        // one, its exercise passed. Re-running a passed check credits lessons added since; completed ones are untouched.
+        IReadOnlyList<string>? credited = null;
+        if (lesson.AssessmentFor.Count > 0 && CompletionRule.IsSatisfied(lesson, p))
+            credited = await RecordAssessmentAsync(lesson.AssessmentFor, true, ct);
+        return new ProgressUpdate(p, completes, credited);
     }
 
     private sealed record ProgressExport(

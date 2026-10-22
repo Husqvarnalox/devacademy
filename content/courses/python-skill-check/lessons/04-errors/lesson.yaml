@@ -1,0 +1,162 @@
+id: "python.check.errors"
+title: "Проверка: исключения, файлы и модули"
+goal: "Обрабатывать ошибки через try/except, читать файлы через with и пользоваться модулями стандартной библиотеки."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: обрабатывать ошибки через try/except, читать файлы через with и пользоваться модулями стандартной библиотеки."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "python"
+  - "check"
+  - "errors"
+assessmentFor:
+  - "python.fundamentals.errors-and-files"
+  - "python.fundamentals.modules"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def f():
+            for i in range(3):
+                try:
+                    if i == 1:
+                        continue
+                    print("body", i)
+                finally:
+                    print("fin", i)
+
+        f()
+        ```
+      options:
+        - "body 0, fin 0, body 2, fin 2"
+        - "body 0, fin 0, fin 1, body 2, fin 2"
+        - "body 0, fin 0, fin 1"
+        - "fin 0, fin 1, fin 2"
+      answer: 1
+      explanation: "finally выполняется при каждой итерации, в том числе когда try завершается через continue (для i = 1 печатается только fin 1)."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        try:
+            [1][3]
+        except KeyError:
+            print("key")
+        except LookupError:
+            print("lookup")
+        ```
+      options:
+        - "key"
+        - "lookup"
+        - "IndexError (не перехвачена)"
+        - "Ничего"
+      answer: 1
+      explanation: "IndexError - подкласс LookupError, но не KeyError. Поэтому первая ветка пропускается, а вторая срабатывает."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        try:
+            try:
+                1 / 0
+            except ZeroDivisionError as e:
+                raise RuntimeError("boom") from e
+        except RuntimeError as r:
+            print(r, type(r.__cause__).__name__)
+        ```
+      options:
+        - "boom ZeroDivisionError"
+        - "boom None"
+        - "boom RuntimeError"
+        - "ZeroDivisionError boom"
+      answer: 0
+      explanation: "Конструкция raise ... from e записывает исходное исключение в атрибут __cause__ нового."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        import os
+        print(os.path.basename("/a/b/c.txt"), os.path.splitext("c.tar.gz")[1])
+        ```
+      options:
+        - "c.txt .gz"
+        - "c.txt .tar.gz"
+        - "/a/b/c.txt .gz"
+        - "c .gz"
+      answer: 0
+      explanation: "basename возвращает последнюю часть пути, а splitext отделяет только последнее расширение: .gz."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        import math
+        from math import sqrt as r
+        print(r is math.sqrt, r(16))
+        ```
+      options:
+        - "True 4.0"
+        - "False 4.0"
+        - "True 4"
+        - "NameError: sqrt"
+      answer: 0
+      explanation: "from ... import ... as r создаёт второе имя для той же функции из модуля math, поэтому is даёт True. sqrt всегда возвращает float."
+exercise:
+  id: "python.check.errors.exercise"
+  title: "Три функции для загрузки чисел"
+  prompt: |
+    В файле `errors_check.py` реализуйте три функции для загрузки числовых данных. Тесты вызывают их напрямую.
+
+    1. `safe_div(a, b)` - вернуть `a / b`, а при делении на ноль вернуть `None`.
+    2. `parse_percent(text)` - превратить текст вида `"45%"` в долю `0.45` (число `float`). Пробелы вокруг числа и перед `%` допустимы: `" 7.5 % "` даёт `0.075`. Вызвать `ValueError`, если нет знака `%`, число не распознаётся или оно вне диапазона от 0 до 100.
+    3. `load_numbers(path, strict=False)` - прочитать файл (UTF-8), в котором на каждой строке одно число, и вернуть список `float`. Пустые строки пропускаются. Некорректная строка: при `strict=False` пропускается, при `strict=True` вызывается `ValueError` с текстом, содержащим `строка N` (N с единицы, с учётом пустых строк). Если файла нет, исключение `FileNotFoundError` не перехватывается.
+  entryFile: "errors_check.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Заглушка pass возвращает None, а функции должны вернуть значение или вызвать исключение."
+    - "safe_div: try / except ZeroDivisionError. parse_percent: проверьте endswith('%'), затем float(...) и диапазон. load_numbers: with open(...) и enumerate(f, start=1)."
+    - "В load_numbers оберните в try / except ValueError только float(line); при strict пробросьте ValueError с номером строки. Не оборачивайте сам open."
+  tests:
+    - id: "div"
+      title: "safe_div - обычное деление и ноль"
+      hint: "Перехватите ZeroDivisionError и верните None."
+    - id: "percent"
+      title: "parse_percent - корректные значения"
+      hint: "Отбросьте знак %, преобразуйте остаток в float и разделите на 100."
+    - id: "load-basic"
+      title: "load_numbers - обычный файл"
+      hint: "Пустые строки пропускаются, остальные преобразуются в float."
+    - id: "percent-errors"
+      title: "parse_percent - ошибки и границы (скрытый)"
+      hidden: true
+      hint: "Нет знака %, не число и значения вне 0..100 дают ValueError; 0% и 100% допустимы. float('abc') уже выбрасывает ValueError."
+    - id: "load-skip"
+      title: "load_numbers - пропуск плохих строк (скрытый)"
+      hidden: true
+      hint: "При strict=False плохая строка перехватывается и пропускается."
+    - id: "load-strict"
+      title: "load_numbers - strict с номером строки (скрытый)"
+      hidden: true
+      hint: "Номер строки считайте через enumerate(f, start=1), пустые строки тоже учитываются."
+    - id: "load-missing"
+      title: "load_numbers - файла нет (скрытый)"
+      hidden: true
+      hint: "Открывайте файл без try вокруг open: FileNotFoundError должен дойти до вызывающего кода."

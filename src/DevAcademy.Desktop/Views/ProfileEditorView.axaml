@@ -67,6 +67,7 @@
         <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
         <ListBox.ItemTemplate><DataTemplate x:DataType="vm:ChoiceBase"><TextBlock Text="{Binding Label}" VerticalAlignment="Center" /></DataTemplate></ListBox.ItemTemplate>
       </ListBox>
+      <TextBlock Text="{loc:T Prior_Note}" Classes="small muted" TextWrapping="Wrap" />
     </StackPanel>
     <StackPanel Spacing="12">
       <StackPanel Orientation="Horizontal" Spacing="8">

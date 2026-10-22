@@ -70,7 +70,8 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     private readonly INavigator _nav;
     private ExerciseSessionViewModel? _scratch;
 
-    public LessonWorkspaceViewModel(AppServices s, INavigator nav, Lesson lesson)
+    /// <param name="profile">Prior knowledge and depth choose the order of the theory sections and the one the lesson opens on (<see cref="TheoryPresentation"/>).</param>
+    public LessonWorkspaceViewModel(AppServices s, INavigator nav, Lesson lesson, LearnerProfile? profile = null)
     {
         _s = s;
         _nav = nav;
@@ -80,10 +81,13 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
         Quiz = lesson.Quiz is { } q ? new QuizViewModel(s, lesson.Id, q) : null;
         if (Quiz is not null) Quiz.Attempted += u => _ = HandleUpdateAsync(u);
         Tutor = new TutorPanelViewModel(s, nav, lesson.Id, () => ActiveSession);
-        _sections = SectionMarker().Matches(lesson.Theory.Markdown)
+        var keys = SectionMarker().Matches(lesson.Theory.Markdown)
             .Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal)
-            .Where(k => lesson.Theory.Sections.TryGetValue(k, out var body) && body.Length > 0)
-            .Select(k => (k, lesson.Theory.Sections[k])).ToList();
+            .Where(k => lesson.Theory.Sections.TryGetValue(k, out var body) && body.Length > 0).ToList();
+        _firstContentSection = keys.FirstOrDefault();
+        var plan = TheoryPresentation.Plan(keys, profile?.Level ?? PriorKnowledge.AbsoluteBeginner, profile?.Depth ?? LearningDepth.Standard);
+        _initialSection = plan.Initial;
+        _sections = plan.Sections.Select(k => (k, lesson.Theory.Sections[k])).ToList();
         TheorySections = _sections.Count < 2 ? [] :
             [.. _sections.Select(x => new TheorySectionViewModel(x.Key, SectionTitle(x.Key), SelectSection)), new TheorySectionViewModel("", Loc.T("Theory_All"), SelectSection)];
     }
@@ -100,6 +104,9 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     /// <summary>Remembers "everything on one page"; otherwise each lesson opens on its first section.</summary>
     public const string TheoryViewKey = "ui.theory.all";
     private readonly List<(string Key, string Markdown)> _sections;
+    private readonly string _initialSection;
+    /// <summary>The section that comes first in the file: the text before the first marker belongs to it, whatever the display order.</summary>
+    private readonly string? _firstContentSection;
     /// <summary>The section switch: the lesson's sections in content order, then "all". Empty when the theory has fewer than two sections.</summary>
     public IReadOnlyList<TheorySectionViewModel> TheorySections { get; }
     public bool HasTheorySections => TheorySections.Count > 0;
@@ -112,7 +119,7 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
         {
             var i = _sections.FindIndex(x => x.Key == SelectedSection);
             if (i < 0) return TheoryMarkdown;
-            return i == 0 ? Preamble(TheoryMarkdown) + _sections[0].Markdown : _sections[i].Markdown;
+            return _sections[i].Key == _firstContentSection ? Preamble(TheoryMarkdown) + _sections[i].Markdown : _sections[i].Markdown;
         }
     }
     private int SelectedIndex => _sections.FindIndex(x => x.Key == SelectedSection);
@@ -217,7 +224,7 @@ public sealed partial class LessonWorkspaceViewModel : ObservableObject, ILaunch
     {
         await _s.Progress.StartLessonAsync(Lesson.Id);
         if (HasTheorySections)
-            ShowSection(await _s.Settings.GetAsync(TheoryViewKey) == "1" ? "" : _sections[0].Key);
+            ShowSection(await _s.Settings.GetAsync(TheoryViewKey) == "1" ? "" : _initialSection);
         if (Lesson.Exercise is { } ex)
         {
             Practice = await ExerciseSessionViewModel.CreateAsync(_s, Lesson.Id, ex);

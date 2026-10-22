@@ -17,7 +17,7 @@ masteryCriteria:
   - "Вы объявляете сентинел и типизированную ошибку и объясняете, когда нужен каждый вид."
   - "Вы не используете panic для обработки неверного ввода."
 related:
-  - "go.first-steps.packages-and-go-test"
+  - "go.fundamentals.errors-and-table-tests"
 next:
   - "go.fundamentals.structs-methods-embedding"
 tags:

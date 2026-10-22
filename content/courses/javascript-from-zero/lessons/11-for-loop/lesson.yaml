@@ -1,0 +1,163 @@
+id: "javascript.from-zero.for-loop"
+title: "Цикл for"
+goal: "Записать повторение с известным числом шагов циклом for и счётчиком."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "javascript.from-zero.while-loop"
+objectives:
+  - "Прочитать и записать заголовок for (let i = 0; i < n; i++) и объяснить его три части."
+  - "Выбрать между for и while: for - когда число шагов известно, while - когда задано условие."
+  - "Накопить произведение, строку или счётчик внутри for."
+masteryCriteria:
+  - "Функции правильно работают на нулевом числе повторений, на единице и на границах (factorial(0), repeatText(\"abc\", 0), countMultiples(0, 3))."
+  - "Граница цикла выбрана верно: < или <=."
+concepts:
+  introduces:
+    - "js.for"
+  uses:
+    - "js.while"
+    - "js.if"
+    - "js.let"
+    - "js.assignment"
+    - "js.arithmetic"
+    - "js.concatenation"
+    - "js.function"
+    - "js.return"
+next:
+  - "javascript.from-zero.loop-control"
+tags:
+  - "javascript"
+  - "for"
+  - "loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        for (let i = 0; i < 3; i++) {
+          console.log(i);
+        }
+        ```
+      options:
+        - "1 2 3"
+        - "0 1 2"
+        - "0 1 2 3"
+        - "0 1"
+      answer: 1
+      explanation: "Счётчик начинается с 0 и растёт, пока i < 3. Значение 3 условие уже не пускает, поэтому печатаются 0, 1 и 2: три шага."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Какое число напечатает программа?
+
+        ```javascript
+        let total = 0;
+        for (let i = 1; i <= 4; i++) {
+          total = total + i * 10;
+        }
+        console.log(total);
+        ```
+      answer: 100
+      tolerance: 0
+      explanation: "На шагах i = 1, 2, 3, 4 к total прибавляется 10, 20, 30, 40. Сумма равна 100."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        let s = "";
+        for (let i = 3; i > 0; i--) {
+          s = s + i;
+        }
+        console.log(s);
+        ```
+      options:
+        - "123"
+        - "321"
+        - "6"
+        - "3"
+      answer: 1
+      explanation: "Счётчик идёт вниз: 3, 2, 1. Так как s - строка, + склеивает, и получается \"321\". Условие i > 0 останавливает цикл до нуля."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        for (let i = 0; i <= 10; i += 5) {
+          console.log(i);
+        }
+        ```
+      options:
+        - "0 5"
+        - "0 5 10"
+        - "5 10"
+        - "0 1 2 3 4 5 6 7 8 9 10"
+      answer: 1
+      explanation: "Шаг изменения - прибавление 5. i принимает значения 0, 5, 10, а 15 уже не проходит условие i <= 10."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```javascript
+        for (let i = 0; i < 3; i++) {
+          console.log(i);
+        }
+        console.log(i);
+        ```
+      options:
+        - "0 1 2 и затем 3"
+        - "0 1 2 и затем ReferenceError: i is not defined"
+        - "0 1 2 и затем undefined"
+        - "Сразу ReferenceError, ничего не напечатается"
+      answer: 1
+      explanation: "Переменная i объявлена в заголовке for и видна только внутри цикла. Последняя строка выполняется после трёх успешных итераций и падает с ReferenceError."
+exercise:
+  id: "javascript.from-zero.for-loop.exercise"
+  title: "Факториал, повторение и кратные"
+  prompt: |
+    В файле `for_loops.mjs` три функции без тела. Напишите каждую с помощью цикла `for`:
+
+    * `factorial(n)` - произведение всех целых чисел от 1 до `n`; `factorial(5)` даёт `120`, `factorial(0)` даёт `1`. Считайте, что `n` - целое число от 0 до 12.
+    * `repeatText(text, times)` - строка, в которой `text` повторён `times` раз; `repeatText("ab", 3)` даёт `"ababab"`, а при `times` равном 0 - пустую строку.
+    * `countMultiples(limit, k)` - сколько чисел от 1 до `limit` включительно делятся на `k` без остатка; `countMultiples(10, 3)` даёт `3`. Если `limit` меньше 1, результат `0`.
+
+    Функции должны возвращать результат. Скрытые тесты проверяют ноль повторений, пустой текст, кириллицу и границы.
+  entryFile: "for_loops.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В каждой функции подготовьте переменную-накопитель до цикла, измените её в теле цикла for и верните после цикла."
+    - "Нейтральные начальные значения: 1 для произведения, \"\" (пустая строка) для текста, 0 для счётчика. Для кратных число i делится на k, когда i % k === 0."
+    - "factorial: for (let i = 2; i <= n; i++) умножайте result. repeatText: for (let i = 0; i < times; i++) добавляйте text. countMultiples: for (let i = 1; i <= limit; i++) и if (i % k === 0)."
+    - "Скелет repeatText: let result = \"\"; for (let i = 0; i < times; i++) { result = result + text; } return result;"
+  tests:
+    - id: "factorial-basic"
+      title: "factorial: небольшие n"
+      hint: "5! равно 1 * 2 * 3 * 4 * 5 = 120; накопитель произведения начинается с 1, а не с 0."
+    - id: "repeat-basic"
+      title: "repeatText: обычные повторения"
+      hint: "Текст повторяется ровно times раз подряд, без пробелов между копиями."
+    - id: "multiples-basic"
+      title: "countMultiples: обычные границы"
+      hint: "В 10 чисел, делящихся на 3, - три (3, 6, 9); само limit входит в проверку."
+    - id: "factorial-edge"
+      title: "factorial: ноль и наибольшие значения (скрытый)"
+      hidden: true
+      hint: "0! равно 1, 1! и 2! - тоже без сбоев; для 10 ожидается 3628800, для 12 - 479001600. Накопитель начинается с 1."
+    - id: "repeat-edge"
+      title: "repeatText: ноль повторений, пустой текст, кириллица (скрытый)"
+      hidden: true
+      hint: "Для 0 повторений вернуть пустую строку, а не undefined; пустой текст повторяется в пустую строку; русские буквы сохраняются."
+    - id: "multiples-edge"
+      title: "countMultiples: ноль, отрицательные, k равно 1 (скрытый)"
+      hidden: true
+      hint: "Для limit 0 и -5 ответ 0 (цикл не выполняется); для k = 1 делятся все числа; 3 при k = 3 считается."

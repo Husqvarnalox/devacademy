@@ -3,7 +3,8 @@ title: "Как выполняется JavaScript и как читать stdin"
 goal: "Понять, что делает движок V8 с кодом, и написать программу, которая читает числа из stdin и печатает результат."
 difficulty: "intro"
 estimatedMinutes: 30
-prerequisites: []
+prerequisites:
+  - "javascript.from-zero.reading-input"
 objectives:
   - "Объяснить роли разбора, байткода (Ignition) и JIT-компиляции (TurboFan) в V8."
   - "Отличить язык ECMAScript от возможностей среды запуска (console, process, require)."

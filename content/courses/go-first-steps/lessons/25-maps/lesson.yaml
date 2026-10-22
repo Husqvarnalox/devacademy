@@ -1,0 +1,191 @@
+id: "go.first-steps.maps"
+title: "Карты"
+goal: "Хранить значения по ключу в карте (map), проверять наличие ключа и выводить содержимое карты в предсказуемом порядке."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "go.first-steps.slice-algorithms"
+objectives:
+  - "Создавать карту, записывать, читать и удалять значения по ключу."
+  - "Отличать отсутствующий ключ от ключа с нулевым значением через v, ok := m[k]."
+  - "Подсчитывать частоту значений с помощью m[k]++."
+  - "Выводить карту в стабильном порядке: собрать ключи в срез и отсортировать."
+masteryCriteria:
+  - "Программа читает слова до конца ввода и печатает каждое слово с числом повторений, слова идут в алфавитном порядке."
+  - "Программа различает регистр: «Go» и «go» - разные слова."
+  - "Вы объясняете, почему порядок обхода карты нельзя использовать для вывода."
+concepts:
+  introduces:
+    - "go.map"
+    - "go.comma-ok"
+    - "go.sorted-keys"
+  uses:
+    - "go.slice"
+    - "go.append"
+    - "go.range"
+    - "go.slices-sort"
+    - "go.for-loop"
+    - "go.break-continue"
+    - "go.if"
+    - "go.int"
+    - "go.string"
+    - "go.import"
+    - "go.scan"
+    - "go.multiple-returns"
+    - "go.error-value"
+    - "go.println"
+    - "go.print-values"
+    - "go.zero-value"
+    - "go.short-declaration"
+    - "go.assignment"
+next:
+  - "go.first-steps.strings-and-runes"
+tags:
+  - "go"
+  - "map"
+  - "frequency"
+facts:
+  - kind: "internals"
+    text: "Порядок обхода карты в Go не определён спецификацией и может меняться от запуска к запуску; программа не должна на него полагаться."
+    sources:
+      - "https://go.dev/ref/spec#For_statements"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        m := map[string]int{"a": 1}
+        m["b"] = 5
+        m["a"]++
+        fmt.Println(m["a"], m["b"], m["z"], len(m))
+        ```
+      options:
+        - "2 5 0 2"
+        - "1 5 0 2"
+        - "2 5 0 3"
+        - "2 5 ошибка"
+      answer: 0
+      explanation: "m[\"a\"]++ увеличивает 1 до 2. Отсутствующий ключ \"z\" даёт нулевое значение 0 и не добавляется в карту, поэтому len равна 2."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        m := map[string]int{"x": 0}
+        v1, ok1 := m["x"]
+        v2, ok2 := m["y"]
+        fmt.Println(v1, ok1, v2, ok2)
+        ```
+      options:
+        - "0 true 0 false"
+        - "0 false 0 false"
+        - "0 true 0 true"
+        - "ошибка компиляции"
+      answer: 0
+      explanation: "Значение в обоих случаях 0, но второй результат ok показывает, есть ли ключ. Так отличают «ключ есть и значение 0» от «ключа нет»."
+    - id: "q3"
+      type: "single"
+      prompt: "Как вывести содержимое карты в алфавитном порядке ключей?"
+      options:
+        - "Просто обойти карту через range: ключи идут по алфавиту."
+        - "Собрать ключи в срез, отсортировать его через slices.Sort и обойти срез."
+        - "Вызвать slices.Sort(m)."
+        - "Это невозможно."
+      answer: 1
+      explanation: "Порядок обхода карты случайный и не гарантирован. Стабильный вывод получают из отсортированного среза ключей."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```go
+        var m map[string]int
+        m["a"] = 1
+        ```
+      options:
+        - "Запись пройдёт, m станет {a:1}."
+        - "Паника: assignment to entry in nil map."
+        - "Ошибка компиляции."
+        - "Ничего: запись игнорируется."
+      answer: 1
+      explanation: "var m map[string]int создаёт nil-карту: читать из неё можно, а писать нельзя. Карту нужно создать: m := map[string]int{} или make(map[string]int)."
+    - id: "q5"
+      type: "single"
+      prompt: "Что делает delete(m, \"k\"), если ключа \"k\" в карте нет?"
+      options:
+        - "Паника."
+        - "Ничего: это не ошибка."
+        - "Добавляет ключ с нулём."
+        - "Ошибка компиляции."
+      answer: 1
+      explanation: "Удаление отсутствующего ключа безопасно и ничего не меняет."
+exercise:
+  id: "go.first-steps.maps.exercise"
+  title: "Частота слов"
+  prompt: |
+    Программа читает слова (разделённые пробелами и переводами строк) **до конца ввода**. Для каждого различного слова выведите строку `<слово> <сколько раз встретилось>`. Слова выводите в алфавитном порядке (так, как их сортирует `slices.Sort`). Регистр различается: `Go` и `go` - разные слова.
+
+    **Пример.** Ввод
+
+    ```
+    go rust go
+    zig go rust
+    ```
+
+    даёт
+
+    ```
+    go 3
+    rust 2
+    zig 1
+    ```
+
+    Если слов нет, ничего не выводится. В заготовке уже есть цикл чтения до конца ввода: `fmt.Scan` возвращает ошибку, когда данные кончились, и цикл прерывается через `break`.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Заведите карту counts := map[string]int{}: ключ - слово, значение - число повторений. Внутри цикла чтения увеличивайте счётчик слова."
+    - "counts[word]++ работает и для нового слова: отсутствующий ключ даёт 0, после ++ получится 1."
+    - "Порядок обхода карты случайный. Соберите ключи в срез (for word := range counts { keys = append(keys, word) }), отсортируйте slices.Sort(keys)."
+    - "Затем for _, word := range keys { fmt.Println(word, counts[word]) }. Не забудьте добавить \"slices\" в import."
+  tests:
+    - id: "basic"
+      title: "Слова на нескольких строках"
+      stdin: "go rust go\nzig go rust\n"
+      expected: "go 3\nrust 2\nzig 1\n"
+      hint: "Каждое слово выводится один раз, с числом повторений, в алфавитном порядке."
+    - id: "cyrillic"
+      title: "Кириллица (скрытый)"
+      stdin: "кот пёс кот мышь\nпёс кот\n"
+      expected: "кот 3\nмышь 1\nпёс 2\n"
+      hidden: true
+      hint: "Строки сортируются по кодам символов; кириллица обрабатывается так же, как латиница."
+    - id: "case"
+      title: "Регистр различается (скрытый)"
+      stdin: "Go go GO go\n"
+      expected: "GO 1\nGo 1\ngo 2\n"
+      hidden: true
+      hint: "Заглавные буквы идут раньше строчных; слова с разным регистром - разные ключи."
+    - id: "single"
+      title: "Одно слово (скрытый)"
+      stdin: "hello\n"
+      expected: "hello 1\n"
+      hidden: true
+      hint: "Одно слово даёт одну строку со счётчиком 1."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: ""
+      hidden: true
+      hint: "Если слов нет, вывод пуст: цикл чтения сразу прерывается."
+    - id: "spaces"
+      title: "Лишние пробелы и пустые строки (скрытый)"
+      stdin: "  a   b\n\n\n b  a a\n"
+      expected: "a 3\nb 2\n"
+      hidden: true
+      hint: "Scan пропускает лишние пробелы и переводы строк сам."

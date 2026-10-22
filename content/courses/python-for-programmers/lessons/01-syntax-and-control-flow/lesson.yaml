@@ -1,0 +1,178 @@
+id: "python.programmers.syntax-and-control-flow"
+title: "Синтаксис и поток управления: что в Python иначе"
+goal: "Писать на Python базовые программы, не перенося привычки Java, JavaScript, C# и Go: понимать имена и объекты, истинность, is и ==, целые произвольной длины, // и % с отрицательными числами и итерацию без индексов."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "python.programmers.functions-and-strings"
+objectives:
+  - "Объяснить, что имя в Python ссылается на объект, и предсказать эффект присваивания и += на изменяемых и неизменяемых объектах."
+  - "Предсказывать истинность значений и результат and / or."
+  - "Различать == и is и проверять None правильно."
+  - "Предсказывать результат // и % для отрицательных чисел и работать с большими int."
+  - "Использовать for с enumerate и zip вместо индексных циклов."
+masteryCriteria:
+  - "wrap_index, first_present, factorial_digit_sum, deltas и numbered проходят все проверки, включая отрицательные индексы, ложные значения и пустой ввод."
+  - "Вы без запуска предсказываете вывод кода с // и %, and / or и zip разной длины."
+tags:
+  - "python"
+  - "programmers"
+  - "syntax"
+  - "control-flow"
+assessmentFor:
+  - "python.fundamentals.how-python-runs"
+  - "python.fundamentals.variables-and-input"
+  - "python.fundamentals.numbers-and-operators"
+  - "python.fundamentals.text-and-f-strings"
+  - "python.fundamentals.reading-errors"
+  - "python.fundamentals.conditions"
+  - "python.fundamentals.while-loops"
+  - "python.fundamentals.loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print(-7 // 2, -7 % 2)
+        ```
+      options:
+        - "-3 -1"
+        - "-4 1"
+        - "-3 1"
+        - "-4 -1"
+      answer: 1
+      explanation: "Целочисленное деление в Python округляет вниз, поэтому -7 // 2 равно -4, а остаток согласуется с этим: -7 == (-4) * 2 + 1, значит -7 % 2 равно 1. Вариант «-3 -1» - результат C, Java и Go, где деление отбрасывает дробную часть."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        a = [1, 2]
+        b = a
+        b += [3]
+        print(a)
+        ```
+      options:
+        - "[1, 2]"
+        - "[1, 2, 3]"
+        - "[3]"
+        - "Ошибка TypeError"
+      answer: 1
+      explanation: "b = a даёт второе имя для того же списка. Оператор += для списка изменяет объект на месте, поэтому изменение видно через a. Если бы вы написали b = b + [3], создался бы новый список, а a остался бы прежним."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print(bool("False"), bool([]), bool(0.0))
+        ```
+      options:
+        - "False False False"
+        - "True True False"
+        - "True False False"
+        - "True False True"
+      answer: 2
+      explanation: "Непустая строка истинна, какой бы текст в ней ни был, поэтому bool(\"False\") даёт True. Пустой список и число 0.0 ложны."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print(1 or 2, 0 or 2, 0 and 2, "" or None)
+        ```
+      options:
+        - "True 2 False None"
+        - "1 2 0 None"
+        - "1 2 2 None"
+        - "1 0 0 None"
+      answer: 1
+      explanation: "or возвращает первый истинный операнд или последний, если истинных нет; and возвращает первый ложный или последний. Поэтому получаются сами операнды: 1, 2, 0 и None, а не True и False."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print(list(zip("abc", [1, 2])))
+        ```
+      options:
+        - "[('a', 1), ('b', 2), ('c', None)]"
+        - "[('a', 1), ('b', 2)]"
+        - "Ошибка: длины разные"
+        - "[('a', 1, 'b', 2)]"
+      answer: 1
+      explanation: "zip завершается, когда исчерпана самая короткая последовательность, и не сообщает о потерянных элементах. Для дополнения пропусков есть itertools.zip_longest."
+exercise:
+  id: "python.programmers.syntax-and-control-flow.exercise"
+  title: "Пять функций для планировщика"
+  prompt: |
+    В файле `syntax_task.py` реализуйте пять небольших функций, которые понадобятся в программе-планировщике. Тесты импортируют модуль и вызывают функции напрямую; ничего не печатайте, результат возвращайте через `return`.
+
+    1. `wrap_index(i, n)` - вернуть позицию в кольцевом буфере длины `n`, куда попадает индекс `i`; отрицательные индексы отсчитываются с конца: `wrap_index(-1, 5)` равно 4.
+    2. `first_present(values, default=None)` - вернуть первый элемент, который не `None` и не пустая строка `""`. Значения `0`, `False` и пустой список считаются присутствующими. Если подходящего нет, вернуть `default`.
+    3. `factorial_digit_sum(n)` - вернуть сумму цифр числа `n!` (факториала). `factorial_digit_sum(10)` равно 27, так как `10! = 3628800`. Числа могут быть очень большими.
+    4. `deltas(values)` - вернуть список разностей между соседними элементами: `deltas([3, 8, 6])` равно `[5, -2]`. Для пустого и одноэлементного ввода - пустой список.
+    5. `numbered(items, start=1)` - вернуть список строк вида `"1. молоко"`, нумерация начинается со `start`.
+
+    **Примеры.**
+
+    ```python
+    wrap_index(-1, 5)                 # 4
+    first_present([None, "", 0, 7])   # 0
+    factorial_digit_sum(10)           # 27
+    deltas([3, 8, 6])                 # [5, -2]
+    numbered(["чай", "кофе"], 1)      # ['1. чай', '2. кофе']
+    ```
+  entryFile: "syntax_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Каждая функция должна вернуть значение через return; заглушка pass возвращает None."
+    - "wrap_index не требует условий: подумайте, какой оператор Python сам приводит любое целое, в том числе отрицательное, в диапазон от 0 до n-1. В first_present сравнивайте через is not None, а не через истинность."
+    - "factorial_digit_sum: перемножьте числа от 2 до n в цикле (int не переполняется), затем переберите цифры str(результат). deltas: сравните zip(values, values[1:]). numbered: enumerate(items, start=start)."
+    - "Заготовка deltas: return [b - a for a, b in zip(values, values[1:])]. Заготовка numbered: return [f\"{i}. {item}\" for i, item in enumerate(items, start=start)]."
+  tests:
+    - id: "wrap-basic"
+      title: "wrap_index - обычные индексы и -1"
+      hint: "Индекс внутри диапазона остаётся прежним, а -1 указывает на последнюю позицию."
+    - id: "first-present-basic"
+      title: "first_present - обычный случай"
+      hint: "Нужно пропустить None и пустые строки и вернуть первый подходящий элемент."
+    - id: "factorial-basic"
+      title: "factorial_digit_sum - малые n"
+      hint: "Для 10 факториал равен 3628800, сумма цифр 27."
+    - id: "deltas-basic"
+      title: "deltas - разности соседних"
+      hint: "Разность считается как следующий минус предыдущий."
+    - id: "numbered-basic"
+      title: "numbered - нумерация с 1"
+      hint: "Формат строки: номер, точка, пробел, элемент."
+    - id: "wrap-negative-far"
+      title: "wrap_index - далёкие и отрицательные индексы (скрытый)"
+      hidden: true
+      hint: "Индексы за пределами длины и большие отрицательные должны уходить в диапазон от 0 до n-1."
+    - id: "first-present-falsy"
+      title: "first_present - ложные, но присутствующие значения (скрытый)"
+      hidden: true
+      hint: "0, False и [] - это значения, а не отсутствие; отсутствием считаются только None и пустая строка."
+    - id: "factorial-big"
+      title: "factorial_digit_sum - 0 и очень большие n (скрытый)"
+      hidden: true
+      hint: "Для 0! результат 1; для больших n числа не должны переполняться."
+    - id: "deltas-edges"
+      title: "deltas - пустой ввод, кортеж, неизменность (скрытый)"
+      hidden: true
+      hint: "Для пустого и одноэлементного ввода верните [], принимайте любую последовательность и не изменяйте исходную."
+    - id: "numbered-start"
+      title: "numbered - другое начало и пустой список (скрытый)"
+      hidden: true
+      hint: "Нумерация должна начинаться со значения start; для пустого списка результат пустой."

@@ -4,7 +4,7 @@ Status markers: **Done** (implemented and covered by tests), **Partial** (some o
 stated), **In progress**, **Planned** (design only, nothing in code). A feature is "Done" only when it is
 verified on at least macOS arm64; broader platform claims are in [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md).
 
-Last reviewed: 2026-10-16. Authoritative requirement digest: [docs/requirements/ecosystem-expansions.md](docs/requirements/ecosystem-expansions.md).
+Last reviewed: 2026-10-22. Authoritative requirement digest: [docs/requirements/ecosystem-expansions.md](docs/requirements/ecosystem-expansions.md).
 
 ## 1. Core phases
 
@@ -21,7 +21,8 @@ indicative, the status column as factual.
 | 5 | Evaluation + Learning Path Engine + progress | Done | Io and Harness evaluators; locking, completion, reviews 1/3/7/16/35 days; assessment credit. Command evaluator: Implemented for node --test (JUnit) and go test -json; other tools Planned |
 | 6 | Persistence (SQLite), settings, secret store, backup/export | Done (secret store: macOS only verified) | Keychain verified; Windows Credential Manager and Linux libsecret compiled, unverified |
 | 7 | Desktop UI (Avalonia): onboarding, catalog, roadmap, lesson workspace, dashboard, settings, AI tutor panel | Done | Native controls, no WebView |
-| 8 | First curriculum | Partial | Python Fundamentals (10 lessons) + intro courses of 2 lessons for C#, JavaScript, Node.js, PHP, TypeScript (content is being authored; `content/catalog.yaml` is the truth) |
+| 8 | First curriculum | Partial | Curriculum standard ([docs/curriculum-standards.md](docs/curriculum-standards.md)) applied to Go (from zero, for programmers, skill checks, professional), the Python core and JavaScript (from zero, for programmers, skill checks). Other languages: `*-first-steps` are courses for programmers; "from zero" courses Planned. Status per course: [docs/curriculum-audit.md](docs/curriculum-audit.md) |
+| 8a | Adaptive learning: prior knowledge, depth, competency checks | Done | Level and depth drive the start lesson, recommendations and theory section order; routes with competencies; Diagnostic page; `concepts` and `formerIds` validated; progress migration on rename ([docs/learning-levels.md](docs/learning-levels.md)) |
 | 9 | Algorithms: problems list, exercise language variants, complexity/editorial, sorting visualization | Partial | Mechanisms Done; the Algorithms track itself is `planned` in the catalog |
 | 10 | Framework and ML courses | Planned | All framework/ML tracks are `planned`; no stub courses |
 | 11 | Developer-IDE features: PTY terminal, LSP, DAP, project workspaces, notebooks | In progress | PTY terminal, project workspaces, LSP, DAP (python/debugpy, cpp+rust/lldb-dap, go/dlv, js+ts/vscode-js-debug, java/JDI adapter, csharp/netcoredbg on macOS arm64) implemented; notebooks planned |

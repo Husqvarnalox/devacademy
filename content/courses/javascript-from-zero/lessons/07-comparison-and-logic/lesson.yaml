@@ -1,0 +1,152 @@
+id: "javascript.from-zero.comparison-and-logic"
+title: "Сравнения и логика"
+goal: "Сравнивать значения оператором === и составлять условия из сравнений с помощью &&, || и !."
+difficulty: "intro"
+estimatedMinutes: 25
+prerequisites:
+  - "javascript.from-zero.strings"
+objectives:
+  - "Сравнивать числа и строки операторами === !== < > <= >=."
+  - "Объяснить, почему в курсе всегда используется ===, а не ==."
+  - "Объединять логические значения операторами && (и), || (или), ! (не)."
+masteryCriteria:
+  - "Программа печатает результаты сравнений и логических выражений в заданном порядке."
+  - "Вы предсказываете true или false для составного условия, не запуская программу."
+concepts:
+  introduces:
+    - "js.comparison"
+    - "js.logical-operators"
+  uses:
+    - "js.boolean"
+    - "js.number"
+    - "js.string"
+    - "js.variable"
+    - "js.const"
+    - "js.arithmetic"
+next:
+  - "javascript.from-zero.functions"
+tags:
+  - "javascript"
+  - "comparison"
+  - "boolean"
+  - "logical-operators"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log(5 === "5");
+        ```
+      options:
+        - "true"
+        - "false"
+        - "5"
+        - "Ошибка"
+      answer: 1
+      explanation: "=== сравнивает значение и тип. Число 5 и строка \"5\" имеют разные типы, поэтому результат false."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const age = 20;
+        console.log(age >= 18 && age < 65);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "20"
+        - "18"
+      answer: 0
+      explanation: "&& даёт true только когда обе части истинны. 20 >= 18 истинно и 20 < 65 истинно, поэтому true."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log(!(3 > 2) || 1 === 2);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "1"
+        - "Ошибка"
+      answer: 1
+      explanation: "3 > 2 истинно, значит !(3 > 2) ложно. 1 === 2 тоже ложно. Для || хотя бы одна часть должна быть истинной, а обе ложны - результат false."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log("яблоко" === "Яблоко");
+        ```
+      options:
+        - "true, потому что слово одно и то же"
+        - "false, потому что регистр букв различается"
+        - "false, потому что строки нельзя сравнивать"
+        - "Ошибка"
+      answer: 1
+      explanation: "Строки сравниваются символ за символом, и заглавная «Я» - другой символ, чем строчная «я». Сравнение строк чувствительно к регистру."
+    - id: "q5"
+      type: "single"
+      prompt: "В чём ошибка в проверке, что x лежит между 1 и 10: 1 < x < 10?"
+      options:
+        - "Ошибки нет, так работает и в математике, и в JavaScript."
+        - "Сначала вычисляется 1 < x, получается true или false, и его сравнивают с 10. Нужно писать x > 1 && x < 10."
+        - "Нужно использовать === вместо <."
+        - "Знак < нельзя применять к числам."
+      answer: 1
+      explanation: "Сравнения вычисляются по одному. 1 < x даёт логическое значение, которое затем сравнивается с 10 и даёт неверный результат. Диапазон проверяют двумя сравнениями, соединёнными &&."
+exercise:
+  id: "javascript.from-zero.comparison-and-logic.exercise"
+  title: "Условия входа"
+  prompt: |
+    В редакторе три переменные: возраст гостя `age`, наличие билета `hasTicket` и город `city`. Вместо шести `false` напишите выражения, которые отвечают на вопросы из комментариев. Переменные менять не нужно.
+
+    Ожидаемый вывод:
+
+    ```
+    false
+    false
+    true
+    false
+    true
+    true
+    ```
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Каждая строка - один вопрос, ответ на него - логическое значение. Подставьте в console.log выражение вместо false."
+    - "Сравнения: age >= 18, age === 17, city !== \"Москва\". Для «и» используйте &&, для «или» ||, для «не» - !."
+    - "Строки: age >= 18; hasTicket && age >= 18; hasTicket || age >= 18; !hasTicket; age === 17; city !== \"Москва\"."
+  tests:
+    - id: "basic"
+      title: "Шесть ответов напечатаны"
+      stdin: ""
+      expected: |
+        false
+        false
+        true
+        false
+        true
+        true
+      hint: "Должно быть шесть строк: false, false, true, false, true, true. Каждая получается из выражения для своего вопроса."
+    - id: "exact"
+      title: "Результат берётся из выражений (скрытый)"
+      stdin: ""
+      expected: |
+        false
+        false
+        true
+        false
+        true
+        true
+      hidden: true
+      hint: "Выводятся ровно шесть логических значений в порядке вопросов. Третий вопрос с «или» должен быть true, потому что билет есть; пятый - true, потому что возраст ровно 17."

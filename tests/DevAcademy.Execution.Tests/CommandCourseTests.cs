@@ -35,7 +35,7 @@ public class CommandCourseTests
 
     [Theory]
     [InlineData("javascript", "nodejs.first-steps.modules-and-node-test")]
-    [InlineData("go", "go.first-steps.packages-and-go-test")]
+    [InlineData("go", "go.fundamentals.errors-and-table-tests")]
     public async Task SolutionPassesEveryCaseAndStarterFails(string language, string lessonId)
     {
         await TestSupport.RequireAsync(language);
@@ -54,7 +54,7 @@ public class CommandCourseTests
 
     [Theory]
     [InlineData("javascript", "nodejs.first-steps.modules-and-node-test", "src/money.mjs")]
-    [InlineData("go", "go.first-steps.packages-and-go-test", "stock.go")]
+    [InlineData("go", "go.fundamentals.errors-and-table-tests", "stock.go")]
     public async Task BrokenSyntaxIsACompileErrorWithoutLeakingTheWorkDirectory(string language, string lessonId, string entry)
     {
         await TestSupport.RequireAsync(language);

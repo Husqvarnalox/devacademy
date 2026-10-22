@@ -1,0 +1,158 @@
+id: "python.check.iterators"
+title: "Проверка: итераторы и генераторы"
+goal: "Писать ленивые генераторы и собирать из них конвейеры обработки данных."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: писать ленивые генераторы и собирать из них конвейеры обработки данных."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "python"
+  - "check"
+  - "iterators"
+assessmentFor:
+  - "python.advanced.iterators-and-generators"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        g = (x * x for x in range(3))
+        print(list(g), list(g))
+        ```
+      options:
+        - "[0, 1, 4] [0, 1, 4]"
+        - "[0, 1, 4] []"
+        - "[] [0, 1, 4]"
+        - "Ошибка StopIteration"
+      answer: 1
+      explanation: "Генераторное выражение - одноразовый итератор. Первый list исчерпывает его, второй получает пустой список."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def gen():
+            print("start")
+            yield 1
+            yield 2
+
+        g = gen()
+        print("created")
+        print(next(g))
+        ```
+      options:
+        - "start, created, 1"
+        - "created, start, 1"
+        - "created, 1"
+        - "start, 1, created"
+      answer: 1
+      explanation: "Вызов генераторной функции не выполняет тело: оно стартует при первом next. Поэтому created печатается раньше start."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        it = iter([1, 2, 3])
+        next(it)
+        print(list(it))
+        ```
+      options:
+        - "[1, 2, 3]"
+        - "[2, 3]"
+        - "[3]"
+        - "[]"
+      answer: 1
+      explanation: "Итератор помнит позицию: next(it) уже забрал первый элемент, остаток [2, 3] достаётся list."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def f():
+            x = yield 1
+            print("got", x)
+            yield 2
+
+        g = f()
+        print(next(g))
+        print(g.send("hi"))
+        ```
+      options:
+        - "1, got hi, 2"
+        - "1, 2"
+        - "1, got None, 2"
+        - "got hi, 1, 2"
+      answer: 0
+      explanation: "Первый next доходит до yield 1 и возвращает 1. Метод send подставляет 'hi' в выражение yield, выполняется print, и генератор доходит до yield 2."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        from itertools import islice, count
+        print(list(islice(count(5), 3)), sum(x for x in range(5) if x % 2))
+        ```
+      options:
+        - "[5, 6, 7] 4"
+        - "[5, 6, 7] 10"
+        - "[6, 7, 8] 4"
+        - "Бесконечный цикл"
+      answer: 0
+      explanation: "count(5) бесконечен, но islice берёт только три значения: 5, 6, 7. Нечётные числа до 5 - 1 и 3, сумма равна 4."
+exercise:
+  id: "python.check.iterators.exercise"
+  title: "Конвейер из трёх генераторов"
+  prompt: |
+    В файле `iterators_check.py` реализуйте три **ленивые** функции-генератора, которые вместе образуют конвейер обработки данных. Не собирайте входные данные в список целиком: тесты подают бесконечные источники.
+
+    1. `parse_ints(lines)` - для каждой строки из `lines`, которая не пуста после `strip()`, выдавать `int(строка)`; пустые строки пропускать.
+    2. `window(iterable, size)` - выдавать кортежи из `size` подряд идущих элементов: `window("abcd", 2)` даёт `('a', 'b')`, `('b', 'c')`, `('c', 'd')`. Если элементов меньше `size`, ничего не выдавать.
+    3. `running_total(iterable)` - выдавать накопленные суммы: для `[1, 2, 3]` это `1, 3, 6`.
+
+    Конвейер: `list(running_total(parse_ints(["1", " ", "2", "3\n"])))` равно `[1, 3, 6]`.
+  entryFile: "iterators_check.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Заглушка pass возвращает None, а не итератор; функция должна содержать yield."
+    - "Все три функции - циклы for по входу с yield внутри. Не вызывайте list(iterable): тесты подают бесконечные источники."
+    - "window: from collections import deque; buffer = deque(maxlen=size); на каждом шаге buffer.append(item) и при len(buffer) == size выдавайте tuple(buffer)."
+  tests:
+    - id: "parse-basic"
+      title: "parse_ints - пропуск пустых строк"
+      hint: "Внутри цикла проверяйте strip() и выдавайте int(...) через yield."
+    - id: "window-basic"
+      title: "window - окна по 2 и 3"
+      hint: "Держите буфер последних size элементов (deque с maxlen) и выдавайте его копию как кортеж."
+    - id: "running-basic"
+      title: "running_total - накопленные суммы"
+      hint: "Храните сумму в локальной переменной генератора и выдавайте после каждого прибавления."
+    - id: "window-lazy"
+      title: "window - ленивость (скрытый)"
+      hidden: true
+      hint: "Не создавайте список входа: читайте итератор по одному элементу; первое окно требует ровно size элементов."
+    - id: "running-lazy"
+      title: "running_total - ленивость (скрытый)"
+      hidden: true
+      hint: "Генератор не должен читать источник вперёд; бесконечный источник должен работать."
+    - id: "window-edges"
+      title: "window и running_total - края (скрытый)"
+      hidden: true
+      hint: "Для коротких и пустых входов ничего не выдаётся; вход может быть итератором, а не только списком."
+    - id: "pipeline"
+      title: "Конвейер из трёх генераторов (скрытый)"
+      hidden: true
+      hint: "Каждая функция принимает итерируемый объект и сама является итератором, поэтому их можно вкладывать друг в друга."

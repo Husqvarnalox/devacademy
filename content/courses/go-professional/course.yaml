@@ -1,0 +1,17 @@
+id: "go-professional"
+version: "1.0.0"
+title: "Go: профессиональный уровень"
+description: "Для тех, кто уверенно пишет на Go: устройство срезов, аллокации, гонки данных и модель памяти, отмена через context и утечки горутин, освобождение ресурсов, тесты, которые ловят ошибки, escape analysis и GC. Каждая задача проверяется объективно (тесты, AllocsPerRun, проверка завершения горутин); что автоматически не проверяется, сказано в уроке."
+languageId: "go"
+level: 4
+track: "go"
+requires: [go-fundamentals]
+lessons:
+  - "01-slice-internals"
+  - "02-allocations"
+  - "03-data-races"
+  - "04-memory-model"
+  - "05-context-cancellation"
+  - "06-resource-cleanup"
+  - "07-tests-that-catch-bugs"
+  - "08-escape-analysis-and-gc"

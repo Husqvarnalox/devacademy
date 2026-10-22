@@ -91,6 +91,12 @@ public sealed partial class RoadmapViewModel(AppServices s, INavigator nav, stri
     private void ToggleDescription() => DescriptionExpanded = !DescriptionExpanded;
 
     public string CourseId { get; } = courseId;
+    /// <summary>The course's track when it defines competency checks; the "Проверить знания" button exists only then.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDiagnostic))] private string? _diagnosticTrackId;
+    public bool HasDiagnostic => DiagnosticTrackId is not null;
+
+    [RelayCommand]
+    private Task OpenDiagnosticAsync() => DiagnosticTrackId is { } id ? nav.OpenDiagnosticAsync(id) : Task.CompletedTask;
     public bool HasPrimary => PrimaryCommand is not null;
 
     /// <summary>Framework/library metadata block; null (nothing rendered) when course.yaml declares no framework.</summary>
@@ -129,6 +135,8 @@ public sealed partial class RoadmapViewModel(AppServices s, INavigator nav, stri
             PrimaryCommand = null;
         }
         OnPropertyChanged(nameof(HasPrimary));
+        var trackId = s.Content.Current.TrackOfCourse(CourseId)?.Id;
+        DiagnosticTrackId = trackId is not null && await s.Diagnostics.GetReportAsync(trackId) is not null ? trackId : null;
         Framework = path.Course.Framework is { } f ? new FrameworkInfoViewModel(path.Course, f) : null;
         Placements = (await s.Path.GetCoursePlacementOffersAsync(CourseId))
             .Select(o => new PlacementRowViewModel(o, StartPlacement)).ToList();

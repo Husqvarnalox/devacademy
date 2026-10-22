@@ -11,6 +11,7 @@
     <DataTemplate DataType="vm:CatalogViewModel"><views:CatalogView /></DataTemplate>
     <DataTemplate DataType="vm:ProblemsViewModel"><views:ProblemsView /></DataTemplate>
     <DataTemplate DataType="vm:RoadmapViewModel"><views:RoadmapView /></DataTemplate>
+    <DataTemplate DataType="vm:DiagnosticViewModel"><views:DiagnosticView /></DataTemplate>
     <DataTemplate DataType="vm:LessonWorkspaceViewModel"><views:LessonWorkspaceView /></DataTemplate>
     <DataTemplate DataType="vm:DashboardViewModel"><views:DashboardView /></DataTemplate>
     <DataTemplate DataType="vm:SettingsViewModel"><views:SettingsView /></DataTemplate>

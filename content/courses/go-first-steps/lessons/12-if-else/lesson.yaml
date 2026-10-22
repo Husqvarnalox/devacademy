@@ -1,0 +1,186 @@
+id: "go.first-steps.if-else"
+title: "Условие if / else"
+goal: "Выбирать действие по условию с помощью if, else if и else."
+difficulty: "easy"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.comparison-and-logic"
+objectives:
+  - "Записывать if, if/else и цепочку else if с корректными фигурными скобками."
+  - "Упорядочивать ветки цепочки так, чтобы первая подходящая давала нужный результат."
+  - "Объяснять, что условие в if должно быть значением bool."
+masteryCriteria:
+  - "Программа печатает оценку по баллу и сообщение об ошибке для баллов вне диапазона 0-100."
+  - "Вы называете результат цепочки else if на граничных значениях (60, 75, 90)."
+concepts:
+  introduces:
+    - "go.if"
+  uses:
+    - "go.comparison"
+    - "go.logical-operators"
+    - "go.bool"
+    - "go.int"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.scan"
+    - "go.remainder"
+    - "go.printf"
+    - "go.println"
+    - "go.string-literal"
+next:
+  - "go.first-steps.switch"
+tags:
+  - "go"
+  - "if"
+  - "else"
+  - "condition"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        x := 10
+        if x > 5 {
+            fmt.Println("A")
+        } else {
+            fmt.Println("B")
+        }
+        fmt.Println("C")
+        ```
+      options:
+        - "A"
+        - "A и C на разных строках"
+        - "B и C на разных строках"
+        - "A, B и C"
+      answer: 1
+      explanation: "Условие истинно, выполняется ветка A. Ветка else пропускается, а команда после if выполняется всегда."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа при score := 80?
+
+        ```go
+        if score >= 60 {
+            fmt.Println("3")
+        } else if score >= 75 {
+            fmt.Println("4")
+        }
+        ```
+      options:
+        - "3"
+        - "4"
+        - "3 и 4"
+        - "Ничего"
+      answer: 0
+      explanation: "Проверка идёт сверху вниз, первое истинное условие выполняет свою ветку, остальные пропускаются. 80 >= 60 истинно, поэтому 4 никогда не будет напечатано. Условия нужно упорядочивать от более строгого к менее строгому."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему if x { ... } не скомпилируется при x := 5?"
+      options:
+        - "Нужны круглые скобки."
+        - "Условие должно иметь тип bool, а x - int."
+        - "Переменная x не использована."
+        - "Нужно else."
+      answer: 1
+      explanation: "В Go в if допустимо только логическое выражение: if x != 0 {. Числа не превращаются в true/false сами."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Что верно для if в Go?"
+      options:
+        - "Условие не берут в круглые скобки."
+        - "Фигурные скобки обязательны, даже для одной команды."
+        - "else можно поставить на новой строке перед фигурной скобкой."
+        - "else if можно писать несколько раз подряд."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Круглые скобки не нужны, фигурные обязательны. else должен стоять на одной строке с закрывающей скобкой предыдущей ветки: } else {."
+exercise:
+  id: "go.first-steps.if-else.exercise"
+  title: "Оценка по баллам"
+  prompt: |
+    Программа получает целое число - балл за работу (от 0 до 100). Напечатайте оценку:
+
+    * от 90 до 100 - `Оценка: 5`;
+    * от 75 до 89 - `Оценка: 4`;
+    * от 60 до 74 - `Оценка: 3`;
+    * от 0 до 59 - `Оценка: 2`;
+    * число меньше 0 или больше 100 - `Неверный балл`.
+
+    **Пример.** Ввод `82` даёт `Оценка: 4`.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Сначала отсеките некорректный ввод, потом проверяйте оценки по убыванию порога."
+    - "Некорректный балл: score < 0 || score > 100 - первая проверка цепочки."
+    - "Затем идут else if score >= 90, else if score >= 75, else if score >= 60 и else для остального."
+    - "Цепочка: if неверный { ... } else if score >= 90 { ... } else if score >= 75 { ... } else if score >= 60 { ... } else { 2 }."
+  tests:
+    - id: "basic"
+      title: "Оценка 4"
+      stdin: |
+        82
+      expected: |
+        Оценка: 4
+      hint: "82 попадает в диапазон 75-89."
+    - id: "five"
+      title: "Верхняя граница 5 (скрытый)"
+      stdin: |
+        100
+      expected: |
+        Оценка: 5
+      hidden: true
+      hint: "100 и 90 - это оценка 5; проверка >= 90 включает 90."
+    - id: "boundary90"
+      title: "Граница 90 (скрытый)"
+      stdin: |
+        90
+      expected: |
+        Оценка: 5
+      hidden: true
+      hint: "Порог включительный: 90 уже пятёрка."
+    - id: "boundary60"
+      title: "Граница 60 (скрытый)"
+      stdin: |
+        60
+      expected: |
+        Оценка: 3
+      hidden: true
+      hint: "60 - нижняя граница тройки."
+    - id: "fail"
+      title: "Неудовлетворительно (скрытый)"
+      stdin: |
+        59
+      expected: |
+        Оценка: 2
+      hidden: true
+      hint: "Всё ниже 60 - оценка 2."
+    - id: "zero"
+      title: "Ноль баллов (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Оценка: 2
+      hidden: true
+      hint: "0 - допустимый балл и даёт оценку 2, а не ошибку."
+    - id: "negative"
+      title: "Отрицательный балл (скрытый)"
+      stdin: |
+        -5
+      expected: |
+        Неверный балл
+      hidden: true
+      hint: "Балл вне диапазона 0-100 должен давать сообщение Неверный балл."
+    - id: "over"
+      title: "Больше 100 (скрытый)"
+      stdin: |
+        101
+      expected: |
+        Неверный балл
+      hidden: true
+      hint: "101 выходит за верхнюю границу диапазона."

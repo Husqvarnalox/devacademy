@@ -15,3 +15,4 @@ lessons:
   - "06-goroutines-and-channels"
   - "07-concurrency-patterns-and-context"
   - "08-packages-modules-testing"
+  - "09-errors-and-table-tests"

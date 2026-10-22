@@ -1,0 +1,155 @@
+id: "javascript.from-zero.arrow-functions"
+title: "Стрелочные функции и колбэки"
+goal: "Записать функцию стрелкой, сохранить её в переменную и передать в другую функцию как аргумент."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "javascript.from-zero.iterating-arrays"
+objectives:
+  - "Записать функцию в виде стрелки с одним выражением и с телом в фигурных скобках."
+  - "Объяснить разницу между double (сама функция) и double(4) (результат вызова)."
+  - "Передать функцию аргументом и вызвать её внутри другой функции."
+masteryCriteria:
+  - "double и isEven записаны стрелочными функциями и работают для нуля, отрицательных и больших чисел."
+  - "Колбэк вызывается ровно один раз на каждый элемент и в порядке элементов."
+  - "Функции корректно работают на пустом массиве."
+concepts:
+  introduces:
+    - "js.arrow-function"
+    - "js.callback"
+  uses:
+    - "js.function"
+    - "js.parameter"
+    - "js.return"
+    - "js.const"
+    - "js.let"
+    - "js.if"
+    - "js.for-of"
+    - "js.array"
+    - "js.push"
+    - "js.typeof"
+    - "js.arithmetic"
+    - "js.comparison"
+    - "js.export-for-check"
+    - "js.concatenation"
+next:
+  - "javascript.from-zero.array-methods"
+tags:
+  - "javascript"
+  - "arrow-function"
+  - "callback"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const triple = (n) => n * 3;
+        console.log(triple(4));
+        ```
+      options:
+        - "12"
+        - "n * 3"
+        - "undefined"
+        - "triple"
+      answer: 0
+      explanation: "Запись (n) => n * 3 - функция с параметром n. После стрелки стоит выражение, и его значение возвращается автоматически, без слова return. triple(4) даёт 12."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const half = (n) => {
+          n / 2;
+        };
+        console.log(half(10));
+        ```
+      options:
+        - "5"
+        - "10"
+        - "undefined"
+        - "Будет ошибка"
+      answer: 2
+      explanation: "Если после стрелки стоят фигурные скобки, это тело функции, и значение нужно вернуть словом return. Здесь выражение n / 2 вычисляется и теряется, поэтому функция возвращает undefined."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что делает вторая строка?
+
+        ```javascript
+        const isPositive = (n) => n > 0;
+        const f = isPositive;
+        ```
+      options:
+        - "Вызывает isPositive и сохраняет true или false."
+        - "Сохраняет саму функцию: теперь f и isPositive - одна и та же функция."
+        - "Выдаёт ошибку: функцию нельзя положить в переменную."
+        - "Сохраняет текст «isPositive»."
+      answer: 1
+      explanation: "Без скобок после имени функция не вызывается, а используется как значение. Её можно положить в другую переменную или передать в другую функцию. Вызов - это isPositive(5)."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function applyTwice(fn, x) {
+          return fn(fn(x));
+        }
+        console.log(applyTwice((n) => n + 5, 10));
+        ```
+      answer: 20
+      tolerance: 0
+      explanation: "Сначала fn(10) даёт 15, затем fn(15) даёт 20. Функцию (n) => n + 5 передали аргументом, а applyTwice вызвала её дважды."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        В вызове applyTwice(addTen(), 1) программа падает с «TypeError: fn is not a function». В чём ошибка?
+      options:
+        - "После addTen стоят скобки, поэтому передан результат вызова, а не сама функция."
+        - "Функцию нельзя передавать в другую функцию."
+        - "У applyTwice должно быть три параметра."
+        - "addTen нужно объявить через let."
+      answer: 0
+      explanation: "addTen() вызывает функцию и передаёт в applyTwice то, что она вернула (число или undefined). Вызвать число нельзя, отсюда ошибка. Чтобы передать саму функцию, скобки не нужны: applyTwice(addTen, 1)."
+exercise:
+  id: "javascript.from-zero.arrow-functions.exercise"
+  title: "Стрелки и функции, принимающие функции"
+  prompt: |
+    В файле `arrow_functions.mjs` заготовки пяти функций. Допишите их:
+
+    * `double` - стрелочная функция, возвращающая удвоенное число: `double(4)` даёт `8`.
+    * `isEven` - стрелочная функция: `true` для чётного числа, иначе `false`. `isEven(10)` даёт `true`, `isEven(7)` - `false`, `isEven(0)` - `true`.
+    * `applyTwice(fn, x)` - вызывает функцию `fn` два раза: сначала с `x`, затем с полученным результатом. `applyTwice(double, 3)` даёт `12`.
+    * `applyToEach(items, fn)` - возвращает **новый** массив из результатов `fn(item)` для каждого элемента по порядку: `applyToEach([1, 2, 3], double)` даёт `[2, 4, 6]`. Для пустого массива - `[]`.
+    * `countMatching(items, test)` - сколько элементов, для которых `test(item)` вернула `true`: `countMatching([1, 2, 3, 4], isEven)` даёт `2`.
+
+    `double` и `isEven` записываются как `export const имя = (параметр) => ...;`. Скрытые тесты проверяют пустой массив, ноль, отрицательные числа, строки на кириллице и то, что `fn` вызывается ровно один раз на элемент.
+  entryFile: "arrow_functions.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "double и isEven - обычные функции от одного числа, только в записи со стрелкой. Остальные три принимают функцию параметром (fn или test) и вызывают её скобками: fn(x). Для applyToEach и countMatching нужен обход массива."
+    - "Стрелка с выражением: export const double = (n) => n * 2; Чётность - остаток от деления на 2: n % 2 === 0. Для applyTwice вызовите fn дважды, передав результат первого вызова во второй."
+    - "applyTwice: return fn(fn(x)); applyToEach: создайте пустой массив result, пройдите по items циклом for...of и добавляйте result.push(fn(item)); в конце верните result."
+    - "countMatching: let count = 0; for (const item of items) { if (test(item)) { count++; } } return count;"
+  tests:
+    - id: "arrows-basic"
+      title: "double и isEven"
+      hint: "double(4) - 8, double(10) - 20. isEven(10) - true, isEven(7) - false. Результат isEven - булево значение, а не строка."
+    - id: "apply-basic"
+      title: "applyTwice, applyToEach и countMatching: обычные значения"
+      hint: "applyTwice(double, 3): 3 -> 6 -> 12. applyToEach([1, 2, 3], double) - [2, 4, 6]. countMatching([1, 2, 3, 4], isEven) - 2."
+    - id: "arrows-edge"
+      title: "double и isEven: ноль, отрицательные, большие (скрытый)"
+      hidden: true
+      hint: "isEven(0) - true, isEven(-3) - false, isEven(-4) - true. double(-5) - -10, double(0) - 0. Отрицательные числа тоже чётные или нечётные."
+    - id: "apply-edge"
+      title: "Колбэки: пустой массив, строки, один вызов на элемент (скрытый)"
+      hidden: true
+      hint: "Для пустого массива applyToEach возвращает [], а countMatching - 0. Функция fn должна вызываться один раз на каждый элемент, по порядку, и не изменять исходный массив. Колбэки здесь могут работать со строками на кириллице."

@@ -1,0 +1,171 @@
+id: python.fundamentals.errors-and-files
+title: Исключения и работа с файлами
+goal: Перехватывать ожидаемые ошибки через try/except, сообщать о собственных через raise и читать и записывать текстовые файлы.
+difficulty: easy
+estimatedMinutes: 50
+prerequisites: [python.fundamentals.dicts-and-sets]
+objectives:
+  - Оборачивать опасную операцию в try/except и перехватывать только нужный тип ошибки.
+  - Вызывать собственную ошибку командой raise с понятным сообщением.
+  - Открывать файл через with open, читать его построчно и записывать текст.
+  - Указывать кодировку utf-8 и объяснять, когда возникает FileNotFoundError.
+masteryCriteria:
+  - Вы предсказываете, какие строки выполнятся при ошибке внутри try.
+  - Вы пишете функцию, которая читает файл с числами и сообщает номер неверной строки.
+  - Вы объясняете, почему нельзя перехватывать все ошибки подряд.
+concepts:
+  introduces: [python.try-except, python.raise, python.file-io]
+  uses: [python.print, python.variable, python.assignment, python.int, python.type-conversion, python.f-string, python.if, python.comparison, python.for-range, python.def, python.parameter, python.return, python.string-methods, python.list, python.list-methods, python.traceback]
+related: []
+next: [python.fundamentals.modules]
+tags: [python, exceptions, try-except, raise, files, with]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет программа?
+        try:
+            print("A")
+            x = int("abc")
+            print("B")
+        except ValueError:
+            print("C")
+        print("D")
+      options:
+        - "A C D"
+        - "A B D"
+        - "A B C D"
+        - "C D"
+      answer: 0
+      explanation: >-
+        Строка print("A") выполнится, int("abc") вызовет ValueError, остаток try (print("B")) пропускается, выполняется except, после чего программа продолжается с print("D").
+    - id: q2
+      type: single
+      prompt: |
+        Что произойдёт?
+        try:
+            print(10 / 0)
+        except ValueError:
+            print("не число")
+      options:
+        - "Выведется не число"
+        - "Программа завершится с ZeroDivisionError"
+        - "Выведется 0"
+        - "Ничего не выведется и ошибки не будет"
+      answer: 1
+      explanation: >-
+        except ValueError перехватывает только ValueError. ZeroDivisionError - другой тип, поэтому ошибка не перехвачена и программа остановится.
+    - id: q3
+      type: single
+      prompt: |
+        Что делает строка?
+        raise ValueError("отрицательное количество")
+      options:
+        - "Выводит сообщение и продолжает работу"
+        - "Останавливает выполнение функции и сообщает об ошибке с этим текстом"
+        - "Игнорируется, если рядом нет try"
+        - "Преобразует строку в число"
+      answer: 1
+      explanation: >-
+        raise создаёт ошибку заданного типа. Если её никто не перехватит, программа завершится и покажет сообщение.
+    - id: q4
+      type: single
+      prompt: |
+        Файл data.txt содержал текст. Что произойдёт после выполнения?
+        with open("data.txt", "w", encoding="utf-8") as f:
+            f.write("новый")
+      options:
+        - "Текст «новый» дописан в конец"
+        - "Прежнее содержимое заменено на «новый»"
+        - "FileExistsError"
+        - "Файл останется прежним"
+      answer: 1
+      explanation: >-
+        Режим "w" (write) открывает файл для записи и очищает его. Для дописания в конец существует режим "a".
+    - id: q5
+      type: single
+      prompt: |
+        Когда возникает FileNotFoundError?
+      options:
+        - "Когда файл открывают на чтение, а его нет по указанному пути"
+        - "Когда в файле нет строк"
+        - "Когда не указана кодировка"
+        - "Когда файл больше 1 МБ"
+      answer: 0
+      explanation: >-
+        Для чтения файл должен существовать. Для режима записи "w" отсутствующий файл будет создан.
+exercise:
+  id: python.fundamentals.errors-and-files.exercise-v2
+  title: Безопасное чтение и запись
+  prompt: |
+    В файле `file_tools.py` реализуйте четыре функции. Тесты создают временные файлы в рабочей папке и вызывают ваши функции напрямую.
+
+    1. `parse_int(text, default=None)` - вернуть `int(text)`; если строку нельзя преобразовать в целое, вернуть `default`.
+    2. `percent(part, total)` - вернуть, сколько процентов `part` составляет от `total` (`part / total * 100`). Если `total` равно нулю, вызвать `ValueError` с понятным сообщением.
+    3. `read_numbers(path)` - прочитать файл (UTF-8), в котором в каждой строке целое число, и вернуть список чисел. Пустые строки и строки из одних пробелов пропускаются.
+       Если строка не число, вызвать `ValueError`; в сообщении укажите номер строки (с 1, **считая пустые строки**) и её текст.
+       Если файла нет, исключение `FileNotFoundError` перехватывать не нужно: оно должно дойти до вызывающего кода.
+    4. `write_report(path, numbers)` - записать в файл (UTF-8, с перезаписью старого содержимого) две строки: `Всего: <количество>` и `Сумма: <сумма>`, каждая с переводом строки в конце.
+
+    **Примеры.**
+
+    ```python
+    parse_int("42")             # 42
+    parse_int("abc", 0)         # 0
+    percent(1, 4)               # 25.0
+    write_report("r.txt", [1, 2, 3])   # файл: "Всего: 3\nСумма: 6\n"
+    ```
+
+    **Ограничения.** Пути относительные, программа пишет только в рабочую папку. Открывайте файлы через `with` и указывайте `encoding="utf-8"`.
+  entryFile: file_tools.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - 'Начните с parse_int и percent: это try/except и if с raise. Затем перейдите к функциям, работающим с файлами.'
+    - 'parse_int: try: return int(text) / except ValueError: return default. Перехватывайте только ValueError. percent: проверьте total == 0 до деления и вызовите raise ValueError("...").'
+    - 'read_numbers: with open(path, encoding="utf-8") as source: for line in source: ... Заведите счётчик номера строки, вызывайте strip(), пропускайте пустые, а int(...) оберните в try/except ValueError и вызовите raise ValueError(f"строка {n}: ...").'
+    - 'write_report: with open(path, "w", encoding="utf-8") as target: target.write(f"Всего: {len(numbers)}\n"), затем вторая строка с sum(numbers).'
+  tests:
+    - id: parse-basic
+      title: parse_int - обычные строки
+      hint: Корректная запись целого превращается в число, а некорректная - в значение default.
+    - id: percent-basic
+      title: percent - обычные случаи
+      hint: Результат - part / total * 100; для part равного нулю получается 0.
+    - id: read-basic
+      title: read_numbers - обычный файл
+      hint: Каждая непустая строка превращается в целое число, порядок сохраняется.
+    - id: write-report
+      title: write_report - содержимое файла
+      hint: Проверяется точный текст файла, включая переводы строк, и кодировка UTF-8.
+    - id: parse-edge
+      title: parse_int - пробелы, дробные, пустая строка (скрытый)
+      hidden: true
+      hint: int() принимает пробелы по краям и знак, но не принимает дробную запись и пустую строку - в этих случаях нужен default.
+    - id: percent-zero
+      title: percent - нулевой total (скрытый)
+      hidden: true
+      hint: При total равном нулю функция сама вызывает ValueError, а не позволяет Python упасть с ZeroDivisionError.
+    - id: read-blank
+      title: read_numbers - пустые строки и знаки (скрытый)
+      hidden: true
+      hint: Пустые строки и строки из пробелов пропускаются; числа со знаком + и - допустимы.
+    - id: read-bad-line
+      title: read_numbers - нечисловая строка (скрытый)
+      hidden: true
+      hint: Сообщение ValueError должно содержать номер строки и её текст.
+    - id: read-bad-line-number
+      title: read_numbers - номер строки с пустыми строками (скрытый)
+      hidden: true
+      hint: Номер строки - это положение в файле, поэтому пустые строки тоже считаются.
+    - id: read-missing
+      title: read_numbers - файла нет (скрытый)
+      hidden: true
+      hint: FileNotFoundError не нужно перехватывать - пусть он дойдёт до вызывающего кода.
+    - id: write-overwrites
+      title: write_report - перезапись (скрытый)
+      hidden: true
+      hint: Режим "w" очищает старое содержимое файла перед записью.

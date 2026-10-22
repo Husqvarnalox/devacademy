@@ -1,0 +1,11 @@
+id: "javascript-for-programmers"
+version: "1.0.0"
+title: "JavaScript для программистов"
+description: "Быстрый путь для тех, кто уже пишет на другом языке (Python, Java, C#, Go): три плотных урока о том, что в JavaScript устроено иначе и где чаще всего ошибаются. Типы, равенство и приведение, числа и NaN, let/const и undefined/null; массивы, сортировка, ссылки, Map и стрелочные функции; исключения и чтение stdin в Node.js. Каждый урок завершается упражнением с запуском проверок и квизом на типичные ловушки; успешное прохождение засчитывает соответствующие уроки курса «JavaScript с нуля». Это не замена курсу для начинающих: основы программирования здесь считаются известными."
+languageId: "javascript"
+level: 1
+track: "javascript"
+lessons:
+  - "01-syntax-and-control-flow"
+  - "02-collections-and-functions"
+  - "03-errors-and-input"

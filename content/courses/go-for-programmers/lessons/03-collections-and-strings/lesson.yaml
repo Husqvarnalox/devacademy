@@ -1,0 +1,172 @@
+id: "go.programmers.collections-and-strings"
+title: "Массивы, срезы, карты и строки"
+goal: "Предсказывать поведение массивов, срезов, append, карт и строк, включая совместное использование памяти, nil-значения и различие байтов и рун."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "go.programmers.functions-and-errors"
+next:
+  - "go.programmers.streams-and-text"
+objectives:
+  - "Различать значение (массив) и описатель (срез, карта)."
+  - "Объяснять, когда append меняет чужие данные, а когда создаёт копию."
+  - "Безопасно использовать nil-срезы и nil-карты."
+  - "Работать со строкой как с байтами и рунами, включая кириллицу."
+  - "Получать детерминированный результат при обходе карты."
+masteryCriteria:
+  - "wordFreq, topWords и reverseRunes проходят проверки на регистре, пунктуации, кириллице и пустом вводе."
+  - "Вы объясняете, почему результат topWords не зависит от порядка обхода карты."
+tags:
+  - "go"
+  - "programmers"
+  - "slices"
+  - "maps"
+  - "strings"
+assessmentFor:
+  - "go.first-steps.arrays"
+  - "go.first-steps.slices"
+  - "go.first-steps.range"
+  - "go.first-steps.slice-algorithms"
+  - "go.first-steps.maps"
+  - "go.first-steps.strings-and-runes"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        arr := [3]int{1, 2, 3}
+        sl := []int{1, 2, 3}
+        arr2, sl2 := arr, sl
+        arr2[0], sl2[0] = 9, 9
+        fmt.Println(arr[0], sl[0])
+        ```
+      options:
+        - "1 1"
+        - "1 9"
+        - "9 1"
+        - "9 9"
+      answer: 1
+      explanation: "Присваивание массива копирует все элементы, поэтому `arr` не меняется (1). Присваивание среза копирует только описатель, оба среза смотрят на один массив, и `sl[0]` становится 9."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        a := make([]int, 3, 4)
+        b := append(a, 1)
+        c := append(a, 2)
+        fmt.Println(b[3], c[3])
+        ```
+      options:
+        - "1 2"
+        - "2 2"
+        - "1 1"
+        - "Паника: индекс за границей"
+      answer: 1
+      explanation: "У `a` ёмкость 4, поэтому оба `append` пишут в один и тот же четвёртый элемент общего массива. Второй вызов перезаписывает значение первого, и `b[3]` тоже равно 2."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при выполнении?
+
+        ```go
+        var m map[string]int
+        m["a"]++
+        fmt.Println(m["a"])
+        ```
+      options:
+        - "Напечатает 1"
+        - "Напечатает 0"
+        - "Паника: assignment to entry in nil map"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "Чтение из nil-карты допустимо, но `m[\"a\"]++` - это запись, и она вызывает панику. Карту нужно создать через `make` или литерал."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        s := "héllo"
+        fmt.Println(len(s))
+        ```
+      options:
+        - "5"
+        - "6"
+        - "7"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "`len` возвращает число байтов. Буква `é` в UTF-8 занимает 2 байта, остальные четыре буквы - по одному, итого 6. Число символов можно получить через `utf8.RuneCountInString` или `len([]rune(s))`."
+    - id: "q5"
+      type: "single"
+      prompt: "Что верно про порядок элементов при `for k := range m` для карты?"
+      options:
+        - "Порядок вставки"
+        - "Возрастание ключей"
+        - "Порядок не определён и может меняться между запусками"
+        - "Всегда один и тот же внутри одной программы"
+      answer: 2
+      explanation: "Спецификация не обещает порядка, а реализация намеренно рандомизирует начало обхода. Для стабильного результата ключи собирают в срез и сортируют."
+exercise:
+  id: "go.programmers.collections-and-strings.exercise"
+  title: "wordFreq, topWords, reverseRunes"
+  prompt: |
+    Напишите три функции в `main.go`.
+
+    * **`wordFreq(text string) map[string]int`** - сколько раз встречается каждое слово. Слова разделяются пробельными символами (`strings.Fields`), регистр не важен (`"Go"` и `"go"` - одно слово), знаки `. , ! ? ; : " ( )` по краям слова отбрасываются; слова, ставшие пустыми, пропускаются. Работает и с кириллицей.
+    * **`topWords(freq map[string]int, n int) []string`** - не более `n` самых частых слов: сначала по убыванию частоты, при равенстве - по алфавиту. При `n <= 0` или пустой карте верните пустой срез.
+    * **`reverseRunes(s string) string`** - строка, развёрнутая по символам: `"привет"` даёт `"тевирп"`.
+
+    В заготовке есть `main`, которая читает текст до конца ввода и печатает три самых частых слова.
+
+    **Как проверяется.** Тесты вызывают функции со смешанным регистром, знаками препинания, кириллицей, пустым вводом и равными частотами. Порядок обхода карты в ответе не должен влиять на результат.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Для `wordFreq`: приведите текст к нижнему регистру (`strings.ToLower`), разбейте `strings.Fields`, у каждого слова обрежьте знаки `strings.Trim(w, \".,!?;:\\\"()\")`."
+    - "Пустые после обрезки слова пропустите (`continue`), остальные считайте: `freq[w]++` - карта сама создаёт нулевое значение."
+    - "`topWords`: соберите ключи в срез и отсортируйте `sort.Slice(keys, func(i, j int) bool { ... })`: сначала по `freq[keys[i]] > freq[keys[j]]`, при равенстве по `keys[i] < keys[j]`. Затем обрежьте до `n`."
+    - "`reverseRunes`: `r := []rune(s)`, поменяйте элементы с концов навстречу друг другу и верните `string(r)`. Разворот по байтам сломает кириллицу."
+  tests:
+    - id: "freq-basic"
+      title: "wordFreq: регистр и знаки препинания"
+      match: "TestWordFreq/mixed_case"
+      hint: "«Go go GO, go!» - одно слово go, встречающееся 4 раза."
+    - id: "reverse-basic"
+      title: "reverseRunes: латиница и кириллица"
+      match: "TestReverseRunes/cyrillic"
+      hint: "Строку нужно разворачивать по рунам, а не по байтам."
+    - id: "freq-all"
+      title: "wordFreq: кириллица, пустой ввод, пунктуация (скрытый)"
+      match: "TestWordFreq/*"
+      hidden: true
+      hint: "Проверяются кириллица, пустая строка, слова из одних знаков и кавычки по краям."
+    - id: "top-all"
+      title: "topWords: порядок, равные частоты, границы n (скрытый)"
+      match: "TestTopWords/*"
+      hidden: true
+      hint: "При равной частоте слова идут по алфавиту; n больше числа слов возвращает все слова, n <= 0 - пустой срез."
+    - id: "reverse-all"
+      title: "reverseRunes: пустая строка и составные случаи (скрытый)"
+      match: "TestReverseRunes/*"
+      hidden: true
+      hint: "Пустая строка остаётся пустой; руны разных размеров разворачиваются корректно."

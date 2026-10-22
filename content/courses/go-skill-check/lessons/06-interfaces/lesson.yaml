@@ -1,0 +1,169 @@
+id: "go.check.interfaces"
+title: "Проверка: интерфейсы"
+goal: "Определять и реализовывать интерфейсы и работать с типами значений через type switch."
+difficulty: "medium"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: определять и реализовывать интерфейсы и работать с типами значений через type switch."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "interfaces"
+assessmentFor:
+  - "go.fundamentals.interfaces"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        type E struct{}
+
+        func (*E) Error() string { return "e" }
+
+        func f() error {
+        	var p *E
+        	return p
+        }
+
+        func main() { fmt.Println(f() == nil) }
+        ```
+      options:
+        - "true"
+        - "false"
+        - "Паника"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Интерфейс хранит пару (тип, значение). Здесь тип `*E` и значение nil, поэтому интерфейс не равен `nil`. Чтобы вернуть «нет ошибки», нужно писать `return nil`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```go
+        type I interface{ M() }
+        type T struct{}
+
+        func (t *T) M() {}
+
+        var _ I = T{}
+        ```
+      options:
+        - "Скомпилируется"
+        - "Ошибка: T не реализует I (метод M имеет получателя-указатель)"
+        - "Паника при запуске"
+        - "Предупреждение"
+      answer: 1
+      explanation: "Набор методов значения `T` не включает методы с получателем `*T`. Присвоить можно `&T{}`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var v any = 3.5
+        switch x := v.(type) {
+        case int:
+        	fmt.Println("int", x)
+        case float64:
+        	fmt.Println("float64", x)
+        default:
+        	fmt.Println("other")
+        }
+        ```
+      options:
+        - "int 3"
+        - "float64 3.5"
+        - "other"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Литерал `3.5` имеет тип `float64`. В ветке `case float64` переменная `x` имеет этот же тип."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var v any = "hi"
+        n, ok := v.(int)
+        fmt.Println(n, ok)
+        ```
+      options:
+        - "0 false"
+        - "hi true"
+        - "Паника"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Форма с `ok` не вызывает панику при неудачном утверждении: возвращаются нулевое значение и `false`. Без `ok` (`v.(int)`) была бы паника."
+    - id: "q5"
+      type: "single"
+      prompt: "Что верно про реализацию интерфейса в Go?"
+      options:
+        - "Тип должен явно объявить `implements`"
+        - "Тип реализует интерфейс, если у него есть все методы интерфейса"
+        - "Интерфейс нужно регистрировать в пакете"
+        - "Реализовать интерфейс могут только структуры"
+      answer: 1
+      explanation: "Реализация неявная: достаточно методов с подходящими сигнатурами. Реализовать интерфейс может любой именованный тип, не только структура."
+exercise:
+  id: "go.check.interfaces.exercise"
+  title: "Shape и describe: интерфейс и type switch"
+  prompt: |
+    В заготовке объявлен интерфейс **`Shape`** (методы `Area() float64` и `Name() string`) и типы `Rect{W, H float64}`, `Circle{R float64}`. Допишите код в `main.go`.
+
+    * Методы **`Area`** и **`Name`** для `Rect` (площадь `W*H`, название `"rect"`) и для `Circle` (площадь `π*R²`, название `"circle"`; число π есть в пакете `math`).
+    * **`totalArea(shapes []Shape) float64`** - сумма площадей; для пустого среза `0`.
+    * **`describe(v any) string`** - строка по типу значения (используйте type switch): `nil` даёт `"nil"`; `Shape` - `"shape "` и название; `int` - `"int 42"`; `string` - `string "hi"` (с кавычками, `%q`); `error` - `"error: "` и текст ошибки; прочее - `"unknown"`.
+
+    **Как проверяется.** Тесты кладут значения в `Shape` и `any`, проверяют площади с допуском и все ветки `describe`, включая `nil` и незнакомые типы.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Методы объявляются так: `func (r Rect) Area() float64 { ... }`. Объявлять `implements` не нужно: достаточно набора методов."
+    - "`totalArea`: цикл `for _, s := range shapes` и вызов `s.Area()` для каждой фигуры."
+    - "В `describe` используйте `switch x := v.(type)`: в каждой ветке `x` имеет соответствующий тип. Ветку `case nil` поставьте первой."
+    - "Для `int` и `string` пригодится `fmt.Sprintf(\"int %d\", x)` и `fmt.Sprintf(\"string %q\", x)`; для ошибки - `x.Error()`."
+  tests:
+    - id: "shapes-basic"
+      title: "Rect реализует Shape"
+      match: "TestShapes/rect"
+      hint: "Площадь прямоугольника - произведение сторон, название - rect."
+    - id: "total-basic"
+      title: "totalArea: смешанные фигуры"
+      match: "TestTotalArea/mixed"
+      hint: "Площади разных типов суммируются через интерфейс."
+    - id: "shapes-all"
+      title: "Площадь круга и название (скрытый)"
+      match: "TestShapes/*"
+      hidden: true
+      hint: "Площадь круга - π*R*R, название - circle."
+    - id: "total-all"
+      title: "totalArea: пустой срез (скрытый)"
+      match: "TestTotalArea/*"
+      hidden: true
+      hint: "Для пустого и nil-среза результат 0."
+    - id: "describe-all"
+      title: "describe: все ветки type switch (скрытый)"
+      match: "TestDescribe/*"
+      hidden: true
+      hint: "Проверяются nil, Shape, int, string, error и неизвестные типы; значение nil должно обрабатываться отдельной веткой."

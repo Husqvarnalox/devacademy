@@ -1,0 +1,198 @@
+id: "go.programmers.syntax-and-control-flow"
+title: "Синтаксис и управление потоком"
+goal: "Писать базовые программы на Go, избегая типичных ловушек: неиспользуемых переменных, неявных преобразований, целочисленного деления и затенения через :=."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "go.programmers.functions-and-errors"
+objectives:
+  - "Объяснить, чем компиляция Go и его строгие правила отличаются от Python, Java, JavaScript и C#."
+  - "Предсказывать результат целочисленного деления, затенения переменных и переполнения."
+  - "Использовать for в трёх формах и switch без проваливания."
+  - "Приводить числовые типы явно."
+masteryCriteria:
+  - "digitSum, collatzSteps, classify и ratio проходят все проверки, включая край 0 и деление на ноль."
+  - "Вы без запуска определяете, скомпилируется ли код с неиспользуемой переменной или смешением int и float64."
+tags:
+  - "go"
+  - "programmers"
+  - "syntax"
+assessmentFor:
+  - "go.first-steps.first-program"
+  - "go.first-steps.compiler-errors"
+  - "go.first-steps.output"
+  - "go.first-steps.variables"
+  - "go.first-steps.basic-types"
+  - "go.first-steps.arithmetic"
+  - "go.first-steps.reading-input"
+  - "go.first-steps.type-conversion"
+  - "go.first-steps.formatted-output"
+  - "go.first-steps.constants-and-comments"
+  - "go.first-steps.comparison-and-logic"
+  - "go.first-steps.if-else"
+  - "go.first-steps.switch"
+  - "go.first-steps.for-loop"
+  - "go.first-steps.loop-control"
+  - "go.first-steps.nested-loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции этого кода?
+
+        ```go
+        package main
+
+        import (
+        	"fmt"
+        	"strings"
+        )
+
+        func main() {
+        	fmt.Println("привет")
+        }
+        ```
+      options:
+        - "Программа напечатает «привет»"
+        - "Ошибка компиляции: пакет strings импортирован, но не используется"
+        - "Предупреждение, программа всё равно запустится"
+        - "Ошибка во время выполнения"
+      answer: 1
+      explanation: "В Go неиспользуемый импорт - ошибка компиляции, а не предупреждение. Программа не будет собрана, пока импорт не удалят или не используют."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        fmt.Println(-7/2, -7%2)
+        ```
+      options:
+        - "-4 1"
+        - "-3 -1"
+        - "-3.5 -1"
+        - "-4 -1"
+      answer: 1
+      explanation: "Деление целых в Go округляется к нулю: -7/2 равно -3. Остаток имеет знак делимого, поэтому -7%2 равно -1. Вариант «-4 1» - результат деления с округлением вниз, как в Python."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        x := 1
+        if true {
+        	x := 2
+        	x++
+        }
+        fmt.Println(x)
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "Ошибка компиляции: x объявлена повторно"
+      answer: 0
+      explanation: "Внутри блока `x := 2` создаёт новую переменную, которая затеняет внешнюю. `x++` меняет только внутреннюю; внешняя остаётся равной 1. Повторного объявления нет, потому что это другой блок."
+    - id: "q4"
+      type: "single"
+      prompt: "Какой вариант компилируется, если `n` имеет тип `int`, а `price` - `float64`?"
+      options:
+        - "`total := n * price`"
+        - "`total := float64(n) * price`"
+        - "`total := n * int(price) + 0.5`"
+        - "`total := n * price.(float64)`"
+      answer: 1
+      explanation: "Типы нужно приводить явно: `float64(n) * price` корректно. `n * price` не компилируется из-за несовпадения типов. В третьем варианте `0.5` не может быть значением `int`. Запись `.(float64)` применима только к значениям интерфейсного типа."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        switch n := 2; n {
+        case 1:
+        	fmt.Println("один")
+        case 2:
+        	fmt.Println("два")
+        	fallthrough
+        case 3:
+        	fmt.Println("три")
+        case 4:
+        	fmt.Println("четыре")
+        }
+        ```
+      options:
+        - "два"
+        - "два, затем три"
+        - "два, три, четыре"
+        - "Ошибка компиляции: fallthrough недопустим"
+      answer: 1
+      explanation: "`fallthrough` передаёт управление в следующую ветку без проверки её условия, поэтому после «два» выполняется «три». Дальше `switch` завершается: «четыре» не печатается, потому что в ветке `case 3` нет своего `fallthrough`."
+exercise:
+  id: "go.programmers.syntax-and-control-flow.exercise"
+  title: "digitSum, collatzSteps, classify, ratio"
+  prompt: |
+    Напишите четыре функции в `main.go`. Они проверяют целочисленное деление, цикл `for` в роли `while`, `switch` без выражения и явное приведение типов.
+
+    * **`digitSum(n int) int`** - сумма десятичных цифр неотрицательного `n`. `digitSum(1234)` возвращает `10`, `digitSum(0)` - `0`.
+    * **`collatzSteps(n int) int`** - сколько шагов нужно, чтобы довести `n >= 1` до `1`: чётное число делится на 2, нечётное заменяется на `3*n+1`. `collatzSteps(6)` возвращает `8` (6, 3, 10, 5, 16, 8, 4, 2, 1), `collatzSteps(1)` - `0`.
+    * **`classify(n int) string`** - `"negative"` для отрицательных, `"zero"` для нуля, `"even"` для чётных положительных, `"odd"` для нечётных положительных.
+    * **`ratio(a, b int) float64`** - дробное частное `a / b` (`ratio(7, 2)` возвращает `3.5`). Если `b == 0`, верните `0`.
+
+    В заготовке уже есть `main`, читающая число и печатающая результаты первых трёх функций.
+
+    **Как проверяется.** Кнопка «Проверить» вызывает функции с набором значений, включая нуль, отрицательные числа и значения, где целочисленное деление дало бы другой результат.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Все четыре функции небольшие. Начните с `digitSum`: нужно по очереди получать последнюю цифру и отбрасывать её."
+    - "Последняя цифра - `n % 10`, число без неё - `n / 10`. Цикл `for n > 0 { ... }` работает как `while`."
+    - "Для `classify` удобен `switch` без выражения: `case n < 0:`, `case n == 0:`, `case n%2 == 0:`, `default:`."
+    - "В `ratio` преобразуйте оба операнда: `float64(a) / float64(b)`. Деление целых даст `3`, а не `3.5`."
+  tests:
+    - id: "digit-sum"
+      title: "digitSum: типичные числа"
+      match: "TestDigitSum/four_digits"
+      hint: "Суммируются все цифры: 1234 даёт 1+2+3+4."
+    - id: "ratio-half"
+      title: "ratio: дробный результат"
+      match: "TestRatio/half"
+      hint: "Операнды нужно привести к float64 до деления."
+    - id: "digit-sum-all"
+      title: "digitSum: нуль, нули в конце, длинные числа (скрытый)"
+      match: "TestDigitSum/*"
+      hidden: true
+      hint: "Проверяются 0, числа с нулями (1000) и девятки; цикл должен корректно завершаться на нуле."
+    - id: "collatz-all"
+      title: "collatzSteps: нуль шагов и длинные цепочки (скрытый)"
+      match: "TestCollatzSteps/*"
+      hidden: true
+      hint: "Для 1 шагов нет; для 27 цепочка из 111 шагов - используйте `for n != 1`."
+    - id: "classify-all"
+      title: "classify: все четыре случая (скрытый)"
+      match: "TestClassify/*"
+      hidden: true
+      hint: "Порядок проверок важен: отрицательные нечётные должны дать negative, а не odd."
+    - id: "ratio-all"
+      title: "ratio: деление на ноль и знаки (скрытый)"
+      match: "TestRatio/*"
+      hidden: true
+      hint: "При b == 0 верните 0 без паники; отрицательные операнды должны давать отрицательное частное."

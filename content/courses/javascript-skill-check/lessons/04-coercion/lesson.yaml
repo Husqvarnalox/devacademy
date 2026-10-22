@@ -1,0 +1,139 @@
+id: "javascript.check.coercion"
+title: "Проверка: типы, приведение и равенство"
+goal: "Предсказывать приведения типов и сравнения в JavaScript и писать строгие функции разбора и сравнения."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: предсказывать приведения типов и сравнения и писать строгие функции разбора и сравнения."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "coercion"
+assessmentFor:
+  - "javascript.first-steps.values-and-equality"
+  - "javascript.fundamentals.types-and-coercion"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(1 + "2" + 3, 1 + 2 + "3", "3" * "4");
+        ```
+      options:
+        - "123 33 12"
+        - "6 33 12"
+        - "123 123 34"
+        - "123 33 NaN"
+      answer: 0
+      explanation: "Оператор + идёт слева направо: как только один операнд строка, происходит конкатенация. 1 + 2 даёт 3 до встречи со строкой, поэтому второе значение - \"33\". Оператор * всегда переводит операнды в числа, и \"3\" * \"4\" равно 12."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(null == 0, null >= 0, undefined == null);
+        ```
+      options:
+        - "false true true"
+        - "true true true"
+        - "false false true"
+        - "true true false"
+      answer: 0
+      explanation: "Оператор == считает null равным только undefined (и самому себе), поэтому null == 0 ложно. А операторы отношения >= приводят null к числу 0, и null >= 0 истинно."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([] == ![], NaN === NaN, Object.is(0, -0));
+        ```
+      options:
+        - "true false false"
+        - "false false true"
+        - "true true false"
+        - "false true false"
+      answer: 0
+      explanation: "![] даёт false, а [] == false: пустой массив превращается в строку \"\", затем в число 0, и 0 == 0 истинно. NaN не равен даже самому себе. Object.is различает 0 и -0, но здесь сравниваются 0 и -0, поэтому результат false."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const o = { valueOf() { return 10; }, toString() { return "s"; } };
+        console.log(o + 1, `${o}`, o * 2);
+        ```
+      options:
+        - "11 s 20"
+        - "s1 s 20"
+        - "11 10 20"
+        - "s1 s NaN"
+      answer: 0
+      explanation: "При операторах + и * объект приводится к примитиву с подсказкой default или number, и первым вызывается valueOf. Шаблонная строка просит строку (подсказка string), поэтому вызывается toString."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(parseInt("08px"), Number("08px"), Number(" 12 "), +[]);
+        ```
+      options:
+        - "8 NaN 12 0"
+        - "8 8 12 NaN"
+        - "NaN NaN 12 0"
+        - "0 NaN NaN 0"
+      answer: 0
+      explanation: "parseInt читает ведущие цифры и останавливается на первом лишнем символе, а Number требует, чтобы вся строка была числом. Пробелы по краям игнорируются, а пустой массив даёт пустую строку и затем 0."
+exercise:
+  id: "javascript.check.coercion.exercise"
+  title: "Строгий разбор и сравнение"
+  prompt: |
+    В файле `coercion_check.mjs` реализуйте три экспортируемые функции.
+
+    1. `parseIntStrict(text)` - разбирает целое число из строки. Допустимы необязательный знак `+` или `-`, цифры и пробелы по краям. Возвращает число, если оно безопасное целое (`Number.isSafeInteger`), иначе `null`. `null` получают также не-строки, пустая строка, `"12px"`, `"1.5"`, `"1e3"`, `"0x10"`, `"9007199254740993"`. Результат для `"-0"` - `0` (не `-0`).
+    2. `sameValueZero(a, b)` - сравнение как у `Array.prototype.includes`: как `===`, но `NaN` равен `NaN`. Значения `0` и `-0` равны. Типы не приводятся: `sameValueZero(1, "1")` - `false`.
+    3. `parseBool(value)` - превращает «похожее на логическое» значение в `true`/`false`, а остальное в `null`. Булево возвращается как есть. Строка (без учёта регистра и пробелов по краям): `"true"`, `"yes"`, `"1"` дают `true`; `"false"`, `"no"`, `"0"` дают `false`. Число: `1` - `true`, `0` и `-0` - `false`. Всё прочее (другие строки и числа, `null`, массивы, объекты) - `null`.
+
+    Не используйте `==`. Часть тестов скрыта: в них граничные случаи.
+  entryFile: "coercion_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Для parseIntStrict сначала проверьте typeof text === \"string\", затем регулярное выражение для знака и цифр, и только потом превращайте строку в число."
+    - "Регулярное выражение /^[+-]?\\d+$/ применяйте к text.trim(). Не забудьте Number.isSafeInteger и замену -0 на 0 (например, n + 0 или Object.is(n, -0) ? 0 : n)."
+    - "sameValueZero: a === b || (Number.isNaN(a) && Number.isNaN(b)). Number.isNaN, в отличие от глобального isNaN, не приводит аргумент к числу."
+    - "parseBool: сначала typeof value, затем для строки нормализуйте value.trim().toLowerCase() и сверяйте со списками. Для числа сравнивайте строго: value === 1 и value === 0 (последнее верно и для -0)."
+  tests:
+    - id: "parse-basic"
+      title: "parseIntStrict - обычные строки"
+      hint: "Строка из цифр с необязательным знаком и пробелами по краям - число, а \"12px\" - null."
+    - id: "same-basic"
+      title: "sameValueZero - обычные значения"
+      hint: "Одинаковые примитивы равны, значения разных типов не равны."
+    - id: "bool-basic"
+      title: "parseBool - строки и булевы"
+      hint: "Булево значение возвращайте как есть; строки \"true\"/\"false\" разбирайте без учёта регистра."
+    - id: "parse-edge"
+      title: "parseIntStrict - граничные строки (скрытый)"
+      hidden: true
+      hint: "Number(\"\") равно 0, а Number(\"1.5\") и Number(\"0x10\") - числа. Проверяйте формат регулярным выражением и безопасность целого через Number.isSafeInteger. Для \"-0\" верните 0."
+    - id: "same-edge"
+      title: "sameValueZero - NaN, нули и ссылки (скрытый)"
+      hidden: true
+      hint: "NaN должен быть равен NaN, 0 равен -0; два разных объекта, как и \"1\" и 1, не равны."
+    - id: "bool-edge"
+      title: "parseBool - число, регистр и мусор (скрытый)"
+      hidden: true
+      hint: "Число 2 и строка \"maybe\" дают null; пустая строка не булево значение; массивы вроде [1] нельзя приводить через ==."

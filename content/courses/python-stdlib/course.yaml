@@ -9,7 +9,7 @@ description: >-
 languageId: python
 level: 3
 track: python
-requires: [python-fundamentals]
+requires: [python-fundamentals, python-advanced]
 lessons:
   - 01-collections
   - 02-heapq-and-bisect

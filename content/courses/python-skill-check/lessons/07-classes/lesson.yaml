@@ -1,0 +1,199 @@
+id: "python.check.classes"
+title: "Проверка: классы, dataclass и протоколы"
+goal: "Проектировать небольшие классы: dataclass со сравнением, неизменяемость, методы класса и специальные методы."
+difficulty: "hard"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: проектировать небольшие классы: dataclass со сравнением, неизменяемость, методы класса и специальные методы."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "python"
+  - "check"
+  - "classes"
+assessmentFor:
+  - "python.advanced.classes-and-objects"
+  - "python.advanced.dunder-methods-and-dataclasses"
+  - "python.advanced.inheritance-composition-protocols"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        class A:
+            items = []
+            def __init__(self):
+                self.items.append(1)
+
+        A()
+        A()
+        print(len(A.items))
+        ```
+      options:
+        - "1"
+        - "2"
+        - "0"
+        - "Ошибка AttributeError"
+      answer: 1
+      explanation: "items - атрибут класса, а не экземпляра: self.items находит его через класс, и оба конструктора дополняют один и тот же список."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        from dataclasses import dataclass
+
+        @dataclass
+        class P:
+            x: int
+            y: int = 0
+
+        print(P(1) == P(1, 0), P(1))
+        ```
+      options:
+        - "True P(x=1, y=0)"
+        - "False P(x=1, y=0)"
+        - "True <P object>"
+        - "Ошибка TypeError"
+      answer: 0
+      explanation: "dataclass генерирует __init__, __repr__ и __eq__ по полям: объекты с равными полями равны, а repr показывает имена полей."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        class A:
+            def hi(self):
+                return "A"
+
+        class B(A):
+            def hi(self):
+                return "B" + super().hi()
+
+        class C(A):
+            def hi(self):
+                return "C" + super().hi()
+
+        class D(B, C):
+            pass
+
+        print(D().hi(), [k.__name__ for k in D.__mro__])
+        ```
+      options:
+        - "BA ['D', 'B', 'A', 'object']"
+        - "BCA ['D', 'B', 'C', 'A', 'object']"
+        - "BAC ['D', 'B', 'A', 'C', 'object']"
+        - "CBA ['D', 'C', 'B', 'A', 'object']"
+      answer: 1
+      explanation: "Порядок разрешения методов (MRO) линеаризует иерархию: D, B, C, A, object. super() в B передаёт управление следующему классу в MRO, то есть C, а не A."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        class K:
+            def __init__(self, v):
+                self.v = v
+            def __eq__(self, other):
+                return self.v == other.v
+
+        try:
+            {K(1)}
+        except TypeError:
+            print("unhashable")
+        else:
+            print("ok")
+        ```
+      options:
+        - "ok"
+        - "unhashable"
+        - "Ошибка AttributeError"
+        - "Ничего не выведется"
+      answer: 1
+      explanation: "Если класс определяет __eq__, но не определяет __hash__, Python устанавливает __hash__ в None, и экземпляры становятся нехешируемыми."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        class T:
+            def __init__(self):
+                self._c = 0
+            @property
+            def c(self):
+                return self._c
+
+        t = T()
+        try:
+            t.c = 5
+        except AttributeError:
+            print("read-only")
+        print(t.c)
+        ```
+      options:
+        - "read-only, затем 0"
+        - "read-only, затем 5"
+        - "5"
+        - "0"
+      answer: 0
+      explanation: "Свойство без сеттера доступно только для чтения: присваивание вызывает AttributeError. Значение _c остаётся нулём."
+exercise:
+  id: "python.check.classes.exercise"
+  title: "Неизменяемая версия ПО"
+  prompt: |
+    В файле `classes_check.py` опишите неизменяемый класс версии ПО и две вспомогательные функции.
+
+    1. Класс `Version` - **dataclass**: неизменяемый (`frozen`), с упорядочиванием по полям (`order`), поля `major: int`, `minor: int = 0`, `patch: int = 0`. Версии должны сравниваться по полям слева направо (`Version(1, 2, 3) < Version(1, 10, 0)`), быть равными при равных полях и годиться в множества и ключи словарей.
+    2. `Version.parse(text)` - метод класса: из строки вида `"1.2.3"` создаёт версию. Строка должна состоять ровно из трёх неотрицательных целых через точку; иначе `ValueError`.
+    3. `str(version)` возвращает `"1.2.3"`.
+    4. `version.bump(part)` - возвращает **новую** версию: `"major"` увеличивает первую часть и обнуляет остальные, `"minor"` увеличивает вторую и обнуляет третью, `"patch"` увеличивает третью. Другое значение `part` - `ValueError`.
+    5. `latest(versions)` - наибольшая версия из итерируемого объекта или `None`, если он пуст.
+  entryFile: "classes_check.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Версия - это значение: опишите её как dataclass с параметрами frozen=True и order=True."
+    - "parse - метод класса (@classmethod): разбейте строку по точкам, проверьте число частей и p.isdigit(), создайте cls(*числа). bump возвращает новый объект (dataclasses.replace(self, patch=...))."
+    - "Каркас: @dataclass(frozen=True, order=True) class Version: major: int; minor: int = 0; patch: int = 0 (каждое поле на своей строке). latest: max(versions, default=None). __str__ возвращает f\"{self.major}.{self.minor}.{self.patch}\"."
+  tests:
+    - id: "basic"
+      title: "Version - поля, str и parse"
+      hint: "Поля major, minor, patch; parse разбивает строку по точкам и создаёт версию; __str__ склеивает их через точку."
+    - id: "order"
+      title: "Version - сравнение и сортировка"
+      hint: "order=True в @dataclass сравнивает поля по порядку объявления как числа."
+    - id: "is-dataclass"
+      title: "Version - это dataclass (скрытый)"
+      hidden: true
+      hint: "Примените декоратор @dataclass; repr генерируется автоматически."
+    - id: "equal-hash"
+      title: "Version - равенство и хеш (скрытый)"
+      hidden: true
+      hint: "frozen=True вместе с eq=True (по умолчанию) делает экземпляры хешируемыми."
+    - id: "frozen"
+      title: "Version - неизменяемость (скрытый)"
+      hidden: true
+      hint: "Добавьте frozen=True в параметры @dataclass."
+    - id: "parse-errors"
+      title: "Version.parse - некорректные строки (скрытый)"
+      hidden: true
+      hint: "Ровно три части из цифр; пустые части, знак минус и пробелы дают ValueError."
+    - id: "bump"
+      title: "Version.bump - новая версия (скрытый)"
+      hidden: true
+      hint: "Возвращайте новый объект (dataclasses.replace или конструктор), а не меняйте self; сброс младших частей при major и minor."
+    - id: "latest"
+      title: "latest - наибольшая версия (скрытый)"
+      hidden: true
+      hint: "max(versions, default=None) работает с любым итерируемым объектом."

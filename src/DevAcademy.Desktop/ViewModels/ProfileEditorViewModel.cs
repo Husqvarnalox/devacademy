@@ -36,7 +36,9 @@ public sealed partial class ProfileEditorViewModel : ObservableObject
         Languages = new ObservableCollection<TrackChoiceViewModel>(
             tracks.Where(t => t.Kind == TrackKind.Language).Select(t => new TrackChoiceViewModel(t, PickLanguage)));
         Goals = GoalIds.Select(g => new Choice<string>(g, Loc.T("Goal_" + g)) { Description = Loc.T("GoalHint_" + g) }).ToList();
-        Levels = Enumerable.Range(0, 4).Select(l => new Choice<int>(l, Loc.T("Level_" + l)) { Description = Loc.T("LevelHint_" + l) }).ToList();
+        // Prior knowledge (Prior_N), not the course level scale (Level_N): it picks a starting point, never what counts as known.
+        Levels = Enumerable.Range(PriorKnowledge.AbsoluteBeginner, PriorKnowledge.Advanced + 1)
+            .Select(l => new Choice<int>(l, Loc.T("Prior_" + l)) { Description = Loc.T("PriorHint_" + l) }).ToList();
         Depths = Enum.GetValues<LearningDepth>().Select(d => new Choice<LearningDepth>(d, Loc.T("Depth_" + d)) { Description = Loc.T("DepthHint_" + d) }).ToList();
 
         SelectedGoal = Goals.FirstOrDefault(g => g.Value == profile?.Goal) ?? Goals[0];

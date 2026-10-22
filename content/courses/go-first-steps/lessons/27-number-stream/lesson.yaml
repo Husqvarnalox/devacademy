@@ -1,0 +1,195 @@
+id: "go.first-steps.number-stream"
+formerIds:
+  - "go.first-steps.how-go-runs"
+title: "Поток чисел: bufio и int64"
+goal: "Прочитать большой поток чисел через bufio.Reader и fmt.Fscan и посчитать по нему статистику, не потеряв точность при больших суммах."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "go.first-steps.strings-and-runes"
+objectives:
+  - "Оборачивать стандартный ввод в bufio.NewReader(os.Stdin) и читать значения через fmt.Fscan(reader, &x)."
+  - "Объяснять, зачем нужна буферизация при чтении больших объёмов данных."
+  - "Использовать int64 для сумм и объяснять тихое переполнение целых типов."
+  - "Считать сумму, минимум, максимум и среднее за один проход."
+masteryCriteria:
+  - "Программа читает n чисел, разбросанных по строкам и разделённых любым количеством пробелов."
+  - "Сумма двух чисел по 2 000 000 000 печатается верно, без переполнения."
+  - "Минимум и максимум верны для отрицательных чисел, среднее печатается с двумя знаками после точки."
+concepts:
+  introduces:
+    - "go.bufio-reader"
+    - "go.int64-overflow"
+  uses:
+    - "go.scan"
+    - "go.import"
+    - "go.int"
+    - "go.float64"
+    - "go.type-conversion"
+    - "go.printf"
+    - "go.for-loop"
+    - "go.if"
+    - "go.comparison"
+    - "go.logical-operators"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.assignment"
+    - "go.arithmetic"
+    - "go.multiple-returns"
+    - "go.error-value"
+related:
+  - "go.first-steps.reading-input"
+next:
+  - "go.first-steps.text-lines"
+tags:
+  - "go"
+  - "bufio"
+  - "stdin"
+  - "int64"
+  - "overflow"
+facts:
+  - kind: "internals"
+    text: "Тип int в Go имеет размер платформы (32 или 64 бита), а int32 и int64 имеют фиксированный размер; переполнение целых по спецификации «заворачивается» без ошибки."
+    sources:
+      - "https://go.dev/ref/spec#Integer_overflow"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var a int32 = 2000000000
+        fmt.Println(a + a)
+        ```
+      options:
+        - "4000000000"
+        - "-294967296"
+        - "Ошибка компиляции"
+        - "Паника при запуске"
+      answer: 1
+      explanation: "int32 вмещает числа примерно до 2,1 миллиарда. Сумма 4 000 000 000 не помещается и молча «заворачивается» в отрицательное число. Ни ошибки, ни паники нет."
+    - id: "q2"
+      type: "single"
+      prompt: "Как правильно прочитать число x через буферизованный ввод?"
+      options:
+        - "fmt.Fscan(in, x)"
+        - "fmt.Fscan(in, &x)"
+        - "in.Scan(&x)"
+        - "fmt.Scan(in, &x)"
+      answer: 1
+      explanation: "Первым аргументом Fscan идёт источник данных (читатель in), дальше адреса переменных. Без & Fscan вернёт ошибку type not a pointer: функция не знает, куда записать значение."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Почему не компилируется этот код?
+
+        ```go
+        var sum int64
+        n := 5
+        sum = sum + n
+        ```
+      options:
+        - "sum нужно объявить через :="
+        - "Типы int64 и int различаются, а Go не смешивает их без явного приведения."
+        - "n не может быть равно 5."
+        - "int64 нельзя складывать."
+      answer: 1
+      explanation: "Компилятор: invalid operation: sum + n (mismatched types int64 and int). Нужно привести: sum + int64(n)."
+    - id: "q4"
+      type: "single"
+      prompt: 'Что делает fmt.Printf("%.2f", float64(sum)/float64(n))?'
+      options:
+        - "Печатает среднее с двумя знаками после точки; деление идёт дробным."
+        - "Округляет среднее до целого."
+        - "Печатает целое частное."
+        - "Ничего: Printf не печатает числа с дробной частью."
+      answer: 0
+      explanation: "Приведение к float64 до деления сохраняет дробную часть, а %.2f печатает ровно два знака после десятичной точки (точка не зависит от настроек системы)."
+    - id: "q5"
+      type: "single"
+      prompt: "Для чего нужен bufio.NewReader(os.Stdin) при большом вводе?"
+      options:
+        - "Он читает данные порциями в буфер, и обращений к системе становится гораздо меньше."
+        - "Он проверяет числа на корректность."
+        - "Он преобразует ввод в int64."
+        - "Он сортирует данные."
+      answer: 0
+      explanation: "fmt.Scan читает напрямую и вызывает систему для небольших порций, что медленно на тысячах значений. Буферизованный читатель забирает много байтов сразу и отдаёт их по мере чтения."
+exercise:
+  id: "go.first-steps.how-go-runs.exercise"
+  title: "Статистика по числам из stdin"
+  prompt: |
+
+    Программа получает на вход число `n` (1 <= n <= 1000), а затем `n` целых чисел, каждое из которых по модулю не больше 2 000 000 000.
+    Числа могут быть разбросаны по строкам как угодно и разделены любым количеством пробелов и переводов строк.
+
+    Выведите ровно четыре строки:
+
+    ```
+    sum=<сумма>
+    min=<наименьшее>
+    max=<наибольшее>
+    avg=<среднее арифметическое с двумя знаками после точки>
+    ```
+
+    **Пример.** Ввод `4` и затем `1 2 3 4` даёт
+
+    ```
+    sum=10
+    min=1
+    max=4
+    avg=2.50
+    ```
+
+    Среднее печатайте с точкой как десятичным разделителем, независимо от региональных настроек системы.
+    Сумма может не поместиться в 32 бита, учитывайте это.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Оберните stdin: in := bufio.NewReader(os.Stdin). fmt.Fscan(in, &n) читает n, а fmt.Fscan(in, &x) - очередное число; переводы строк и пробелы пропускаются."
+    - "Сумму и сами числа храните в int64: 4000000000 не поместится в int32."
+    - "Для первого числа сразу задайте min и max (проверка i == 0), чтобы отрицательные числа работали."
+    - "Среднее: float64(sum)/float64(n), формат %.2f. fmt всегда печатает точку."
+  tests:
+    - id: "basic"
+      title: "Числа в одной строке"
+      stdin: "4\n1 2 3 4\n"
+      expected: "sum=10\nmin=1\nmax=4\navg=2.50\n"
+      hint: "Нужны четыре строки sum=, min=, max=, avg=."
+    - id: "lines"
+      title: "Числа на разных строках"
+      stdin: "3\n10\n20\n30\n"
+      expected: "sum=60\nmin=10\nmax=30\navg=20.00\n"
+      hint: "fmt.Fscan пропускает переводы строк между числами."
+    - id: "single"
+      title: "Одно число"
+      stdin: "1\n7\n"
+      expected: "sum=7\nmin=7\nmax=7\navg=7.00\n"
+      hint: "При n = 1 min, max и sum совпадают, avg = 7.00."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "5\n-3 -1 -4 -1 -5\n"
+      expected: "sum=-14\nmin=-5\nmax=-1\navg=-2.80\n"
+      hidden: true
+      hint: "min и max нельзя начинать с 0."
+    - id: "whitespace"
+      title: "Лишние пробелы и пустые строки (скрытый)"
+      stdin: "3\n  5   2\n\n 2\n"
+      expected: "sum=9\nmin=2\nmax=5\navg=3.00\n"
+      hidden: true
+      hint: "fmt.Fscan пропускает лишние пробелы и пустые строки."
+    - id: "rounding"
+      title: "Округление среднего (скрытый)"
+      stdin: "3\n1 2 2\n"
+      expected: "sum=5\nmin=1\nmax=2\navg=1.67\n"
+      hidden: true
+      hint: "Приведите к float64 до деления: 5/3 даёт 1.67."
+    - id: "big-sum"
+      title: "Сумма больше 32-битного диапазона (скрытый)"
+      stdin: "2\n2000000000 2000000000\n"
+      expected: "sum=4000000000\nmin=2000000000\nmax=2000000000\navg=2000000000.00\n"
+      hidden: true
+      hint: "Сумма 4000000000 не помещается в int32. Используйте int64."

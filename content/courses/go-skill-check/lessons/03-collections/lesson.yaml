@@ -1,0 +1,162 @@
+id: "go.check.collections"
+title: "Проверка: срезы, карты и строки"
+goal: "Предсказывать поведение срезов, карт и строк и писать функции над ними."
+difficulty: "medium"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: предсказывать поведение срезов, карт и строк и писать функции над ними."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "slices"
+  - "maps"
+  - "strings"
+assessmentFor:
+  - "go.first-steps.arrays"
+  - "go.first-steps.slices"
+  - "go.first-steps.range"
+  - "go.first-steps.slice-algorithms"
+  - "go.first-steps.maps"
+  - "go.first-steps.strings-and-runes"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        s := []int{1, 2, 3}
+        t := s[1:]
+        t[0] = 9
+        fmt.Println(s)
+        ```
+      options:
+        - "[1 2 3]"
+        - "[1 9 3]"
+        - "[9 2 3]"
+        - "[1 9]"
+      answer: 1
+      explanation: "`t` смотрит на тот же массив, что и `s`, начиная со второго элемента. Запись `t[0]` меняет `s[1]`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var s []int
+        s = append(s, 1)
+        fmt.Println(len(s), s == nil)
+        ```
+      options:
+        - "0 true"
+        - "1 true"
+        - "1 false"
+        - "Паника"
+      answer: 2
+      explanation: "`append` к nil-срезу допустим и создаёт новый массив. После него срез не nil, длина равна 1."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        fmt.Println(len("日本"))
+        ```
+      options:
+        - "2"
+        - "6"
+        - "4"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "`len` считает байты. Каждый из этих иероглифов занимает 3 байта в UTF-8."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        for i := range "бa" {
+        	fmt.Print(i, ";")
+        }
+        ```
+      options:
+        - "0;1;"
+        - "0;2;"
+        - "1;2;"
+        - "0;"
+      answer: 1
+      explanation: "`range` по строке выдаёт байтовые индексы начала символов. Буква «б» занимает 2 байта, поэтому следующий символ начинается с индекса 2."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        m := map[string]int{"a": 1}
+        v, ok := m["b"]
+        fmt.Println(v, ok)
+        ```
+      options:
+        - "0 false"
+        - "nil false"
+        - "1 true"
+        - "Паника: ключ не найден"
+      answer: 0
+      explanation: "Для отсутствующего ключа карта возвращает нулевое значение типа, а `ok` равно `false`. Паники нет."
+exercise:
+  id: "go.check.collections.exercise"
+  title: "groupByRuneLen и chunk"
+  prompt: |
+    Напишите две функции в `main.go`.
+
+    * **`groupByRuneLen(words []string) map[int][]string`** - группирует слова по числу **символов** (не байтов). Внутри группы слова идут в исходном порядке. Для пустого ввода верните пустую карту.
+    * **`chunk(items []int, size int) [][]int`** - режет срез на куски по `size` элементов; последний кусок может быть короче. При `size <= 0` или пустом `items` верните пустой срез срезов (без паники).
+
+    Пример: `chunk([]int{1,2,3,4,5}, 2)` возвращает `[[1 2] [3 4] [5]]`; `groupByRuneLen([]string{"go","я","да"})` возвращает карту `1: [я], 2: [go да]`.
+
+    **Как проверяется.** Тесты проверяют порядок слов, кириллицу, остаток при разрезании и неверные размеры.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "В `groupByRuneLen` длину слова в символах даёт `utf8.RuneCountInString(w)` (пакет `unicode/utf8`)."
+    - "Группу дополняйте `groups[n] = append(groups[n], w)`: отсутствующий ключ даёт nil-срез, к которому `append` применим."
+    - "В `chunk` идите циклом `for start := 0; start < len(items); start += size` и берите `items[start:end]`."
+    - "Не забудьте ограничить `end` длиной `items`, а размер `<= 0` обработайте до цикла, иначе цикл не завершится."
+  tests:
+    - id: "group-basic"
+      title: "groupByRuneLen: группы и порядок"
+      match: "TestGroupByRuneLen/groups"
+      hint: "Слова одной длины сохраняют исходный порядок."
+    - id: "chunk-basic"
+      title: "chunk: с остатком"
+      match: "TestChunk/remainder"
+      hint: "Последний кусок короче остальных."
+    - id: "group-all"
+      title: "groupByRuneLen: пустой ввод и руны (скрытый)"
+      match: "TestGroupByRuneLen/*"
+      hidden: true
+      hint: "Длина измеряется в символах: «привет» - 6, а не 12."
+    - id: "chunk-all"
+      title: "chunk: размеры за границами (скрытый)"
+      match: "TestChunk/*"
+      hidden: true
+      hint: "size <= 0 и пустой срез дают пустой результат; size больше длины даёт один кусок."

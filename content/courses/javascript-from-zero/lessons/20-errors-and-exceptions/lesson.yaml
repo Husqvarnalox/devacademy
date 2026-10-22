@@ -1,0 +1,168 @@
+id: "javascript.from-zero.errors-and-exceptions"
+title: "Ошибки и исключения"
+goal: "Сообщать о неверных данных командой throw и обрабатывать такие сообщения конструкцией try/catch."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "javascript.from-zero.arrays-of-objects"
+objectives:
+  - "Бросить ошибку командой throw new Error с понятным сообщением."
+  - "Перехватить ошибку конструкцией try/catch и прочитать её сообщение через e.message."
+  - "Объяснить, что происходит с кодом после throw и как выполнение продолжается после catch."
+  - "Проверить входные данные функции в начале и отказаться работать с неверными."
+masteryCriteria:
+  - "Функции бросают именно Error с заданным текстом сообщения, а не возвращают текст ошибки."
+  - "isValidAge и safeDivide не позволяют ошибке выйти наружу."
+  - "Корректные значения (ноль, граничные 0 и 150) принимаются."
+concepts:
+  introduces:
+    - "js.throw"
+    - "js.try-catch"
+  uses:
+    - "js.function"
+    - "js.parameter"
+    - "js.return"
+    - "js.if"
+    - "js.comparison"
+    - "js.logical-operators"
+    - "js.typeof"
+    - "js.concatenation"
+    - "js.array"
+    - "js.error-message"
+    - "js.for-of"
+    - "js.console-log"
+next:
+  - "javascript.from-zero.reading-input"
+tags:
+  - "javascript"
+  - "error"
+  - "throw"
+  - "try-catch"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        try {
+          console.log("до");
+          throw new Error("сбой");
+          console.log("после");
+        } catch (e) {
+          console.log("ошибка: " + e.message);
+        }
+        ```
+      options:
+        - "до, затем ошибка: сбой"
+        - "до, затем после"
+        - "до, затем после, затем ошибка: сбой"
+        - "ошибка: сбой"
+      answer: 0
+      explanation: "throw немедленно прекращает выполнение блока try: строка «после» не выполняется. Управление передаётся в catch, где e.message содержит «сбой»."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function check(n) {
+          if (n < 0) {
+            throw new Error("отрицательное");
+          }
+          return n;
+        }
+        try {
+          console.log(check(5));
+          console.log(check(-1));
+        } catch (e) {
+          console.log("ошибка");
+        }
+        console.log("конец");
+        ```
+      options:
+        - "5, ошибка, конец"
+        - "5, конец"
+        - "ошибка, конец"
+        - "5, -1, конец"
+      answer: 0
+      explanation: "check(5) возвращает 5, и это печатается. check(-1) бросает ошибку, второй console.log не выполняется, управление уходит в catch. После блока try/catch программа продолжается и печатает «конец»."
+    - id: "q3"
+      type: "single"
+      prompt: "Что произойдёт, если функция бросила ошибку, а вызывающий код не использует try/catch?"
+      options:
+        - "Программа остановится с сообщением об ошибке и номером строки."
+        - "Функция вернёт undefined, и программа продолжит работу."
+        - "Ошибка будет молча проигнорирована."
+        - "Node.js повторит вызов функции."
+      answer: 0
+      explanation: "Необработанная ошибка завершает программу: Node.js печатает тип, сообщение и место, где ошибка возникла, - так выглядели все сообщения из урока про чтение ошибок."
+    - id: "q4"
+      type: "single"
+      prompt: "Какой вариант правильно сообщает об ошибке?"
+      options:
+        - "throw new Error(\"Деление на ноль\");"
+        - "return new Error(\"Деление на ноль\");"
+        - "console.log(\"Деление на ноль\"); return 0;"
+        - "throw \"Деление на ноль\"; - просто текст вместо объекта ошибки"
+      answer: 0
+      explanation: "throw new Error(...) создаёт объект ошибки с сообщением, которое можно прочитать как e.message, и останавливает выполнение. Печать и возврат нуля прячут проблему: вызывающий код не узнает, что что-то пошло не так. Бросать голую строку технически можно, но у неё нет свойства message."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        try {
+          const user = undefined;
+          console.log(user.name);
+        } catch (e) {
+          console.log(e.name);
+        }
+        ```
+      options:
+        - "TypeError"
+        - "undefined"
+        - "ReferenceError"
+        - "name"
+      answer: 0
+      explanation: "Ошибки, которые Node.js создаёт сам, тоже можно перехватить. У объекта ошибки есть имя типа (e.name): чтение свойства у undefined даёт TypeError."
+exercise:
+  id: "javascript.from-zero.errors-and-exceptions.exercise"
+  title: "Проверки данных и перехват ошибок"
+  prompt: |
+    В файле `errors.mjs` пять функций без тела. Напишите их. Тексты сообщений проверяются точно, поэтому копируйте их из условия.
+
+    * `divide(a, b)` - частное `a / b`. Если `b` равно 0, **бросьте** `new Error("Деление на ноль")`.
+    * `checkAge(age)` - возвращает `age`, если это число от 0 до 150 включительно. Если `age` не число (`typeof age` не `"number"`), бросьте `new Error("Возраст должен быть числом")`. Если число меньше 0 или больше 150, бросьте `new Error("Возраст вне диапазона 0-150")`.
+    * `firstOrThrow(items)` - первый элемент массива. Для пустого массива бросьте `new Error("Список пуст")`.
+    * `safeDivide(a, b)` - вызывает `divide(a, b)` и возвращает результат; если `divide` бросила ошибку, возвращает строку `"Ошибка: "` и сообщение ошибки. `safeDivide(6, 3)` даёт `2`, `safeDivide(1, 0)` - `"Ошибка: Деление на ноль"`. Используйте `try/catch`.
+    * `isValidAge(age)` - `true`, если `checkAge(age)` не бросает ошибку, иначе `false`. Используйте `try/catch`.
+
+    Функции не печатают, а возвращают результат или бросают ошибку.
+  entryFile: "errors.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Первые три функции проверяют условие и бросают ошибку командой throw до основной работы; если проверка прошла, возвращают результат. Две последние вызывают первые внутри try и обрабатывают ошибку в catch."
+    - "Бросить ошибку: throw new Error(\"текст\"); - слово new обязательно, текст должен совпадать с условием. Для checkAge сначала проверьте тип через typeof, потом диапазон: у нечисла сравнения < и > теряют смысл."
+    - "divide: if (b === 0) { throw new Error(\"Деление на ноль\"); } return a / b; Перехват: try { return divide(a, b); } catch (e) { return \"Ошибка: \" + e.message; }"
+    - "isValidAge: try { checkAge(age); return true; } catch (e) { return false; } checkAge: if (typeof age !== \"number\") { throw new Error(\"Возраст должен быть числом\"); } if (age < 0 || age > 150) { throw new Error(\"Возраст вне диапазона 0-150\"); } return age;"
+  tests:
+    - id: "throw-basic"
+      title: "divide, checkAge, firstOrThrow: корректные значения и ошибки"
+      hint: "divide(10, 4) - 2.5; divide(1, 0) должна бросить Error с сообщением «Деление на ноль», а не вернуть Infinity. checkAge(30) возвращает 30."
+    - id: "catch-basic"
+      title: "safeDivide и isValidAge: обычные значения"
+      hint: "safeDivide(6, 3) - число 2, а safeDivide(1, 0) - строка «Ошибка: Деление на ноль». isValidAge(30) - true, isValidAge(-5) - false."
+    - id: "throw-edge"
+      title: "Границы и неверные типы (скрытый)"
+      hidden: true
+      hint: "0 и 150 допустимы, -1 и 151 нет. Строка \"30\" - не число, для неё сообщение про тип, а не про диапазон. firstOrThrow([0]) возвращает 0 (это не пустой список)."
+    - id: "catch-edge"
+      title: "safeDivide и isValidAge: ноль, строки, исключения не уходят наружу (скрытый)"
+      hidden: true
+      hint: "safeDivide(0, 5) - это число 0, а не ошибка. safeDivide(5, 0) - строка с сообщением. isValidAge(\"abc\") - false: функция не должна сама бросать ошибку."

@@ -1,0 +1,149 @@
+id: "go.fundamentals.errors-and-table-tests"
+formerIds:
+  - "go.first-steps.packages-and-go-test"
+title: "Пакеты, ошибки-значения и go test"
+goal: "Оформлять код как пакет с go.mod, возвращать ошибки значениями и проверять функции табличными тестами go test."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites:
+  - "go.fundamentals.packages-modules-testing"
+objectives:
+  - "Объяснить, чем пакет отличается от модуля и что лежит в go.mod."
+  - "Вернуть из функции ошибку и обернуть её через fmt.Errorf с %w."
+  - "Сравнивать ошибки через errors.Is, а не по тексту."
+  - "Прочитать табличный тест с t.Run и найти причину падения."
+  - "Объяснить, почему тестовые файлы называются *_test.go."
+masteryCriteria:
+  - "Вы объявляете сентинел-ошибки пакета и оборачиваете их с контекстом."
+  - "Вы пишете табличный тест с подтестами и осмысленными именами случаев."
+  - "Вы запускаете go test ./... и по выводу понимаете, какой подтест упал."
+related:
+  - "go.fundamentals.functions-and-errors"
+next: []
+tags:
+  - "go"
+  - "packages"
+  - "errors"
+  - "testing"
+facts:
+  - kind: "internals"
+    text: "Модуль Go - это дерево пакетов с файлом go.mod в корне, где записаны путь модуля и версия языка. Пакет - это каталог с .go-файлами, у которых одинаковое объявление package. Команда go test ./... собирает и запускает тесты во всех пакетах модуля."
+    sources:
+      - "https://go.dev/ref/mod"
+      - "https://pkg.go.dev/cmd/go#hdr-Test_packages"
+  - kind: "internals"
+    text: "Начиная с Go 1.13 fmt.Errorf с глаголом %w создаёт ошибку, которая оборачивает другую; errors.Is проходит по цепочке оборачивания и сравнивает каждое звено с целевой ошибкой, а errors.As ищет звено нужного типа."
+    sources:
+      - "https://go.dev/blog/go1.13-errors"
+      - "https://pkg.go.dev/errors"
+  - kind: "misconception"
+    text: "«Ошибки нужно сравнивать по тексту сообщения» - неверно. Текст предназначен для человека и может меняться или получать контекст; для проверки используют errors.Is и errors.As."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Как называется файл с тестами для stock.go, чтобы go test его увидел?"
+      options:
+        - "stock.test.go"
+        - "test_stock.go"
+        - "stock_test.go"
+        - "tests.go"
+      answer: 2
+      explanation: "go test считает тестовыми файлы с суффиксом _test.go. В обычную сборку пакета они не входят."
+    - id: "q2"
+      type: "single"
+      prompt: "Что вернёт errors.Is(err, ErrNotFound), если err создана как fmt.Errorf(\"поиск %q: %w\", name, ErrNotFound)?"
+      options:
+        - "false, потому что текст ошибки отличается"
+        - "true, потому что %w сохраняет исходную ошибку в цепочке"
+        - "Паника во время выполнения"
+        - "Результат зависит от имени name"
+      answer: 1
+      explanation: "Глагол %w оборачивает ошибку, а errors.Is разворачивает цепочку и находит ErrNotFound, как бы ни выглядел текст."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно про табличные тесты?"
+      options:
+        - "Случаи описывают срезом структур, а проверка записана один раз."
+        - "t.Run создаёт именованный подтест, и его можно запустить отдельно."
+        - "Каждый случай обязан быть в отдельной функции Test..."
+        - "Падение одного подтеста не мешает выполнению остальных, если использовать t.Errorf или t.Fatalf внутри t.Run."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Табличный тест - это срез случаев и один цикл. Подтесты t.Run независимы: t.Fatalf прерывает только текущий подтест."
+    - id: "q4"
+      type: "short"
+      prompt: "Какую команду запускают, чтобы выполнить тесты всех пакетов модуля (без go-кеша результатов добавляют -count=1)?"
+      answer:
+        - "go test ./..."
+      explanation: "Шаблон ./... означает «текущий каталог и все вложенные пакеты»."
+exercise:
+  id: "go.first-steps.packages-and-go-test.exercise"
+  title: "Пакет shop: резерв товара"
+  prompt: |
+
+    Пакет `shop` ведёт учёт остатков. В `stock.go` объявлены три сентинел-ошибки и две функции-заглушки. Реализуйте их так, чтобы проходили табличные тесты `go test`. Тесты лежат отдельно (в `stock_test.go`) и запускаются по кнопке «Проверить»; файл `go.mod` можно открыть во вкладках.
+
+    **`Reserve(stock map[string]int, item string, qty int) (int, error)`** списывает `qty` единиц товара и возвращает остаток этого товара. Проверки идут в таком порядке:
+
+    1. `qty <= 0` - ошибка, для которой `errors.Is(err, ErrBadQuantity)` истинно;
+    2. товара нет в карте - `ErrUnknownItem`;
+    3. на складе меньше, чем `qty` - `ErrInsufficient`.
+
+    Ошибку формируйте как `fmt.Errorf("...: %w", ErrX)` и добавляйте в текст имя товара. При ошибке склад не меняется.
+
+    **`ParseOrder(line string) (string, int, error)`** разбирает `"apple x3"` на название `apple` и количество `3`. Название - всё до **последнего** `" x"` (так `"box x-ray x2"` даёт `box x-ray` и `2`), пробелы по краям строки не важны. Если формат нарушен (нет ` x`, пустое название, число не целое) - верните ошибку. Нулевое и отрицательное количество на разборе не отвергается: это дело `Reserve`.
+
+    Запуск тестов в среде: `go test -json -count=1 ./...`.
+  evaluation: "command"
+  languageId: "go"
+  entryFile: "stock.go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "В Reserve проверки идут строго в порядке из условия: сначала qty <= 0, потом наличие товара через v, ok := stock[item], потом остаток."
+    - "Оборачивайте сентинел так: fmt.Errorf(\"резерв %q: %w\", item, ErrUnknownItem). Тогда errors.Is в тесте сработает, а в тексте будет имя товара. Не создавайте новую ошибку через errors.New."
+    - "Склад меняйте только после всех проверок: stock[item] = have - qty. Верните новый остаток и nil."
+    - "ParseOrder: strings.TrimSpace, затем i := strings.LastIndex(line, \" x\"); при i <= 0 это ошибка формата. Число - strconv.Atoi(line[i+2:]), ошибку Atoi верните обёрнутой через %w."
+  tests:
+    - id: "reserve-ok"
+      title: "Reserve: успешное списание"
+      match: "TestReserve/ok"
+      hint: "Верните остаток после списания и уменьшите значение в карте."
+    - id: "reserve-all"
+      title: "Reserve: списание всего остатка"
+      match: "TestReserve/all"
+      hint: "Остаток 0 - не ошибка: сравнение have < qty ложно при равенстве."
+    - id: "reserve-unknown"
+      title: "Reserve: неизвестный товар"
+      match: "TestReserve/unknown"
+      hint: "Отличайте отсутствие ключа от нулевого значения через вторую переменную v, ok := m[k]."
+    - id: "reserve-insufficient"
+      title: "Reserve: не хватает товара (скрытый)"
+      match: "TestReserve/insufficient"
+      hidden: true
+      hint: "Если товара мало, склад не должен измениться."
+    - id: "reserve-bad-quantity"
+      title: "Reserve: неверное количество (скрытый)"
+      match: "TestReserve/*"
+      hidden: true
+      hint: "Количество проверяется первым, раньше наличия товара; ноль и отрицательные значения отвергаются."
+    - id: "reserve-message"
+      title: "Reserve: контекст в ошибке (скрытый)"
+      match: "TestReserveErrorNames"
+      hidden: true
+      hint: "Текст ошибки должен содержать больше, чем сам сентинел, и при этом errors.Is должен срабатывать."
+    - id: "parse-order"
+      title: "ParseOrder: форматы заказа (скрытый)"
+      match: "TestParseOrder/*"
+      hidden: true
+      hint: "Ищите последнее вхождение \" x\" и обрабатывайте пустую строку, отсутствие числа и пустое название."

@@ -10,7 +10,7 @@ description: >-
 languageId: python
 level: 4
 track: python
-requires: [python-advanced]
+requires: [python-advanced, python-stdlib]
 lessons:
   - 01-concurrency-models
   - 02-threading-and-synchronization

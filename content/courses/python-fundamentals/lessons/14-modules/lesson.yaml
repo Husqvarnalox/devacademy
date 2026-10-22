@@ -1,0 +1,133 @@
+id: python.fundamentals.modules
+title: Модули и import
+goal: Подключать готовые модули стандартной библиотеки командами import и from ... import, пользоваться math и random и понимать, что модуль - это обычный файл.
+difficulty: easy
+estimatedMinutes: 40
+prerequisites: [python.fundamentals.errors-and-files]
+objectives:
+  - Подключать модуль командой import и обращаться к его содержимому через точку.
+  - Использовать from ... import, когда нужна одна-две функции.
+  - Применять math для округления вверх, корня и числа пи.
+  - Получать воспроизводимые случайные числа с помощью random.seed.
+masteryCriteria:
+  - Вы объясняете разницу между import math и from math import sqrt.
+  - Вы читаете ModuleNotFoundError и ImportError и находите причину.
+  - Вы понимаете, что файл с функциями можно подключить как модуль.
+concepts:
+  introduces: [python.import]
+  uses: [python.print, python.variable, python.assignment, python.int, python.float, python.arithmetic, python.f-string, python.if, python.for-range, python.def, python.parameter, python.return, python.list, python.list-methods, python.traceback]
+related: []
+next: [python.fundamentals.mini-project]
+tags: [python, import, math, random, modules]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет программа?
+        import math
+        print(math.ceil(7 / 2))
+      options:
+        - "3"
+        - "4"
+        - "3.5"
+        - "Ошибка: ceil не определена"
+      answer: 1
+      explanation: >-
+        7 / 2 равно 3.5, а math.ceil округляет вверх до ближайшего целого - 4.
+    - id: q2
+      type: single
+      prompt: |
+        Что произойдёт?
+        from math import sqrt
+        print(math.sqrt(16))
+      options:
+        - "4.0"
+        - "NameError: name 'math' is not defined"
+        - "4"
+        - "ImportError"
+      answer: 1
+      explanation: >-
+        from math import sqrt добавляет в программу только имя sqrt. Имя math не появилось, поэтому math.sqrt обращается к неизвестному имени. Правильно: print(sqrt(16)).
+    - id: q3
+      type: single
+      prompt: |
+        Зачем перед генерацией случайных чисел вызывают random.seed(5)?
+      options:
+        - "Чтобы числа стали больше"
+        - "Чтобы при каждом запуске получалась одна и та же последовательность"
+        - "Чтобы отключить ошибки"
+        - "Чтобы числа стали дробными"
+      answer: 1
+      explanation: >-
+        seed задаёт начальное состояние генератора. При одинаковом seed последовательность одинакова, что удобно для проверки и отладки.
+    - id: q4
+      type: single
+      prompt: |
+        В папке лежит файл prices.py с функцией total(items). Как её использовать в другом файле той же папки?
+      options:
+        - "import prices, затем prices.total(items)"
+        - "open(prices.py)"
+        - "include prices"
+        - "Никак - файлы нельзя подключать"
+      answer: 0
+      explanation: >-
+        Любой файл с расширением .py - модуль. Его имя без расширения используется в import, а функции вызываются через точку.
+exercise:
+  id: python.fundamentals.modules.exercise
+  title: Магазинные расчёты
+  prompt: |
+    В файле `shop_tools.py` подключите нужные модули и реализуйте четыре функции.
+
+    1. `circle_area(radius)` - площадь круга `pi * radius ** 2` (число `pi` берите из `math`).
+    2. `pizzas_needed(people, slices_per_pizza=8)` - сколько пицц нужно заказать, если человеку нужен один кусок, а в пицце `slices_per_pizza` кусков. Результат - целое число, округлённое вверх.
+    3. `distance(x1, y1, x2, y2)` - расстояние между точками (x1, y1) и (x2, y2): корень из суммы квадратов разностей координат.
+    4. `roll_dice(count, seed)` - вызвать `random.seed(seed)`, затем `count` раз бросить кубик `random.randint(1, 6)` и вернуть список результатов в порядке бросков.
+
+    **Примеры.**
+
+    ```python
+    pizzas_needed(9)        # 2
+    pizzas_needed(10, 4)    # 3
+    distance(0, 0, 3, 4)    # 5.0
+    ```
+
+    **Ограничения.** Функции возвращают значения, а не выводят их. Подключайте модули в начале файла.
+  entryFile: shop_tools.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - Начните файл со строк import math и import random. Затем реализуйте функции по очереди, начиная с circle_area.
+    - 'pizzas_needed: разделите people на slices_per_pizza обычным делением "/" и округлите результат вверх функцией math.ceil. distance: math.sqrt от суммы двух квадратов разностей.'
+    - 'roll_dice: random.seed(seed), затем создайте пустой список и в цикле for _ in range(count) добавляйте random.randint(1, 6). Порядок важен: проверка воспроизводит ту же последовательность.'
+  tests:
+    - id: area-basic
+      title: circle_area - обычные радиусы
+      hint: Формула pi * radius ** 2; число pi берётся из math.
+    - id: pizza-basic
+      title: pizzas_needed - 8 кусков в пицце
+      hint: Деление "/" даёт дробь, math.ceil округляет её вверх до целого.
+    - id: distance-basic
+      title: distance - расстояние между точками
+      hint: math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2).
+    - id: dice-seed
+      title: roll_dice - воспроизводимость
+      hint: Вызовите random.seed(seed) до бросков и используйте random.randint(1, 6) по одному разу на бросок.
+    - id: area-zero
+      title: circle_area - нулевой радиус (скрытый)
+      hidden: true
+      hint: Радиус 0 даёт площадь 0 без особых случаев.
+    - id: pizza-custom
+      title: pizzas_needed - свой размер пиццы (скрытый)
+      hidden: true
+      hint: Если делится нацело, округление вверх не добавляет лишнюю пиццу; для 0 человек нужно 0 пицц. Параметр можно передавать по имени.
+    - id: dice-range
+      title: roll_dice - диапазон значений (скрытый)
+      hidden: true
+      hint: randint(1, 6) включает обе границы; количество бросков равно count.
+    - id: dice-empty
+      title: roll_dice - ноль бросков (скрытый)
+      hidden: true
+      hint: При count равном нулю цикл не выполняется, и нужно вернуть пустой список.

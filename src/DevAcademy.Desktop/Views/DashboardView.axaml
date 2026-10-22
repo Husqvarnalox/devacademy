@@ -101,6 +101,19 @@
             </Button>
           </StackPanel>
 
+          <StackPanel Spacing="4" IsVisible="{Binding HasDiagnostics}">
+            <TextBlock Text="{Binding DiagnosticText}" Classes="small secondary" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding Diagnostics}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DiagnosticLinkViewModel">
+                  <Button Classes="link" Command="{Binding OpenCommand}" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><TextBlock Text="{Binding Text}" /><ctl:Icon Kind="arrow-right" Size="14" /></StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+
           <StackPanel Spacing="12" IsVisible="{Binding HasUpNext}">
             <TextBlock Text="{loc:T Dashboard_Recommendations}" Classes="h2" />
             <Border Classes="panel" ClipToBounds="True">

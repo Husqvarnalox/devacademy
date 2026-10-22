@@ -1,0 +1,191 @@
+id: "python.check.decorators"
+title: "Проверка: функции как объекты и декораторы"
+goal: "Писать декораторы с параметрами и без, сохраняя метаданные исходной функции."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: писать декораторы с параметрами и без, сохраняя метаданные исходной функции."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "python"
+  - "check"
+  - "decorators"
+assessmentFor:
+  - "python.advanced.functions-as-objects"
+  - "python.advanced.decorators"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def deco(f):
+            def wrapper(*a, **k):
+                print("before")
+                return f(*a, **k)
+            return wrapper
+
+        @deco
+        def hi():
+            print("hi")
+
+        hi()
+        print(hi.__name__)
+        ```
+      options:
+        - "before, hi, hi"
+        - "before, hi, wrapper"
+        - "hi, hi"
+        - "hi, wrapper"
+      answer: 1
+      explanation: "Декоратор подменил hi функцией wrapper, поэтому вызов печатает before и затем hi, а атрибут __name__ равен wrapper. functools.wraps копирует имя исходной функции."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        fs = [lambda: i for i in range(3)]
+        print([f() for f in fs])
+        ```
+      options:
+        - "[0, 1, 2]"
+        - "[2, 2, 2]"
+        - "[3, 3, 3]"
+        - "Ошибка NameError"
+      answer: 1
+      explanation: "Замыкание захватывает переменную i, а не её значение. К моменту вызова цикл закончился, и i равно 2 у всех функций."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def a(f):
+            return lambda: "a" + f()
+
+        def b(f):
+            return lambda: "b" + f()
+
+        @a
+        @b
+        def f():
+            return "x"
+
+        print(f())
+        ```
+      options:
+        - "abx"
+        - "bax"
+        - "xab"
+        - "ab"
+      answer: 0
+      explanation: "Декораторы применяются снизу вверх: сначала b оборачивает f, затем a оборачивает результат. Внешняя обёртка a добавляет префикс первой."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def rep(n):
+            def deco(f):
+                def w():
+                    return [f() for _ in range(n)]
+                return w
+            return deco
+
+        @rep(2)
+        def one():
+            return 1
+
+        print(one())
+        ```
+      options:
+        - "[1, 1]"
+        - "[2]"
+        - "1"
+        - "Ошибка TypeError: rep не принимает функцию"
+      answer: 0
+      explanation: "Запись @rep(2) сначала вызывает rep(2) и получает декоратор deco, который затем применяется к one. Обёртка вызывает исходную функцию n раз."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def counter():
+            n = 0
+            def inc():
+                nonlocal n
+                n += 1
+                return n
+            return inc
+
+        a = counter()
+        b = counter()
+        print(a(), a(), b())
+        ```
+      options:
+        - "1 2 1"
+        - "1 2 3"
+        - "1 1 1"
+        - "2 2 2"
+      answer: 0
+      explanation: "Каждый вызов counter() создаёт собственную переменную n в отдельном замыкании. Поэтому a считает 1, 2, а b начинает заново с 1."
+exercise:
+  id: "python.check.decorators.exercise"
+  title: "Декораторы retry и memoize"
+  prompt: |
+    В файле `decorators_check.py` реализуйте два декоратора. Обёртка обязана сохранять метаданные исходной функции (`__name__`, `__doc__`, `__wrapped__`) - используйте `functools.wraps`.
+
+    1. `retry(times, exceptions=(Exception,))` - декоратор с параметрами. Вызывает функцию не более `times` раз подряд: если она вызывает исключение из `exceptions`, повторяет вызов; если все попытки неудачны, пробрасывает **последнее** исключение; успешный результат возвращается сразу. Исключения вне `exceptions` пробрасываются без повторов. Аргументы передаются в функцию как есть. При `times < 1` выражение `retry(times)` вызывает `ValueError`.
+    2. `memoize` - декоратор без параметров. Запоминает результат по позиционным и именованным аргументам (все они хешируемые) и не вызывает функцию повторно с теми же аргументами. На обёртке есть метод `cache_clear()`, который очищает память.
+
+    ```python
+    @retry(3, exceptions=(ConnectionError,))
+    def fetch(url): ...
+
+    @memoize
+    def slow_square(n): ...
+    ```
+  entryFile: "decorators_check.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Заглушка pass возвращает None, а декоратор должен вернуть функцию. Используйте functools.wraps."
+    - "retry состоит из трёх вложенных функций: retry(times, exceptions) -> decorator(func) -> wrapper(*args, **kwargs). memoize - две: memoize(func) -> wrapper."
+    - "retry: в wrapper перебирайте попытки for attempt in range(times); except exceptions: на последней попытке выполните raise. memoize: ключ (args, tuple(sorted(kwargs.items()))), словарь cache в замыкании, wrapper.cache_clear = cache.clear."
+  tests:
+    - id: "retry-basic"
+      title: "retry - успех после сбоев"
+      hint: "Вызывайте функцию в цикле до times раз и возвращайте первый успешный результат."
+    - id: "memo-basic"
+      title: "memoize - повторный вызов не вычисляет заново"
+      hint: "Храните результаты в словаре внутри замыкания, ключ - аргументы."
+    - id: "retry-exhausted"
+      title: "retry - исчерпаны попытки (скрытый)"
+      hidden: true
+      hint: "После последней неудачной попытки повторно выбросьте исключение (raise)."
+    - id: "retry-selective"
+      title: "retry - исключения вне списка (скрытый)"
+      hidden: true
+      hint: "Ловите только исключения из переданного кортежа exceptions."
+    - id: "retry-invalid"
+      title: "retry - times меньше 1 (скрытый)"
+      hidden: true
+      hint: "Проверку times выполняйте во внешней функции до создания декоратора."
+    - id: "wraps"
+      title: "Метаданные сохраняются (скрытый)"
+      hidden: true
+      hint: "Примените @functools.wraps(func) к внутренней функции-обёртке."
+    - id: "memo-kwargs"
+      title: "memoize - именованные аргументы и cache_clear (скрытый)"
+      hidden: true
+      hint: "Ключ должен включать kwargs (например, tuple(sorted(kwargs.items()))); cache_clear = cache.clear."

@@ -16,7 +16,7 @@ internal static class Cli
 {
     private const string Usage = """
         usage:
-          devacademy validate-content [--content <dir>] [--run-solutions [--python-env <venv dir>] [--node-env <dir>] [--go-env <dir>] [--nuget-env <dir>] [--maven-env <dir>]]
+          devacademy validate-content [--content <dir>] [--run-solutions [--only <course-or-lesson-prefix,...>] [--python-env <venv dir>] [--node-env <dir>] [--go-env <dir>] [--nuget-env <dir>] [--maven-env <dir>]]
           devacademy maven-env --maven-env <dir> [--set <id>]
           devacademy python-env-check --python-env <venv dir> [--content <dir>]
           devacademy list [--content <dir>]
@@ -120,7 +120,7 @@ internal static class Cli
                         }
                         maven = new MavenEnvironmentService(new HttpClient(), full, packages);
                     }
-                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node, go, nuget, maven);
+                    return await ValidateAsync(root, options.RunSolutions, manager, selection, node, go, nuget, maven, options.Only);
                 }
             case "python-env-check" when options.PythonEnv is not null && !options.RunSolutions:
                 {
@@ -149,11 +149,12 @@ internal static class Cli
         return 0;
     }
 
-    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null, string? GoEnv = null, string? NuGetEnv = null, string? MavenEnv = null, string? Set = null);
+    internal sealed record Options(string? ContentDir, bool RunSolutions, string? PythonEnv, string? NodeEnv = null, string? GoEnv = null, string? NuGetEnv = null, string? MavenEnv = null, string? Set = null, IReadOnlyList<string>? Only = null);
 
     internal static Options? Parse(string[] rest, out string? error)
     {
         string? dir = null, env = null, nodeEnv = null, goEnv = null, nugetEnv = null, mavenEnv = null, setId = null;
+        List<string>? only = null;
         var run = false;
         error = null;
         for (var i = 0; i < rest.Length; i++)
@@ -168,10 +169,12 @@ internal static class Cli
                 case "--maven-env" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): mavenEnv = rest[++i]; break;
                 case "--set" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal): setId = rest[++i]; break;
                 case "--run-solutions": run = true; break;
+                case "--only" when i + 1 < rest.Length && !rest[i + 1].StartsWith("--", StringComparison.Ordinal):
+                    (only ??= []).AddRange(rest[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)); break;
                 default: error = $"error: unknown or incomplete argument '{rest[i]}'"; return null;
             }
         }
-        return new Options(dir, run, env, nodeEnv, goEnv, nugetEnv, mavenEnv, setId);
+        return new Options(dir, run, env, nodeEnv, goEnv, nugetEnv, mavenEnv, setId, only);
     }
 
     /// <summary>Finds the interpreter of a venv directory (bin/python or Scripts/python.exe) and checks that it answers.</summary>
@@ -254,11 +257,15 @@ internal static class Cli
         return 0;
     }
 
-    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null, GoEnvironmentService? go = null, NuGetEnvironmentService? nuget = null, MavenEnvironmentService? maven = null)
+    /// <param name="only">Course ids or lesson-id prefixes: when set, --run-solutions runs only those lessons (structural validation still covers everything).</param>
+    private static async Task<int> ValidateAsync(string root, bool runSolutions, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node = null, GoEnvironmentService? go = null, NuGetEnvironmentService? nuget = null, MavenEnvironmentService? maven = null, IReadOnlyList<string>? only = null)
     {
         var result = ContentLoader.Load(root);
         var diagnostics = result.Diagnostics.ToList();
-        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node, go, nuget, maven));
+        Func<Lesson, bool>? filter = only is { Count: > 0 }
+            ? l => only.Any(o => l.CourseId == o || l.Id.StartsWith(o, StringComparison.Ordinal))
+            : null;
+        if (runSolutions && !result.HasErrors) diagnostics.AddRange(await RunSolutionsAsync(result.Content, manager, python, node, go, nuget, maven, filter: filter));
         else if (runSolutions) Console.WriteLine("skipping --run-solutions: fix content errors first");
 
         foreach (var d in diagnostics.OrderBy(d => d.Path, StringComparer.Ordinal).ThenBy(d => d.Severity))
@@ -277,7 +284,7 @@ internal static class Cli
         return string.Join(" and ", parts);
     }
 
-    internal static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget, MavenEnvironmentService? maven, ContentPackageIndex? packages = null)
+    internal static async Task<List<ContentDiagnostic>> RunSolutionsAsync(ContentSet set, PythonEnvironmentManager? manager, PythonRunSelection? python, NodeEnvironmentService? node, GoEnvironmentService? go, NuGetEnvironmentService? nuget, MavenEnvironmentService? maven, ContentPackageIndex? packages = null, Func<Lesson, bool>? filter = null)
     {
         var diagnostics = new List<ContentDiagnostic>();
         // The package-set index decides which sets this platform can install at all (`platforms` in index.json); a test passes an index for another RID.
@@ -293,7 +300,7 @@ internal static class Cli
             if (missing.Add(language)) Add(DiagnosticSeverity.Warning, l, $"runtime for '{language}' is not installed: its solutions and code samples are skipped");
         }
 
-        foreach (var lesson in set.Lessons)
+        foreach (var lesson in set.Lessons.Where(l => filter?.Invoke(l) ?? true))
         {
             foreach (var ex in new[] { lesson.Exercise, lesson.Challenge }.OfType<Exercise>())
             {

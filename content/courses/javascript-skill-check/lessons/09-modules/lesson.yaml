@@ -1,0 +1,178 @@
+id: "javascript.check.modules"
+title: "Проверка: ES-модули и тесты"
+goal: "Писать ES-модуль с именованными экспортами и чистыми функциями и читать код, зависящий от семантики import/export и node:assert."
+difficulty: "hard"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: оформлять код как ES-модуль с точным набором именованных экспортов и чистыми функциями."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "modules"
+  - "testing"
+assessmentFor:
+  - "javascript.fundamentals.modules-and-testing"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Файл `counter.mjs`:
+
+        ```javascript
+        export let count = 0;
+        export function inc() { count++; }
+        ```
+
+        Файл `main.mjs`:
+
+        ```javascript
+        import { count, inc } from "./counter.mjs";
+        inc(); inc();
+        console.log(count);
+        ```
+
+        Что выведет `node main.mjs`?
+      options:
+        - "2"
+        - "0"
+        - "undefined"
+        - "Ошибка: нельзя изменить экспортируемую переменную"
+      answer: 0
+      explanation: "Импорт - это живая привязка к переменной модуля, а не копия значения. После inc() переменная count в counter.mjs равна 2, и main.mjs видит новое значение."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        В `main.mjs` из предыдущего вопроса после импорта добавлена строка:
+
+        ```javascript
+        try { count = 5; } catch (e) { console.log(e.name); }
+        ```
+
+        Что она выведет?
+      options:
+        - "TypeError"
+        - "ReferenceError"
+        - "Ничего: значение 5 будет записано в counter.mjs"
+        - "SyntaxError"
+      answer: 0
+      explanation: "Импортированная привязка доступна только для чтения: присваивание бросает TypeError. Менять переменную может только сам экспортирующий модуль, например через функцию inc."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Файл `a.mjs`:
+
+        ```javascript
+        export default 1;
+        export const x = 2;
+        ```
+
+        Что выведет код?
+
+        ```javascript
+        import * as a from "./a.mjs";
+        console.log(Object.keys(a).join(), a.default);
+        ```
+      options:
+        - "default,x 1"
+        - "x 1"
+        - "x undefined"
+        - "default,x undefined"
+      answer: 0
+      explanation: "Пространство имён модуля содержит все экспорты, включая default, как обычное свойство. Ключи идут в алфавитном порядке, поэтому default идёт раньше x."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Файлы:
+
+        ```javascript
+        // b.mjs
+        console.log("b");
+        // a.mjs
+        console.log("a start");
+        import "./b.mjs";
+        console.log("a end");
+        // main.mjs
+        import "./a.mjs";
+        console.log("main");
+        ```
+
+        Что выведет `node main.mjs`?
+      options:
+        - "b, a start, a end, main"
+        - "a start, a end, b, main"
+        - "main, b, a start, a end"
+        - "a start, b, a end, main"
+      answer: 0
+      explanation: "Импорты поднимаются и выполняются раньше остального кода модуля, даже если стоят после console.log. Зависимости вычисляются первыми, затем идёт тело самого модуля."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет код?
+
+        ```javascript
+        import assert from "node:assert/strict";
+        try {
+          assert.equal(1, "1");
+          console.log("ok");
+        } catch (e) {
+          console.log(e.name);
+        }
+        ```
+      options:
+        - "AssertionError"
+        - "ok"
+        - "TypeError"
+        - "Ничего"
+      answer: 0
+      explanation: "В строгом режиме модуля node:assert/strict метод equal работает как strictEqual и сравнивает без приведения типов. В нестрогом node:assert тот же вызов с == прошёл бы."
+exercise:
+  id: "javascript.check.modules.exercise"
+  title: "Модуль статистики"
+  prompt: |
+    В файле `stats_module.mjs` оформите ES-модуль с **точным** набором именованных экспортов: `mean`, `median`, `summarize`. Других экспортов (в том числе `default`) быть не должно, при загрузке модуль ничего не печатает.
+
+    Все функции чистые: не изменяют переданный массив (он может быть заморожен через `Object.freeze`), не хранят состояние и при одинаковом входе дают одинаковый результат. Вход - массив конечных чисел; иначе (не массив, `NaN`, `Infinity`, строки среди чисел) - `TypeError`.
+
+    * `mean(numbers)` - среднее арифметическое, для пустого массива `null`.
+    * `median(numbers)` - медиана: средний элемент отсортированных по числовому значению чисел, для чётного количества - среднее двух средних; для пустого массива `null`.
+    * `summarize(numbers)` - объект `{ count, mean, median, min, max }`; для пустого массива `{ count: 0, mean: null, median: null, min: null, max: null }`.
+
+    Вспомогательные функции делайте неэкспортируемыми. Часть тестов скрыта: в них структура модуля, чистота и граничные случаи.
+  entryFile: "stats_module.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Список экспортов должен быть ровно таким: export function mean, export function median, export function summarize. Внутренние функции пишите без слова export."
+    - "Проверку входа вынесите во внутреннюю функцию (не экспортируемую): Array.isArray и Number.isFinite для каждого элемента, иначе throw new TypeError(...)."
+    - "median: сортируйте копию, а не исходный массив: [...numbers].sort((a, b) => a - b). Без функции сравнения sort упорядочивает по строкам."
+    - "summarize удобно собрать из уже написанных функций: { count, mean: mean(numbers), median: median(numbers), min: Math.min(...numbers), max: Math.max(...numbers) }; пустой массив обработайте отдельной веткой."
+  tests:
+    - id: "mean-basic"
+      title: "mean - среднее"
+      hint: "Сумма элементов делится на их количество."
+    - id: "median-basic"
+      title: "median - нечётное и чётное количество"
+      hint: "Для чётного количества возьмите среднее двух средних элементов."
+    - id: "structure"
+      title: "Структура модуля: точные экспорты и тишина при загрузке (скрытый)"
+      hidden: true
+      hint: "Экспортируйте ровно mean, median и summarize, без default и без console.log на верхнем уровне; помощники оставьте внутри модуля."
+    - id: "pure"
+      title: "Чистота: вход не меняется (скрытый)"
+      hidden: true
+      hint: "sort меняет массив на месте и падает на замороженном; сортируйте копию через [...numbers]."
+    - id: "summarize"
+      title: "summarize - состав результата (скрытый)"
+      hidden: true
+      hint: "Результат содержит ровно поля count, mean, median, min, max; для пустого массива count равен 0, остальные null."
+    - id: "validation"
+      title: "Проверка входа и граничные случаи (скрытый)"
+      hidden: true
+      hint: "Не-массив, NaN, Infinity и строки дают TypeError; для обычных значений с одним элементом, отрицательными и неупорядоченными числами результаты считаются как обычно."

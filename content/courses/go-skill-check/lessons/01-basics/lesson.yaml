@@ -1,0 +1,178 @@
+id: "go.check.basics"
+title: "Проверка: синтаксис, типы, условия и циклы"
+goal: "Читать и писать базовый Go: типы, условия, циклы и арифметику."
+difficulty: "easy"
+estimatedMinutes: 20
+objectives:
+  - "Показать на практике умение: читать и писать базовый Go: типы, условия, циклы и арифметику."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "basics"
+assessmentFor:
+  - "go.first-steps.first-program"
+  - "go.first-steps.compiler-errors"
+  - "go.first-steps.output"
+  - "go.first-steps.variables"
+  - "go.first-steps.basic-types"
+  - "go.first-steps.arithmetic"
+  - "go.first-steps.reading-input"
+  - "go.first-steps.type-conversion"
+  - "go.first-steps.formatted-output"
+  - "go.first-steps.constants-and-comments"
+  - "go.first-steps.comparison-and-logic"
+  - "go.first-steps.if-else"
+  - "go.first-steps.switch"
+  - "go.first-steps.for-loop"
+  - "go.first-steps.loop-control"
+  - "go.first-steps.nested-loops"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        for i := 0; i < 4; i++ {
+        	if i == 1 {
+        		continue
+        	}
+        	fmt.Print(i)
+        }
+        ```
+      options:
+        - "0123"
+        - "023"
+        - "02"
+        - "013"
+      answer: 1
+      explanation: "При `i == 1` `continue` пропускает остаток итерации, поэтому `1` не печатается. Выводятся 0, 2 и 3: `023`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var x float64 = 5 / 2
+        fmt.Println(x)
+        ```
+      options:
+        - "2.5"
+        - "2"
+        - "3"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "`5 / 2` - выражение из целых констант, оно вычисляется как целочисленное деление и даёт `2`; лишь затем значение преобразуется в `float64`. Чтобы получить `2.5`, нужно `5.0 / 2`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```go
+        func main() {
+        	count := 10
+        	fmt.Println("привет")
+        }
+        ```
+      options:
+        - "Программа напечатает «привет»"
+        - "Ошибка: declared and not used: count"
+        - "Предупреждение, но программа запустится"
+        - "count получит значение 0"
+      answer: 1
+      explanation: "Неиспользуемая локальная переменная - ошибка компиляции."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        fmt.Println(10%3, -10%3)
+        ```
+      options:
+        - "1 1"
+        - "1 -1"
+        - "1 2"
+        - "-1 -1"
+      answer: 1
+      explanation: "Остаток имеет знак делимого: `10 % 3` равно 1, `-10 % 3` равно -1."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        x := 5
+        switch {
+        case x > 3:
+        	fmt.Print("a")
+        case x > 1:
+        	fmt.Print("b")
+        default:
+        	fmt.Print("c")
+        }
+        ```
+      options:
+        - "a"
+        - "ab"
+        - "b"
+        - "abc"
+      answer: 0
+      explanation: "Выполняется первая подходящая ветка, и `switch` завершается без проваливания. Вторая ветка не проверяется."
+exercise:
+  id: "go.check.basics.exercise"
+  title: "daysInMonth и isPrime"
+  prompt: |
+    Напишите две функции в `main.go`.
+
+    * **`daysInMonth(year, month int) int`** - число дней в месяце. Високосный год: делится на 4, кроме кратных 100, но кратные 400 високосные. Для месяца вне диапазона 1-12 верните `0`.
+    * **`isPrime(n int) bool`** - простое ли число. Числа меньше 2 не простые.
+
+    Пример: `daysInMonth(2024, 2)` возвращает `29`, `isPrime(97)` возвращает `true`.
+
+    **Как проверяется.** Тесты вызывают функции на границах: февраль в обычные, високосные и вековые годы, неверные месяцы, 0, 1, 2, отрицательные числа и крупные простые.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Начните с `daysInMonth`: `switch month` с перечислением нескольких значений в одной ветке."
+    - "Для февраля проверьте високосность: `year%400 == 0 || (year%4 == 0 && year%100 != 0)`."
+    - "В `isPrime` отсеките `n < 2`, затем проверяйте делители циклом `for d := 2; d*d <= n; d++`."
+    - "Если делитель найден (`n%d == 0`), верните `false` сразу; после цикла верните `true`."
+  tests:
+    - id: "days-basic"
+      title: "daysInMonth: обычные месяцы и високосный февраль"
+      match: "TestDaysInMonth/leap_feb"
+      hint: "Февраль 2024 високосный - 29 дней."
+    - id: "prime-basic"
+      title: "isPrime: простое и составное"
+      match: "TestIsPrime/ninety_seven"
+      hint: "97 - простое число."
+    - id: "days-all"
+      title: "daysInMonth: вековые годы и неверные месяцы (скрытый)"
+      match: "TestDaysInMonth/*"
+      hidden: true
+      hint: "1900 не високосный, 2000 високосный; месяцы 0 и 13 дают 0."
+    - id: "prime-all"
+      title: "isPrime: 0, 1, отрицательные, квадраты простых (скрытый)"
+      match: "TestIsPrime/*"
+      hidden: true
+      hint: "Числа меньше 2 не простые; для квадрата простого цикл должен дойти до d*d <= n."

@@ -19,7 +19,17 @@
     "next": { "$ref": "#/$defs/ids" },
     "seeAlso": { "$ref": "#/$defs/strings", "description": "Free text for topics that do not exist yet." },
     "tags": { "$ref": "#/$defs/strings" },
-    "assessmentFor": { "$ref": "#/$defs/ids", "description": "Placement quiz: passing it credits these lessons (source Assessment). Requires a quiz." },
+    "assessmentFor": { "$ref": "#/$defs/ids", "description": "Check: completing this lesson (exercise and quiz) credits these lessons (source Assessment). Requires a quiz or an exercise." },
+    "formerIds": { "$ref": "#/$defs/ids", "description": "Old ids of this lesson after a rename WITH EQUIVALENT CONTENT; their progress is carried over. Must not name current lessons." },
+    "concepts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Concepts the lesson introduces and uses; every used concept must be introduced by the lesson or one it depends on.",
+      "properties": {
+        "introduces": { "type": "array", "items": { "type": "string", "pattern": "^\\S+$" } },
+        "uses": { "type": "array", "items": { "type": "string", "pattern": "^\\S+$" } }
+      }
+    },
     "facts": {
       "type": "array",
       "items": {

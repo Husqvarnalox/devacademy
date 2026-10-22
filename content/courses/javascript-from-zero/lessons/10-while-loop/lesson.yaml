@@ -1,0 +1,172 @@
+id: "javascript.from-zero.while-loop"
+title: "Цикл while"
+goal: "Повторять действие с помощью цикла while и счётчика и накапливать результат в переменной."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "javascript.from-zero.if-else"
+objectives:
+  - "Записать цикл while с условием и изменением счётчика внутри тела."
+  - "Накопить сумму или счётчик шагов в переменной."
+  - "Распознать и исправить бесконечный цикл и ошибку на единицу."
+masteryCriteria:
+  - "Функции правильно работают на нуле, отрицательных числах и границах (sumTo(0), countDigits(0), daysToSave(0, 5))."
+  - "Каждый цикл завершается: условие в какой-то момент становится ложным."
+concepts:
+  introduces:
+    - "js.while"
+  uses:
+    - "js.if"
+    - "js.let"
+    - "js.assignment"
+    - "js.comparison"
+    - "js.arithmetic"
+    - "js.math"
+    - "js.function"
+    - "js.return"
+    - "js.console-log"
+next:
+  - "javascript.from-zero.for-loop"
+tags:
+  - "javascript"
+  - "while"
+  - "loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        let i = 1;
+        while (i <= 3) {
+          console.log(i);
+          i = i + 1;
+        }
+        ```
+      options:
+        - "1 2 3, каждое на своей строке"
+        - "1 2 3 4"
+        - "0 1 2"
+        - "Бесконечно 1"
+      answer: 0
+      explanation: "Пока i <= 3, тело печатает i и увеличивает его. После печати 3 переменная становится 4, условие ложно и цикл завершается."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Какое число напечатает программа?
+
+        ```javascript
+        let sum = 0;
+        let i = 1;
+        while (i < 5) {
+          sum = sum + i;
+          i = i + 1;
+        }
+        console.log(sum);
+        ```
+      answer: 10
+      tolerance: 0
+      explanation: "i принимает значения 1, 2, 3, 4 (при i равном 5 условие i < 5 ложно). Сумма 1 + 2 + 3 + 4 равна 10, а не 15."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт с программой?
+
+        ```javascript
+        let n = 5;
+        while (n > 0) {
+          console.log(n);
+        }
+        ```
+      options:
+        - "Напечатает 5 4 3 2 1 и остановится."
+        - "Напечатает 5 один раз."
+        - "Будет бесконечно печатать 5."
+        - "Сообщит SyntaxError."
+      answer: 2
+      explanation: "Внутри тела n не меняется, условие n > 0 всегда истинно, и цикл не заканчивается. Нужно уменьшать n, например n = n - 1."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        let x = 10;
+        while (x < 5) {
+          console.log("шаг");
+        }
+        console.log("конец");
+        ```
+      options:
+        - "шаг, затем конец"
+        - "Бесконечно шаг"
+        - "Только конец"
+        - "Ошибка"
+      answer: 2
+      explanation: "Условие проверяется до тела. 10 < 5 ложно с самого начала, поэтому тело не выполняется ни разу."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        let steps = 0;
+        let n = 100;
+        while (n > 1) {
+          n = Math.floor(n / 10);
+          steps = steps + 1;
+        }
+        console.log(steps);
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "100"
+      answer: 1
+      explanation: "n становится 10, затем 1; после второго шага условие n > 1 ложно. Шагов два."
+exercise:
+  id: "javascript.from-zero.while-loop.exercise"
+  title: "Сумма, цифры и накопления"
+  prompt: |
+    В файле `while_loops.mjs` три функции без тела. Напишите каждую с помощью цикла `while`:
+
+    * `sumTo(n)` - сумма всех целых чисел от 1 до `n`; `sumTo(4)` даёт `10`. Если `n` меньше 1, результат `0`.
+    * `countDigits(n)` - количество цифр в неотрицательном целом числе; `countDigits(2024)` даёт `4`, у числа `0` одна цифра. Идея: пока в числе хотя бы две цифры, отбрасывайте последнюю и считайте шаги.
+    * `daysToSave(goal, perDay)` - сколько дней нужно откладывать по `perDay` рублей, чтобы накопить `goal`; `daysToSave(100, 30)` даёт `4`. Если `goal` не больше 0, результат `0`. Значение `perDay` всегда больше 0.
+
+    Функции должны возвращать результат. Скрытые тесты проверяют ноль, отрицательные числа и границы.
+  entryFile: "while_loops.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В каждой функции заведите переменные до цикла (результат и счётчик), измените их внутри цикла, верните результат после цикла."
+    - "sumTo: счётчик i с 1, пока i <= n, прибавляйте i к сумме и увеличивайте i. countDigits: начните с 1 цифры, пока число не меньше 10, делите его на 10 с Math.floor. daysToSave: пока накоплено меньше цели, прибавляйте perDay и считайте дни."
+    - "Условия циклов: i <= n; rest >= 10; saved < goal. Для нулевых и отрицательных значений цикл не должен выполниться ни разу, и начальные значения станут ответом."
+    - "Скелет sumTo: let sum = 0; let i = 1; while (i <= n) { sum = sum + i; i = i + 1; } return sum;"
+  tests:
+    - id: "sum-basic"
+      title: "sumTo: небольшие n"
+      hint: "sumTo(4) равно 1 + 2 + 3 + 4 = 10; включайте само n в сумму."
+    - id: "digits-basic"
+      title: "countDigits: обычные числа"
+      hint: "Количество цифр: у 7 одна, у 123 три, у 2024 четыре; считайте шаги деления на 10."
+    - id: "days-basic"
+      title: "daysToSave: обычные цели"
+      hint: "Чтобы набрать 100 по 30 в день, нужно 4 дня (за 3 дня только 90); 90 по 30 - ровно 3 дня."
+    - id: "sum-edge"
+      title: "sumTo: ноль, отрицательные и большое n (скрытый)"
+      hidden: true
+      hint: "Для 0 и отрицательных n цикл не выполняется и результат 0. Для 100 ожидается 5050, для 1000 - 500500."
+    - id: "digits-edge"
+      title: "countDigits: 0 и границы разрядов (скрытый)"
+      hidden: true
+      hint: "У 0 одна цифра, у 9 одна, у 10 две, у 99999 пять, у 1000000 семь. Условие цикла должно быть n >= 10, а не n > 10."
+    - id: "days-edge"
+      title: "daysToSave: нулевая цель и точное попадание (скрытый)"
+      hidden: true
+      hint: "Цель 0 или меньше - 0 дней. Если сумма совпала с целью точно (10 по 10) - 1 день; 11 по 10 - уже 2. Условие цикла saved < goal."

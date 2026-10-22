@@ -1,0 +1,157 @@
+id: python.fundamentals.strings
+title: 'Строки: индексы, срезы и методы'
+goal: Обращаться к отдельным символам и частям строки, пользоваться методами строк и проверять вхождение подстроки.
+difficulty: easy
+estimatedMinutes: 45
+prerequisites: [python.fundamentals.functions]
+objectives:
+  - Получать символ по индексу, в том числе с конца, и объяснять, почему счёт идёт с нуля.
+  - Вырезать часть строки срезом [a:b] и разворачивать строку срезом [::-1].
+  - Применять методы upper, lower, strip, replace, find, count, startswith, endswith.
+  - Проверять вхождение подстроки оператором in и обходить строку циклом for.
+  - Объяснять, что строка неизменяема и методы возвращают новую строку.
+masteryCriteria:
+  - Вы предсказываете результат индексов и срезов, в том числе отрицательных.
+  - Вы пишете функции для обработки текста, используя методы строк и срезы, и harness-тесты проходят.
+  - Вы объясняете, почему s.upper() без присваивания не меняет s.
+concepts:
+  introduces: [python.string-index, python.slice, python.string-methods]
+  uses: [python.print, python.variable, python.assignment, python.len, python.f-string, python.if, python.comparison, python.for-range, python.def, python.parameter, python.return, python.scope, python.traceback]
+related: []
+next: [python.fundamentals.lists]
+tags: [python, strings, index, slice, methods]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет программа?
+        s = "Python"
+        print(s[0], s[-1], s[1:4])
+      options:
+        - "P n yth"
+        - "P n Pyt"
+        - "y n yth"
+        - "P o yt"
+      answer: 0
+      explanation: >-
+        s[0] - первый символ, s[-1] - последний. Срез s[1:4] берёт символы с индексами 1, 2, 3 (y, t, h); символ с индексом 4 не входит.
+    - id: q2
+      type: single
+      prompt: |
+        Что выведет программа?
+        name = "anna"
+        name.upper()
+        print(name)
+      options:
+        - "ANNA"
+        - "anna"
+        - "Anna"
+        - "None"
+      answer: 1
+      explanation: >-
+        Строки неизменяемы, upper возвращает новую строку, а name не меняется. Нужно записать name = name.upper().
+    - id: q3
+      type: single
+      prompt: |
+        Что выведет программа?
+        text = "abcdef"
+        print(text[::-1])
+        print(text[:2] + text[4:])
+      options:
+        - "fedcba и abef"
+        - "abcdef и abef"
+        - "fedcba и cdef"
+        - "fedcba и abcd"
+      answer: 0
+      explanation: >-
+        Шаг -1 читает строку с конца. text[:2] - первые два символа ("ab"), text[4:] - всё начиная с индекса 4 ("ef").
+    - id: q4
+      type: single
+      prompt: |
+        Что произойдёт при запуске?
+        s = "abc"
+        print(s[3])
+      options:
+        - "Выведется пустая строка"
+        - "Выведется c"
+        - "IndexError: индекс за пределами строки"
+        - "Выведется None"
+      answer: 2
+      explanation: >-
+        В строке из трёх символов допустимые индексы 0, 1, 2 (и -1, -2, -3). Индекс 3 выходит за границы. А вот срез s[3:] ошибки не даст.
+    - id: q5
+      type: single
+      prompt: |
+        Чему равно выражение?
+        "кот" in "котёнок"
+      options:
+        - "True"
+        - "False"
+        - "3"
+        - "Ошибка"
+      answer: 0
+      explanation: >-
+        Оператор in проверяет, встречается ли строка слева как часть строки справа. "кот" - начало слова "котёнок".
+exercise:
+  id: python.fundamentals.strings.exercise-v2
+  title: Инструменты для текста
+  prompt: |
+    В файле `text_tools.py` реализуйте четыре функции. Тесты импортируют модуль и вызывают их напрямую; ввод и вывод не нужны, результат возвращайте через `return`.
+
+    1. `initial(name)` - первая буква имени в верхнем регистре и точка: `"анна"` даёт `"А."`. Пробелы по краям игнорируются. Для пустого имени (или из одних пробелов) вернуть пустую строку.
+    2. `is_palindrome(text)` - `True`, если текст читается одинаково в обе стороны. Регистр букв и пробелы не учитываются: `"А роза упала на лапу Азора"` - палиндром. Пустая строка - палиндром.
+    3. `count_vowels(text)` - число гласных русских букв `а е ё и о у ы э ю я` в тексте; регистр не важен, остальные символы не считаются.
+    4. `mask_number(number)` - строка `number` (из цифр), в которой все символы, кроме последних четырёх, заменены на `*`. Если символов не больше четырёх, вернуть строку без изменений: `"1234567890"` даёт `"******7890"`.
+
+    **Примеры.**
+
+    ```python
+    initial("анна")          # 'А.'
+    is_palindrome("шалаш")   # True
+    count_vowels("привет")   # 2
+    mask_number("12345")     # '*2345'
+    ```
+  entryFile: text_tools.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - Каждая функция работает с одной строкой. Подумайте, какой индекс, срез или метод даёт нужную часть строки.
+    - 'Для initial используйте strip() и индекс [0] с методом upper(). Для палиндрома приведите текст к нижнему регистру, уберите пробелы методом replace и сравните строку с её срезом [::-1].'
+    - 'count_vowels: обойдите lower-версию текста циклом for ch in ... и проверяйте ch in "аеёиоуыэюя". mask_number: "*" * (len(number) - 4) повторяет звёздочку, а number[-4:] даёт последние четыре символа.'
+    - 'Не забудьте особые случаи: пустое имя (индекса [0] у пустой строки нет) и номер короче пяти символов (число повторений не должно стать отрицательным).'
+  tests:
+    - id: initial-basic
+      title: initial - обычные имена
+      hint: Результат состоит из заглавной первой буквы и точки; строчная первая буква должна стать заглавной.
+    - id: palindrome-basic
+      title: is_palindrome - обычные случаи
+      hint: Сравнивайте текст с его перевёрнутой копией; регистр и пробелы не учитываются.
+    - id: vowels-basic
+      title: count_vowels - обычные слова
+      hint: Считаются только гласные русского алфавита, как строчные, так и заглавные.
+    - id: mask-basic
+      title: mask_number - длинные номера
+      hint: Все символы кроме последних четырёх заменяются звёздочками, длина строки сохраняется.
+    - id: initial-edges
+      title: initial - пробелы и пустая строка (скрытый)
+      hidden: true
+      hint: Пробелы по краям нужно убрать до взятия первой буквы; для пустой строки индекс [0] вызовет ошибку - обработайте её заранее.
+    - id: palindrome-edges
+      title: is_palindrome - пустая строка и один символ (скрытый)
+      hidden: true
+      hint: Пустая строка и строка из одного символа - палиндромы; пробелы в середине не мешают.
+    - id: vowels-edges
+      title: count_vowels - пустая строка, ё, другие символы (скрытый)
+      hidden: true
+      hint: Буква ё тоже гласная; латинские буквы и пробелы не считаются.
+    - id: mask-edges
+      title: mask_number - короткие строки (скрытый)
+      hidden: true
+      hint: Если в строке не больше четырёх символов, она возвращается без изменений (а не со звёздочками).
+    - id: types
+      title: Типы результатов (скрытый)
+      hidden: true
+      hint: Функции возвращают строку или True/False, а не None и не печатают результат.

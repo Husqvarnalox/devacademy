@@ -86,6 +86,25 @@ public sealed record Comparison(
         Cells.TryGetValue(criterionId, out var row) && row.TryGetValue(subjectId, out var text) ? text : null;
 }
 
+/// <summary>
+/// One checkable competency of a track. <see cref="CheckLessonId"/> is a lesson with <c>assessmentFor</c>: completing it
+/// (its exercise and quiz) confirms the competency and credits the lessons it covers; those lessons are the remediation
+/// when the check is not passed. <see cref="After"/> lists competencies whose checks come first, which keeps a learner
+/// from being handed a hard check before the easier one it builds on was confirmed.
+/// </summary>
+public sealed record Competency(string Id, string Title, string Description, string CheckLessonId, IReadOnlyList<string> After);
+
+/// <summary>
+/// How a track is entered (<c>content/routes/&lt;track&gt;.yaml</c>): where an absolute beginner and a programmer coming
+/// from another language start, and the track's competency checks. Optional per track.
+/// </summary>
+public sealed record TrackRoute(
+    string TrackId,
+    string? BeginnerEntry,
+    string? ProgrammerEntry,
+    IReadOnlyList<Competency> Competencies,
+    string SourcePath);
+
 public enum Difficulty { Intro, Easy, Medium, Hard, Expert }
 
 public enum FactKind { Historical, Internals, Misconception, Performance, Security, RealWorld }
@@ -288,7 +307,20 @@ public sealed record Lesson(
     string SourcePath,
     IReadOnlyList<string> AssessmentFor,
     ComplexityInfo? Complexity = null,
-    string? Editorial = null);
+    string? Editorial = null,
+    IReadOnlyList<string>? FormerIds = null,
+    LessonConcepts? Concepts = null)
+{
+    /// <summary>Ids this lesson had before a rename with equivalent content; progress recorded under them is carried over.</summary>
+    public IReadOnlyList<string> PreviousIds => FormerIds ?? [];
+}
+
+/// <summary>
+/// Concepts a lesson teaches and the ones its theory, exercise and quiz rely on. The validator requires every used
+/// concept to be introduced by the lesson itself or by a lesson it depends on (prerequisites, transitively, and the
+/// lessons of required courses), so a lesson cannot silently assume knowledge nobody taught.
+/// </summary>
+public sealed record LessonConcepts(IReadOnlyList<string> Introduces, IReadOnlyList<string> Uses);
 
 public enum DiagnosticSeverity { Warning, Error }
 
@@ -338,6 +370,25 @@ public sealed record Submission(
     DateTimeOffset At);
 
 public enum LearningDepth { Quick, Standard, Deep }
+
+/// <summary>
+/// What the learner says they already know (<see cref="LearnerProfile.Level"/> 0-3). A self-assessment only: it chooses
+/// the starting point and how much introduction is shown, never what counts as known. Known means completed or credited
+/// by a passed check; no evidence means "not checked yet", not "does not know".
+/// </summary>
+public static class PriorKnowledge
+{
+    /// <summary>Has never programmed: everything is explained from zero.</summary>
+    public const int AbsoluteBeginner = 0;
+    /// <summary>Programs in another language and is new to this one.</summary>
+    public const int LanguageBeginner = 1;
+    /// <summary>Knows the language and wants to apply it to real tasks.</summary>
+    public const int Intermediate = 2;
+    /// <summary>Works with the language professionally; wants diagnostics and engineering depth.</summary>
+    public const int Advanced = 3;
+
+    public static int Clamp(int level) => Math.Clamp(level, AbsoluteBeginner, Advanced);
+}
 
 public sealed record LearnerProfile(
     string Goal,

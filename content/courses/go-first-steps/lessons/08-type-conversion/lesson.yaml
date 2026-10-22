@@ -1,0 +1,161 @@
+id: "go.first-steps.type-conversion"
+title: "Преобразование типов"
+goal: "Явно преобразовывать значения между int и float64 и выбирать правильное место для преобразования."
+difficulty: "easy"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.reading-input"
+objectives:
+  - "Записывать float64(x) и int(f) и предсказывать результат."
+  - "Объяснять, почему Go не смешивает int и float64 без явного преобразования."
+  - "Вычислять среднее целых чисел с дробной частью."
+masteryCriteria:
+  - "Программа читает три целых числа и печатает их среднее как float64 и как целое."
+  - "Вы отличаете float64(a/b) от float64(a)/float64(b) и называете, чем различаются результаты."
+concepts:
+  introduces:
+    - "go.type-conversion"
+  uses:
+    - "go.type"
+    - "go.int"
+    - "go.float64"
+    - "go.arithmetic"
+    - "go.integer-division"
+    - "go.scan"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.println"
+    - "go.print-values"
+next:
+  - "go.first-steps.formatted-output"
+tags:
+  - "go"
+  - "types"
+  - "conversion"
+  - "float64"
+  - "int"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        a := 7
+        b := 2
+        fmt.Println(float64(a / b))
+        ```
+      options:
+        - "3.5"
+        - "3"
+        - "4"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Сначала выполняется a / b - целочисленное деление, результат 3. Преобразование к float64 даёт 3 уже после потери дробной части."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        f := 3.99
+        fmt.Println(int(f))
+        ```
+      options:
+        - "4"
+        - "3"
+        - "3.99"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Преобразование float64 в int отбрасывает дробную часть, а не округляет."
+    - id: "q3"
+      type: "single"
+      prompt: "Как получить 3.5 из переменных a := 7 и b := 2?"
+      options:
+        - "a / b"
+        - "float64(a) / float64(b)"
+        - "float64(a / b)"
+        - "int(a) / int(b)"
+      answer: 1
+      explanation: "Оба операнда приводят к float64 до деления. Тогда деление дробное."
+    - id: "q4"
+      type: "single"
+      prompt: "Что сообщит компилятор о коде var avg float64 = total / 4, где total := 10?"
+      options:
+        - "Ничего, всё работает."
+        - "cannot use total / 4 (value of type int) as float64 value in variable declaration"
+        - "undefined: avg"
+        - "division by zero"
+      answer: 1
+      explanation: "Результат деления int на 4 - значение типа int, а переменная ждёт float64. Нужно явное преобразование."
+exercise:
+  id: "go.first-steps.type-conversion.exercise"
+  title: "Среднее трёх чисел"
+  prompt: |
+    Программа получает три целых числа (в одной строке или на разных). Выведите:
+
+    1. на первой строке - их среднее арифметическое как дробное число (`float64`);
+    2. на второй строке - то же среднее, превращённое в целое с отбрасыванием дробной части.
+
+    Обе строки печатайте командой `Println`, без особого форматирования.
+
+    **Пример.** Ввод `1 2 4` даёт
+
+    ```
+    2.3333333333333335
+    2
+    ```
+
+    Ввод `3 4 5` даёт
+
+    ```
+    4
+    4
+    ```
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Сумма трёх целых - целое. Чтобы среднее было дробным, сумму нужно перевести в float64 до деления."
+    - "Прочитайте три int. Среднее: float64(a+b+c) / 3."
+    - "Целое среднее получают преобразованием уже готового дробного: int(avg)."
+    - "avg := float64(a+b+c) / 3; fmt.Println(avg); fmt.Println(int(avg))."
+  tests:
+    - id: "basic"
+      title: "Среднее с дробной частью"
+      stdin: |
+        1 2 4
+      expected: |
+        2.3333333333333335
+        2
+      hint: "Среднее 1, 2, 4 равно 7/3: дробная строка и целая строка."
+    - id: "whole"
+      title: "Среднее целое (скрытый)"
+      stdin: |
+        3 4 5
+      expected: |
+        4
+        4
+      hidden: true
+      hint: "Если среднее целое, Println дробного числа печатает его без точки."
+    - id: "negative"
+      title: "Отрицательные числа (скрытый)"
+      stdin: |
+        -1 -2 -2
+      expected: |
+        -1.6666666666666667
+        -1
+      hidden: true
+      hint: "int отбрасывает дробную часть в сторону нуля: -1.67 становится -1."
+    - id: "lines"
+      title: "Ввод на разных строках (скрытый)"
+      stdin: |
+        10
+        20
+        25
+      expected: |
+        18.333333333333332
+        18
+      hidden: true
+      hint: "Числа могут быть на разных строках; среднее считается от суммы, приведённой к float64."

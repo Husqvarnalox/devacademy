@@ -1,0 +1,144 @@
+id: "go.first-steps.constants-and-comments"
+title: "Константы и комментарии"
+goal: "Заменить «магическое число» именованной константой и пояснить код комментариями."
+difficulty: "easy"
+estimatedMinutes: 20
+prerequisites:
+  - "go.first-steps.formatted-output"
+objectives:
+  - "Объявлять константу через const и использовать её в вычислениях."
+  - "Объяснять, чем константа отличается от переменной и почему её нельзя изменить."
+  - "Писать однострочные и многострочные комментарии и выбирать понятные имена."
+masteryCriteria:
+  - "Программа считает цену с НДС через константу vatRate и печатает результат с двумя знаками."
+  - "Вы называете, что произойдёт при попытке присвоить значение константе."
+concepts:
+  introduces:
+    - "go.const"
+    - "go.comment"
+  uses:
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.assignment"
+    - "go.float64"
+    - "go.int"
+    - "go.type"
+    - "go.arithmetic"
+    - "go.scan"
+    - "go.printf"
+    - "go.println"
+next:
+  - "go.first-steps.comparison-and-logic"
+tags:
+  - "go"
+  - "const"
+  - "comments"
+  - "naming"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какая запись объявляет константу?"
+      options:
+        - "const rate = 0.2"
+        - "const rate := 0.2"
+        - "rate const = 0.2"
+        - "constant rate = 0.2"
+      answer: 0
+      explanation: "Константа объявляется через const имя = значение. Знак := для констант не используется."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что сообщит компилятор о коде?
+
+        ```go
+        const limit = 10
+        limit = 20
+        ```
+      options:
+        - "Ничего, limit станет 20."
+        - "Ошибка: нельзя присваивать константе."
+        - "Предупреждение об устаревшей записи."
+        - "Ошибка: нужен тип int."
+      answer: 1
+      explanation: "Значение константы нельзя менять. Компилятор: cannot assign to limit (neither addressable nor a map index expression)."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        fmt.Println("a")
+        // fmt.Println("b")
+        fmt.Println("c") // fmt.Println("d")
+        ```
+      options:
+        - "a b c d"
+        - "a c"
+        - "a b c"
+        - "a c d"
+      answer: 1
+      explanation: "Всё после // до конца строки - комментарий и не выполняется. Закомментированы Println(\"b\") и Println(\"d\")."
+    - id: "q4"
+      type: "single"
+      prompt: "Можно ли записать в константу число, прочитанное из ввода через Scan?"
+      options:
+        - "Да, если тип подходит."
+        - "Нет: значение константы должно быть известно при компиляции."
+        - "Да, но только int."
+        - "Только внутри main."
+      answer: 1
+      explanation: "Константа получает значение до запуска программы, а ввод появляется во время запуска. Для таких значений нужна переменная."
+exercise:
+  id: "go.first-steps.constants-and-comments.exercise"
+  title: "Цена с НДС"
+  prompt: |
+    Программа читает цену товара (число, возможно дробное) и печатает цену с НДС 20% с двумя знаками после точки.
+
+    Ставку НДС не пишите числом внутри формулы: объявите константу `vatRate` со значением `0.2` и используйте её.
+
+    **Пример.** Ввод `100` даёт
+
+    ```
+    Цена с НДС: 120.00
+    ```
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Константа объявляется строкой const vatRate = 0.2 внутри main, до использования."
+    - "Цена с НДС - это цена, умноженная на (1 + vatRate)."
+    - "withVAT := price * (1 + vatRate); результат печатайте через Printf с %.2f."
+    - "fmt.Printf(\"Цена с НДС: %.2f\\n\", withVAT)."
+  tests:
+    - id: "basic"
+      title: "Цена 100"
+      stdin: |
+        100
+      expected: |
+        Цена с НДС: 120.00
+      hint: "100 с НДС 20% - это 120.00."
+    - id: "fraction"
+      title: "Дробная цена (скрытый)"
+      stdin: |
+        49.9
+      expected: |
+        Цена с НДС: 59.88
+      hidden: true
+      hint: "49.9 · 1.2 = 59.88: проверьте формулу и формат."
+    - id: "zero"
+      title: "Нулевая цена (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Цена с НДС: 0.00
+      hidden: true
+      hint: "Ноль остаётся нулём, но печатается как 0.00."
+    - id: "round"
+      title: "Округление (скрытый)"
+      stdin: |
+        19.99
+      expected: |
+        Цена с НДС: 23.99
+      hidden: true
+      hint: "19.99 · 1.2 = 23.988, при %.2f получается 23.99."

@@ -187,7 +187,9 @@ public class ViewModelTests
     public async Task Fact_sources_go_through_the_launcher()
     {
         using var host = new TestHost();
-        await host.Main.OpenLessonAsync(Helpers.FirstLessonId(host));
+        // Any lesson with a sourced fact (beginner lessons may have none).
+        var lesson = host.Services.Content.Current.Lessons.First(l => l.Facts.Any(f => f.Sources.Count > 0));
+        await host.Main.OpenLessonAsync(lesson.Id);
         var ws = (LessonWorkspaceViewModel)host.Main.Current!;
         var link = ws.Facts.SelectMany(f => f.Sources).First();
         link.OpenCommand.Execute(null);

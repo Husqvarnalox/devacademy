@@ -18,8 +18,9 @@ masteryCriteria:
   - "Вы знаете, что errgroup находится в golang.org/x/sync, а не в стандартной библиотеке."
 related:
   - "go.fundamentals.concurrency-patterns-and-context"
-  - "go.first-steps.packages-and-go-test"
-next: []
+  - "go.fundamentals.errors-and-table-tests"
+next:
+  - "go.fundamentals.errors-and-table-tests"
 tags:
   - "go"
   - "modules"

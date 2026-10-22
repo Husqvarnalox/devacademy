@@ -53,6 +53,9 @@ public sealed partial class OnboardingViewModel : ObservableObject
             await _s.Path.SetFollowedAsync(pathId, true);
             await _nav.OpenPathAsync(pathId);
         }
+        else if (Editor.SelectedLevel.Value >= 2 && Editor.SelectedLanguage?.Track.Id is { } trackId
+                 && await _s.Diagnostics.GetReportAsync(trackId) is not null)
+            await _nav.OpenDiagnosticAsync(trackId);
         else await _nav.ShowDashboardAsync();
     }
 

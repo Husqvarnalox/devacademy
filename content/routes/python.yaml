@@ -1,0 +1,45 @@
+track: python
+entry:
+  beginner: python.fundamentals.how-python-runs
+  programmer: python.programmers.syntax-and-control-flow
+competencies:
+  - id: basics
+    title: Основы Python
+    description: Переменные, ввод, арифметика, условия и циклы while и for.
+    check: python.check.basics
+    after: []
+  - id: functions
+    title: Функции и строки
+    description: Определение функций, параметры и значения по умолчанию, область видимости, срезы и методы строк.
+    check: python.check.functions
+    after: [basics]
+  - id: collections
+    title: Списки, словари и множества
+    description: Выбор коллекции, копирование и общие ссылки, подсчёт и группировка в словарях, операции над множествами.
+    check: python.check.collections
+    after: [basics]
+  - id: errors
+    title: Исключения, файлы и модули
+    description: try / except / else / finally, чтение и запись файлов через with, импорт модулей.
+    check: python.check.errors
+    after: [functions]
+  - id: decorators
+    title: Функции как объекты и декораторы
+    description: Замыкания, декораторы с параметрами и без, functools.wraps.
+    check: python.check.decorators
+    after: [functions]
+  - id: iterators
+    title: Итераторы и генераторы
+    description: Протокол итератора, функции-генераторы, ленивые конвейеры данных.
+    check: python.check.iterators
+    after: [collections]
+  - id: classes
+    title: Классы, dataclass и протоколы
+    description: Атрибуты и методы, специальные методы, dataclass, наследование, композиция и утиная типизация.
+    check: python.check.classes
+    after: [functions]
+  - id: typing
+    title: Аннотации типов
+    description: Аннотации параметров и результата, объединения и обобщённые функции, чтение аннотаций во время выполнения.
+    check: python.check.typing
+    after: [classes]

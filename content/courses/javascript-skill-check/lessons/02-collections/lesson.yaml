@@ -1,0 +1,150 @@
+id: "javascript.check.collections"
+title: "Проверка: массивы, объекты и методы массивов"
+goal: "Обрабатывать массивы и массивы объектов методами map, filter и reduce, не меняя исходные данные."
+difficulty: "easy"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: фильтровать, сортировать и группировать данные в массивах и объектах."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "collections"
+assessmentFor:
+  - "javascript.from-zero.arrays"
+  - "javascript.from-zero.iterating-arrays"
+  - "javascript.from-zero.arrow-functions"
+  - "javascript.from-zero.array-methods"
+  - "javascript.from-zero.string-methods"
+  - "javascript.from-zero.objects"
+  - "javascript.from-zero.arrays-of-objects"
+  - "javascript.from-zero.scope"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([3, 1, 2].map((x) => x * 2).filter((x) => x > 2));
+        ```
+      options:
+        - "[ 6, 4 ]"
+        - "[ 2, 4, 6 ]"
+        - "[ 3, 2 ]"
+        - "[ 6, 2, 4 ]"
+      answer: 0
+      explanation: "Сначала map даёт [6, 2, 4], затем filter оставляет значения больше 2: 6 и 4 в прежнем порядке. Сортировки здесь нет."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const a = [1, 2, 3];
+        const b = a;
+        b.push(4);
+        console.log(a.length, a === b);
+        ```
+      options:
+        - "3 false"
+        - "4 true"
+        - "4 false"
+        - "3 true"
+      answer: 1
+      explanation: "Присваивание b = a копирует ссылку, а не массив, поэтому push через b виден и через a. Обе переменные указывают на один и тот же объект, и === даёт true."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([10, 9, 1].sort());
+        ```
+      options:
+        - "[ 1, 9, 10 ]"
+        - "[ 10, 9, 1 ]"
+        - "[ 1, 10, 9 ]"
+        - "[ 9, 10, 1 ]"
+      answer: 2
+      explanation: "Без компаратора sort приводит элементы к строкам и сравнивает по символам: \"1\" < \"10\" < \"9\". Чтобы получить числовой порядок, нужен компаратор (a, b) => a - b."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const o = { a: 1 };
+        o.b = 2;
+        delete o.a;
+        console.log(Object.keys(o), "a" in o);
+        ```
+      options:
+        - "[ 'b' ] false"
+        - "[ 'a', 'b' ] true"
+        - "[ 'b' ] true"
+        - "[] false"
+      answer: 0
+      explanation: "Оператор delete удаляет свойство a целиком, поэтому в ключах остаётся только b, а проверка \"a\" in o ложна. Присваивание o.a = undefined оставило бы ключ в объекте."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(["a", "b"].includes("b"), [1, 2].indexOf(3), [1, 2, 3].slice(-2));
+        ```
+      options:
+        - "true -1 [ 2, 3 ]"
+        - "true 0 [ 2, 3 ]"
+        - "true -1 [ 1, 2 ]"
+        - "false -1 [ 2, 3 ]"
+      answer: 0
+      explanation: "includes возвращает true, indexOf для отсутствующего значения возвращает -1, а slice(-2) берёт два элемента с конца массива: [2, 3]."
+exercise:
+  id: "javascript.check.collections.exercise"
+  title: "Рейтинг, уникальные значения и итоги по категориям"
+  prompt: |
+    В файле `collections_check.mjs` реализуйте три экспортируемые функции. Исходные данные менять нельзя.
+
+    1. `topScorers(players, minScore)` - `players` - массив объектов `{ name, score }`. Верните массив имён игроков, у которых `score >= minScore`, по убыванию `score`; при равных очках - по возрастанию имени (по алфавиту, обычное сравнение строк).
+    2. `unique(values)` - новый массив без повторов, значения идут в порядке первого появления. Сравнение строгое: `1` и `"1"` разные значения.
+    3. `totalByCategory(items)` - `items` - массив `{ category, amount }`. Верните объект, где ключ - категория, а значение - сумма `amount` по ней. Для пустого массива - пустой объект.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "collections_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В `topScorers` сначала отфильтруйте игроков, потом отсортируйте копию и в конце возьмите имена через `map`."
+    - "Компаратор: `(a, b) => b.score - a.score || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)`. Метод `filter` уже возвращает новый массив, поэтому исходный не пострадает."
+    - "`unique`: `[...new Set(values)]` сохраняет порядок первого появления и сравнивает строго."
+    - "`totalByCategory`: цикл `for...of` и `totals[category] = (totals[category] ?? 0) + amount`."
+  tests:
+    - id: "top-basic"
+      title: "topScorers - порог и порядок"
+      hint: "Оставьте игроков с очками не меньше порога и отсортируйте по очкам по убыванию."
+    - id: "unique-basic"
+      title: "unique - повторы"
+      hint: "Каждое значение должно остаться один раз, на месте первого появления."
+    - id: "total-basic"
+      title: "totalByCategory - суммы по категориям"
+      hint: "Ключ объекта - название категории, значение - сумма amount."
+    - id: "top-edge"
+      title: "topScorers - равные очки, пустой список и исходный массив (скрытый)"
+      hidden: true
+      hint: "При равных очках имена идут по алфавиту. Исходный массив players должен остаться в прежнем порядке, поэтому сортируйте копию."
+    - id: "unique-edge"
+      title: "unique - типы и пустой массив (скрытый)"
+      hidden: true
+      hint: "1 и \"1\" - разные значения. Пустой массив даёт пустой массив, а NaN встречается один раз."
+    - id: "total-edge"
+      title: "totalByCategory - пустой список и числовые суммы (скрытый)"
+      hidden: true
+      hint: "Начальное значение суммы 0; для пустого списка верните {}."

@@ -1,0 +1,180 @@
+id: "go.first-steps.loop-control"
+title: "Циклы с условием и управление ими"
+goal: "Повторять действие, пока выполняется условие, и управлять циклом командами break и continue."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "go.first-steps.for-loop"
+objectives:
+  - "Записывать цикл for только с условием и бесконечный цикл for {}."
+  - "Выходить из цикла командой break и пропускать итерацию командой continue."
+  - "Читать значения до признака конца ввода."
+masteryCriteria:
+  - "Программа суммирует числа до нуля, пропуская отрицательные, и не зависает при отсутствии нуля."
+  - "Вы объясняете, что делают break и continue, и находите ошибку «continue пропускает шаг»."
+concepts:
+  introduces:
+    - "go.for-condition"
+    - "go.break-continue"
+  uses:
+    - "go.for-loop"
+    - "go.if"
+    - "go.comparison"
+    - "go.int"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.assignment"
+    - "go.arithmetic"
+    - "go.remainder"
+    - "go.scan"
+    - "go.zero-value"
+    - "go.println"
+    - "go.print-values"
+next:
+  - "go.first-steps.nested-loops"
+tags:
+  - "go"
+  - "for"
+  - "break"
+  - "continue"
+  - "while"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой цикл в Go заменяет while?"
+      options:
+        - "while условие { }"
+        - "for условие { }"
+        - "do { } while условие"
+        - "loop условие { }"
+      answer: 1
+      explanation: "В Go всего одно слово цикла - for. Если оставить только условие, получится аналог while."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        for i := 1; i <= 5; i++ {
+            if i == 3 {
+                break
+            }
+            fmt.Print(i, " ")
+        }
+        ```
+      options:
+        - "1 2 "
+        - "1 2 3 "
+        - "1 2 4 5 "
+        - "1 2 3 4 5 "
+      answer: 0
+      explanation: "break завершает цикл целиком, как только i становится 3. Тройка и всё, что дальше, не печатаются."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        for i := 1; i <= 5; i++ {
+            if i == 3 {
+                continue
+            }
+            fmt.Print(i, " ")
+        }
+        ```
+      options:
+        - "1 2 "
+        - "1 2 4 5 "
+        - "1 2 3 4 5 "
+        - "3 "
+      answer: 1
+      explanation: "continue пропускает остаток текущей итерации и переходит к следующей: тройка не печатается, остальные числа - да."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        В чём проблема?
+
+        ```go
+        i := 0
+        for i < 5 {
+            if i == 2 {
+                continue
+            }
+            i++
+        }
+        ```
+      options:
+        - "Ошибки нет."
+        - "При i == 2 continue пропускает i++, и цикл не заканчивается."
+        - "break отсутствует."
+        - "i нельзя сравнивать с 5."
+      answer: 1
+      explanation: "Когда i равно 2, continue возвращает к проверке условия, не дойдя до i++. Значение не меняется, цикл бесконечный."
+    - id: "q5"
+      type: "short"
+      prompt: "Какая команда немедленно завершает цикл?"
+      answer:
+        - "break"
+      explanation: "break выходит из ближайшего цикла и передаёт управление первой команде после него."
+exercise:
+  id: "go.first-steps.loop-control.exercise"
+  title: "Сумма до нуля"
+  prompt: |
+    Программа читает целые числа по одному. Чтение заканчивается на числе `0` (его саму в сумму не включаем); всё, что идёт после нуля, игнорируется.
+
+    Сложите все **неотрицательные** числа до нуля, отрицательные пропускайте. Напечатайте `Сумма: ` и итог.
+
+    **Пример.** Ввод `5 -3 10 0 7` даёт `Сумма: 15`.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Количество чисел заранее не известно, поэтому счётчик не подходит: нужен цикл без счётчика."
+    - "Бесконечный цикл for { } с чтением числа внутри; число 0 завершает его командой break."
+    - "Для отрицательных чисел используйте continue, чтобы не прибавлять их к сумме."
+    - "Читайте x внутри цикла: var x int; fmt.Scan(&x); if x == 0 { break }; if x < 0 { continue }; sum += x."
+  tests:
+    - id: "basic"
+      title: "Числа с отрицательным"
+      stdin: |
+        5 -3 10 0 7
+      expected: |
+        Сумма: 15
+      hint: "Отрицательные числа пропускаются, после нуля чтение прекращается."
+    - id: "zero"
+      title: "Сразу ноль (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Сумма: 0
+      hidden: true
+      hint: "Если первое число 0, сумма равна 0."
+    - id: "only-negative"
+      title: "Только отрицательные (скрытый)"
+      stdin: |
+        -1 -2 -3 0
+      expected: |
+        Сумма: 0
+      hidden: true
+      hint: "Отрицательные числа не входят в сумму."
+    - id: "lines"
+      title: "Числа на разных строках (скрытый)"
+      stdin: |
+        1
+        2
+        3
+        0
+        100
+      expected: |
+        Сумма: 6
+      hidden: true
+      hint: "Числа после нуля (100) не учитываются."
+    - id: "no-zero"
+      title: "Ввод без нуля (скрытый)"
+      stdin: |
+        4 6
+      expected: |
+        Сумма: 10
+      hidden: true
+      hint: "Если ввод закончился без нуля, программа не должна зависнуть: нулевое значение новой переменной x завершает цикл."

@@ -1,0 +1,151 @@
+id: "go.check.context"
+title: "Проверка: context и отмена"
+goal: "Писать код, который останавливается по отмене или сроку контекста."
+difficulty: "hard"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: писать код, который останавливается по отмене или сроку контекста."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "context"
+assessmentFor:
+  - "go.fundamentals.concurrency-patterns-and-context"
+  - "go.pro.context-cancellation"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+        defer cancel()
+        <-ctx.Done()
+        fmt.Println(ctx.Err())
+        ```
+      options:
+        - "context canceled"
+        - "context deadline exceeded"
+        - "<nil>"
+        - "timeout"
+      answer: 1
+      explanation: "Когда истекает срок, `ctx.Err()` возвращает `context.DeadlineExceeded` с текстом `context deadline exceeded`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        ctx, cancel := context.WithCancel(context.Background())
+        cancel()
+        <-ctx.Done()
+        fmt.Println(ctx.Err())
+        ```
+      options:
+        - "context canceled"
+        - "context deadline exceeded"
+        - "<nil>"
+        - "Паника"
+      answer: 0
+      explanation: "Ручная отмена даёт `context.Canceled` с текстом `context canceled`."
+    - id: "q3"
+      type: "single"
+      prompt: "Почему после `context.WithTimeout` принято писать `defer cancel()`, даже если срок всё равно истечёт?"
+      options:
+        - "Без этого программа не соберётся"
+        - "Чтобы сразу освободить ресурсы контекста и таймер, когда работа закончилась раньше срока"
+        - "Чтобы отменить родительский контекст"
+        - "Это нужно только в тестах"
+      answer: 1
+      explanation: "`cancel` освобождает таймер и связи с родителем. Пропуск вызова приводит к утечке ресурсов до истечения срока."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        parent, cancel := context.WithCancel(context.Background())
+        child, cancelChild := context.WithCancel(parent)
+        defer cancelChild()
+        cancel()
+        <-child.Done()
+        fmt.Println(child.Err())
+        ```
+      options:
+        - "<nil>"
+        - "context canceled"
+        - "context deadline exceeded"
+        - "Зависнет"
+      answer: 1
+      explanation: "Отмена распространяется от родителя к потомкам: дочерний контекст отменяется вместе с родительским."
+    - id: "q5"
+      type: "single"
+      prompt: "Куда по соглашению передают `context.Context` в функцию?"
+      options:
+        - "Последним параметром"
+        - "Первым параметром с именем ctx"
+        - "В поле структуры, чтобы не передавать каждый раз"
+        - "В глобальную переменную"
+      answer: 1
+      explanation: "Соглашение: `func Do(ctx context.Context, ...)`. Контекст не хранят в структурах и глобальных переменных, а передают явно по цепочке вызовов."
+exercise:
+  id: "go.check.context.exercise"
+  title: "collect и waitFor"
+  prompt: |
+    Допишите в `main.go` две функции, которые уважают отмену **`context.Context`**.
+
+    * **`collect(ctx context.Context, src <-chan int) ([]int, error)`** - читает значения из `src`. Когда канал закрыт, возвращает все значения и `nil`. Если контекст отменён или истёк срок, возвращает **уже собранные** значения и `ctx.Err()`.
+    * **`waitFor(ctx context.Context, d time.Duration) error`** - ждёт `d` и возвращает `nil`; если раньше отменится контекст, возвращает `ctx.Err()`. `time.Sleep` использовать нельзя: он не реагирует на отмену.
+
+    **Как проверяется.** Тесты используют короткие сроки (около 20-30 мс) и проверяют `errors.Is` с `context.DeadlineExceeded` и `context.Canceled`, а также что функции не зависают.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "В `collect` нужен цикл `for` с `select`: ветка `<-ctx.Done()` и ветка `v, ok := <-src`."
+    - "Если `ok == false`, канал закрыт: верните накопленные значения и `nil`."
+    - "В `waitFor` создайте `time.NewTimer(d)` и не забудьте `defer timer.Stop()`; в `select` ждите `<-timer.C` или `<-ctx.Done()`."
+    - "Причину отмены возвращайте через `ctx.Err()`, не создавайте новую ошибку."
+  tests:
+    - id: "collect-basic"
+      title: "collect: закрытый канал"
+      match: "TestCollect/closed_channel"
+      hint: "Закрытый канал означает успешное завершение: ошибка nil."
+    - id: "wait-basic"
+      title: "waitFor: срок контекста"
+      match: "TestWaitFor/deadline"
+      hint: "Верните ctx.Err() - это context.DeadlineExceeded."
+    - id: "collect-all"
+      title: "collect: срок и отмена (скрытый)"
+      match: "TestCollect/*"
+      hidden: true
+      hint: "При отмене возвращаются уже собранные значения и ctx.Err()."
+    - id: "wait-elapses"
+      title: "waitFor: ожидание без отмены (скрытый)"
+      match: "TestWaitFor/elapses"
+      hidden: true
+      hint: "Если контекст жив, после d возвращается nil."
+    - id: "wait-canceled"
+      title: "waitFor: контекст уже отменён (скрытый)"
+      match: "TestWaitFor/already_canceled"
+      hidden: true
+      hint: "Ветка <-ctx.Done() должна сработать сразу."

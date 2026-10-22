@@ -18,7 +18,7 @@ masteryCriteria:
   - "Вы описываете интерфейс минимального размера на стороне потребителя."
 related:
   - "go.fundamentals.structs-methods-embedding"
-  - "go.first-steps.packages-and-go-test"
+  - "go.fundamentals.errors-and-table-tests"
 next:
   - "go.fundamentals.maps-and-slices-deep-dive"
 tags:

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devacademy.local/schema/route.schema.json",
+  "title": "DevAcademy routes/<track>.yaml",
+  "description": "Editor aid only. The C# ContentValidator is authoritative. Entry lessons by prior knowledge and the track's competency checks.",
+  "type": "object",
+  "required": ["track"],
+  "additionalProperties": false,
+  "properties": {
+    "track": { "type": "string", "description": "Track id; must equal the file name." },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "beginner": { "type": "string", "description": "Lesson id where an absolute beginner starts (a level-0 course)." },
+        "programmer": { "type": "string", "description": "Lesson id where a learner who knows another language starts." }
+      }
+    },
+    "competencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "check"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "check": { "type": "string", "description": "Lesson id of the check (has assessmentFor)." },
+          "after": { "type": "array", "items": { "type": "string" }, "description": "Competencies whose checks are suggested first; acyclic." }
+        }
+      }
+    }
+  }
+}

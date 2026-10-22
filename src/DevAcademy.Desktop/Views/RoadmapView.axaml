@@ -24,6 +24,7 @@
           <ProgressBar Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding Fraction}" ShowProgressText="False" VerticalAlignment="Center" MinWidth="160" />
           <Button Grid.Column="2" Classes="primary large" Content="{Binding PrimaryText}" Command="{Binding PrimaryCommand}" IsVisible="{Binding HasPrimary}" />
         </Grid>
+        <Button Classes="ghost" Content="{loc:T Diagnostic_Entry}" Command="{Binding OpenDiagnosticCommand}" IsVisible="{Binding HasDiagnostic}" HorizontalAlignment="Left" />
       </StackPanel>
       <Border Classes="panel" Padding="16" IsVisible="{Binding HasFramework}">
         <StackPanel Spacing="6" DataContext="{Binding Framework}" x:DataType="vm:FrameworkInfoViewModel">

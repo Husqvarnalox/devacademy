@@ -24,6 +24,8 @@ public sealed class AppServices(
     ExerciseEvaluationService evaluation,
     RunService run,
     ProgressService progress,
+    ProgressMigrationService migration,
+    DiagnosticService diagnostics,
     HintService hints,
     ProblemService problems,
     DraftService draftService,
@@ -59,6 +61,9 @@ public sealed class AppServices(
     public ExerciseEvaluationService Evaluation { get; } = evaluation;
     public RunService Run { get; } = run;
     public ProgressService Progress { get; } = progress;
+    /// <summary>Carries progress over lesson renames (<c>formerIds</c>); run once at startup, idempotent.</summary>
+    public ProgressMigrationService Migration { get; } = migration;
+    public DiagnosticService Diagnostics { get; } = diagnostics;
     public HintService Hints { get; } = hints;
     public ProblemService Problems { get; } = problems;
     public DraftService DraftFiles { get; } = draftService;

@@ -1,0 +1,160 @@
+id: "javascript.from-zero.array-methods"
+title: "Методы массивов"
+goal: "Преобразовывать, отбирать, искать и сортировать массивы методами map, filter, find, includes, join и toSorted."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "javascript.from-zero.arrow-functions"
+objectives:
+  - "Получить новый массив методами map и filter, передав им стрелочную функцию."
+  - "Найти первый подходящий элемент методом find и проверить наличие значения методом includes."
+  - "Склеить элементы в строку методом join."
+  - "Отсортировать числа по возрастанию и объяснить, почему sort без компаратора сортирует числа как строки."
+masteryCriteria:
+  - "Функции не меняют исходный массив."
+  - "firstOver возвращает undefined, если подходящего элемента нет."
+  - "sortedAscending правильно сортирует числа разной длины: [10, 9, 100, 1] даёт [1, 9, 10, 100]."
+concepts:
+  introduces:
+    - "js.array-methods"
+  uses:
+    - "js.array"
+    - "js.index"
+    - "js.arrow-function"
+    - "js.callback"
+    - "js.for-of"
+    - "js.const"
+    - "js.function"
+    - "js.return"
+    - "js.comparison"
+    - "js.arithmetic"
+    - "js.string-length"
+    - "js.console-log"
+    - "js.string"
+next:
+  - "javascript.from-zero.string-methods"
+tags:
+  - "javascript"
+  - "array"
+  - "map"
+  - "filter"
+  - "sort"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const numbers = [1, 2, 3, 4];
+        console.log(numbers.map((n) => n * 10));
+        ```
+      options:
+        - "[ 10, 20, 30, 40 ]"
+        - "[ 1, 2, 3, 4 ]"
+        - "100"
+        - "[ 10 ]"
+      answer: 0
+      explanation: "map вызывает функцию для каждого элемента и собирает результаты в новый массив той же длины. Исходный массив не меняется."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const marks = [5, 3, 4, 2, 5];
+        console.log(marks.filter((m) => m >= 4));
+        ```
+      options:
+        - "[ 5, 4, 5 ]"
+        - "[ 5, 3, 4, 2, 5 ]"
+        - "3"
+        - "[ true, false, true, false, true ]"
+      answer: 0
+      explanation: "filter оставляет только те элементы, для которых функция вернула true. Результат - новый массив из подходящих элементов в прежнем порядке."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что вернёт вызов?
+
+        ```javascript
+        [3, 8, 12].find((n) => n > 20)
+        ```
+      options:
+        - "[]"
+        - "-1"
+        - "undefined"
+        - "false"
+      answer: 2
+      explanation: "find возвращает первый подходящий элемент, а если такого нет - undefined. Пустой массив возвращает filter, а -1 - поиск индекса."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const numbers = [10, 9, 100, 1];
+        console.log(numbers.toSorted());
+        ```
+      options:
+        - "[ 1, 9, 10, 100 ]"
+        - "[ 1, 10, 100, 9 ]"
+        - "[ 100, 10, 9, 1 ]"
+        - "[ 10, 9, 100, 1 ]"
+      answer: 1
+      explanation: "Без компаратора числа сравниваются как строки, то есть посимвольно: «1», «10» и «100» идут раньше «9». Для числового порядка нужен компаратор: numbers.toSorted((a, b) => a - b)."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log(["а", "б", "в"].join("-"));
+        ```
+      options:
+        - "а-б-в"
+        - "абв"
+        - "[ 'а-б-в' ]"
+        - "а, б, в"
+      answer: 0
+      explanation: "join склеивает элементы в одну строку, вставляя между соседними указанный разделитель. Результат - строка, а не массив."
+exercise:
+  id: "javascript.from-zero.array-methods.exercise"
+  title: "Отобрать, найти, склеить и отсортировать"
+  prompt: |
+    В файле `array_methods.mjs` пять функций без тела. Напишите их, используя методы массивов (циклы не нужны). Исходный массив менять нельзя.
+
+    * `squaresOfEven(numbers)` - квадраты только чётных чисел, в прежнем порядке: `squaresOfEven([1, 2, 3, 4])` даёт `[4, 16]`.
+    * `firstOver(numbers, limit)` - первое число, которое строго больше `limit`; если такого нет, `undefined`. `firstOver([3, 8, 12], 5)` даёт `8`.
+    * `knownWords(words, known)` - слова из `words`, которые есть в массиве `known`: `knownWords(["кот", "пёс", "кит"], ["кот", "кит"])` даёт `["кот", "кит"]`.
+    * `commaList(words)` - слова одной строкой через запятую и пробел: `commaList(["хлеб", "молоко"])` даёт `"хлеб, молоко"`; для пустого массива - пустая строка.
+    * `sortedAscending(numbers)` - **новый** массив чисел по возрастанию: `sortedAscending([10, 9, 100, 1])` даёт `[1, 9, 10, 100]`. Исходный массив должен остаться прежним.
+  entryFile: "array_methods.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Каждая функция - одна цепочка методов. squaresOfEven: сначала отобрать, потом преобразовать. knownWords: условие для filter - есть ли слово в known. sortedAscending: нужен метод, который возвращает отсортированную копию."
+    - "Чётное: n % 2 === 0. Метод проверки наличия: known.includes(word). Склейка с разделителем: words.join(\", \"). Сортировка чисел требует компаратор - стрелку с двумя параметрами a и b."
+    - "squaresOfEven: return numbers.filter((n) => n % 2 === 0).map((n) => n * n); firstOver: return numbers.find((n) => n > limit); knownWords: return words.filter((w) => known.includes(w));"
+    - "sortedAscending: return numbers.toSorted((a, b) => a - b); Компаратор возвращает отрицательное число, если a должно стоять раньше b, положительное - если позже. Без него числа сортируются как строки: 10 окажется раньше 9."
+  tests:
+    - id: "filter-map-basic"
+      title: "squaresOfEven и knownWords: обычные массивы"
+      hint: "Из [1, 2, 3, 4] чётные - 2 и 4, их квадраты 4 и 16. Для knownWords сохраняется порядок исходного массива words."
+    - id: "find-join-basic"
+      title: "firstOver и commaList: обычные массивы"
+      hint: "В [3, 8, 12] первое число больше 5 - это 8 (не 12). Слова склеиваются через запятую и пробел без лишнего разделителя в конце."
+    - id: "sort-basic"
+      title: "sortedAscending: числа разной длины"
+      hint: "Числа должны сравниваться как числа: [10, 9, 100, 1] даёт [1, 9, 10, 100]. Без компаратора получится [1, 10, 100, 9]."
+    - id: "methods-edge"
+      title: "Пустые массивы, нет совпадений, кириллица (скрытый)"
+      hidden: true
+      hint: "Для пустого массива filter и map дают [], find - undefined, join - пустую строку. firstOver с числом, равным limit, не подходит: сравнение строгое. Регистр слов важен: «Кот» и «кот» разные."
+    - id: "sort-edge"
+      title: "sortedAscending: отрицательные, повторы, исходный массив не меняется (скрытый)"
+      hidden: true
+      hint: "Отрицательные числа идут первыми: [3, -1, 2, -10] даёт [-10, -1, 2, 3]. Повторы остаются. Исходный массив после вызова должен остаться как был: sort меняет массив на месте, toSorted - нет."

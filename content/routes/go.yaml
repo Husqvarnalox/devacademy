@@ -1,0 +1,60 @@
+track: go
+entry:
+  beginner: go.first-steps.first-program
+  programmer: go.programmers.syntax-and-control-flow
+competencies:
+  - id: basics
+    title: Синтаксис, типы, условия и циклы
+    description: Переменные и константы, базовые типы, арифметика, if, switch и for, пакеты и запуск программы.
+    check: go.check.basics
+    after: []
+  - id: functions
+    title: Функции
+    description: Параметры и несколько результатов, именованные результаты, замыкания, defer и области видимости.
+    check: go.check.functions
+    after: [basics]
+  - id: collections
+    title: Массивы, срезы, карты и строки
+    description: Срезы и карты в повседневной работе, обход, строки и руны, группировка и разбиение данных.
+    check: go.check.collections
+    after: [basics]
+  - id: input
+    title: Ввод и потоки
+    description: Чтение из io.Reader, bufio.Scanner и ограничение длины строки, разбор чисел и слов.
+    check: go.check.input
+    after: [collections]
+  - id: structs
+    title: Структуры и методы
+    description: Структуры, нулевые значения, конструкторы, методы со значением и указателем, встраивание.
+    check: go.check.structs
+    after: [functions]
+  - id: interfaces
+    title: Интерфейсы
+    description: Неявная реализация интерфейсов, полиморфизм, переключатель по типу, пустой интерфейс и типичные ловушки.
+    check: go.check.interfaces
+    after: [structs]
+  - id: errors
+    title: Обработка ошибок
+    description: Ошибки как значения, обёртывание через %w, errors.Is и errors.As, собственные типы ошибок.
+    check: go.check.errors
+    after: [functions]
+  - id: testing
+    title: Тестирование и модули
+    description: Файлы _test.go, табличные тесты и подтесты, команда go test, go.mod и пакеты.
+    check: go.check.testing
+    after: [errors]
+  - id: concurrency
+    title: Горутины и каналы
+    description: Горутины, каналы, закрытие и range, WaitGroup, Mutex, пул работников и типичные тупики.
+    check: go.check.concurrency
+    after: [functions]
+  - id: context
+    title: Context и отмена
+    description: Отмена и сроки через context, select с ctx.Done, ctx.Err и правило defer cancel.
+    check: go.check.context
+    after: [concurrency]
+  - id: internals
+    title: Устройство срезов и карт
+    description: Длина и ёмкость, общий массив, append и copy, трёхиндексные срезы, nil-срезы и nil-карты.
+    check: go.check.internals
+    after: [collections]

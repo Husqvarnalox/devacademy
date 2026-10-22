@@ -68,6 +68,7 @@ public static class ContentLoader
 
             var paths = SideContentLoader.LoadPaths(root, Error);
             var comparisons = SideContentLoader.LoadComparisons(root, Error);
+            var routes = SideContentLoader.LoadRoutes(root, Error);
 
             var coursesDir = Path.Combine(root, "courses");
             if (Directory.Exists(coursesDir))
@@ -75,7 +76,7 @@ public static class ContentLoader
                     if (!loadedCourseIds.Contains(Path.GetFileName(dir)))
                         Warn(Rel(dir), "course directory is not referenced by any track in catalog.yaml");
 
-            return new ContentSet(tracks, courses, lessons, paths, LoadTemplates(), comparisons);
+            return new ContentSet(tracks, courses, lessons, paths, LoadTemplates(), comparisons, routes);
         }
 
         private List<ProjectTemplate> LoadTemplates()
@@ -277,7 +278,9 @@ public static class ContentLoader
                 dto.Quiz is null ? null : ParseQuiz(dto.Quiz, rel),
                 dto.Exercise is null ? null : ParseExercise(dto.Exercise, dto, dir, rel, courseLanguage),
                 dto.Challenge is null ? null : ParseExercise(dto.Challenge, dto, dir, rel, courseLanguage),
-                rel, dto.AssessmentFor ?? [], complexity, editorial);
+                rel, dto.AssessmentFor ?? [], complexity, editorial,
+                dto.FormerIds is { Count: > 0 } former ? former : null,
+                dto.Concepts is { } c ? new LessonConcepts(c.Introduces ?? [], c.Uses ?? []) : null);
         }
 
         private Fact? ParseFact(FactDto f, string path)

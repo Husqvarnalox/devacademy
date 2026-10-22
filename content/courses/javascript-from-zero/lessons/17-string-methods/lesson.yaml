@@ -1,0 +1,157 @@
+id: "javascript.from-zero.string-methods"
+title: "Методы строк"
+goal: "Очищать, менять и разбирать текст методами trim, split, toUpperCase, toLowerCase, slice, includes и replaceAll."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "javascript.from-zero.array-methods"
+objectives:
+  - "Убрать лишние пробелы по краям (trim) и привести регистр букв (toUpperCase, toLowerCase)."
+  - "Вырезать часть строки методом slice и проверить, содержит ли строка фрагмент (includes)."
+  - "Заменить все вхождения фрагмента (replaceAll) и разбить строку на массив (split)."
+  - "Объяснить, почему методы строк возвращают новую строку, а не меняют старую."
+masteryCriteria:
+  - "Функции работают на пустой строке, строках из одних пробелов и на кириллице."
+  - "Результат метода сохраняется или возвращается: исходная строка при этом не меняется."
+  - "countWords не считает пустую строку за одно слово."
+concepts:
+  introduces:
+    - "js.string-methods"
+  uses:
+    - "js.string"
+    - "js.string-length"
+    - "js.concatenation"
+    - "js.template-literal"
+    - "js.array"
+    - "js.array-methods"
+    - "js.index"
+    - "js.if"
+    - "js.comparison"
+    - "js.function"
+    - "js.return"
+    - "js.const"
+    - "js.console-log"
+next:
+  - "javascript.from-zero.objects"
+tags:
+  - "javascript"
+  - "string"
+  - "trim"
+  - "split"
+  - "slice"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const name = "  Анна ";
+        console.log("[" + name.trim() + "]");
+        ```
+      options:
+        - "[Анна]"
+        - "[  Анна ]"
+        - "[ Анна]"
+        - "[АННА]"
+      answer: 0
+      explanation: "trim убирает пробелы в начале и в конце строки, внутренние пробелы не трогает. Остаётся «Анна»."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const word = "привет";
+        word.toUpperCase();
+        console.log(word);
+        ```
+      options:
+        - "ПРИВЕТ"
+        - "привет"
+        - "undefined"
+        - "Привет"
+      answer: 1
+      explanation: "Строки неизменяемы: toUpperCase возвращает новую строку, а исходная остаётся прежней. Результат нужно сохранить или использовать: const big = word.toUpperCase();."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что вернёт выражение?
+
+        ```javascript
+        "программа".slice(0, 4)
+        ```
+      options:
+        - "\"прог\""
+        - "\"прогр\""
+        - "\"рамма\""
+        - "\"ма\""
+      answer: 0
+      explanation: "slice(начало, конец) берёт символы с индекса начала до индекса конца, не включая конец. Индексы 0, 1, 2, 3 - это «п», «р», «о», «г»."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        Сколько элементов в массиве?
+
+        ```javascript
+        const parts = "красный,зелёный,синий".split(",");
+        console.log(parts.length);
+        ```
+      answer: 3
+      tolerance: 0
+      explanation: "split(\",\") режет строку по каждой запятой: «красный», «зелёный», «синий». Три части."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log("а-б-в".replaceAll("-", "+"));
+        ```
+      options:
+        - "а+б+в"
+        - "а+б-в"
+        - "а-б-в"
+        - "+-+"
+      answer: 0
+      explanation: "replaceAll заменяет все вхождения указанного фрагмента. Оба дефиса превращаются в плюсы."
+exercise:
+  id: "javascript.from-zero.string-methods.exercise"
+  title: "Заглавная буква, слова, ссылка и сокращение"
+  prompt: |
+    В файле `string_methods.mjs` пять функций без тела. Напишите их, используя методы строк. Функции возвращают результат, а не печатают.
+
+    * `capitalize(word)` - слово с заглавной первой буквой, остальные буквы строчные: `capitalize("иВАН")` даёт `"Иван"`. Для пустой строки - пустая строка.
+    * `countWords(text)` - число слов. Слова разделены одним пробелом, но по краям текста могут быть лишние пробелы: `countWords("  привет мир ")` даёт `2`. Для пустой строки и строки из одних пробелов - `0`.
+    * `slugify(title)` - заголовок для адреса страницы: лишние пробелы по краям убраны, буквы строчные, пробелы между словами заменены на `-`. `slugify("  Мой Первый Пост ")` даёт `"мой-первый-пост"`.
+    * `shorten(text, max)` - если длина текста не больше `max`, вернуть его как есть; иначе первые `max` символов и три точки в конце: `shorten("Длинный заголовок", 7)` даёт `"Длинный..."`.
+    * `mentions(text, word)` - `true`, если слово встречается в тексте, **без учёта регистра**: `mentions("Купить МОЛОКО", "молоко")` даёт `true`.
+  entryFile: "string_methods.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Для каждой функции подойдёт один-два метода строк. capitalize: отдельно первая буква и остаток. countWords: сначала уберите краевые пробелы, потом разбейте по пробелу; пустую строку обработайте отдельно. mentions: приведите обе строки к одному регистру."
+    - "Первая буква: word.slice(0, 1), остаток: word.slice(1). Для пустой строки slice возвращает пустую строку, ошибки нет. Разбиение: text.split(\" \"); у пустой строки split даёт массив из одного пустого элемента, поэтому её нужно проверить заранее."
+    - "capitalize: return word.slice(0, 1).toUpperCase() + word.slice(1).toLowerCase(); slugify: return title.trim().toLowerCase().replaceAll(\" \", \"-\"); mentions: return text.toLowerCase().includes(word.toLowerCase());"
+    - "countWords: const clean = text.trim(); if (clean === \"\") { return 0; } return clean.split(\" \").length; shorten: if (text.length <= max) { return text; } return text.slice(0, max) + \"...\";"
+  tests:
+    - id: "capitalize-slug-basic"
+      title: "capitalize и slugify: обычные строки"
+      hint: "«иВАН» должно стать «Иван»: первая буква заглавная, остальные строчные. В slugify пробелы по краям исчезают, а между словами превращаются в дефисы."
+    - id: "words-basic"
+      title: "countWords и mentions: обычные строки"
+      hint: "В «привет мир» два слова; краевые пробелы не добавляют слов. mentions должна находить слово независимо от регистра букв."
+    - id: "shorten-basic"
+      title: "shorten: длинный и короткий текст"
+      hint: "Если текст длиннее max, остаётся max символов плюс «...». Текст ровно длины max не сокращается."
+    - id: "strings-edge"
+      title: "Пустые строки, пробелы, кириллица (скрытый)"
+      hidden: true
+      hint: "countWords(\"\") и countWords(\"   \") равны 0, а не 1. capitalize(\"\") - пустая строка. slugify(\"\") - пустая строка. Кириллица преобразуется так же, как латиница."
+    - id: "strings-edge-2"
+      title: "shorten и mentions: границы и пустые значения (скрытый)"
+      hidden: true
+      hint: "shorten(\"abc\", 3) возвращает \"abc\" без точек, а shorten(\"abcd\", 3) - \"abc...\". shorten(\"\", 5) - пустая строка. Регистр не учитывается, в том числе для кириллицы."

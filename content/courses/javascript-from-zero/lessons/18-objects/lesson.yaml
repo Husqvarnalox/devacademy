@@ -1,0 +1,159 @@
+id: "javascript.from-zero.objects"
+title: "Объекты"
+goal: "Описывать вещь набором именованных свойств: создавать объект, читать, добавлять и менять свойства, проверять их наличие."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "javascript.from-zero.string-methods"
+objectives:
+  - "Записать объект литералом с фигурными скобками и свойствами «имя: значение»."
+  - "Прочитать и изменить свойство через точку и через квадратные скобки, объяснить, когда нужны скобки."
+  - "Добавить новое свойство присваиванием и проверить наличие свойства оператором in."
+  - "Получить список имён свойств через Object.keys."
+masteryCriteria:
+  - "makeProduct создаёт объект с точными именами и значениями свойств."
+  - "getField читает свойство по имени, которое лежит в переменной, и возвращает undefined, если свойства нет."
+  - "hasField отличает отсутствующее свойство от свойства со значением undefined."
+concepts:
+  introduces:
+    - "js.object"
+    - "js.property"
+  uses:
+    - "js.array"
+    - "js.array-methods"
+    - "js.string"
+    - "js.number"
+    - "js.boolean"
+    - "js.const"
+    - "js.function"
+    - "js.return"
+    - "js.parameter"
+    - "js.console-log"
+    - "js.assignment"
+    - "js.string-methods"
+next:
+  - "javascript.from-zero.arrays-of-objects"
+tags:
+  - "javascript"
+  - "object"
+  - "property"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const user = { name: "Анна", age: 30 };
+        console.log(user.age);
+        ```
+      options:
+        - "30"
+        - "age"
+        - "undefined"
+        - "{ name: 'Анна', age: 30 }"
+      answer: 0
+      explanation: "user.age читает свойство age объекта user. Значение этого свойства - число 30."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const item = { title: "Чай", price: 120 };
+        const key = "price";
+        console.log(item[key]);
+        console.log(item.key);
+        ```
+      options:
+        - "120 и undefined"
+        - "120 и 120"
+        - "undefined и 120"
+        - "price и key"
+      answer: 0
+      explanation: "В квадратных скобках стоит выражение, и его значение (строка \"price\") используется как имя свойства. После точки имя пишется буквально, поэтому item.key ищет свойство с именем key, которого нет."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что будет в объекте после выполнения?
+
+        ```javascript
+        const car = { brand: "Lada" };
+        car.year = 2020;
+        car.brand = "Kia";
+        ```
+      options:
+        - "{ brand: 'Kia', year: 2020 }"
+        - "{ brand: 'Lada' }"
+        - "{ brand: 'Lada', year: 2020 }"
+        - "Ошибка: объект объявлен через const"
+      answer: 0
+      explanation: "Присваивание несуществующему свойству добавляет его, существующему - заменяет значение. const запрещает только присвоить имени car другой объект, а менять содержимое объекта можно."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const point = { x: 1, y: 2, z: 3 };
+        console.log(Object.keys(point).length);
+        ```
+      answer: 3
+      tolerance: 0
+      explanation: "Object.keys возвращает массив имён свойств: ['x', 'y', 'z']. Его длина равна 3."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const book = { title: "Азбука" };
+        console.log("title" in book, "author" in book);
+        ```
+      options:
+        - "true false"
+        - "true true"
+        - "false false"
+        - "Азбука undefined"
+      answer: 0
+      explanation: "Оператор in отвечает, есть ли в объекте свойство с таким именем (имя записывается строкой слева). У book есть title, но нет author."
+exercise:
+  id: "javascript.from-zero.objects.exercise"
+  title: "Товар, чтение, проверка и добавление свойств"
+  prompt: |
+    В файле `objects.mjs` пять функций без тела. Напишите их:
+
+    * `makeProduct(name, price)` - возвращает объект с тремя свойствами: `name`, `price` (значения из параметров) и `inStock` со значением `true`. `makeProduct("Чай", 120)` даёт объект `{ name: "Чай", price: 120, inStock: true }`.
+    * `getField(obj, key)` - значение свойства, имя которого передано строкой `key`: `getField({ a: 1 }, "a")` даёт `1`. Если такого свойства нет, результат `undefined`.
+    * `hasField(obj, key)` - `true`, если свойство с именем `key` есть в объекте, иначе `false`. Свойство, равное `undefined`, всё равно существует: `hasField({ a: undefined }, "a")` даёт `true`.
+    * `addField(obj, key, value)` - записывает в объект свойство `key` со значением `value` и возвращает **тот же** объект: `addField({ a: 1 }, "b", 2)` даёт `{ a: 1, b: 2 }`.
+    * `fieldNames(obj)` - массив имён свойств объекта в порядке добавления: `fieldNames({ x: 1, y: 2 })` даёт `["x", "y"]`; для пустого объекта `[]`.
+  entryFile: "objects.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "makeProduct возвращает объект-литерал. Остальные функции получают имя свойства строкой в параметре key, поэтому точка с именем key не подойдёт: нужны квадратные скобки или специальные средства."
+    - "Читать: obj[key]. Записывать: obj[key] = value. Проверка наличия: слева строка с именем, справа объект, между ними слово in. Список имён даёт Object.keys(obj)."
+    - "makeProduct: return { name: name, price: price, inStock: true }; hasField: return key in obj; fieldNames: return Object.keys(obj);"
+    - "addField: obj[key] = value; return obj; Не создавайте новый объект: проверка убеждается, что вернулся тот же, который вы получили."
+  tests:
+    - id: "make-basic"
+      title: "makeProduct: обычный товар"
+      hint: "У объекта должны быть ровно три свойства с точными именами name, price, inStock; inStock равно true."
+    - id: "get-has-basic"
+      title: "getField и hasField: обычные объекты"
+      hint: "getField({ a: 1 }, \"a\") - 1. Имя свойства приходит в переменной, поэтому нужны квадратные скобки, а не точка."
+    - id: "add-names-basic"
+      title: "addField и fieldNames: обычные объекты"
+      hint: "После addField({ a: 1 }, \"b\", 2) в объекте два свойства, и fieldNames вернёт [\"a\", \"b\"] в порядке добавления."
+    - id: "objects-edge"
+      title: "Отсутствующие свойства, undefined, пустой объект, кириллица (скрытый)"
+      hidden: true
+      hint: "getField отсутствующего свойства даёт undefined. hasField({ a: undefined }, \"a\") - true: проверять надо наличие имени, а не значение. fieldNames({}) - пустой массив. Имена и значения могут быть на кириллице."
+    - id: "add-edge"
+      title: "addField: замена, тот же объект (скрытый)"
+      hidden: true
+      hint: "Если свойство уже есть, addField заменяет его значение, а не добавляет второе. Функция должна вернуть именно переданный объект (не копию), и он должен измениться."

@@ -1,0 +1,168 @@
+id: "javascript.programmers.errors-and-input"
+title: "Исключения и ввод в Node.js: что язык не проверяет за вас"
+goal: "Разбирать текстовый ввод строго, отличать ошибки данных от ошибок программиста и использовать исключения и finally без сюрпризов."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites:
+  - "javascript.programmers.collections-and-functions"
+next:
+  - "javascript.first-steps.how-javascript-runs"
+objectives:
+  - "Писать собственный класс ошибки, задавать ему name и различать ошибки через instanceof."
+  - "Предсказывать порядок выполнения try, catch и finally, включая return внутри finally."
+  - "Читать stdin целиком в Node.js и делить текст на строки с учётом \\r\\n и пустого хвоста."
+  - "Строго разбирать числа и JSON, не полагаясь на Number(\"\") и parseInt."
+masteryCriteria:
+  - "parseLine бросает ValidationError с номером строки на всех видах неверных записей и принимает верные, включая границы возраста 0 и 150."
+  - "parseRecords собирает ошибки в список, нумерует строки с учётом пустых, понимает \\r\\n и бросает TypeError для не строки."
+  - "parseJsonSafe возвращает fallback только при неверном JSON или не строке; parseNumbers отвергает 0x10, 1e3 и Infinity."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "javascript"
+  - "programmers"
+  - "errors"
+  - "input"
+assessmentFor:
+  - "javascript.from-zero.errors-and-exceptions"
+  - "javascript.from-zero.reading-input"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        function f() {
+          try {
+            return "a";
+          } finally {
+            console.log("b");
+          }
+        }
+        console.log(f());
+        ```
+      options:
+        - "a, затем b"
+        - "b, затем a"
+        - "только a"
+        - "только b"
+      answer: 1
+      explanation: "Значение return вычисляется, но функция выходит только после блока finally, поэтому сначала печатается b, а потом вызывающий код печатает вернувшееся a. Finally выполняется при любом выходе из try."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(Number(""), Number(" 12 "), Number("12px"), parseInt("12px"));
+        ```
+      options:
+        - "NaN 12 NaN 12"
+        - "0 12 NaN 12"
+        - "0 NaN NaN NaN"
+        - "0 12 12 12"
+      answer: 1
+      explanation: "Number требует число во всей строке, но пробелы по краям игнорирует, а пустую строку считает нулём. Для \"12px\" Number даёт NaN. parseInt читает ведущие цифры и останавливается на первой лишней букве, поэтому возвращает 12."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        try {
+          throw "oops";
+        } catch (e) {
+          console.log(e instanceof Error, typeof e);
+        }
+        ```
+      options:
+        - "true object"
+        - "false string"
+        - "true string"
+        - "ничего: бросать можно только Error"
+      answer: 1
+      explanation: "JavaScript разрешает бросить любое значение, в том числе строку. Она не является экземпляром Error, а typeof даёт \"string\". Такое исключение не несёт трассировки и message, поэтому бросать нужно new Error(...)."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Сколько элементов в массиве?
+
+        ```javascript
+        console.log("a\nb\n".split("\n").length);
+        ```
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "1"
+      answer: 1
+      explanation: "split возвращает и пустую строку после последнего разделителя: [\"a\", \"b\", \"\"]. Поэтому после чтения файла, оканчивающегося переводом строки, пустой хвост убирают вручную."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        class MyErr extends Error {}
+        const e = new MyErr("x");
+        console.log(e.name, e.message, e instanceof MyErr);
+        ```
+      options:
+        - "MyErr x true"
+        - "Error x true"
+        - "Error x false"
+        - "MyErr undefined true"
+      answer: 1
+      explanation: "Свойство name наследуется от Error.prototype и равно \"Error\", пока подкласс не задаст своё значение (this.name = \"MyErr\" в конструкторе). Сообщение передано в конструктор родителя, а instanceof видит настоящий класс объекта."
+exercise:
+  id: "javascript.programmers.errors-and-input.exercise"
+  title: "Разбор записей из текста: ошибки данных и ошибки программиста"
+  prompt: |
+    В файле `input_task.mjs` реализуйте четыре экспортируемые функции (класс `ValidationError` уже есть: у него поле `line`).
+
+    1. `parseLine(line, lineNo)` - разбирает строку `имя,возраст` и возвращает `{ name, age }`. Бросает `ValidationError(сообщение, lineNo)`, если полей не два, имя после `trim` пусто, возраст (после `trim`) не состоит из одних цифр или больше 150. Возраст 0 и 150 допустимы.
+    2. `parseRecords(text)` - разбирает многострочный текст (разделители `\n` и `\r\n`). Пустые строки (и строки из одних пробелов) пропускаются, но нумерация строк идёт с 1 по **всем** строкам. Возвращает `{ records, errors }`: список верных записей и список `{ line, message }` для неверных, в порядке строк. Ошибки, не являющиеся `ValidationError`, глотать нельзя; если `text` не строка, бросьте `TypeError`.
+    3. `parseJsonSafe(text, fallback)` - результат `JSON.parse`, а при неверном JSON или если `text` не строка - `fallback`. Строка `"null"` - верный JSON, результат `null`.
+    4. `parseNumbers(text)` - числа, разделённые любыми пробельными символами, в массив. Допустимы только десятичные числа вида `12`, `-3`, `+4`, `2.5`; всё остальное (`0x10`, `1e3`, `Infinity`, `1,5`, `.5`) - `ValidationError` без номера строки. Пустой ввод даёт `[]`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "input_task.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Разделите работу: parseLine только проверяет одну строку и бросает ValidationError, а parseRecords вызывает её в цикле и решает, что делать с исключением."
+    - "В parseRecords делите текст по /\\r?\\n/, идите по индексу i (номер строки i + 1), пропускайте строки с trim() === \"\" и оборачивайте вызов parseLine в try/catch."
+    - "В catch проверьте e instanceof ValidationError: тогда добавьте { line: e.line, message: e.message } в errors, иначе перебросьте throw e. Для не строки на входе сразу бросьте new TypeError(...)."
+    - "Для возраста используйте регулярное выражение /^\\d+$/ на обрезанном тексте, а не Number и parseInt: Number(\"\") равно 0, а parseInt(\"12x\") равно 12. Для parseNumbers примените /^[+-]?\\d+(\\.\\d+)?$/ к каждому токену из text.split(/\\s+/) без пустых элементов."
+  tests:
+    - id: "line-basic"
+      title: "parseLine - верные строки"
+      hint: "Имя и возраст нужно обрезать по краям; возраст превращайте в число после проверки формата."
+    - id: "records-basic"
+      title: "parseRecords - записи и одна ошибка"
+      hint: "Верные строки идут в records, неверная - в errors вместе с номером строки (с 1)."
+    - id: "json-basic"
+      title: "parseJsonSafe - верный и неверный JSON"
+      hint: "JSON.parse бросает SyntaxError на неверном тексте: поймайте её и верните fallback."
+    - id: "numbers-basic"
+      title: "parseNumbers - числа через пробелы и переводы строк"
+      hint: "Делите по /\\s+/ и выбрасывайте пустые токены, потом превращайте в числа."
+    - id: "line-errors"
+      title: "parseLine - все виды неверных строк (скрытый)"
+      hidden: true
+      hint: "Проверяются неверное число полей, пустое имя, пустой, отрицательный, дробный и нечисловой возраст, а также возраст выше 150. Номер строки должен попасть в e.line."
+    - id: "records-edge"
+      title: "parseRecords - пустые строки, \\r\\n и не строка (скрытый)"
+      hidden: true
+      hint: "Пустые строки пропускаются, но считаются в нумерации. Для null, числа или массива вместо текста нужен TypeError, а не запись в errors."
+    - id: "json-edge"
+      title: "parseJsonSafe - null, пустая строка и не строки (скрытый)"
+      hidden: true
+      hint: "JSON.parse(null) возвращает null, потому что приводит аргумент к строке \"null\": сначала проверьте typeof text === \"string\". Пустая строка и висящая запятая - неверный JSON."
+    - id: "numbers-edge"
+      title: "parseNumbers - формат чисел и пустой ввод (скрытый)"
+      hidden: true
+      hint: "Number(\"0x10\") равно 16, а Number(\"1e3\") равно 1000: сначала проверьте токен регулярным выражением. Пустой и пробельный ввод - пустой массив."

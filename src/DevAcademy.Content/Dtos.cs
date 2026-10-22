@@ -77,6 +77,8 @@ internal sealed class LessonDto
     public List<string>? Next { get; set; }
     public List<string>? SeeAlso { get; set; }
     public List<string>? AssessmentFor { get; set; }
+    public List<string>? FormerIds { get; set; }
+    public ConceptsDto? Concepts { get; set; }
     public List<string>? Tags { get; set; }
     public List<FactDto>? Facts { get; set; }
     public QuizDto? Quiz { get; set; }
@@ -87,6 +89,34 @@ internal sealed class LessonDto
     /// <summary>Default for the lesson's exercise and challenge when they declare none of their own.</summary>
     public RequiresDto? Requires { get; set; }
     public string? Accelerator { get; set; }
+}
+
+internal sealed class ConceptsDto
+{
+    public List<string>? Introduces { get; set; }
+    public List<string>? Uses { get; set; }
+}
+
+internal sealed class RouteDto
+{
+    public string? Track { get; set; }
+    public RouteEntryDto? Entry { get; set; }
+    public List<CompetencyDto>? Competencies { get; set; }
+}
+
+internal sealed class RouteEntryDto
+{
+    public string? Beginner { get; set; }
+    public string? Programmer { get; set; }
+}
+
+internal sealed class CompetencyDto
+{
+    public string? Id { get; set; }
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public string? Check { get; set; }
+    public List<string>? After { get; set; }
 }
 
 internal sealed class RequiresDto

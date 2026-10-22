@@ -1,0 +1,169 @@
+id: "javascript.from-zero.functions"
+title: "Функции"
+goal: "Написать функцию с параметрами, которая возвращает результат, и вызвать её с разными значениями."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "javascript.from-zero.comparison-and-logic"
+objectives:
+  - "Объявить функцию словом function, задать параметры и вернуть результат через return."
+  - "Вызвать функцию с аргументами и использовать возвращённое значение."
+  - "Объяснить, чем return отличается от console.log внутри функции."
+masteryCriteria:
+  - "Три функции возвращают правильный результат для обычных и граничных значений (ноль, отрицательные числа, пустая строка, кириллица)."
+  - "Функции возвращают значение, а не печатают его."
+concepts:
+  introduces:
+    - "js.function"
+    - "js.parameter"
+    - "js.return"
+    - "js.export-for-check"
+  uses:
+    - "js.variable"
+    - "js.const"
+    - "js.arithmetic"
+    - "js.concatenation"
+    - "js.console-log"
+next:
+  - "javascript.from-zero.if-else"
+tags:
+  - "javascript"
+  - "functions"
+  - "return"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function double(n) {
+          return n * 2;
+        }
+        console.log(double(4));
+        ```
+      options:
+        - "4"
+        - "8"
+        - "n * 2"
+        - "undefined"
+      answer: 1
+      explanation: "Вызов double(4) передаёт в параметр n значение 4, функция возвращает 4 * 2 = 8, и console.log печатает возвращённое значение."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function hello() {
+          console.log("Привет");
+        }
+        console.log("Начало");
+        ```
+      options:
+        - "Привет, затем Начало"
+        - "Начало, затем Привет"
+        - "Только Начало"
+        - "Только Привет"
+      answer: 2
+      explanation: "Объявление функции только описывает, что делать. Пока функцию не вызвали (hello();), тело не выполняется."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function add(a, b) {
+          a + b;
+        }
+        console.log(add(2, 3));
+        ```
+      options:
+        - "5"
+        - "23"
+        - "undefined"
+        - "Ошибка: нет return"
+      answer: 2
+      explanation: "Выражение a + b вычислено, но не возвращено. Функция без return возвращает undefined - особое значение «значения нет». Исправление: return a + b;"
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function check(n) {
+          return n * 10;
+          console.log("после return");
+        }
+        console.log(check(2));
+        ```
+      options:
+        - "20"
+        - "после return, затем 20"
+        - "20, затем после return"
+        - "undefined"
+      answer: 0
+      explanation: "return завершает функцию немедленно. Команды после него не выполняются, поэтому «после return» не печатается."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        function label(name) {
+          return "Имя: " + name;
+        }
+        const text = label("Анна");
+        console.log(text, label("Олег"));
+        ```
+      options:
+        - "Имя: Анна Имя: Олег"
+        - "Имя: Анна Олег"
+        - "text Олег"
+        - "Имя: АннаИмя: Олег"
+      answer: 0
+      explanation: "Функцию можно вызывать сколько угодно раз с разными аргументами. Каждый вызов возвращает свою строку; console.log с двумя значениями печатает их через пробел."
+exercise:
+  id: "javascript.from-zero.functions.exercise"
+  title: "Три функции"
+  prompt: |
+    В файле `functions_task.mjs` три функции с заготовками. Допишите в каждой команду `return` по описанию:
+
+    * `greet(name)` - возвращает строку `"Привет, <name>!"`, например `greet("Анна")` даёт `"Привет, Анна!"`.
+    * `rectangleArea(width, height)` - возвращает площадь прямоугольника (произведение сторон).
+    * `average(a, b)` - возвращает среднее арифметическое двух чисел.
+
+    Функции должны **возвращать** значение, а не печатать его. Слово `export` перед `function` оставьте: оно делает функцию видимой для проверки, которая вызывает её с разными значениями. Часть проверок скрыта: в них ноль, отрицательные числа, пустая строка и кириллица.
+  entryFile: "functions_task.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "У каждой функции в заготовке есть комментарий TODO и временный return. Замените значение после return на нужное выражение."
+    - "Для greet соберите строку из трёх частей оператором +. Для rectangleArea перемножьте параметры. Для average сложите параметры и разделите на 2."
+    - "Для среднего нужны скобки: (a + b) / 2. Без скобок деление выполнится раньше сложения."
+    - "return \"Привет, \" + name + \"!\"; return width * height; return (a + b) / 2;"
+  tests:
+    - id: "greet-basic"
+      title: "greet: обычные имена"
+      hint: "greet(\"Анна\") должно вернуть строку «Привет, Анна!» - с запятой, пробелом и восклицательным знаком."
+    - id: "area-basic"
+      title: "rectangleArea: обычные размеры"
+      hint: "Площадь прямоугольника 3 на 4 равна 12; функция должна вернуть число, а не напечатать его."
+    - id: "average-basic"
+      title: "average: обычные числа"
+      hint: "Среднее чисел 2 и 4 равно 3: сложите и разделите на 2; скобки нужны."
+    - id: "greet-edge"
+      title: "greet: пустая строка и кириллица (скрытый)"
+      hidden: true
+      hint: "Пустое имя не должно вызывать сбой: ожидается «Привет, !». Буква «Ё» и пробелы внутри имени сохраняются как есть."
+    - id: "area-edge"
+      title: "rectangleArea: ноль, дробные и отрицательные (скрытый)"
+      hidden: true
+      hint: "Функция не должна проверять значения: произведение 0 и 5 равно 0, 2.5 на 2 равно 5, -2 на 3 равно -6."
+    - id: "average-edge"
+      title: "average: отрицательные и дробный результат (скрытый)"
+      hidden: true
+      hint: "Среднее -4 и 4 равно 0, среднее 1 и 2 равно 1.5. Проверьте, что в формуле есть скобки и деление на 2."

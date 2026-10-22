@@ -1,0 +1,171 @@
+id: "go.first-steps.return-values"
+title: "Возврат значений"
+goal: "Писать функции, которые возвращают один или несколько результатов, и использовать эти результаты в выражениях."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "go.first-steps.functions"
+objectives:
+  - "Объявлять тип результата функции и возвращать значение командой return."
+  - "Использовать вызов функции как значение: присваивать, сравнивать, печатать."
+  - "Возвращать и принимать несколько значений: q, r := divMod(a, b)."
+  - "Игнорировать ненужный результат пустым идентификатором _."
+masteryCriteria:
+  - "Функция minMax возвращает наименьшее и наибольшее из трёх чисел в нужном порядке."
+  - "Функция divMod возвращает частное и остаток, в том числе для нуля и отрицательного делимого."
+  - "Вы объясняете, чем return отличается от Println внутри функции."
+concepts:
+  introduces:
+    - "go.return"
+    - "go.multiple-returns"
+  uses:
+    - "go.func"
+    - "go.parameter"
+    - "go.int"
+    - "go.bool"
+    - "go.string"
+    - "go.if"
+    - "go.comparison"
+    - "go.arithmetic"
+    - "go.remainder"
+    - "go.integer-division"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.assignment"
+    - "go.println"
+    - "go.print-values"
+next:
+  - "go.first-steps.scope"
+tags:
+  - "go"
+  - "function"
+  - "return"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        func double(n int) int {
+            return n * 2
+        }
+
+        func main() {
+            fmt.Println(double(3) + double(4))
+        }
+        ```
+      options:
+        - "14"
+        - "7"
+        - "34"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "double(3) даёт 6, double(4) даёт 8. Вызов функции с результатом - это значение, его можно складывать: 6 + 8 = 14."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        func f(n int) int {
+            if n > 0 {
+                return 1
+            }
+            return -1
+        }
+
+        func main() {
+            fmt.Println(f(5), f(-5))
+        }
+        ```
+      options:
+        - "1 -1"
+        - "1 1"
+        - "-1 -1"
+        - "1"
+      answer: 0
+      explanation: "return немедленно завершает функцию. При n = 5 выполняется первый return и до второго дело не доходит; при n = -5 условие ложно, и функция возвращает -1."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая запись верно принимает оба результата функции func divMod(a, b int) (int, int)?"
+      options:
+        - "q := divMod(7, 2)"
+        - "q, r := divMod(7, 2)"
+        - "q r := divMod(7, 2)"
+        - "[q, r] := divMod(7, 2)"
+      answer: 1
+      explanation: "Число переменных слева должно совпадать с числом результатов. Запись q := divMod(7, 2) даёт ошибку assignment mismatch: 1 variable but divMod returns 2 values."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что делает эта запись?
+
+        ```go
+        q, _ := divMod(17, 5)
+        ```
+      options:
+        - "Сохраняет частное в q и отбрасывает остаток."
+        - "Сохраняет остаток в q."
+        - "Вызывает ошибку: нужны две переменные с именами."
+        - "Сохраняет оба результата в q."
+      answer: 0
+      explanation: "Символ _ - пустой идентификатор: значение вычисляется и сразу отбрасывается. Он нужен, потому что Go не разрешает объявленную, но неиспользуемую переменную."
+    - id: "q5"
+      type: "single"
+      prompt: "Чем return n отличается от fmt.Println(n) в конце функции?"
+      options:
+        - "Ничем: оба передают значение вызывающему коду."
+        - "return отдаёт значение вызывающему коду, Println только показывает его на экране."
+        - "Println отдаёт значение, return печатает."
+        - "return можно использовать только в main."
+      answer: 1
+      explanation: "Напечатанное значение пропадает: его нельзя присвоить переменной или сложить с другим. Возвращённое значение вызывающий код может использовать как хочет, в том числе напечатать."
+exercise:
+  id: "go.first-steps.return-values.exercise"
+  title: "minMax и divMod"
+  prompt: |
+    В `main.go` две функции-заготовки, которые пока возвращают нули. Напишите настоящие тела.
+
+    **`minMax(a, b, c int) (int, int)`** возвращает два значения: сначала наименьшее из трёх чисел, потом наибольшее. Например, `minMax(4, 9, 2)` возвращает `2` и `9`.
+
+    **`divMod(a, b int) (int, int)`** возвращает частное и остаток от целочисленного деления `a` на `b`: сначала частное, потом остаток. Считайте, что `b` не равно нулю. Например, `divMod(17, 5)` возвращает `3` и `2`.
+
+    **Как проверяется.** Кнопка «Проверить» запускает набор готовых проверок: каждая вызывает ваши функции с разными числами (одинаковыми, отрицательными, нулём) и сравнивает возвращённые значения с ожидаемыми. Функции должны именно **возвращать** результат; печать внутри функции проверку не пройдёт. Сигнатуры менять нельзя. `main` с примерами вызова можно оставить как есть.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Обе функции возвращают пару значений командой return с двумя выражениями через запятую: return x, y."
+    - "divMod - две операции: a / b даёт частное, a % b даёт остаток. Это одна команда return."
+    - "Для minMax заведите две переменные lo и hi, присвойте им a, а затем сравните с b и c: если значение меньше lo, обновите lo; если больше hi, обновите hi."
+    - "lo := a; hi := a; if b < lo { lo = b }; if c < lo { lo = c } - так же для hi с оператором >; в конце return lo, hi."
+  tests:
+    - id: "minmax-basic"
+      title: "minMax: числа по возрастанию"
+      match: "TestMinMax/ascending"
+      hint: "Первым возвращается наименьшее, вторым наибольшее."
+    - id: "divmod-basic"
+      title: "divMod: деление с остатком"
+      match: "TestDivMod/with_remainder"
+      hint: "17 / 5 даёт 3, 17 % 5 даёт 2. Порядок: частное, потом остаток."
+    - id: "minmax-all"
+      title: "minMax: любой порядок и повторы (скрытый)"
+      match: "TestMinMax/*"
+      hidden: true
+      hint: "Проверяются все перестановки, равные числа, отрицательные числа и ноль. Не предполагайте, что числа идут по возрастанию."
+    - id: "divmod-all"
+      title: "divMod: ноль, единица и отрицательное делимое (скрытый)"
+      match: "TestDivMod/*"
+      hidden: true
+      hint: "Операторы / и % ведут себя по правилам Go и для нуля, и для отрицательного делимого: отдельные ветки не нужны."
