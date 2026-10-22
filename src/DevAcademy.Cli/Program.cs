@@ -477,9 +477,12 @@ internal static class Cli
                     null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
                 if (run.Status == ExecutionStatus.Timeout)
                 {
+                    // A busy CI machine (cold torch/JVM start) can push a sample past its wall limit: retry once with
+                    // three times the wall time; a pass on retry stays visible as a warning, a real hang still fails.
+                    var retryLimits = ExerciseLimits.For(lessonRequires);
                     run = await runner.RunOnceAsync(
                         new ExecutionRequest(sample.LanguageId, sampleFiles, file, IsolationLevel.OsSandbox, sampleEnv, null, sampleNode, sampleGo, sampleNuGet, sampleMaven),
-                        null, ExerciseLimits.For(lessonRequires), CancellationToken.None);
+                        null, retryLimits with { WallTimeout = retryLimits.WallTimeout * 3 }, CancellationToken.None);
                     if (run.IsSuccess) Add(DiagnosticSeverity.Warning, lesson, $"code sample ({sample.LanguageId}) timed out and passed only on retry (machine under load?)");
                 }
                 if (run.Status == ExecutionStatus.RuntimeMissing) { RuntimeMissing(lesson, sample.LanguageId); continue; }
