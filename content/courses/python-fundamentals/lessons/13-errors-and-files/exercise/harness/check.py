@@ -122,12 +122,12 @@ def t_write_report():
     name = "da_report.txt"
     try:
         m.write_report(name, [1, 2, 3])
-        got = Path(name).read_bytes().decode("utf-8")
+        got = Path(name).read_bytes().decode("utf-8").replace("\r\n", "\n")
         bad = expect(got, "Всего: 3\nСумма: 6\n", "содержимое файла после write_report(..., [1, 2, 3])")
         if bad:
             return bad
         m.write_report(name, [])
-        got = Path(name).read_bytes().decode("utf-8")
+        got = Path(name).read_bytes().decode("utf-8").replace("\r\n", "\n")
         return expect(got, "Всего: 0\nСумма: 0\n", "содержимое файла после write_report(..., [])")
     finally:
         Path(name).unlink(missing_ok=True)
@@ -138,7 +138,7 @@ def t_write_overwrites():
     Path(name).write_bytes(("старое содержимое, которое должно исчезнуть\n" * 3).encode("utf-8"))
     try:
         m.write_report(name, [10])
-        got = Path(name).read_bytes().decode("utf-8")
+        got = Path(name).read_bytes().decode("utf-8").replace("\r\n", "\n")
         return expect(got, "Всего: 1\nСумма: 10\n", "файл после перезаписи")
     finally:
         Path(name).unlink(missing_ok=True)

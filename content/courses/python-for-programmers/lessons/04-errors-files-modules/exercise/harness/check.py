@@ -93,7 +93,7 @@ def t_total_edges():
 def t_write_basic():
     path = os.path.join(tempfile.mkdtemp(), "out.txt")
     count = m.write_lines(path, ["a", "b"])
-    with open(path, encoding="utf-8", newline="") as f:
+    with open(path, encoding="utf-8") as f:
         text = f.read()
     return expect((count, text), (2, "a\nb\n"), "write_lines(path, ['a', 'b'])")
 
@@ -103,7 +103,7 @@ def t_write_roundtrip():
     m.write_lines(path, ["старое", "содержимое"])
     count = m.write_lines(path, ["Привет", "мир"])
     with open(path, "rb") as f:
-        raw = f.read()
+        raw = f.read().replace(b"\r\n", b"\n")  # Windows writes \r\n in text mode
     bad = expect((count, raw), (2, "Привет\nмир\n".encode("utf-8")), "write_lines: перезапись в UTF-8")
     return bad or expect(m.write_lines(path, []), 0, "write_lines(path, [])")
 
