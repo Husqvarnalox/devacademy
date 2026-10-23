@@ -30,7 +30,7 @@ fun main() = runBlocking {
         println("B")
     }
     println("A")
-    println(withTimeoutOrNull(30) { delay(100); "поздно" })
+    println(withTimeoutOrNull(100) { delay(10_000); "поздно" })
 }
 ```
 ```output
