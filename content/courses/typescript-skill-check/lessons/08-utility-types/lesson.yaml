@@ -1,0 +1,152 @@
+id: "typescript.check.utility-types"
+title: "Проверка: утилитарные типы"
+goal: "Применять Partial, Readonly, Pick, Omit и Record в обычном коде и знать их ограничения: поверхностность, отсутствие защиты при запуске и непроверяемые ключи у Omit."
+difficulty: "hard"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: применять Partial, Readonly, Pick, Omit и Record в обычном коде и знать их ограничения: поверхностность, отсутствие защиты при запуске и непроверяемые ключи у Omit"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "utility-types"
+assessmentFor:
+  - "typescript.fundamentals.utility-types"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        interface Config {
+          server: { host: string; port: number };
+        }
+        const p: Partial<Config> = { server: { host: "localhost" } };
+        ```
+      options:
+        - "Ошибок нет: Partial делает необязательными и вложенные поля"
+        - "Ошибка TS2741: в server не хватает свойства port"
+        - "Ошибка TS2322: server нельзя задавать в Partial"
+        - "Ошибка TS2353: лишнее свойство host"
+      answer: 1
+      explanation: "Partial поверхностный: необязательным становится только server, но если он задан, то целиком, со всеми своими полями."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        const point: Readonly<{ x: number; y: number }> = { x: 1, y: 2 };
+        point.x = 5;
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2540: x доступно только для чтения"
+        - "Ошибка TS2322: Readonly нельзя присваивать литерал"
+        - "Ошибка TS2339: у point нет свойства x"
+      answer: 1
+      explanation: "Readonly помечает поля как только для чтения на этапе проверки. Во время работы объект не заморожен, поэтому защита существует лишь в типах (например, она исчезает после приведения as)."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const x: Omit<{ a: number; b: string }, "c"> = { a: 1, b: "x" };
+        console.log(Object.keys(x).join());
+        ```
+      options:
+        - "a,b"
+        - "a"
+        - "Ошибка TS2344: \"c\" нет среди ключей"
+        - "b"
+      answer: 0
+      explanation: "Второй аргумент Omit не обязан быть ключом типа, поэтому опечатка проходит молча и ничего не исключает. Если нужна проверка имён, используют Pick с ключами, которые остаются."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        type P = Pick<{ a: number }, "b">;
+        ```
+      options:
+        - "Ошибок нет: P будет пустым типом"
+        - "Ошибка TS2344: \"b\" не входит в ключи типа"
+        - "Ошибка TS2741: не хватает свойства b"
+        - "Ошибка TS2322: Pick нельзя использовать с type"
+      answer: 1
+      explanation: "У Pick параметр K ограничен keyof T, поэтому несуществующий ключ даёт ошибку сразу. В этом отличие от Omit, где ограничения на ключ нет."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const base = { a: 1, b: 2 };
+        const patch: Partial<typeof base> = { a: undefined };
+        console.log({ ...base, ...patch });
+        ```
+      options:
+        - "{ a: 1, b: 2 }"
+        - "{ a: undefined, b: 2 }"
+        - "{ b: 2 }"
+        - "Ошибка типов: undefined нельзя присвоить number"
+      answer: 1
+      explanation: "Spread копирует и ключи со значением undefined, поэтому патч перезаписывает a. Partial разрешает undefined в необязательных полях, и ошибки нет; чтобы значения undefined игнорировались, их нужно проверять явно."
+exercise:
+  id: "typescript.check.utility-types.exercise"
+  title: "Обновление и выбор полей"
+  prompt: |
+    В файле `utility_check.ts` реализуйте четыре экспортируемые функции (интерфейс `User` уже описан). Исходные объекты менять нельзя.
+
+    1. `applyPatch(user, patch)` - новый объект: поля `user`, поверх них поля `patch`. Поля патча со значением `undefined` игнорируются, а значения `0` и пустая строка применяются.
+    2. `pick(obj, keys)` - новый объект только с перечисленными ключами.
+    3. `omit(obj, keys)` - новый объект без перечисленных ключей.
+    4. `tally(words)` - сколько раз встречается каждое слово. Слова вроде `"constructor"` и `"toString"` должны считаться как обычные.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "utility_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "applyPatch: простой spread {...user, ...patch} перезапишет поле значением undefined; перенесите поля патча по одному и только если они не undefined."
+    - "pick и omit: Object.entries(obj) даёт пары [ключ, значение]; отфильтруйте их по списку ключей и соберите обратно через Object.fromEntries. Результат придётся привести к Pick<T, K> или Omit<T, K>."
+    - "tally: на обычном объекте counts[\"constructor\"] уже существует (это функция из прототипа). Считайте в Map, а в конце превратите его в объект через Object.fromEntries."
+    - "Проверка includes на keys с типом readonly K[] может не принять строку из entries; сравнивайте через keys.some((k) => k === key)."
+  tests:
+    - id: "patch-basic"
+      title: "applyPatch - изменённые и добавленные поля"
+      hint: "Поля патча накладываются на поля пользователя, остальные остаются."
+    - id: "pick-basic"
+      title: "pick - выбор ключей"
+      hint: "В результате только перечисленные ключи; пустой список ключей даёт пустой объект."
+    - id: "omit-basic"
+      title: "omit - исключение ключей"
+      hint: "В результате все ключи, кроме перечисленных."
+    - id: "tally-basic"
+      title: "tally - подсчёт слов"
+      hint: "Результат: объект «слово -> число повторов»; пустой список даёт пустой объект."
+    - id: "patch-edge"
+      title: "applyPatch - undefined, 0 и неизменность исходного (скрытый)"
+      hidden: true
+      hint: "Поля с undefined в патче не затирают значение; возраст 0 применяется; исходный объект не меняется и не возвращается."
+    - id: "pick-edge"
+      title: "pick - вложенные значения, 0, undefined и повтор ключа (скрытый)"
+      hidden: true
+      hint: "Результат - новый объект; значения 0 и undefined сохраняются; повторение ключа в списке безвредно."
+    - id: "omit-edge"
+      title: "omit - неизменность исходного и все ключи (скрытый)"
+      hidden: true
+      hint: "Исходный объект остаётся прежним; если убраны все ключи, результат пуст."
+    - id: "tally-edge"
+      title: "tally - слова constructor, toString, valueOf (скрытый)"
+      hidden: true
+      hint: "Слова, совпадающие с именами из прототипа Object, считаются как обычные: нужен Map или объект без прототипа."

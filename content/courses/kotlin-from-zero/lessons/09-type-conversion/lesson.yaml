@@ -1,0 +1,177 @@
+id: "kotlin.from-zero.type-conversion"
+title: "Преобразование типов"
+goal: "Превращать прочитанный текст в числа и числа друг в друга, чтобы считать с введёнными данными."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.reading-input"
+objectives:
+  - "Преобразовывать текст в число через toInt() и toDouble()."
+  - "Преобразовывать число в Double (toDouble()), Long (toLong()) и текст (toString())."
+  - "Получать дробный результат деления двух целых через toDouble()."
+  - "Узнавать NumberFormatException и объяснять, почему \"3,5\" и \"12 \" не разбираются как числа."
+masteryCriteria:
+  - "Ваша программа читает цену и количество и печатает итог как Double."
+  - "Вы отличаете 20 + 22 = 42 от \"20\" + \"22\" = \"2022\"."
+  - "Вы указываете, что вызывает NumberFormatException для \"abc\", \"3,5\" и \"12 \"."
+concepts:
+  introduces:
+    - "kotlin.to-int"
+    - "kotlin.to-double"
+    - "kotlin.to-string"
+    - "kotlin.number-format-exception"
+  uses:
+    - "kotlin.readln"
+    - "kotlin.int"
+    - "kotlin.double"
+    - "kotlin.long"
+    - "kotlin.string"
+    - "kotlin.arithmetic"
+    - "kotlin.integer-division"
+    - "kotlin.string-template"
+    - "kotlin.val"
+next:
+  - "kotlin.from-zero.formatted-output"
+tags:
+  - "kotlin"
+  - "conversion"
+  - "toInt"
+  - "toDouble"
+  - "NumberFormatException"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        На вход поданы строки `20` и `22`. Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val a = readln()
+            val b = readln()
+            println(a + b)
+        }
+        ```
+      options:
+        - "2022"
+        - "42"
+        - "20 22"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "readln() возвращает текст, и + склеивает два текста. Чтобы сложить числа, сначала нужно написать a.toInt() + b.toInt()."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            println(7.toDouble() / 2)
+        }
+        ```
+      options:
+        - "3.5"
+        - "3"
+        - "3.0"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "7.toDouble() даёт 7.0, а деление Double на Int дробное: 7.0 / 2 = 3.5."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая из этих строк при вводе вызовет NumberFormatException в readln().toDouble()?"
+      options:
+        - "3,5"
+        - "3.5"
+        - "-4"
+        - "0.25"
+      answer: 0
+      explanation: "Kotlin разбирает дробные числа только с точкой. Строка 3,5 с запятой - не число, поэтому будет NumberFormatException."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val total = 10
+            val people = 4
+            println(total.toDouble() / people)
+        }
+        ```
+      options:
+        - "2.5"
+        - "2"
+        - "2.0"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "total.toDouble() = 10.0; Double / Int даёт Double, 10.0 / 4 = 2.5. Без toDouble() было бы целочисленное деление и результат 2."
+    - id: "q5"
+      type: "single"
+      prompt: "Что делает 3.9.toInt()?"
+      options:
+        - "Отбрасывает дробную часть и даёт 3."
+        - "Округляет до 4."
+        - "Даёт 3.9 без изменений."
+        - "Бросает NumberFormatException."
+      answer: 0
+      explanation: "Преобразование дробного числа в Int отбрасывает дробную часть (в сторону нуля). Для округления есть отдельная функция, о ней - в одном из следующих уроков."
+exercise:
+  id: "kotlin.from-zero.type-conversion.exercise"
+  title: "Итог покупки"
+  prompt: |
+    На вход подаются две строки: цена товара (дробное число с точкой) и количество (целое число).
+
+    Напечатайте одну строку: `Итого: <цена * количество>`.
+
+    **Пример.** Для ввода
+
+    ```
+    12.5
+    4
+    ```
+
+    вывод: `Итого: 50.0`.
+
+    Число печатайте так, как оно получается: `println` выводит `Double` с точкой и хотя бы одной цифрой после неё.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "readln() возвращает текст. Первую строку нужно превратить в Double (toDouble()), вторую - в Int (toInt())."
+    - "Например: val price = readln().toDouble(). Затем val quantity = readln().toInt()."
+    - "Итог получается умножением price * quantity; результат вставьте в шаблон: ${price * quantity}."
+  tests:
+    - id: "basic"
+      title: "12.5 за штуку, четыре штуки"
+      stdin: |
+        12.5
+        4
+      expected: |
+        Итого: 50.0
+      hint: "12.5 * 4 = 50.0: цена должна читаться как Double, а не как Int."
+    - id: "fraction"
+      title: "Дробный итог"
+      stdin: |
+        0.5
+        3
+      expected: |
+        Итого: 1.5
+      hint: "Дробная цена и целое количество; результат - Double."
+    - id: "zero"
+      title: "Нулевое количество (скрытый)"
+      stdin: |
+        2.5
+        0
+      expected: |
+        Итого: 0.0
+      hidden: true
+      hint: "При количестве 0 итог равен 0.0 (Double), а не 0."
+    - id: "whole"
+      title: "Целая цена с точкой (скрытый)"
+      stdin: |
+        100.0
+        7
+      expected: |
+        Итого: 700.0
+      hidden: true
+      hint: "Цена 100.0 читается как Double; итог тоже Double и выводится как 700.0."

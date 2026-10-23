@@ -69,6 +69,8 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
                 _userCollapsed = sidebar == "1";
                 RaiseSidebarChanged();
             }
+            // Renamed lessons with equivalent content (formerIds) keep their progress; nothing is deleted.
+            await services.Migration.MigrateAsync();
             if (await services.Settings.GetProfileAsync() is null)
             {
                 await SwitchAsync(new OnboardingViewModel(services, this), Section.None);
@@ -108,6 +110,13 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
     {
         if (services.Content.Current.FindComparison(comparisonId) is not { } comparison) return;
         await SwitchAsync(new ComparisonViewModel(services, this, comparison), Section.Catalog);
+    }
+
+    public async Task OpenDiagnosticAsync(string trackId)
+    {
+        var vm = new DiagnosticViewModel(services, this, trackId);
+        await vm.LoadAsync();
+        await SwitchAsync(vm, Section.Catalog);
     }
 
     [RelayCommand]
@@ -184,7 +193,7 @@ public sealed partial class MainViewModel(AppServices services) : ObservableObje
             !await services.Dialogs.ConfirmAsync(Loc.T("Locked_Title"),
                 Loc.F("Locked_Message", string.Join(", ", status.MissingPrerequisiteTitles)), Loc.T("Roadmap_OpenAnyway")))
             return;
-        var vm = new LessonWorkspaceViewModel(services, this, status.Lesson);
+        var vm = new LessonWorkspaceViewModel(services, this, status.Lesson, await services.Settings.GetProfileAsync());
         await vm.LoadAsync();
         // A lesson opened from the Problems list keeps "Problems" highlighted in the nav.
         await SwitchAsync(vm, Section == Section.Problems ? Section.Problems : Section.Catalog);

@@ -1,0 +1,182 @@
+id: "go.first-steps.strings-and-runes"
+title: "Строки, байты и руны"
+goal: "Различать байты и символы в строке, обходить строку с кириллицей по символам и пользоваться функциями пакета strings."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "go.first-steps.maps"
+objectives:
+  - "Объяснить, что строка Go - последовательность байтов в UTF-8, и почему len(\"привет\") равно 12."
+  - "Обходить строку по символам через range и получать руны."
+  - "Преобразовывать строку в []rune и обратно и использовать string(r) для одной руны."
+  - "Применять функции пакета strings (ToUpper, ToLower и другие)."
+masteryCriteria:
+  - "byteAndRuneCount возвращает 12 и 6 для «привет» и 5 и 5 для «hello»."
+  - "reverse разворачивает строку с кириллицей и эмодзи по символам, а не по байтам."
+  - "capitalize делает первую букву заглавной, а остальные строчные, и корректно работает с пустой строкой и буквой «ё»."
+concepts:
+  introduces:
+    - "go.rune"
+    - "go.strings-package"
+  uses:
+    - "go.string"
+    - "go.string-literal"
+    - "go.len"
+    - "go.index"
+    - "go.slice"
+    - "go.range"
+    - "go.for-loop"
+    - "go.if"
+    - "go.comparison"
+    - "go.int"
+    - "go.func"
+    - "go.parameter"
+    - "go.return"
+    - "go.multiple-returns"
+    - "go.import"
+    - "go.type-conversion"
+    - "go.println"
+    - "go.printf"
+    - "go.short-declaration"
+    - "go.assignment"
+next:
+  - "go.first-steps.number-stream"
+tags:
+  - "go"
+  - "string"
+  - "rune"
+  - "utf-8"
+facts:
+  - kind: "internals"
+    text: "Исходный код Go всегда в UTF-8, и строка хранит байты этой кодировки; len возвращает число байтов, а range по строке декодирует UTF-8 и выдаёт руны."
+    sources:
+      - "https://go.dev/blog/strings"
+      - "https://go.dev/ref/spec#For_statements"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        fmt.Println(len("Go"), len("Я"), len("привет"))
+        ```
+      options:
+        - "2 1 6"
+        - "2 2 12"
+        - "2 1 12"
+        - "2 2 6"
+      answer: 1
+      explanation: "len считает байты. Латинская буква занимает 1 байт, а кириллическая в UTF-8 - 2 байта: «Я» это 2, «привет» это 12."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        for i, r := range "яб" {
+            fmt.Println(i, string(r))
+        }
+        ```
+      options:
+        - "0 я, затем 1 б"
+        - "0 я, затем 2 б"
+        - "0 я, затем 1 б, затем 2 ?"
+        - "я, затем б"
+      answer: 1
+      explanation: "range по строке выдаёт номер байта, с которого начинается символ, и руну. «я» занимает байты 0 и 1, поэтому «б» начинается с байта 2."
+    - id: "q3"
+      type: "single"
+      prompt: "Как получить число символов в строке s?"
+      options:
+        - "len(s)"
+        - "len([]rune(s))"
+        - "s.length"
+        - "len(s) / 2"
+      answer: 1
+      explanation: "Приведение к []rune разбивает строку на символы, и len считает их. len(s) считает байты, а деление на 2 верно только для чисто кириллических строк."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Почему это не компилируется?
+
+        ```go
+        s := "привет"
+        s[0] = 'П'
+        ```
+      options:
+        - "Нельзя использовать кириллицу в коде."
+        - "Строки в Go неизменяемы: символ нельзя заменить на месте."
+        - "Индексы строк начинаются с 1."
+        - "Для рун нужны двойные кавычки."
+      answer: 1
+      explanation: "Компилятор сообщает: cannot assign to s[0] (neither addressable nor a map index expression). Чтобы получить изменённую строку, соберите новую."
+    - id: "q5"
+      type: "single"
+      prompt: "Что делает strings.ToUpper(\"привет\")?"
+      options:
+        - "Возвращает «ПРИВЕТ», исходная строка не меняется."
+        - "Меняет исходную строку на месте."
+        - "Работает только с латиницей."
+        - "Возвращает число."
+      answer: 0
+      explanation: "Функции пакета strings возвращают новую строку и работают с Unicode, в том числе с кириллицей."
+exercise:
+  id: "go.first-steps.strings-and-runes.exercise"
+  title: "Статистика и обработка слова"
+  prompt: |
+    Напишите три функции в `main.go` (в заготовке они возвращают пустые значения).
+
+    **`byteAndRuneCount(s string) (int, int)`** возвращает число байтов и число символов (рун) строки. `byteAndRuneCount("привет")` даёт `12` и `6`.
+
+    **`reverse(s string) string`** возвращает строку, записанную в обратном порядке **по символам**. `reverse("привет")` даёт `"тевирп"`. Строка может содержать латиницу, кириллицу и эмодзи.
+
+    **`capitalize(s string) string`** делает первую букву заглавной, а остальные строчные: `capitalize("пРИВЕТ")` даёт `"Привет"`. Для пустой строки результат пустая строка.
+
+    **Как проверяется.** Кнопка «Проверить» запускает набор готовых проверок: каждая вызывает ваши функции с разными строками (латиница, кириллица, пустая строка, «ё», эмодзи) и сравнивает результат с ожидаемым. Сигнатуры менять нельзя; `main` в заготовке только показывает примеры.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run: ["go", "test", "-json", "-count=1", "./..."]
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Для всех трёх функций работайте с символами, а не с байтами: len(s) подходит только для первого значения первой функции."
+    - "Число символов: len([]rune(s)). Для reverse и capitalize обходите строку через for i, r := range ... и собирайте результат строкой."
+    - "reverse: result := \"\", а в цикле for _, r := range s { result = string(r) + result }: каждый следующий символ добавляется в начало."
+    - "capitalize: обойдите []rune(s); для i == 0 добавляйте strings.ToUpper(string(r)), для остальных strings.ToLower(string(r)). Не забудьте import \"strings\"."
+  tests:
+    - id: "count-basic"
+      title: "byteAndRuneCount: латиница и кириллица"
+      match: "TestByteAndRuneCount/cyrillic"
+      hint: "Для «привет» байтов 12, символов 6."
+    - id: "reverse-basic"
+      title: "reverse: кириллица"
+      match: "TestReverse/cyrillic"
+      hint: "Разворачивать нужно символы: разворот байтов разрушит кириллические буквы."
+    - id: "capitalize-basic"
+      title: "capitalize: кириллица"
+      match: "TestCapitalize/cyrillic"
+      hint: "Первый символ в верхний регистр, остальные в нижний."
+    - id: "count-all"
+      title: "byteAndRuneCount: пустая строка, смешанный текст, эмодзи (скрытый)"
+      match: "TestByteAndRuneCount/*"
+      hidden: true
+      hint: "Эмодзи занимает 4 байта, но это один символ; пустая строка даёт 0 и 0."
+    - id: "reverse-all"
+      title: "reverse: пустая строка, один символ, палиндром, смешанный текст (скрытый)"
+      match: "TestReverse/*"
+      hidden: true
+      hint: "Пустая строка остаётся пустой; смешанный текст разворачивается целиком, включая дефис."
+    - id: "capitalize-all"
+      title: "capitalize: пустая строка, «ё», уже верный регистр (скрытый)"
+      match: "TestCapitalize/*"
+      hidden: true
+      hint: "Не обращайтесь к первому символу пустой строки; «ё» переводится в «Ё» так же, как другие буквы."

@@ -1,0 +1,192 @@
+id: "java.from-zero.reading-input"
+title: "Чтение ввода: Scanner"
+goal: "Прочитать слово, целое число и строку целиком со стандартного ввода и использовать их в программе."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "java.from-zero.strings"
+objectives:
+  - "Подключить Scanner строкой import и создать его для System.in."
+  - "Читать слово (next), целое число (nextInt) и строку целиком (nextLine)."
+  - "Объяснить, почему nextLine после nextInt возвращает пустую строку, и обойти это."
+  - "Узнавать по сообщению InputMismatchException и NoSuchElementException, что с вводом не так."
+masteryCriteria:
+  - "Программа верно разбирает ввод, в котором данные находятся в одной строке или в нескольких."
+  - "Вы читаете город из нескольких слов (nextLine) после числа (nextInt) и не получаете пустую строку."
+  - "Вы объясняете, зачем нужен import java.util.Scanner."
+concepts:
+  introduces:
+    - "java.import"
+    - "java.scanner"
+    - "java.new"
+    - "java.next-line"
+  uses:
+    - "java.string"
+    - "java.int"
+    - "java.variable"
+    - "java.arithmetic"
+    - "java.concatenation"
+    - "java.println"
+    - "java.compile-error"
+    - "java.main-wrapper"
+next:
+  - "java.from-zero.type-conversion"
+tags:
+  - "java"
+  - "input"
+  - "scanner"
+  - "stdin"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Ввод состоит из одной строки: Анна 25
+
+        Что окажется в переменной name?
+
+        ```java
+        Scanner in = new Scanner(System.in);
+        String name = in.next();
+        ```
+      options:
+        - "Анна"
+        - "Анна 25"
+        - "25"
+        - "Пустая строка"
+      answer: 0
+      explanation: "next() читает одно слово: до пробела или перевода строки. Число 25 останется во вводе для следующего чтения."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Ввод:
+
+        ```text
+        25
+        Анна Смирнова
+        ```
+
+        Чему равна длина name?
+
+        ```java
+        Scanner in = new Scanner(System.in);
+        int age = in.nextInt();
+        String name = in.nextLine();
+        System.out.println(name.length());
+        ```
+      options:
+        - "0"
+        - "13"
+        - "2"
+        - "Ошибка выполнения"
+      answer: 0
+      explanation: "nextInt() прочитал число 25, но перевод строки после него остался во вводе. nextLine() прочитала остаток первой строки - пустой. Нужно вызвать nextLine() ещё раз."
+    - id: "q3"
+      type: "single"
+      prompt: "Компилятор дважды сообщает cannot find symbol для Scanner (symbol: class Scanner). Чего не хватает?"
+      options:
+        - "Строки import java.util.Scanner; перед классом Main."
+        - "Точки с запятой после main."
+        - "Слова static перед Scanner."
+        - "Файла Scanner.java рядом с Main.java."
+      answer: 0
+      explanation: "Scanner лежит в пакете java.util, и без import компилятор его не знает. Сообщение приходит дважды: Scanner встречается в тексте дважды (тип переменной и после new)."
+    - id: "q4"
+      type: "single"
+      prompt: "Программа вызывает in.nextInt(), а на вход подано слово abc. Что произойдёт?"
+      options:
+        - "Исключение InputMismatchException во время выполнения."
+        - "Ошибка компиляции."
+        - "В переменную попадёт 0."
+        - "Программа подождёт, пока вы введёте число."
+      answer: 0
+      explanation: "Scanner видит, что следующее слово не число, и бросает InputMismatchException. Неверный ввод компилятор предсказать не может: ошибка возникает при выполнении."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Ввод: числа в двух строках, 10 и 20. Что напечатает программа?
+
+        ```java
+        Scanner in = new Scanner(System.in);
+        System.out.println(in.nextInt() + in.nextInt());
+        ```
+      options:
+        - "30"
+        - "1020"
+        - "Ошибка: числа в разных строках"
+        - "10"
+      answer: 0
+      explanation: "Scanner пропускает пробелы и переводы строк между числами, поэтому раскладка ввода по строкам не важна. Оба значения int, их сумма равна 30."
+exercise:
+  id: "java.from-zero.reading-input.exercise"
+  title: "Знакомство"
+  prompt: |
+    На вход подаётся: слово (имя), целое число (возраст) и затем на следующей строке название города (может состоять из нескольких слов).
+
+    Напечатайте три строки:
+
+    ```
+    Здравствуйте, <имя>!
+    Через 10 лет вам будет <возраст + 10>.
+    Город: <город>
+    ```
+
+    **Пример.** Ввод:
+
+    ```
+    Анна 25
+    Нижний Новгород
+    ```
+
+    Вывод:
+
+    ```
+    Здравствуйте, Анна!
+    Через 10 лет вам будет 35.
+    Город: Нижний Новгород
+    ```
+
+    Имя и возраст могут стоять в одной строке или в разных. Город всегда на отдельной строке после возраста.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Создайте Scanner(System.in). Имя читает next(), возраст - nextInt(). Не забудьте строку import java.util.Scanner; перед классом."
+    - "Город состоит из нескольких слов, поэтому его читают через nextLine(). Но после nextInt() во вводе остался перевод строки."
+    - "Вызовите in.nextLine(); один раз, чтобы пропустить остаток строки с возрастом, и ещё раз - чтобы прочитать город."
+    - "Возраст через 10 лет - age + 10. В склейке с текстом это выражение берут в скобки: \"...\" + (age + 10) + \".\""
+  tests:
+    - id: "basic"
+      title: "Имя и возраст в одной строке"
+      stdin: "Анна 25\nНижний Новгород\n"
+      expected: |
+        Здравствуйте, Анна!
+        Через 10 лет вам будет 35.
+        Город: Нижний Новгород
+      hint: "Имя читает next(), возраст - nextInt(), город из двух слов - nextLine() после пропуска остатка строки."
+    - id: "separate-lines"
+      title: "Имя и возраст в разных строках"
+      stdin: "Борис\n41\nКазань\n"
+      expected: |
+        Здравствуйте, Борис!
+        Через 10 лет вам будет 51.
+        Город: Казань
+      hint: "Scanner пропускает переводы строк между словом и числом; город - всё-таки отдельная строка."
+    - id: "zero-age"
+      title: "Нулевой возраст (скрытый)"
+      stdin: "Ян 0\nСочи\n"
+      expected: |
+        Здравствуйте, Ян!
+        Через 10 лет вам будет 10.
+        Город: Сочи
+      hidden: true
+      hint: "Возраст 0 - допустимое число: через 10 лет будет 10. Проверьте, что к возрасту прибавляется 10 в скобках."
+    - id: "trailing-spaces"
+      title: "Лишние пробелы (скрытый)"
+      stdin: "  Лена   17  \nСанкт-Петербург\n"
+      expected: |
+        Здравствуйте, Лена!
+        Через 10 лет вам будет 27.
+        Город: Санкт-Петербург
+      hidden: true
+      hint: "Пробелы вокруг слова и числа Scanner пропускает сам, но после возраста нужно один раз прочитать остаток строки, прежде чем читать город."

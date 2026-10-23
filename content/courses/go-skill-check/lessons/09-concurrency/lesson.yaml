@@ -1,0 +1,174 @@
+id: "go.check.concurrency"
+title: "Проверка: горутины и каналы"
+goal: "Строить безопасный конкурентный код: пул работников, WaitGroup, закрытие каналов."
+difficulty: "hard"
+estimatedMinutes: 30
+objectives:
+  - "Показать на практике умение: строить безопасный конкурентный код: пул работников, WaitGroup, закрытие каналов."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "concurrency"
+assessmentFor:
+  - "go.fundamentals.goroutines-and-channels"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```go
+        ch := make(chan int)
+        ch <- 1
+        fmt.Println(<-ch)
+        ```
+      options:
+        - "Напечатает 1"
+        - "fatal error: all goroutines are asleep - deadlock!"
+        - "Напечатает 0"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Канал без буфера: отправка ждёт получателя, а получатель находится в той же горутине после отправки. Выполнение не двигается дальше: runtime обнаруживает тупик."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Чему равна сумма, которую напечатает программа?
+
+        ```go
+        var (
+        	wg  sync.WaitGroup
+        	mu  sync.Mutex
+        	sum int
+        )
+        for i := 1; i <= 2; i++ {
+        	wg.Add(1)
+        	go func(n int) {
+        		defer wg.Done()
+        		mu.Lock()
+        		sum += n
+        		mu.Unlock()
+        	}(i)
+        }
+        wg.Wait()
+        fmt.Println(sum)
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "Результат не определён"
+      answer: 2
+      explanation: "`WaitGroup` дожидается обеих горутин, `Mutex` защищает общую переменную. Порядок выполнения может быть любым, но сумма всегда 1+2=3."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        ch := make(chan int, 1)
+        ch <- 1
+        close(ch)
+        v, ok := <-ch
+        v2, ok2 := <-ch
+        fmt.Println(v, ok, v2, ok2)
+        ```
+      options:
+        - "1 true 0 false"
+        - "1 true 1 true"
+        - "1 false 0 false"
+        - "Паника"
+      answer: 0
+      explanation: "Из закрытого канала сначала читаются оставшиеся значения (`ok == true`), потом возвращается нулевое значение с `ok == false`."
+    - id: "q4"
+      type: "single"
+      prompt: "Что произойдёт при отправке в закрытый канал?"
+      options:
+        - "Значение будет потеряно без ошибки"
+        - "Отправка заблокируется навсегда"
+        - "Паника"
+        - "Вернётся ошибка"
+      answer: 2
+      explanation: "Отправка в закрытый канал вызывает панику. Поэтому канал закрывает тот, кто отправляет, и только один раз."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт?
+
+        ```go
+        ch := make(chan int)
+        go func() { ch <- 1 }()
+        for v := range ch {
+        	fmt.Println(v)
+        }
+        ```
+      options:
+        - "Напечатает 1 и завершится"
+        - "Напечатает 1, затем deadlock: канал никто не закрывает"
+        - "Ничего не напечатает"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "`range` по каналу работает до закрытия канала. Отправитель не закрывает канал, и после первого значения цикл ждёт вечно: runtime сообщает о тупике."
+exercise:
+  id: "go.check.concurrency.exercise"
+  title: "squareAll"
+  prompt: |
+    Реализуйте в `main.go` функцию **`squareAll(nums []int, workers int) []int`**: числа возводятся в квадрат в **пуле из `workers` горутин**, результат возвращается **по возрастанию**.
+
+    * Если `workers <= 0`, используйте одну горутину.
+    * Пустой или `nil`-срез даёт пустой результат.
+    * Входной срез изменять нельзя.
+    * Не должно быть утечек и тупиков: все горутины завершаются, канал результатов закрывается.
+
+    Классическая схема: канал заданий, `workers` обработчиков, `sync.WaitGroup` и отдельная горутина, которая после `wg.Wait()` закрывает канал результатов.
+
+    **Как проверяется.** Тесты вызывают функцию с разным числом работников и 500 числами, под таймаутом: тупик или незакрытый канал проявятся как «функция не завершилась за 3 секунды».
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Заведите два канала: `jobs` для чисел и `results` для квадратов. Обработчики читают `for n := range jobs`."
+    - "Заполнять `jobs` нужно в отдельной горутине, иначе отправка заблокируется, пока никто не читает результаты."
+    - "Закрыть `results` можно только после завершения всех обработчиков: `go func() { wg.Wait(); close(results) }()`."
+    - "Результаты приходят в произвольном порядке, поэтому в конце используйте `sort.Ints`."
+  tests:
+    - id: "square-basic"
+      title: "squareAll: простой пул"
+      match: "TestSquareAll/basic"
+      hint: "Результат должен быть отсортирован по возрастанию."
+    - id: "square-large"
+      title: "squareAll: большой набор (скрытый, публичный вид)"
+      match: "TestSquareAllLarge/workers_4"
+      hint: "Пятьсот чисел и четыре обработчика; результат не должен зависеть от порядка."
+    - id: "square-cases"
+      title: "squareAll: разные размеры пула (скрытый)"
+      match: "TestSquareAll/*"
+      hidden: true
+      hint: "Один работник, лишние работники, workers <= 0, пустой и nil-срез."
+    - id: "square-load"
+      title: "squareAll: нагрузка при 1, 4 и 16 работниках (скрытый)"
+      match: "TestSquareAllLarge/*"
+      hidden: true
+      hint: "Закрывайте канал результатов только после wg.Wait()."
+    - id: "square-input"
+      title: "squareAll: вход не меняется (скрытый)"
+      match: "TestSquareAllDoesNotChangeInput"
+      hidden: true
+      hint: "Квадраты пишите в новый срез, а не в nums."

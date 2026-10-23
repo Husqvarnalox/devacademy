@@ -1,0 +1,228 @@
+id: "kotlin.check.coroutines"
+title: "Проверка: потоки и корутины"
+goal: "Запускать задачи параллельно, собирать результаты в правильном порядке и понимать структурированную конкурентность."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: запускать корутины через async, ждать результатов через awaitAll и предсказывать порядок вывода."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "coroutines"
+  - "threads"
+assessmentFor:
+  - "kotlin.fundamentals.concurrency-threads-and-coroutines"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        import java.util.concurrent.atomic.AtomicInteger
+        import kotlin.concurrent.thread
+
+        fun main() {
+            val c = AtomicInteger()
+            val ts = List(4) {
+                thread {
+                    repeat(1000) { c.incrementAndGet() }
+                }
+            }
+            ts.forEach { it.join() }
+            println(c.get())
+        }
+        ```
+      options:
+        - "4000"
+        - "Случайное число не больше 4000"
+        - "1000"
+        - "0"
+      answer: 0
+      explanation: "incrementAndGet атомарен, поэтому ни одно увеличение не теряется. join() дожидается всех четырёх потоков, и результат всегда равен 4 * 1000 = 4000. С обычным Int результат мог бы быть меньше из-за гонки данных."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        import kotlinx.coroutines.*
+
+        fun main() = runBlocking {
+            launch {
+                delay(100)
+                println("A")
+            }
+            launch {
+                delay(50)
+                println("B")
+            }
+            println("C")
+        }
+        ```
+      options:
+        - "C B A"
+        - "A B C"
+        - "C A B"
+        - "B A C"
+      answer: 0
+      explanation: "Тело runBlocking сначала печатает C: launch только планирует корутины. Затем корутина с задержкой 50 мс печатает B, а с задержкой 100 мс - A."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        import kotlinx.coroutines.*
+
+        fun main() = runBlocking<Unit> {
+            try {
+                coroutineScope {
+                    launch {
+                        delay(100)
+                        println("slow")
+                    }
+                    launch {
+                        throw IllegalStateException("boom")
+                    }
+                }
+            } catch (e: IllegalStateException) {
+                println("caught ${e.message}")
+            }
+        }
+        ```
+      options:
+        - "caught boom"
+        - "slow caught boom"
+        - "caught boom slow"
+        - "boom"
+      answer: 0
+      explanation: "Структурированная конкурентность: исключение в дочерней корутине отменяет соседей и пробрасывается из coroutineScope. Медленная корутина отменена и slow не печатает, а ошибку перехватывает catch."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        import kotlinx.coroutines.*
+
+        fun main() = runBlocking {
+            val a = withTimeoutOrNull(50) {
+                delay(100)
+                "done"
+            }
+            val b = withTimeoutOrNull(200) {
+                delay(100)
+                "done"
+            }
+            println("$a $b")
+        }
+        ```
+      options:
+        - "null done"
+        - "done done"
+        - "null null"
+        - "done null"
+      answer: 0
+      explanation: "Первый блок не укладывается в 50 мс, withTimeoutOrNull отменяет его и возвращает null. Второй укладывается в 200 мс и возвращает done."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        import kotlinx.coroutines.*
+
+        fun main() = runBlocking {
+            launch {
+                println("A")
+                delay(10)
+                println("B")
+            }
+            launch {
+                println("C")
+            }
+            println("D")
+        }
+        ```
+      options:
+        - "D A C B"
+        - "A B C D"
+        - "D A B C"
+        - "A D C B"
+      answer: 0
+      explanation: "Тело runBlocking не приостанавливается до конца, поэтому сначала печатается D. Затем запускается первая корутина: A, и на delay она приостанавливается. Вторая печатает C, а после паузы первая печатает B."
+exercise:
+  id: "kotlin.check.coroutines.exercise"
+  title: "Параллельные квадраты"
+  prompt: |-
+    Программа читает целые числа через пробел и считает их квадраты. Функция `slowSquare` имитирует долгое вычисление (50 мс) и запоминает, сколько вычислений шло одновременно. `main` и `slowSquare` уже написаны; реализуйте `squares`.
+
+    * `suspend fun squares(xs: List<Int>): List<Int>` - квадраты чисел в исходном порядке. Все вычисления `slowSquare` должны выполняться **одновременно** (каждое в своей корутине), результаты нужно собрать в порядке исходного списка.
+
+    `main` печатает `Квадраты: [...]`, `Сумма: <сумма>` и `Одновременно: <наибольшее число одновременных вычислений>`. Последовательное решение даст `Одновременно: 1`.
+
+    **Пример.** Ввод:
+
+    ```
+    3 1 4 1
+    ```
+
+    Вывод:
+
+    ```
+    Квадраты: [9, 1, 16, 1]
+    Сумма: 27
+    Одновременно: 4
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовка возвращает пустой список. Нужно запустить `slowSquare` для каждого числа в отдельной корутине и собрать результаты."
+    - "Внутри `coroutineScope { ... }` для каждого числа вызовите `async { slowSquare(it) }`: `xs.map { async { slowSquare(it) } }` запускает все корутины сразу."
+    - "Результаты собираются вызовом `awaitAll()` на списке Deferred: он возвращает значения в порядке запуска. Вызов `await()` внутри map сделал бы вычисления последовательными."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: |
+        3 1 4 1
+      expected: |
+        Квадраты: [9, 1, 16, 1]
+        Сумма: 27
+        Одновременно: 4
+      hint: "Квадраты в порядке ввода: [9, 1, 16, 1]; четыре вычисления идут одновременно."
+    - id: "single"
+      title: "Одно число"
+      stdin: |
+        7
+      expected: |
+        Квадраты: [49]
+        Сумма: 49
+        Одновременно: 1
+      hint: "Один запуск: квадрат 49, одновременно 1."
+    - id: "many"
+      title: "Шесть чисел (скрытый)"
+      stdin: |
+        1 2 3 4 5 6
+      expected: |
+        Квадраты: [1, 4, 9, 16, 25, 36]
+        Сумма: 91
+        Одновременно: 6
+      hidden: true
+      hint: "Все шесть вычислений должны идти одновременно: Одновременно: 6. Сумма квадратов 91."
+    - id: "negative"
+      title: "Отрицательные и ноль (скрытый)"
+      stdin: |
+        -3 0 5
+      expected: |
+        Квадраты: [9, 0, 25]
+        Сумма: 34
+        Одновременно: 3
+      hidden: true
+      hint: "Квадрат отрицательного числа положителен: [9, 0, 25], сумма 34; три вычисления идут одновременно."

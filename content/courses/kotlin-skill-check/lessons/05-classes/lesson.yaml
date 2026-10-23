@@ -1,0 +1,244 @@
+id: "kotlin.check.classes"
+title: "Проверка: классы, data-классы и sealed"
+goal: "Моделировать данные классами, data-классами и sealed-иерархиями и обрабатывать их исчерпывающим when."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: описывать sealed-иерархию и data-классы и обрабатывать все случаи через when без else."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "classes"
+  - "sealed"
+assessmentFor:
+  - "kotlin.fundamentals.classes-sealed-and-when"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        data class P(val x: Int, val y: Int)
+
+        fun main() {
+            val a = P(1, 2)
+            val b = a.copy(y = 5)
+            println("$a $b ${a == P(1, 2)}")
+        }
+        ```
+      options:
+        - "P(x=1, y=2) P(x=1, y=5) true"
+        - "P(x=1, y=2) P(x=1, y=2) true"
+        - "P(1, 2) P(1, 5) true"
+        - "P(x=1, y=2) P(x=1, y=5) false"
+      answer: 0
+      explanation: "copy создаёт новый объект, меняя только перечисленные свойства, а оригинал остаётся прежним. toString у data-класса выглядит как P(x=1, y=2), а == сравнивает свойства, поэтому a == P(1, 2) истинно."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        data class U(val id: Int) {
+            var note = ""
+        }
+
+        fun main() {
+            val a = U(1)
+            a.note = "x"
+            val b = U(1)
+            println("${a == b} ${a.note} ${b.note.length}")
+        }
+        ```
+      options:
+        - "true x 0"
+        - "false x 0"
+        - "true x 1"
+        - "false x 1"
+      answer: 0
+      explanation: "В equals участвуют только свойства первичного конструктора, то есть id. Свойство note объявлено в теле класса и сравнение не затрагивает, поэтому a == b истинно, хотя note у объектов разный."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        sealed class S
+        class A : S()
+        class B : S()
+
+        fun f(s: S): Int = when (s) {
+            is A -> 1
+        }
+
+        fun main() {
+            println(f(A()))
+        }
+        ```
+      options:
+        - "Ошибка: when должен быть исчерпывающим (нет ветки для B)"
+        - "Программа скомпилируется и вернёт 1"
+        - "Программа скомпилируется, но для B бросит исключение"
+        - "Предупреждение, но всё работает"
+      answer: 0
+      explanation: "Когда when над sealed-типом используется как выражение, он обязан покрывать все наследники. Компилятор требует ветку is B или else. В этом и состоит выгода sealed: новый вариант не может остаться необработанным."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        object Counter {
+            var n = 0
+
+            fun inc(): Int {
+                n++
+                return n
+            }
+        }
+
+        fun main() {
+            Counter.inc()
+            Counter.inc()
+            println(Counter.inc())
+        }
+        ```
+      options:
+        - "3"
+        - "1"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "object создаёт ровно один экземпляр, который существует с первого обращения. Все вызовы Counter.inc() работают с одним и тем же n, поэтому после трёх вызовов он равен 3."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        class A(val n: Int) {
+            val double = n * 2
+
+            init {
+                println("init $n")
+            }
+        }
+
+        fun main() {
+            val a = A(2)
+            println(a.double)
+        }
+        ```
+      options:
+        - "init 2 4"
+        - "4 init 2"
+        - "init 2"
+        - "4"
+      answer: 0
+      explanation: "Код инициализации (инициализаторы свойств и блоки init) выполняется при создании объекта, в порядке записи. Поэтому init 2 печатается при A(2), а затем main печатает 4."
+exercise:
+  id: "kotlin.check.classes.exercise"
+  title: "Периметры фигур"
+  prompt: |-
+    Программа читает строки с описанием фигур до конца ввода и для каждой печатает описание и периметр. Иерархия `Shape`, функция `parse` и `main` уже написаны. Реализуйте две функции с исчерпывающим `when` над `Shape` (без `else`).
+
+    * `perimeter(s: Shape): Int` - периметр: `Rect` - `2 * (w + h)`, `Square` - `4 * side`, `Triangle` - `a + b + c`, `Empty` - `0`;
+    * `describe(s: Shape): String` - описание: `Rect 3x4`, `Square 5`, `Triangle 3-4-5`, `Empty`.
+
+    `main` печатает `<описание>: <периметр>` для каждой строки и в конце `Различных: <число различных фигур>` (одинаковые по значению фигуры считаются одной).
+
+    **Пример.** Ввод:
+
+    ```
+    rect 3 4
+    square 5
+    triangle 3 4 5
+    empty
+    rect 3 4
+    ```
+
+    Вывод:
+
+    ```
+    Rect 3x4: 14
+    Square 5: 20
+    Triangle 3-4-5: 12
+    Empty: 0
+    Rect 3x4: 14
+    Различных: 4
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций и всё остальное уже есть. В каждой функции пишите `when (s)` с ветками `is Rect`, `is Square`, `is Triangle` и `Empty`."
+    - "Внутри ветки `is Rect ->` значение s уже имеет тип Rect, поэтому доступны s.w и s.h без дополнительного приведения."
+    - "Для Empty ветка записывается просто `Empty -> ...`, потому что это object. Ветка `else` не нужна: when над sealed-типом исчерпывающий."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: |
+        rect 3 4
+        square 5
+        triangle 3 4 5
+        empty
+        rect 3 4
+      expected: |
+        Rect 3x4: 14
+        Square 5: 20
+        Triangle 3-4-5: 12
+        Empty: 0
+        Rect 3x4: 14
+        Различных: 4
+      hint: "Периметры: 2*(3+4) = 14, 4*5 = 20, 3+4+5 = 12, 0. Повтор rect 3 4 не увеличивает число различных фигур: их 4."
+    - id: "same"
+      title: "Одинаковые фигуры"
+      stdin: |
+        square 2
+        square 2
+        square 2
+      expected: |
+        Square 2: 8
+        Square 2: 8
+        Square 2: 8
+        Различных: 1
+      hint: "Три одинаковых квадрата дают три строки 'Square 2: 8' и одну различную фигуру."
+    - id: "empty"
+      title: "Нет данных (скрытый)"
+      stdin: ""
+      expected: |
+        Различных: 0
+      hidden: true
+      hint: "Без строк печатается только 'Различных: 0'."
+    - id: "only-empty"
+      title: "Только Empty (скрытый)"
+      stdin: |
+        empty
+        unknown
+      expected: |
+        Empty: 0
+        Empty: 0
+        Различных: 1
+      hidden: true
+      hint: "Неизвестное слово разбирается как Empty; Empty - единственный экземпляр object, поэтому различных фигур 1."
+    - id: "mixed"
+      title: "Разные размеры (скрытый)"
+      stdin: |
+        rect 1 1
+        rect 1 2
+        rect 2 1
+        triangle 5 5 5
+      expected: |
+        Rect 1x1: 4
+        Rect 1x2: 6
+        Rect 2x1: 6
+        Triangle 5-5-5: 15
+        Различных: 4
+      hidden: true
+      hint: "rect 1 2 и rect 2 1 - разные значения data-класса (разные свойства), поэтому различных фигур 4."

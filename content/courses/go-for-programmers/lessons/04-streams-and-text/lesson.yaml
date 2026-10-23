@@ -1,0 +1,161 @@
+id: "go.programmers.streams-and-text"
+title: "Потоковый ввод и текст"
+goal: "Читать числа и строки через bufio, правильно определять конец ввода и учитывать пределы Scanner и ширину целых типов."
+difficulty: "medium"
+estimatedMinutes: 40
+prerequisites:
+  - "go.programmers.collections-and-strings"
+next:
+  - "go.fundamentals.types-values-zero-values"
+objectives:
+  - "Читать числа до конца данных через fmt.Fscan и io.EOF."
+  - "Читать строки через bufio.Scanner и проверять sc.Err()."
+  - "Знать предел Scanner и увеличивать буфер."
+  - "Суммировать большие значения в int64 и распознавать переполнение при разборе."
+masteryCriteria:
+  - "sumNumbers корректно работает на пустом вводе, больших значениях и плохих токенах."
+  - "lineStats верно считает строки, слова и символы для \\r\\n, кириллицы и строк длиннее 64 КБ."
+tags:
+  - "go"
+  - "programmers"
+  - "bufio"
+  - "input"
+assessmentFor:
+  - "go.first-steps.number-stream"
+  - "go.first-steps.text-lines"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что произойдёт, если во входных данных есть строка длиной 100 000 байтов, а программа читает построчно через `bufio.NewScanner(os.Stdin)` без настройки?"
+      options:
+        - "Scanner прочитает строку целиком"
+        - "Scan вернёт false, Err() вернёт ErrTooLong, остальные строки не будут прочитаны"
+        - "Программа завершится паникой"
+        - "Строка будет обрезана до 64 КБ, чтение продолжится"
+      answer: 1
+      explanation: "Предел токена по умолчанию - 64 КБ. Длинная строка останавливает чтение, а причина видна только в `sc.Err()`. Исправление: `sc.Buffer(make([]byte, 0, 64*1024), 1<<20)`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        in := bufio.NewReader(strings.NewReader("12 x"))
+        var a, b int
+        n, err := fmt.Fscan(in, &a, &b)
+        fmt.Println(n, a, err != nil)
+        ```
+      options:
+        - "2 12 false"
+        - "1 12 true"
+        - "0 0 true"
+        - "1 12 false"
+      answer: 1
+      explanation: "Первое значение прочитано (`a` равно 12), на втором встретилась буква, поэтому `n` равно 1, а `err` не `nil`. Эта ошибка не `io.EOF`: данные некорректны."
+    - id: "q3"
+      type: "single"
+      prompt: "Как правильно определить конец ввода при чтении чисел через `fmt.Fscan`?"
+      options:
+        - "Сравнить прочитанное значение с нулём"
+        - "Проверить, что err равна io.EOF"
+        - "Вызвать in.Len()"
+        - "Конец ввода вызывает панику, её нужно перехватить"
+      answer: 1
+      explanation: "Конец данных - ошибка-значение `io.EOF`. Нулевое значение может быть настоящим вводом, `bufio.Reader` не имеет метода `Len`, а паники при конце ввода нет."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var x int32 = math.MaxInt32
+        x++
+        fmt.Println(x)
+        ```
+      options:
+        - "2147483648"
+        - "-2147483648"
+        - "0"
+        - "Паника: переполнение"
+      answer: 1
+      explanation: "Переполнение целых типов фиксированной ширины в Go не вызывает ошибки: значение заворачивается. `MaxInt32 + 1` даёт `-2147483648`. Для больших сумм используйте `int64`."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Сколько раз выполнится тело цикла?
+
+        ```go
+        sc := bufio.NewScanner(strings.NewReader("a b\nc d"))
+        sc.Split(bufio.ScanWords)
+        for sc.Scan() {
+        	// ...
+        }
+        ```
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "1"
+      answer: 2
+      explanation: "`ScanWords` делит по пробельным символам, включая перевод строки, поэтому токенов четыре: `a`, `b`, `c`, `d`. По умолчанию (`ScanLines`) было бы две итерации."
+exercise:
+  id: "go.programmers.streams-and-text.exercise"
+  title: "sumNumbers и lineStats"
+  prompt: |
+    Напишите две функции в `main.go`. Обе принимают `io.Reader`, поэтому проверяются без настоящего ввода.
+
+    * **`sumNumbers(r io.Reader) (sum int64, count int, err error)`** - читает целые числа, разделённые пробелами и переводами строк, до конца данных и возвращает их сумму (`int64`) и количество. Пустой ввод даёт `0, 0, nil`. Если встретился токен, не являющийся целым числом (или число вне диапазона `int64`), верните ошибку; значения `sum` и `count` при ошибке не проверяются.
+    * **`lineStats(r io.Reader) (lines, words, longest int, err error)`** - число строк, число слов (по `strings.Fields`) и длину самой длинной строки **в символах** (рунах). Пустые строки считаются строками. Должны корректно читаться строки Windows (`\r\n`) и строки длиной больше 64 КБ (до 1 МБ).
+
+    Пример: для ввода `"hello world\nпривет\n\nlast line here"` функция `lineStats` возвращает `4, 6, 14, nil`.
+
+    В заготовке есть `main`: она вызывает обе функции для стандартного ввода.
+
+    **Как проверяется.** Тесты подают строки через `strings.NewReader`: пустой ввод, большие числа, нечисловые токены, кириллицу, `\r\n` и очень длинную строку.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Оба решения строятся вокруг цикла чтения. Для чисел - `bufio.NewReader(r)` и `fmt.Fscan(in, &v)`; для строк - `bufio.NewScanner(r)`."
+    - "В `sumNumbers` цикл `for` завершается при `err == io.EOF`; любая другая ошибка возвращается сразу. Переменную `v` объявляйте как `int64`."
+    - "В `lineStats` считайте `lines++` на каждый `sc.Scan()`, слова - `len(strings.Fields(text))`, длину - `utf8.RuneCountInString(text)` (пакет `unicode/utf8`)."
+    - "Длинную строку примет Scanner только с увеличенным буфером: `sc.Buffer(make([]byte, 0, 64*1024), 1<<20)` до первого `Scan`. После цикла верните `sc.Err()`."
+  tests:
+    - id: "sum-basic"
+      title: "sumNumbers: простые числа"
+      match: "TestSumNumbers/basic"
+      hint: "Числа через пробелы и переводы строк суммируются в int64."
+    - id: "lines-basic"
+      title: "lineStats: пример из условия"
+      match: "TestLineStats/example"
+      hint: "Строки, слова и длина в символах: кириллица считается по рунам."
+    - id: "sum-all"
+      title: "sumNumbers: пустой ввод, большие и плохие числа (скрытый)"
+      match: "TestSumNumbers/*"
+      hidden: true
+      hint: "Пустой ввод даёт нули без ошибки; сумма больше 32 бит; токен «x» и число вне int64 - ошибка."
+    - id: "lines-edge"
+      title: "lineStats: \\r\\n, пустые строки, пустой ввод (скрытый)"
+      match: "TestLineStats/*"
+      hidden: true
+      hint: "\\r\\n не должен считаться символом; пустые строки считаются; пустой ввод даёт нули."
+    - id: "lines-long"
+      title: "lineStats: строка длиннее 64 КБ (скрытый)"
+      match: "TestLineStatsLongLine"
+      hidden: true
+      hint: "Scanner с буфером по умолчанию остановится на длинной строке: увеличьте буфер методом Buffer."

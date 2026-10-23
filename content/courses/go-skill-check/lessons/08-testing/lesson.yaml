@@ -1,0 +1,126 @@
+id: "go.check.testing"
+title: "Проверка: тестирование и модули"
+goal: "Писать функции под табличные тесты и ориентироваться в модуле Go и командах go test."
+difficulty: "medium"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: писать функции под табличные тесты и ориентироваться в модуле Go и командах go test."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "testing"
+assessmentFor:
+  - "go.fundamentals.packages-modules-testing"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какое имя файла считается файлом тестов для `go test`?"
+      options:
+        - "calc.test.go"
+        - "calc_test.go"
+        - "test_calc.go"
+        - "calcTest.go"
+      answer: 1
+      explanation: "Файлы тестов должны заканчиваться на `_test.go`; такие файлы не попадают в собранную программу."
+    - id: "q2"
+      type: "single"
+      prompt: "Какая сигнатура у тестовой функции?"
+      options:
+        - "func TestAdd(t *testing.T)"
+        - "func testAdd(t testing.T)"
+        - "func Test_add() error"
+        - "func TestAdd(b *testing.B)"
+      answer: 0
+      explanation: "Имя начинается с `Test` и заглавной буквы, единственный параметр - `*testing.T`. `*testing.B` нужен бенчмаркам (`Benchmark...`)."
+    - id: "q3"
+      type: "single"
+      prompt: "Что произойдёт, если в тесте вызвать `t.Fatalf(...)`, а после него идёт ещё код?"
+      options:
+        - "Код после Fatalf выполнится, тест будет помечен как неудачный"
+        - "Тест завершится сразу, остальной код не выполнится"
+        - "Программа завершится вместе с остальными тестами"
+        - "Вызов ничего не делает без флага -v"
+      answer: 1
+      explanation: "`t.Fatalf` помечает тест как неудачный и немедленно прекращает его (остальные тесты продолжаются). `t.Errorf` помечает, но тест продолжается."
+    - id: "q4"
+      type: "single"
+      prompt: "Что делает команда `go test ./...`?"
+      options:
+        - "Запускает тесты только в текущей папке"
+        - "Запускает тесты во всех пакетах модуля, начиная с текущей папки"
+        - "Собирает программу, не запуская тесты"
+        - "Запускает бенчмарки"
+      answer: 1
+      explanation: "Шаблон `./...` означает «текущий каталог и все вложенные пакеты». Без него проверяется только пакет текущей папки."
+    - id: "q5"
+      type: "single"
+      prompt: "Что определяет файл go.mod?"
+      options:
+        - "Список тестов модуля"
+        - "Путь модуля, версию Go и зависимости"
+        - "Настройки gofmt"
+        - "Расписание сборки"
+      answer: 1
+      explanation: "`go.mod` содержит строку `module` (путь модуля), требуемую версию Go и список зависимостей. Создаётся командой `go mod init <путь>`."
+exercise:
+  id: "go.check.testing.exercise"
+  title: "parseVersion и compareVersions"
+  prompt: |
+    Модуль небольшой, но у него уже есть тест: в заготовке два файла - `main.go` и `main_local_test.go` с вашим табличным тестом **`TestCompareVersionsLocal`** (файл `*_test.go`, функция `Test...(t *testing.T)`, подтесты через `t.Run`). Допишите код в `main.go`.
+
+    * **`parseVersion(s string) (major, minor, patch int, err error)`** - версия `"1.2.3"` или `"v1.2.3"`: ровно три неотрицательных целых числа через точку. Иначе верните `0, 0, 0` и ошибку.
+    * **`compareVersions(a, b string) (int, error)`** - `-1`, `0` или `1` для `a < b`, `a == b`, `a > b`. Сравнивайте числа, а не строки (`1.10.0` больше `1.9.0`). Если одна из версий неверна, верните `0` и ошибку.
+
+    Заодно добавьте в `TestCompareVersionsLocal` пару своих случаев и запустите тесты.
+
+    **Как проверяется.** Автоматически проверяется только поведение функций готовыми тестами (в том числе некорректные строки и числовое сравнение). Качество вашего собственного теста система не оценивает: умение писать тесты проверяет квиз.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Версию разделите `strings.Split(s, \".\")` после `strings.TrimPrefix(s, \"v\")`. Частей должно быть три."
+    - "Каждую часть переведите `strconv.Atoi`; ошибку и отрицательные значения считайте ошибкой формата."
+    - "Для сравнения превратите обе версии в числа и сравните по очереди major, minor, patch."
+    - "Ваш собственный тест `TestCompareVersionsLocal` можно запускать отдельно: `go test -run TestCompareVersionsLocal`."
+  tests:
+    - id: "parse-basic"
+      title: "parseVersion: обычные версии"
+      match: "TestParseVersion/plain"
+      hint: "Строка 1.2.3 даёт 1, 2, 3 и nil."
+    - id: "compare-basic"
+      title: "compareVersions: сравнение по числам"
+      match: "TestCompareVersions/numeric_not_lexical"
+      hint: "1.2.0 меньше 1.10.0: сравниваются числа, а не строки."
+    - id: "parse-valid"
+      title: "parseVersion: префикс v и многозначные числа (скрытый)"
+      match: "TestParseVersion/*"
+      hidden: true
+      hint: "Необязательный префикс v и числа из нескольких цифр."
+    - id: "parse-invalid"
+      title: "parseVersion: некорректные строки (скрытый)"
+      match: "TestParseVersionInvalid/*"
+      hidden: true
+      hint: "Две и четыре части, буквы, отрицательные и пустые части - ошибка и нули."
+    - id: "compare-all"
+      title: "compareVersions: все ветви сравнения (скрытый)"
+      match: "TestCompareVersions/*"
+      hidden: true
+      hint: "Старшие компоненты важнее младших; некорректная версия с любой стороны - ошибка."

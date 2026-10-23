@@ -1,0 +1,176 @@
+id: "typescript.from-zero.functions"
+title: "Функции"
+goal: "Написать функцию с типизированными параметрами и результатом и вызвать её с разными значениями."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "typescript.from-zero.comparison-and-logic"
+objectives:
+  - "Объявить функцию словом function, записать типы параметров и тип результата, вернуть значение через return."
+  - "Вызвать функцию с аргументами и использовать возвращённое значение."
+  - "Объяснить, чем return отличается от console.log внутри функции."
+  - "Прочитать ошибки TS2345 и TS2554, возникающие при неверном вызове."
+masteryCriteria:
+  - "Три функции возвращают правильный результат для обычных и граничных значений (ноль, отрицательные числа, пустая строка, кириллица)."
+  - "Функции возвращают значение, а не печатают его."
+concepts:
+  introduces:
+    - "ts.function"
+    - "ts.parameter"
+    - "ts.return"
+    - "ts.return-type"
+    - "ts.export-for-check"
+  uses:
+    - "ts.variable"
+    - "ts.const"
+    - "ts.type-annotation"
+    - "ts.number"
+    - "ts.string"
+    - "ts.boolean"
+    - "ts.arithmetic"
+    - "ts.concatenation"
+    - "ts.console-log"
+    - "ts.error-message"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.if-else"
+tags:
+  - "typescript"
+  - "functions"
+  - "return"
+  - "types"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        function double(n: number): number {
+          return n * 2;
+        }
+        console.log(double(4));
+        ```
+      options:
+        - "4"
+        - "8"
+        - "n * 2"
+        - "undefined"
+      answer: 1
+      explanation: "Вызов double(4) передаёт в параметр n значение 4, функция возвращает 4 * 2 = 8, и console.log печатает возвращённое значение."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        function hello(): void {
+          console.log("Привет");
+        }
+        console.log("Начало");
+        ```
+      options:
+        - "Привет, затем Начало"
+        - "Начало, затем Привет"
+        - "Только Начало"
+        - "Только Привет"
+      answer: 2
+      explanation: "Объявление функции только описывает, что делать. Пока функцию не вызвали (hello();), тело не выполняется."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что сообщит проверка?
+
+        ```typescript
+        function add(a: number, b: number): number {
+          a + b;
+        }
+        ```
+      options:
+        - "Ничего: функция вернёт a + b."
+        - "TS2355: функция с типом результата number должна возвращать значение."
+        - "TS2345: аргумент не подходит параметру."
+        - "TS2304: Cannot find name 'add'."
+      answer: 1
+      explanation: "Выражение a + b вычислено, но не возвращено. Без return функция ничего не возвращает, а тип результата number обещает число. Исправление: return a + b;"
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка?
+
+        ```typescript
+        function double(n: number): number {
+          return n * 2;
+        }
+        console.log(double("4"));
+        ```
+      options:
+        - "Напечатается 8: строка \"4\" превратится в число."
+        - "TS2345: Argument of type 'string' is not assignable to parameter of type 'number'."
+        - "TS2554: Expected 2 arguments, but got 1."
+        - "Напечатается 44."
+      answer: 1
+      explanation: "Параметр n объявлен числом, а аргумент \"4\" - текст. Проверка находит несоответствие в месте вызова и не запускает программу. Исправление: double(4)."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        function check(n: number): number {
+          return n * 10;
+          console.log("после return");
+        }
+        console.log(check(2));
+        ```
+      options:
+        - "20"
+        - "после return, затем 20"
+        - "20, затем после return"
+        - "undefined"
+      answer: 0
+      explanation: "return завершает функцию немедленно. Команды после него не выполняются, поэтому «после return» не печатается."
+exercise:
+  id: "typescript.from-zero.functions.exercise"
+  title: "Три функции"
+  prompt: |
+    В файле `functions_task.ts` три функции с заготовками. Допишите в каждой команду `return` по описанию:
+
+    * `farewell(name)` - возвращает строку `"До свидания, <name>!"`, например `farewell("Анна")` даёт `"До свидания, Анна!"`.
+    * `lineTotal(price, quantity)` - возвращает стоимость позиции: цену, умноженную на количество.
+    * `discounted(price, percent)` - возвращает цену после скидки в процентах: `discounted(200, 10)` даёт `180`. Скидка в процентах - это доля от ста: цена умножается на `(100 - percent)` и делится на `100`.
+
+    Функции должны **возвращать** значение, а не печатать его. Слово `export` перед `function` оставьте: оно делает функцию видимой для проверки, которая вызывает её с разными значениями. Типы параметров и результата в заготовке уже записаны; если вернуть значение не того типа, проверка не даст запустить программу. Часть проверок скрыта: в них ноль, отрицательные числа, пустая строка и кириллица.
+  entryFile: "functions_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "У каждой функции в заготовке есть комментарий TODO и временный return. Замените значение после return на нужное выражение."
+    - "Для farewell соберите строку из трёх частей оператором +. Для lineTotal перемножьте параметры. Для discounted примените формулу из условия."
+    - "Для discounted нужны скобки: price * (100 - percent) / 100. Без скобок вычитание не выполнится раньше умножения."
+    - "return \"До свидания, \" + name + \"!\"; return price * quantity; return (price * (100 - percent)) / 100;"
+  tests:
+    - id: "farewell-basic"
+      title: "farewell: обычные имена"
+      hint: "farewell(\"Анна\") должно вернуть строку «До свидания, Анна!» - с запятой, пробелом и восклицательным знаком."
+    - id: "total-basic"
+      title: "lineTotal: обычные значения"
+      hint: "Цена 40 и количество 3 дают 120; функция должна вернуть число, а не напечатать его."
+    - id: "discount-basic"
+      title: "discounted: обычные скидки"
+      hint: "Цена 200 со скидкой 10 процентов - 180; цена 1000 со скидкой 25 - 750. Формула: цена * (100 - процент) / 100."
+    - id: "farewell-edge"
+      title: "farewell: пустая строка и кириллица (скрытый)"
+      hidden: true
+      hint: "Пустое имя не должно вызывать сбой: ожидается «До свидания, !». Буква «Ё» и пробелы внутри имени сохраняются как есть."
+    - id: "total-edge"
+      title: "lineTotal: ноль, дробная цена, отрицательная (скрытый)"
+      hidden: true
+      hint: "Функция не должна проверять значения: произведение 0 и 5 равно 0, 2.5 на 2 равно 5, -3 на 2 равно -6."
+    - id: "discount-edge"
+      title: "discounted: скидка 0 и 100, дробный результат (скрытый)"
+      hidden: true
+      hint: "Скидка 0 оставляет цену прежней, скидка 100 даёт 0, цена 250 со скидкой 15 - 212.5. Проверьте скобки в формуле."

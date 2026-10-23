@@ -1,0 +1,166 @@
+id: "javascript.from-zero.arrays-of-objects"
+title: "Массивы объектов"
+goal: "Работать со списком записей: искать запись, считать итоги, находить минимум и группировать значения по ключу."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "javascript.from-zero.objects"
+objectives:
+  - "Пройти по массиву объектов и обратиться к свойствам каждого."
+  - "Найти запись по значению свойства и посчитать итоги по всем записям."
+  - "Накопить итоги по группам в объекте и обойти его через Object.keys и Object.values."
+masteryCriteria:
+  - "Функции работают на пустом массиве и массиве из одной записи."
+  - "findById возвращает undefined, если записи нет."
+  - "groupTotals складывает суммы одинаковых ключей и сохраняет порядок первого появления ключа."
+concepts:
+  introduces:
+    - "js.object-iteration"
+  uses:
+    - "js.object"
+    - "js.property"
+    - "js.array"
+    - "js.array-methods"
+    - "js.for-of"
+    - "js.arrow-function"
+    - "js.callback"
+    - "js.if"
+    - "js.comparison"
+    - "js.arithmetic"
+    - "js.function"
+    - "js.return"
+    - "js.const"
+    - "js.let"
+next:
+  - "javascript.from-zero.errors-and-exceptions"
+tags:
+  - "javascript"
+  - "array"
+  - "object"
+  - "grouping"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const people = [
+          { name: "Анна", age: 30 },
+          { name: "Борис", age: 25 },
+        ];
+        console.log(people[1].name);
+        ```
+      options:
+        - "Борис"
+        - "Анна"
+        - "25"
+        - "undefined"
+      answer: 0
+      explanation: "people[1] - второй элемент массива, то есть объект Бориса. Точка после него читает свойство name."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const items = [
+          { price: 10, qty: 3 },
+          { price: 5, qty: 2 },
+        ];
+        let total = 0;
+        for (const item of items) {
+          total = total + item.price * item.qty;
+        }
+        console.log(total);
+        ```
+      answer: 40
+      tolerance: 0
+      explanation: "Первый товар даёт 10 * 3 = 30, второй 5 * 2 = 10. Итого 40."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const users = [{ id: 1, name: "Вера" }, { id: 2, name: "Глеб" }];
+        const found = users.find((u) => u.id === 3);
+        console.log(found.name);
+        ```
+      options:
+        - "undefined"
+        - "TypeError: Cannot read properties of undefined (reading 'name')"
+        - "null"
+        - "Вера"
+      answer: 1
+      explanation: "Пользователя с id 3 нет, поэтому find вернул undefined. Читать свойство name у undefined нельзя - получается TypeError. Перед использованием результата find нужно проверить, что запись нашлась."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что будет в totals после выполнения?
+
+        ```javascript
+        const totals = {};
+        for (const n of ["a", "b", "a"]) {
+          if (n in totals) {
+            totals[n] = totals[n] + 1;
+          } else {
+            totals[n] = 1;
+          }
+        }
+        ```
+      options:
+        - "{ a: 2, b: 1 }"
+        - "{ a: 1, b: 1 }"
+        - "{ a: 1, b: 1, a: 1 }"
+        - "[ 'a', 'b', 'a' ]"
+      answer: 0
+      explanation: "Первый раз ключа нет и ему присваивается 1, повторный раз значение увеличивается. У объекта не может быть двух свойств с одним именем."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Как получить массив значений объекта stock = { apples: 5, pears: 7 }?
+      options:
+        - "Object.values(stock)"
+        - "Object.keys(stock)"
+        - "stock.values"
+        - "stock[values]"
+      answer: 0
+      explanation: "Object.values(stock) возвращает [5, 7]. Object.keys(stock) вернул бы имена ['apples', 'pears']. У объекта нет свойства values."
+exercise:
+  id: "javascript.from-zero.arrays-of-objects.exercise"
+  title: "Поиск, итог, минимум и группировка"
+  prompt: |
+    В файле `records.mjs` пять функций без тела. Напишите их:
+
+    * `findById(items, id)` - запись из массива объектов, у которой свойство `id` равно `id`; если такой нет, `undefined`. `findById([{ id: 1, name: "Чай" }, { id: 2, name: "Кофе" }], 2)` даёт `{ id: 2, name: "Кофе" }`.
+    * `totalPrice(items)` - сумма `price * qty` по всем записям вида `{ name, price, qty }`; для пустого массива `0`.
+    * `cheapest(items)` - запись с наименьшим `price`; если таких несколько, первая из них; для пустого массива `undefined`.
+    * `groupTotals(orders)` - объект «клиент: сумма всех его заказов» по записям вида `{ customer, amount }`. Ключи идут в порядке первого появления клиента: `groupTotals([{ customer: "Анна", amount: 100 }, { customer: "Борис", amount: 50 }, { customer: "Анна", amount: 70 }])` даёт `{ "Анна": 170, "Борис": 50 }`. Для пустого массива - `{}`.
+    * `sumValues(obj)` - сумма всех значений-чисел объекта: `sumValues({ a: 1, b: 2 })` даёт `3`; для `{}` - `0`.
+  entryFile: "records.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Во всех функциях нужно обойти массив или объект. findById и cheapest возвращают одну запись целиком, а не её свойство. groupTotals собирает результат в пустом объекте {} и обновляет его на каждом шаге. sumValues получает значения из объекта функцией Object.values."
+    - "findById: можно вернуть результат метода find с условием по свойству id. cheapest: начните с первой записи и сравнивайте price остальных; пустой массив обработайте отдельно. groupTotals: ключ клиента - item.customer, обращаться к нему через квадратные скобки."
+    - "groupTotals: const totals = {}; for (const order of orders) { if (order.customer in totals) { totals[order.customer] = totals[order.customer] + order.amount; } else { totals[order.customer] = order.amount; } } return totals;"
+    - "cheapest: if (items.length === 0) { return undefined; } let best = items[0]; for (const item of items) { if (item.price < best.price) { best = item; } } return best; sumValues: let sum = 0; for (const v of Object.values(obj)) { sum = sum + v; } return sum;"
+  tests:
+    - id: "find-total-basic"
+      title: "findById и totalPrice: обычные массивы"
+      hint: "findById возвращает всю запись, а не только имя. totalPrice складывает цену, умноженную на количество, по каждой записи: [{ price: 10, qty: 3 }, { price: 5, qty: 2 }] даёт 40."
+    - id: "cheap-group-basic"
+      title: "cheapest, groupTotals и sumValues: обычные данные"
+      hint: "cheapest сравнивает price и возвращает запись целиком. groupTotals складывает суммы одинаковых клиентов: Анна 100 + 70 = 170. sumValues складывает значения объекта."
+    - id: "records-edge"
+      title: "Пустые массивы, нет записи, одна запись (скрытый)"
+      hidden: true
+      hint: "Для пустого массива findById и cheapest возвращают undefined, totalPrice - 0, groupTotals - {}. Если запись с таким id не найдена, результат undefined, а не ошибка."
+    - id: "group-edge"
+      title: "groupTotals и cheapest: повторы, порядок, кириллица, равные цены (скрытый)"
+      hidden: true
+      hint: "Если у двух товаров одинаковая минимальная цена, нужен первый из них. Ключи groupTotals идут в порядке первого появления клиента. Ноль в сумме - обычное число: клиент с суммой 0 всё равно должен попасть в объект."

@@ -1,0 +1,207 @@
+id: "csharp.from-zero.switch"
+title: "Выбор по значению: switch"
+goal: "Выбирать действие по значению переменной инструкцией switch и получать значение выражением switch."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "csharp.from-zero.if-else"
+objectives:
+  - "Записывать инструкцию switch с метками case, break и default."
+  - "Объединять несколько значений в одну ветку."
+  - "Записывать выражение switch со стрелками => и вариантом _."
+  - "Выбирать между цепочкой if и switch."
+masteryCriteria:
+  - "Вы выбираете из набора точных значений числа или строки через switch."
+  - "Вы объясняете, зачем нужен break и что такое default."
+  - "Вы добавляете вариант _ в выражение switch, чтобы все значения были покрыты."
+concepts:
+  introduces:
+    - "csharp.switch"
+    - "csharp.switch-expression"
+  uses:
+    - "csharp.if"
+    - "csharp.comparison"
+    - "csharp.logical-operators"
+    - "csharp.parse"
+    - "csharp.read-line"
+    - "csharp.string"
+    - "csharp.int"
+next:
+  - "csharp.from-zero.while-loop"
+tags:
+  - "csharp"
+  - "switch"
+  - "branching"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int day = 2;
+        switch (day)
+        {
+            case 1:
+                Console.WriteLine("Пн");
+                break;
+            case 2:
+                Console.WriteLine("Вт");
+                break;
+            default:
+                Console.WriteLine("Другой");
+                break;
+        }
+        ```
+      options:
+        - "Пн"
+        - "Вт"
+        - "Другой"
+        - "ПнВт"
+      answer: 1
+      explanation: "switch сравнивает day с метками сверху вниз и выполняет ветку первой подходящей метки. Для 2 это ветка case 2."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```csharp
+        int d = 1;
+        switch (d)
+        {
+            case 1:
+                Console.WriteLine("a");
+            case 2:
+                Console.WriteLine("b");
+                break;
+        }
+        ```
+      options:
+        - "Выведутся a и b."
+        - "Выведется только a."
+        - "Ошибка CS0163: управление не может «провалиться» из одной ветки в другую."
+        - "Предупреждение, но программа соберётся."
+      answer: 2
+      explanation: "В C# каждая ветка switch должна заканчиваться break (или другой остановкой). Без него компилятор сообщает: error CS0163: Control cannot fall through from one case label to another."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        string cmd = "stop";
+        string text = cmd switch
+        {
+            "start" => "Запуск",
+            "stop" => "Остановка",
+            _ => "Неизвестно"
+        };
+        Console.WriteLine(text);
+        ```
+      options:
+        - "Запуск"
+        - "Остановка"
+        - "Неизвестно"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Выражение switch выбирает ветку по совпадению значения. cmd равно stop, поэтому результат - Остановка. Вариант _ принимает всё остальное."
+    - id: "q4"
+      type: "single"
+      prompt: "Что обозначает _ в выражении switch?"
+      options:
+        - "Пропуск строки."
+        - "Любое значение, которое не подошло к предыдущим вариантам."
+        - "Пустую строку."
+        - "Ноль."
+      answer: 1
+      explanation: "Знак подчёркивания в выражении switch - вариант «все остальные», аналог default в инструкции. Без него значения вне перечисленных вызвали бы предупреждение и ошибку во время работы."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int month = 7;
+        string season = month switch
+        {
+            12 or 1 or 2 => "Зима",
+            6 or 7 or 8 => "Лето",
+            _ => "Другое"
+        };
+        Console.WriteLine(season);
+        ```
+      options:
+        - "Зима"
+        - "Лето"
+        - "Другое"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Слово or объединяет несколько значений в один вариант. 7 подходит ко второй строке."
+exercise:
+  id: "csharp.from-zero.switch.exercise"
+  title: "Время года"
+  prompt: |
+    Программа читает номер месяца и печатает время года.
+
+    | Месяц | Вывод |
+    |---|---|
+    | 12, 1, 2 | `Зима` |
+    | 3, 4, 5 | `Весна` |
+    | 6, 7, 8 | `Лето` |
+    | 9, 10, 11 | `Осень` |
+    | любое другое число | `Такого месяца нет` |
+
+    **Пример.** Для ввода `4` программа печатает `Весна`.
+
+    В заготовке только чтение числа и план. Остальное напишите сами с помощью `switch` (инструкции или выражения - на ваш выбор). Не забудьте обработать числа вне диапазона от 1 до 12.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Проще всего выражение switch: string season = month switch { ... };"
+    - "Несколько значений в одной ветке объединяются словом or: 12 or 1 or 2 => \"Зима\","
+    - "Последний вариант _ => \"Такого месяца нет\" ловит всё остальное. В конце напечатайте season через Console.WriteLine."
+    - "string season = month switch { 12 or 1 or 2 => \"Зима\", 3 or 4 or 5 => \"Весна\", 6 or 7 or 8 => \"Лето\", 9 or 10 or 11 => \"Осень\", _ => \"Такого месяца нет\" }; Console.WriteLine(season);"
+  tests:
+    - id: "spring"
+      title: "Апрель"
+      stdin: "4\n"
+      expected: |
+        Весна
+      hint: "4 входит в группу 3, 4, 5 - это весна."
+    - id: "winter"
+      title: "Декабрь (скрытый)"
+      stdin: "12\n"
+      expected: |
+        Зима
+      hidden: true
+      hint: "Декабрь - это зима: 12 стоит в одной ветке с 1 и 2."
+    - id: "summer"
+      title: "Август (скрытый)"
+      stdin: "8\n"
+      expected: |
+        Лето
+      hidden: true
+      hint: "8 входит в группу 6, 7, 8 - это лето."
+    - id: "autumn"
+      title: "Ноябрь (скрытый)"
+      stdin: "11\n"
+      expected: |
+        Осень
+      hidden: true
+      hint: "11 входит в группу 9, 10, 11 - это осень."
+    - id: "zero"
+      title: "Ноль (скрытый)"
+      stdin: "0\n"
+      expected: |
+        Такого месяца нет
+      hidden: true
+      hint: "Для чисел вне 1-12 должен сработать вариант по умолчанию (_ или default)."
+    - id: "big"
+      title: "13 (скрытый)"
+      stdin: "13\n"
+      expected: |
+        Такого месяца нет
+      hidden: true
+      hint: "13 не входит ни в одну группу, поэтому нужен вариант _."

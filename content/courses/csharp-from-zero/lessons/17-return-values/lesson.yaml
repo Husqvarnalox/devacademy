@@ -1,0 +1,221 @@
+id: "csharp.from-zero.return-values"
+title: "Результат метода: return"
+goal: "Писать методы, которые возвращают значение командой return, и применять методы-условия."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "csharp.from-zero.methods"
+objectives:
+  - "Записывать метод с типом результата и командой return."
+  - "Использовать вызов метода как выражение: сохранять результат, печатать, передавать в другой метод."
+  - "Писать методы типа bool и применять их в условиях."
+  - "Различать метод void и метод с результатом, находить пути без return."
+masteryCriteria:
+  - "Вы пишете метод вычисления с правильным типом результата и возвращаете значение на каждом пути."
+  - "Вы разделяете вычисление (метод) и вывод (вызывающий код)."
+  - "Вы применяете метод типа bool в if."
+concepts:
+  introduces:
+    - "csharp.return"
+    - "csharp.void-method"
+  uses:
+    - "csharp.method"
+    - "csharp.parameter"
+    - "csharp.scope"
+    - "csharp.if"
+    - "csharp.comparison"
+    - "csharp.bool"
+    - "csharp.integer-division"
+    - "csharp.remainder"
+    - "csharp.parse"
+    - "csharp.read-line"
+    - "csharp.interpolation"
+next:
+  - "csharp.from-zero.arrays"
+tags:
+  - "csharp"
+  - "return"
+  - "methods"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Console.WriteLine(Triple(4) + 1);
+
+        static int Triple(int n)
+        {
+            return n * 3;
+        }
+        ```
+      options:
+        - "12"
+        - "13"
+        - "41"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Triple(4) возвращает 12, к результату прибавляется 1. Получается 13."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Console.WriteLine(Check(5));
+        Console.WriteLine(Check(-3));
+
+        static string Check(int n)
+        {
+            if (n > 0)
+            {
+                return "плюс";
+            }
+            return "не плюс";
+        }
+        ```
+      options:
+        - "плюс и не плюс"
+        - "плюс и плюс"
+        - "не плюс и не плюс"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Для 5 условие истинно и метод возвращает «плюс», завершаясь на этом return. Для -3 условие ложно, и выполняется последний return."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что не так с методом?
+
+        ```csharp
+        static int Sign(int n)
+        {
+            if (n > 0)
+            {
+                return 1;
+            }
+            else if (n < 0)
+            {
+                return -1;
+            }
+        }
+        ```
+      options:
+        - "Ничего, метод корректен."
+        - "Для n, равного 0, нет return; компилятор сообщает CS0161."
+        - "Нельзя использовать несколько return."
+        - "Тип результата должен быть bool."
+      answer: 1
+      explanation: "Когда n равно 0, ни одно из условий не истинно, и метод дошёл бы до конца без return. Компилятор требует вернуть значение на каждом пути."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Console.WriteLine(Half(5));
+
+        static double Half(int n)
+        {
+            return n / 2;
+        }
+        ```
+      options:
+        - "2.5"
+        - "2"
+        - "3"
+        - "2,5"
+      answer: 1
+      explanation: "Выражение n / 2 - целочисленное деление, результат 2. Только потом это число превращается в double и печатается как 2."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Square(5);
+        Console.WriteLine("конец");
+
+        static int Square(int n) => n * n;
+        ```
+      options:
+        - "25 и конец"
+        - "конец"
+        - "Ошибка компиляции"
+        - "5 и конец"
+      answer: 1
+      explanation: "Результат вызова Square(5) нигде не сохранён и не напечатан, поэтому он просто отбрасывается. Метод ничего не выводит."
+exercise:
+  id: "csharp.from-zero.return-values.exercise"
+  title: "Скидка и возраст"
+  prompt: |
+    Основная часть программы написана: она читает цену, процент скидки и возраст, печатает результат методов. Напишите два метода:
+
+    * `FinalPrice(int price, int percent)` - возвращает цену после скидки: `price - price * percent / 100`. Деление целочисленное, остаток отбрасывается;
+    * `IsAdult(int age)` - возвращает `true`, если возраст не меньше 18, иначе `false`.
+
+    **Пример.** Для ввода
+
+    ```
+    2000
+    15
+    20
+    ```
+
+    программа печатает
+
+    ```
+    Цена со скидкой: 1700
+    Совершеннолетний: да
+    ```
+
+    Методы должны **возвращать** значения, а не печатать. Основную часть не меняйте.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "В заготовке методы возвращают заглушки (0 и false). Замените значение после return."
+    - "FinalPrice: сначала вычислите размер скидки price * percent / 100, потом вычтите его из price."
+    - "IsAdult: результат сравнения age >= 18 уже имеет тип bool, его можно вернуть напрямую."
+    - "static int FinalPrice(int price, int percent) { return price - price * percent / 100; } static bool IsAdult(int age) { return age >= 18; }"
+  tests:
+    - id: "basic"
+      title: "Скидка 15%, взрослый"
+      stdin: "2000\n15\n20\n"
+      expected: |
+        Цена со скидкой: 1700
+        Совершеннолетний: да
+      hint: "2000 - 2000 * 15 / 100 = 1700; возраст 20 не меньше 18."
+    - id: "rounding"
+      title: "Остаток отбрасывается (скрытый)"
+      stdin: "999\n10\n17\n"
+      expected: |
+        Цена со скидкой: 900
+        Совершеннолетний: нет
+      hidden: true
+      hint: "999 * 10 / 100 равно 99 при целочисленном делении, цена 900; возраст 17 меньше 18."
+    - id: "border-age"
+      title: "Граница возраста (скрытый)"
+      stdin: "500\n0\n18\n"
+      expected: |
+        Цена со скидкой: 500
+        Совершеннолетний: да
+      hidden: true
+      hint: "Без скидки цена не меняется; возраст ровно 18 считается совершеннолетним (>=, а не >)."
+    - id: "full-discount"
+      title: "Скидка 100% (скрытый)"
+      stdin: "1500\n100\n5\n"
+      expected: |
+        Цена со скидкой: 0
+        Совершеннолетний: нет
+      hidden: true
+      hint: "При скидке 100% цена становится нулевой."
+    - id: "small"
+      title: "Малая сумма (скрытый)"
+      stdin: "7\n10\n40\n"
+      expected: |
+        Цена со скидкой: 7
+        Совершеннолетний: да
+      hidden: true
+      hint: "7 * 10 / 100 при целочисленном делении равно 0, поэтому цена остаётся 7."

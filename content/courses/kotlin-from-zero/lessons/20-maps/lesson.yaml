@@ -1,0 +1,216 @@
+id: "kotlin.from-zero.maps"
+title: "Словари"
+goal: "Хранить пары «ключ - значение», находить значения по ключу и считать повторы."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "kotlin.from-zero.lists"
+objectives:
+  - "Создавать словари mapOf и mutableMapOf и объяснять разницу между ними."
+  - "Получать значение по ключу и учитывать, что результат может быть null."
+  - "Добавлять, заменять и удалять пары, перебирать их циклом for ((ключ, значение) in map)."
+  - "Считать повторы по шаблону counts[x] = (counts[x] ?: 0) + 1."
+masteryCriteria:
+  - "Ваша программа читает слова и печатает, сколько раз встретилось каждое, в порядке первого появления."
+  - "Вы объясняете, почему ages[\"Анна\"] имеет тип Int?, и выбираете ?: или getOrDefault."
+  - "Вы предсказываете содержимое словаря после повторной записи по одному ключу."
+concepts:
+  introduces:
+    - "kotlin.map"
+    - "kotlin.mutable-map"
+    - "kotlin.map-key"
+    - "kotlin.map-entry-loop"
+    - "kotlin.counting"
+  uses:
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.char"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.for"
+    - "kotlin.range"
+    - "kotlin.nullable"
+    - "kotlin.null"
+    - "kotlin.elvis"
+    - "kotlin.list"
+    - "kotlin.mutable-list"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.compound-assignment"
+    - "kotlin.println"
+next:
+  - "kotlin.from-zero.string-methods"
+tags:
+  - "kotlin"
+  - "map"
+  - "collection"
+  - "counting"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val m = mapOf("a" to 1, "b" to 2)
+            println(m["b"])
+        }
+        ```
+      options:
+        - "1"
+        - "2"
+        - "null"
+        - "Ошибку компиляции."
+      answer: 1
+      explanation: "Значение по ключу «b» равно 2."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val m = mapOf("a" to 1)
+            println(m["z"])
+        }
+        ```
+      options:
+        - "0"
+        - "Ничего."
+        - "Ошибку выполнения."
+        - "null"
+      answer: 3
+      explanation: "Для отсутствующего ключа m[\"z\"] возвращает null, и println печатает слово null. Исключения нет."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val m = mutableMapOf("a" to 1)
+            m["a"] = 5
+            m["b"] = 2
+            println(m)
+        }
+        ```
+      options:
+        - "{a=1, b=2}"
+        - "{a=5, b=2}"
+        - "{a=5}"
+        - "{a=1, a=5, b=2}"
+      answer: 1
+      explanation: "Запись в существующий ключ заменяет значение, новый ключ добавляется: получается {a=5, b=2}."
+    - id: "q4"
+      type: "single"
+      prompt: "Какая запись правильно увеличивает счётчик слова w в изменяемом словаре counts (Map<String, Int>)?"
+      options:
+        - "counts[w] = counts[w] + 1"
+        - "counts[w] = (counts[w] ?: 0) + 1"
+        - "counts[w]++"
+        - "counts.add(w)"
+      answer: 1
+      explanation: "counts[w] может быть null, поэтому нужно значение по умолчанию: (counts[w] ?: 0) + 1. Первый вариант не скомпилируется, у последнего нет метода add."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Сколько пар будет в словаре?
+
+        ```kotlin
+        fun main() {
+            val m = mapOf("x" to 1, "y" to 2, "x" to 3)
+            println(m.size)
+        }
+        ```
+      options:
+        - "3"
+        - "2"
+        - "1"
+        - "Ошибка компиляции."
+      answer: 1
+      explanation: "Ключи уникальны: вторая запись «x» заменяет первую. Остаются пары x=3 и y=2."
+exercise:
+  id: "kotlin.from-zero.maps.exercise"
+  title: "Счётчик товаров"
+  prompt: |
+    В первой строке ввода дано число `n`. Затем идут `n` строк - названия проданных товаров (названия могут повторяться).
+
+    Для каждого товара в порядке его **первого появления** напечатайте строку вида `товар: количество`, а в конце строку `Разных товаров: K`, где `K` - число различных товаров.
+
+    **Пример.** Для ввода
+
+    ```
+    5
+    хлеб
+    молоко
+    хлеб
+    хлеб
+    молоко
+    ```
+
+    вывод:
+
+    ```
+    хлеб: 3
+    молоко: 2
+    Разных товаров: 2
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заведите изменяемый словарь mutableMapOf<String, Int>() и для каждого прочитанного товара увеличивайте счётчик: counts[product] = (counts[product] ?: 0) + 1."
+    - "Для вывода пройдите по словарю циклом for ((product, count) in counts) и напечатайте \"$product: $count\"."
+    - "Число различных товаров - counts.size. Если n равно 0, остаётся только последняя строка."
+  tests:
+    - id: "basic"
+      title: "Пример"
+      stdin: |
+        5
+        хлеб
+        молоко
+        хлеб
+        хлеб
+        молоко
+      expected: |
+        хлеб: 3
+        молоко: 2
+        Разных товаров: 2
+      hint: "Хлеб встречается 3 раза, молоко 2; порядок - по первому появлению."
+    - id: "unique"
+      title: "Все разные"
+      stdin: |
+        3
+        сыр
+        чай
+        кофе
+      expected: |
+        сыр: 1
+        чай: 1
+        кофе: 1
+        Разных товаров: 3
+      hint: "Каждый товар один раз: у каждого счётчик 1."
+    - id: "same"
+      title: "Один товар (скрытый)"
+      stdin: |
+        4
+        чай
+        чай
+        чай
+        чай
+      expected: |
+        чай: 4
+        Разных товаров: 1
+      hidden: true
+      hint: "Один и тот же товар: одна строка со счётчиком 4."
+    - id: "zero"
+      title: "Нет товаров (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Разных товаров: 0
+      hidden: true
+      hint: "При n = 0 цикл не выполняется: выводится только итоговая строка."

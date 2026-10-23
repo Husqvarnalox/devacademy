@@ -1,0 +1,162 @@
+id: "typescript.from-zero.arrow-functions"
+title: "Стрелочные функции и обратные вызовы"
+goal: "Записывать функции стрелкой, описывать их тип и передавать функцию как аргумент другой функции."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "typescript.from-zero.iterating-arrays"
+objectives:
+  - "Записать стрелочную функцию с типами параметров и результата."
+  - "Записать тип функции (n: number) => boolean и использовать его для параметра."
+  - "Передать функцию по имени и стрелкой прямо в аргументе и объяснить разницу между передачей и вызовом."
+  - "Написать функцию с обратным вызовом, обходящую массив."
+masteryCriteria:
+  - "Функции с обратным вызовом верны для пустого массива и не изменяют исходный массив."
+  - "Различаются передача функции (double) и её вызов (double(2))."
+concepts:
+  introduces:
+    - "ts.arrow-function"
+    - "ts.function-type"
+    - "ts.callback"
+  uses:
+    - "ts.function"
+    - "ts.parameter"
+    - "ts.return"
+    - "ts.return-type"
+    - "ts.array"
+    - "ts.array-type"
+    - "ts.for-of"
+    - "ts.push"
+    - "ts.if"
+    - "ts.template-literal"
+    - "ts.type-error"
+    - "ts.export-for-check"
+next:
+  - "typescript.from-zero.array-methods"
+tags:
+  - "typescript"
+  - "arrow-functions"
+  - "callbacks"
+  - "function-types"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const triple = (x: number): number => x * 3;
+        console.log(triple(4));
+        ```
+      options:
+        - "12"
+        - "7"
+        - "3"
+        - "x * 3"
+      answer: 0
+      explanation: "Стрелочная функция принимает 4 и возвращает 4 * 3, то есть 12. Слово return в короткой записи не нужно."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой тип у функции const isEven = (n: number): boolean => n % 2 === 0?"
+      options:
+        - "(n: number) => boolean"
+        - "(n: boolean) => number"
+        - "boolean"
+        - "number => boolean[]"
+      answer: 0
+      explanation: "Тип функции записывается как параметры в скобках, стрелка и тип результата: «принимает число, возвращает логическое значение»."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        function applyTwice(f: (n: number) => number, x: number): number {
+          return f(f(x));
+        }
+        console.log(applyTwice((n) => n + 3, 10));
+        ```
+      options:
+        - "16"
+        - "13"
+        - "10"
+        - "6"
+      answer: 0
+      explanation: "f вызывается дважды: сначала 10 + 3 = 13, затем 13 + 3 = 16."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        const double = (x) => x * 2;
+        ```
+      options:
+        - "TS7006: параметр x неявно получает тип any"
+        - "TS2554: ожидалось другое число аргументов"
+        - "TS2355: функция не возвращает значение"
+        - "Ничего, тип x выводится из тела функции"
+      answer: 0
+      explanation: "Самостоятельная стрелочная функция должна иметь типы параметров: откуда ей знать, что передадут. В режиме strict неявный any запрещён."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что не так с кодом?
+
+        ```typescript
+        const double = (x: number): number => x * 2;
+        const values: number[] = [1, 2, 3];
+        const out: number[] = applyAll(values, double(2));
+        ```
+      options:
+        - "Передано число 4 вместо функции: нужно double без скобок"
+        - "Ничего, код верный"
+        - "Функция double не принимает числа"
+        - "Массив values нельзя передавать в функцию"
+      answer: 0
+      explanation: "double(2) - вызов, он даёт число 4. Параметр f ожидает функцию, поэтому передавать нужно double без скобок."
+exercise:
+  id: "typescript.from-zero.arrow-functions.exercise"
+  title: "Стрелки и обратные вызовы"
+  prompt: |
+    В файле `arrow_task.ts` две стрелочные функции и две функции с обратным вызовом:
+
+    * `double` - стрелочная функция, удваивающая число: `double(4)` равно `8`.
+    * `isEven` - стрелочная функция, возвращающая `true` для чётного числа и `false` для нечётного. Ноль и отрицательные чётные числа (-2) тоже чётные.
+    * `applyAll(values, f)` - **новый** массив, в котором к каждому элементу `values` применена функция `f`. Например, `applyAll([1, 2, 3], double)` равно `[2, 4, 6]`. Исходный массив менять нельзя.
+    * `countWhere(values, test)` - сколько элементов массива удовлетворяют проверке `test` (функции, возвращающей `true` или `false`). Например, `countWhere([1, 2, 3, 4], isEven)` равно `2`.
+
+    Все четыре должны **возвращать** значение. Типы параметров и результатов указывайте явно.
+  entryFile: "arrow_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "double и isEven записываются короткой стрелкой: export const double = (n: number): number => n * 2; для isEven остаток от деления на 2 сравнивается с нулём: n % 2 === 0."
+    - "В applyAll создайте пустой массив const result: number[] = []; и для каждого элемента добавляйте result.push(f(v)). Функцию f вызывайте как обычную: f(v)."
+    - "В countWhere заведите count = 0, для каждого элемента проверяйте if (test(v)) и увеличивайте count."
+    - "Отрицательные чётные числа дают остаток 0 (например, -2 % 2 равно -0, а -0 === 0 истинно), поэтому проверка n % 2 === 0 верна для них. Для нечётных отрицательных остаток -1, не 0."
+  tests:
+    - id: "arrows-basic"
+      title: "double и isEven: обычные значения"
+      hint: "double(4) = 8, double(10) = 20; 4 чётное, 7 нечётное."
+    - id: "apply-basic"
+      title: "applyAll: обычный массив"
+      hint: "К каждому элементу применяется f: [1, 2, 3] с n => n + 10 даёт [11, 12, 13]. Исходный массив не должен измениться."
+    - id: "count-basic"
+      title: "countWhere: обычный массив"
+      hint: "Чётных в [1, 2, 3, 4] два: 2 и 4."
+    - id: "arrows-edge"
+      title: "double и isEven: ноль и отрицательные (скрытый)"
+      hidden: true
+      hint: "double(0) = 0, double(-3) = -6, double(0.5) = 1; 0 и -2 чётные, -3 и 1 нечётные."
+    - id: "apply-edge"
+      title: "applyAll: пустой массив, порядок вызовов (скрытый)"
+      hidden: true
+      hint: "Для [] результат []; f вызывается ровно по одному разу для каждого элемента в порядке следования; результаты записываются в том же порядке."
+    - id: "count-edge"
+      title: "countWhere: пустой, ни одного, все (скрытый)"
+      hidden: true
+      hint: "Для [] ответ 0; если test всегда false, ответ 0; если всегда true - длина массива."

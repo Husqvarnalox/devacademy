@@ -1,0 +1,229 @@
+id: "csharp.from-zero.classes-basics"
+title: "Классы и объекты"
+goal: "Описывать собственный тип классом со свойствами и методом, создавать объекты через new, хранить их в списке и понимать, что объекты передаются по ссылке."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "csharp.from-zero.exceptions"
+objectives:
+  - "Описывать класс со свойствами и методом."
+  - "Создавать объекты через new и задавать свойства, в том числе инициализатором объекта."
+  - "Хранить объекты в List<T> и возвращать объект из метода."
+  - "Объяснять разницу между копированием значения и копированием ссылки."
+masteryCriteria:
+  - "Вы ставите описание класса после инструкций верхнего уровня и помечаете свойства public."
+  - "Вы предсказываете, изменится ли исходный объект, когда его присвоили другой переменной или передали в метод."
+  - "Вы отличаете сравнение ссылок через == от сравнения свойств."
+concepts:
+  introduces:
+    - "csharp.class"
+    - "csharp.property"
+    - "csharp.object"
+    - "csharp.reference-type"
+  uses:
+    - "csharp.string"
+    - "csharp.int"
+    - "csharp.method"
+    - "csharp.parameter"
+    - "csharp.return"
+    - "csharp.list"
+    - "csharp.foreach"
+    - "csharp.split"
+    - "csharp.parse"
+    - "csharp.interpolation"
+    - "csharp.read-line"
+    - "csharp.for"
+    - "csharp.array"
+next:
+  - "csharp.from-zero.mini-project"
+tags:
+  - "csharp"
+  - "classes"
+  - "objects"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Box a = new Box { Size = 1 };
+        Box b = a;
+        b.Size = 5;
+        Console.WriteLine(a.Size);
+
+        class Box
+        {
+            public int Size { get; set; }
+        }
+        ```
+      options:
+        - "1"
+        - "5"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Присваивание Box b = a копирует ссылку: a и b указывают на один объект. Изменение через b видно через a."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Box a = new Box { Size = 1 };
+        Box b = new Box { Size = 1 };
+        Console.WriteLine(a == b);
+
+        class Box
+        {
+            public int Size { get; set; }
+        }
+        ```
+      options:
+        - "True"
+        - "False"
+        - "1"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Для объектов класса == сравнивает ссылки. a и b - два разных объекта, хотя значения свойств одинаковы."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Item item = new Item();
+        Console.WriteLine($"[{item.Name}] {item.Quantity}");
+
+        class Item
+        {
+            public string Name { get; set; } = "";
+            public int Quantity { get; set; }
+        }
+        ```
+      options:
+        - "[] 0"
+        - "[null] 0"
+        - "[] 1"
+        - "Программа остановится: NullReferenceException."
+      answer: 0
+      explanation: "Name получает заданное начальное значение - пустую строку, а числовое свойство без значения равно 0."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Item x = new Item { Name = "хлеб" };
+        Rename(x);
+        Console.WriteLine(x.Name);
+
+        static void Rename(Item target)
+        {
+            target.Name = "молоко";
+        }
+
+        class Item
+        {
+            public string Name { get; set; } = "";
+        }
+        ```
+      options:
+        - "хлеб"
+        - "молоко"
+        - "Пустая строка"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "В метод передаётся ссылка на тот же объект. Метод меняет свойство объекта, и вызывающий код видит изменение."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что не так в этом коде?
+
+        ```csharp
+        class Item
+        {
+            public int Price { get; set; }
+        }
+
+        Item item = new Item();
+        Console.WriteLine(item.Price);
+        ```
+      options:
+        - "Всё правильно."
+        - "CS8803: описание класса стоит раньше инструкций верхнего уровня."
+        - "CS0122: свойство недоступно."
+        - "CS0165: переменная не присвоена."
+      answer: 1
+      explanation: "Инструкции верхнего уровня должны идти до описаний типов. Класс нужно перенести в конец файла."
+exercise:
+  id: "csharp.from-zero.classes-basics.exercise"
+  title: "Корзина товаров"
+  prompt: |
+    Основная часть программы читает число `n`, затем `n` строк вида `название цена количество` (через пробелы, возможны лишние пробелы), и создаёт для каждой строки объект `Item` вашим методом `ReadItem`. Потом она считает итог и выбирает самую дорогую позицию (при равной стоимости побеждает та, что встретилась раньше). Класс `Item` уже описан со свойствами `Name`, `Price` и `Quantity`. Допишите:
+
+    * метод `Cost()` в классе `Item` - возвращает `Price * Quantity`;
+    * метод `ReadItem(string line)` - разбирает строку и возвращает новый объект `Item` с названием, ценой и количеством. Цена и количество - целые числа.
+
+    **Пример.** Для ввода
+
+    ```
+    3
+    хлеб 45 2
+    молоко 80 1
+    сыр 300 1
+    ```
+
+    программа печатает
+
+    ```
+    Позиций: 3
+    Итого: 470
+    Самая дорогая: сыр (300)
+    ```
+
+    Основную часть не меняйте.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Cost: метод класса без static, который возвращает Price * Quantity."
+    - "ReadItem: разрежьте line методом Split(' ', StringSplitOptions.RemoveEmptyEntries); часть 0 - название, часть 1 - цена, часть 2 - количество."
+    - "Создайте объект Item result = new Item();, задайте result.Name, result.Price = int.Parse(parts[1]) и result.Quantity, затем верните result."
+    - "public int Cost() { return Price * Quantity; } и string[] parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries); Item result = new Item(); result.Name = parts[0]; result.Price = int.Parse(parts[1]); result.Quantity = int.Parse(parts[2]); return result;"
+  tests:
+    - id: "basic"
+      title: "Три позиции"
+      stdin: "3\nхлеб 45 2\nмолоко 80 1\nсыр 300 1\n"
+      expected: |
+        Позиций: 3
+        Итого: 470
+        Самая дорогая: сыр (300)
+      hint: "Стоимости: 90, 80 и 300; итого 470, самая дорогая - сыр."
+    - id: "empty"
+      title: "Нет позиций (скрытый)"
+      stdin: "0\n"
+      expected: |
+        Позиций: 0
+        Итого: 0
+      hidden: true
+      hint: "При n равном 0 список пуст: итог 0, строка о самой дорогой позиции не печатается (это делает основная часть)."
+    - id: "tie"
+      title: "Равная стоимость (скрытый)"
+      stdin: "2\nа 10 3\nб 15 2\n"
+      expected: |
+        Позиций: 2
+        Итого: 60
+        Самая дорогая: а (30)
+      hidden: true
+      hint: "Обе позиции стоят 30: побеждает первая. Cost должен вернуть Price * Quantity, а не только цену."
+    - id: "spaces"
+      title: "Лишние пробелы (скрытый)"
+      stdin: "2\n  яблоко   20   5 \nгруша 50 1\n"
+      expected: |
+        Позиций: 2
+        Итого: 150
+        Самая дорогая: яблоко (100)
+      hidden: true
+      hint: "Лишние пробелы между частями и по краям не должны создавать пустых частей: используйте StringSplitOptions.RemoveEmptyEntries."

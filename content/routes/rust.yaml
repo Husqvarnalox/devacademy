@@ -1,0 +1,45 @@
+track: rust
+entry:
+  beginner: rust.from-zero.first-program
+  programmer: rust.programmers.syntax-types-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, ввод, условия, циклы
+    description: Типы и переменные с let и mut, арифметика и целочисленное деление, вывод с {:.2}, чтение через read_to_string, if, match, циклы while и for.
+    check: rust.check.basics
+    after: []
+  - id: collections
+    title: Функции, векторы, словари и строки
+    description: Параметры функций, Vec и HashMap, обход коллекций, срезы и методы строк, разбор строк по словам, байты и символы в UTF-8.
+    check: rust.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ввод и ошибки
+    description: Строгий разбор через parse, Option и Result, обработка Err без паники, отсев nan и inf, подсчёт неверных строк.
+    check: rust.check.errors-input
+    after: [collections]
+  - id: ownership
+    title: Владение и заимствование
+    description: Перемещение String и Vec, копирование простых типов, ссылки & и &mut, правило одной изменяемой ссылки, возврат ссылки и времена жизни.
+    check: rust.check.ownership
+    after: [collections]
+  - id: enums-and-matching
+    title: Структуры, перечисления и match
+    description: Структуры и методы, enum с данными в вариантах, полный match, охранные условия, if let и разбор строки в Option.
+    check: rust.check.enums-and-matching
+    after: [ownership]
+  - id: error-handling
+    title: Обработка ошибок
+    description: Result и оператор ?, свой enum ошибки, Display и From, map_err, collect в Result и выбор между Result и паникой.
+    check: rust.check.error-handling
+    after: [errors-input, enums-and-matching]
+  - id: traits-and-generics
+    title: Трейты и обобщения
+    description: Трейты с методами по умолчанию, обобщённые функции с ограничениями, &dyn Trait и Box<dyn Trait>, статическая и динамическая диспетчеризация.
+    check: rust.check.traits-and-generics
+    after: [enums-and-matching]
+  - id: iterators
+    title: Коллекции и итераторы
+    description: Цепочки filter, map, scan и fold, ленивость, collect с типом, BTreeMap и entry, поведение max_by_key при равных элементах.
+    check: rust.check.iterators
+    after: [collections, traits-and-generics]

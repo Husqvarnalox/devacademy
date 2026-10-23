@@ -1,0 +1,174 @@
+id: "typescript.from-zero.objects"
+title: "Объекты и интерфейсы"
+goal: "Собирать связанные данные в объект, описывать его форму интерфейсом и хранить такие объекты в массиве."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "typescript.from-zero.string-methods"
+objectives:
+  - "Записать объект с несколькими свойствами и прочитать или изменить свойство через точку."
+  - "Описать форму объекта интерфейсом и использовать его как тип переменной, параметра и результата функции."
+  - "Прочитать сообщения проверки о пропущенном, лишнем и неверно названном свойстве."
+  - "Объяснить, почему объекты сравниваются и передаются по ссылке, и сделать копию через {...obj}."
+masteryCriteria:
+  - "Функция, принимающая или возвращающая объект, использует интерфейс в сигнатуре."
+  - "Массив объектов обходится циклом, а нужные свойства читаются через точку."
+  - "Копия объекта создаётся явно, а не присваиванием."
+concepts:
+  introduces:
+    - "ts.object"
+    - "ts.property"
+    - "ts.interface"
+  uses:
+    - "ts.string"
+    - "ts.number"
+    - "ts.array"
+    - "ts.array-type"
+    - "ts.for-of"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.function"
+    - "ts.return"
+    - "ts.type-error"
+    - "ts.const"
+next:
+  - "typescript.from-zero.arrays-of-objects"
+tags:
+  - "typescript"
+  - "objects"
+  - "interface"
+  - "properties"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        interface Product { name: string; price: number; }
+        const p: Product = { name: "хлеб", price: 40 };
+        p.price = 45;
+        console.log(p.price);
+        ```
+      options:
+        - "45"
+        - "40"
+        - "Ошибка: p объявлена через const"
+        - "undefined"
+      answer: 0
+      explanation: "const запрещает присвоить переменной другой объект, но свойства объекта изменять можно. После присваивания price равно 45."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        interface Product { name: string; price: number; }
+        const p: Product = { name: "хлеб" };
+        ```
+      options:
+        - "TS2741: свойство price отсутствует, но требуется в типе Product"
+        - "TS2353: лишнее свойство name"
+        - "TS2322: строку нельзя присвоить числу"
+        - "Ничего: price получит значение undefined"
+      answer: 0
+      explanation: "Объект типа Product обязан содержать все описанные свойства. Пропущенная цена - ошибка TS2741 до запуска."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        interface Item { name: string; }
+        const a: Item = { name: "чай" };
+        const b: Item = { name: "чай" };
+        console.log(a === b);
+        ```
+      options:
+        - "false"
+        - "true"
+        - "Ошибка проверки типов"
+        - "undefined"
+      answer: 0
+      explanation: "Объекты сравниваются по ссылке. a и b - два разных объекта с одинаковым содержимым, поэтому сравнение ложно."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        interface Item { name: string; price: number; }
+        const a: Item = { name: "чай", price: 100 };
+        const b: Item = a;
+        b.price = 1;
+        console.log(a.price);
+        ```
+      options:
+        - "1"
+        - "100"
+        - "undefined"
+        - "Ошибка проверки типов"
+      answer: 0
+      explanation: "b = a не создаёт копию, а даёт второе имя тому же объекту. Изменение через b видно через a."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        interface Product { name: string; price: number; }
+        const p: Product = { name: "хлеб", price: 40 };
+        console.log(p.prise);
+        ```
+      options:
+        - "TS2551: свойства prise нет в Product, возможно, имелось в виду price"
+        - "TS2322: неверный тип значения"
+        - "Ничего, будет напечатано undefined"
+        - "TS2741: пропущено свойство price"
+      answer: 0
+      explanation: "Опечатка в имени свойства находится проверкой и сопровождается подсказкой «Did you mean»."
+exercise:
+  id: "typescript.from-zero.objects.exercise"
+  title: "Корзина покупок"
+  prompt: |
+    В файле `objects_task.ts` уже описан интерфейс `Product` (название, цена за единицу, количество) и четыре функции:
+
+    * `makeProduct(name, price, quantity)` - возвращает объект товара с этими значениями. `makeProduct("хлеб", 40, 2)` равно `{ name: "хлеб", price: 40, quantity: 2 }`.
+    * `lineTotal(p)` - стоимость позиции: цена, умноженная на количество.
+    * `cartTotal(items)` - сумма стоимостей всех позиций; для пустого массива 0.
+    * `mostExpensive(items)` - название товара с наибольшей **ценой за единицу** (количество не учитывается). При равных ценах берётся тот, кто раньше в массиве; для пустого массива результат `""`.
+
+    Функции должны **возвращать** значение.
+  entryFile: "objects_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "makeProduct: return { name: name, price: price, quantity: quantity }; - три свойства в фигурных скобках."
+    - "lineTotal: p.price * p.quantity. cartTotal: заведите total: number = 0 и в цикле for (const item of items) добавляйте lineTotal(item)."
+    - "mostExpensive: сначала if (items.length === 0) return \"\". Затем сохраните items[0] в переменную best: Product и в цикле заменяйте её, когда item.price > best.price."
+    - "Сравнение строгое (>), поэтому при равных ценах останется первый товар. Верните best.name."
+  tests:
+    - id: "make-basic"
+      title: "makeProduct: сборка объекта"
+      hint: "Результат должен быть объектом с тремя свойствами name, price, quantity, значения берутся из аргументов."
+    - id: "line-total-basic"
+      title: "lineTotal и cartTotal: обычные корзины"
+      hint: "Стоимость позиции - цена * количество; сумма двух позиций хлеба и сыра равна 380."
+    - id: "expensive-basic"
+      title: "mostExpensive: обычная корзина"
+      hint: "Нужен товар с наибольшей ценой за единицу, а не с наибольшей суммой позиции."
+    - id: "make-edge"
+      title: "makeProduct: нули и дроби (скрытый)"
+      hidden: true
+      hint: "Пустое название и нули допустимы и должны сохраняться как есть; дробная цена 12.5 не округляется."
+    - id: "total-edge"
+      title: "lineTotal и cartTotal: границы (скрытый)"
+      hidden: true
+      hint: "Пустая корзина даёт 0, нулевое количество даёт 0, сумма трёх позиций 1*1 + 2*2 + 3*3 равна 14."
+    - id: "expensive-edge"
+      title: "mostExpensive: пустой массив, ничья, отрицательные цены (скрытый)"
+      hidden: true
+      hint: "Для [] результат \"\"; при равных ценах побеждает первый; среди отрицательных цен -1 больше -3; количество на выбор не влияет."

@@ -1,0 +1,130 @@
+id: "rust.check.collections"
+title: "Проверка: функции, векторы, словари и строки"
+goal: "Писать функции над Vec и HashMap, разбирать строки и считать суммы по ключам."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разбирать строку split_once, собирать суммы по категориям в HashMap и выбирать максимум с детерминированной ничьёй."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "rust"
+  - "check"
+  - "collections"
+assessmentFor:
+  - "rust.from-zero.functions"
+  - "rust.from-zero.vectors"
+  - "rust.from-zero.hash-maps"
+  - "rust.from-zero.string-methods"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn main() {\n    let mut v = vec![1, 2, 3];\n    for x in &mut v {\n        *x += 1;\n    }\n    println!(\"{:?}\", v);\n}\n```"
+      options:
+        - "[1, 2, 3, 1]"
+        - "[2, 3, 4]"
+        - "[1, 2, 3]"
+        - "Ошибка компиляции: x нельзя изменять"
+      answer: 1
+      explanation: "Цикл по &mut v даёт изменяемые ссылки на элементы, поэтому запись *x += 1 меняет сам вектор. Цикл по &v дал бы неизменяемые ссылки, а по v - переместил бы вектор."
+    - id: "q2"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn main() {\n    let s = \"a,b,,c\";\n    let parts: Vec<&str> = s.split(',').collect();\n    println!(\"{} {:?}\", parts.len(), parts[2]);\n}\n```"
+      options:
+        - "4 \"\""
+        - "4 \"c\""
+        - "3 \"\""
+        - "3 \"c\""
+      answer: 0
+      explanation: "split разрезает по каждой запятой и сохраняет пустые части: получается [\"a\", \"b\", \"\", \"c\"], то есть 4 элемента, а parts[2] - пустая строка."
+    - id: "q3"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn main() {\n    let t = \"a=b=c\";\n    println!(\"{:?}\", t.split_once('='));\n}\n```"
+      options:
+        - "Some((\"a=b\", \"c\"))"
+        - "Some((\"a\", \"b\"))"
+        - "None"
+        - "Some((\"a\", \"b=c\"))"
+      answer: 3
+      explanation: "split_once делит строку по первому вхождению разделителя и возвращает Option с парой срезов: часть до него и всё остальное, включая другие знаки =."
+    - id: "q4"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nfn grow(v: &mut Vec<i32>) {\n    v.push(v.len() as i32);\n}\n\nfn main() {\n    let mut v: Vec<i32> = Vec::new();\n    grow(&mut v);\n    grow(&mut v);\n    grow(&mut v);\n    println!(\"{:?}\", v);\n}\n```"
+      options:
+        - "[0, 0, 0]"
+        - "Ошибка компиляции: две изменяемые ссылки"
+        - "[0, 1, 2]"
+        - "[1, 2, 3]"
+      answer: 2
+      explanation: "Каждый вызов получает &mut v и после возврата освобождает заимствование, поэтому три вызова подряд допустимы. Функция добавляет текущую длину: 0, затем 1, затем 2."
+    - id: "q5"
+      type: "single"
+      prompt: "Что выведет программа?\n\n```rust\nuse std::collections::HashMap;\n\nfn main() {\n    let mut m: HashMap<&str, i32> = HashMap::new();\n    *m.entry(\"x\").or_insert(0) += 2;\n    *m.entry(\"x\").or_insert(0) += 3;\n    println!(\"{:?} {:?}\", m.get(\"x\"), m.get(\"y\"));\n}\n```"
+      options:
+        - "Some(5) и паника"
+        - "Some(5) None"
+        - "Some(2) Some(0)"
+        - "5 0"
+      answer: 1
+      explanation: "entry(\"x\").or_insert(0) создаёт запись со значением 0 при первом обращении и возвращает изменяемую ссылку на значение; после двух прибавлений получается 5. get возвращает Option<&i32>: для отсутствующего ключа это None, паники нет."
+exercise:
+  id: "rust.check.collections.exercise"
+  title: "Расходы по категориям"
+  prompt: "Готовая функция `main` читает строки вида `категория;сумма`, собирает суммы по категориям и печатает итог. Допишите три функции над `main` в `main.rs`. Функцию `main` не меняйте.\n\n1. `split_pair(line: &str) -> Option<(String, i32)>` - делит строку по **первой** `;`: имя - текст до неё, число - текст после. Возвращает `None`, если нет `;`, имя пустое или число не разобралось как `i32`. Пробелы по краям имени и числа убирайте.\n2. `totals_by_category(categories: &Vec<String>, amounts: &Vec<i32>) -> HashMap<String, i32>` - сумма по каждой категории; `categories[i]` соответствует `amounts[i]`.\n3. `biggest(totals: &HashMap<String, i32>) -> String` - категория с наибольшей суммой; при равенстве - первая по алфавиту; для пустого словаря - `-`.\n\n`main` печатает суммы по категориям в алфавитном порядке, затем `top: <категория>` и `skipped: <число пропущенных строк>`.\n\n**Пример.** Для ввода\n\n```\nfood;120\nbooks;300\nfood;80\nbad line\nbooks;50\ntravel;350\n```\n\nпрограмма печатает\n\n```\nbooks: 350\nfood: 200\ntravel: 350\ntop: books\nskipped: 1\n```\n\nЧасть тестов скрыта: в них пустой ввод, ничьи, неверные строки и пробелы."
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "split_pair: let (name, value) = line.split_once(';')?; - оператор ? вернёт None, если разделителя нет. Число разберите через value.trim().parse::<i32>().ok()?."
+    - "Не забудьте проверить, что name.trim() не пуст, и вернуть Some((имя, число)), причём имя нужно превратить в String."
+    - "totals_by_category: заведите HashMap::new() и в цикле по индексам пишите *totals.entry(categories[i].clone()).or_insert(0) += amounts[i]."
+    - "biggest: соберите ключи в вектор и отсортируйте их; обходите по алфавиту и обновляйте ответ только при строго большей сумме. Для пустого словаря верните String::from(\"-\")."
+  tests:
+    - id: "basic"
+      title: "Суммы и неверная строка"
+      stdin: |
+        food;120
+        books;300
+        food;80
+        bad line
+        books;50
+        travel;350
+      expected: |
+        books: 350
+        food: 200
+        travel: 350
+        top: books
+        skipped: 1
+      hint: "Строка bad line без ; пропускается. books: 350, food: 200, travel: 350; сумма 350 у books и travel, при равенстве побеждает первая по алфавиту - books."
+    - id: "ties-and-spaces"
+      title: "Пробелы и ничья"
+      stdin: |
+        tea ; 5
+         tea;5
+        coffee;10
+      expected: |
+        coffee: 10
+        tea: 10
+        top: coffee
+        skipped: 0
+      hint: "Пробелы вокруг имени и числа убираются: tea получает 5 + 5 = 10, и у coffee тоже 10. При ничьей top - coffee, она раньше по алфавиту."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        top: -
+        skipped: 0
+      hidden: true
+      hint: "Без строк словарь пуст: никаких сумм, top: - и skipped: 0."
+    - id: "bad-lines"
+      title: "Разные плохие строки (скрытый)"
+      stdin: "a;1;2\n;5\nb;x\nc;\nd;7\n\n"
+      expected: |
+        d: 7
+        top: d
+        skipped: 5
+      hidden: true
+      hint: "В a;1;2 после первой ; стоит 1;2, это не число. Остальные плохие: пустое имя, нет числа, пустое число, пустая строка. Остаётся d: 7, пропущено 5 строк."

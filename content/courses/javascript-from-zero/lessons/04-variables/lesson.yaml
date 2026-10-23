@@ -1,0 +1,148 @@
+id: "javascript.from-zero.variables"
+title: "Переменные"
+goal: "Хранить значения под именами с помощью let и const и менять значение переменной."
+difficulty: "intro"
+estimatedMinutes: 25
+prerequisites:
+  - "javascript.from-zero.values-and-types"
+objectives:
+  - "Объявить переменную командой let или const и присвоить ей значение."
+  - "Объяснить, чем let отличается от const, и выбрать подходящее слово."
+  - "Изменить значение let-переменной, используя её прежнее значение."
+masteryCriteria:
+  - "Программа печатает значения переменных после изменения."
+  - "Вы не пытаетесь менять const и понимаете сообщение «Assignment to constant variable»."
+concepts:
+  introduces:
+    - "js.variable"
+    - "js.let"
+    - "js.const"
+    - "js.assignment"
+  uses:
+    - "js.console-log"
+    - "js.number"
+    - "js.string"
+    - "js.error-message"
+next:
+  - "javascript.from-zero.arithmetic"
+tags:
+  - "javascript"
+  - "variables"
+  - "let"
+  - "const"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        let score = 5;
+        score = 8;
+        console.log(score);
+        ```
+      options:
+        - "5"
+        - "8"
+        - "13"
+        - "score"
+      answer: 1
+      explanation: "Переменная хранит одно значение. Присваивание score = 8 заменило пятёрку на восьмёрку, поэтому печатается 8. Сложения здесь нет."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        let n = 1;
+        n = n + 1;
+        n = n + 1;
+        console.log(n);
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "n"
+      answer: 2
+      explanation: "Справа от знака = сначала вычисляется выражение с прежним значением n, потом результат записывается обратно. Сначала 1, потом 2, потом 3."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт?
+
+        ```javascript
+        const rate = 90;
+        rate = 95;
+        console.log(rate);
+        ```
+      options:
+        - "Напечатается 95."
+        - "Напечатается 90."
+        - "TypeError: Assignment to constant variable."
+        - "SyntaxError: Unexpected token"
+      answer: 2
+      explanation: "const запрещает менять значение после объявления. Попытка присвоить новое значение останавливает программу с TypeError: Assignment to constant variable."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const city = "Казань";
+        console.log("city");
+        console.log(city);
+        ```
+      options:
+        - "Казань, затем Казань"
+        - "city, затем city"
+        - "city, затем Казань"
+        - "Казань, затем city"
+      answer: 2
+      explanation: "В кавычках - текст, он печатается как есть. Без кавычек - имя переменной: console.log подставляет её значение."
+    - id: "q5"
+      type: "single"
+      prompt: "Какую переменную лучше объявить через const?"
+      options:
+        - "Счётчик, который будет увеличиваться."
+        - "Цену билета, которая не меняется."
+        - "Текущий баланс, который меняется после покупок."
+        - "Номер текущего шага."
+      answer: 1
+      explanation: "const подходит для значения, которое не меняется. Если значение будет меняться, нужно let."
+exercise:
+  id: "javascript.from-zero.variables.exercise"
+  title: "Измените количество"
+  prompt: |
+    В редакторе две переменные: цена (`price`, её менять нельзя) и количество (`count`, сейчас 2). Купили ещё три штуки. Допишите одну команду присваивания, которая увеличит `count` на 3 на основе его прежнего значения. Остальной код менять не нужно.
+
+    Ожидаемый вывод:
+
+    ```
+    Цена: 120
+    Количество: 5
+    ```
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Нужно присвоить count новое значение. Присваивание записывается как имя, знак равно и значение: count = ..."
+    - "В правой части можно использовать старое значение count. Если нужно прибавить 3, напишите count + 3."
+    - "Строка должна стоять выше команд console.log: count = count + 3;"
+  tests:
+    - id: "basic"
+      title: "Количество стало 5"
+      stdin: ""
+      expected: |
+        Цена: 120
+        Количество: 5
+      hint: "Программа должна напечатать две строки: Цена: 120 и Количество: 5. Количество было 2, прибавьте к нему 3."
+    - id: "exact"
+      title: "Цена не изменилась, формат строк сохранён (скрытый)"
+      stdin: ""
+      expected: |
+        Цена: 120
+        Количество: 5
+      hidden: true
+      hint: "Строки должны остаться в формате «Цена: 120» и «Количество: 5». Не меняйте цену и не заменяйте число 5 текстом: присваивание должно использовать прежнее значение count."

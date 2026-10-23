@@ -1001,10 +1001,6 @@
   <data name="GoalHint_study" xml:space="preserve"><value>Нужно для курса, экзамена или университета.</value></data>
   <data name="GoalHint_hobby" xml:space="preserve"><value>Интересно разобраться, без дедлайнов.</value></data>
   <data name="GoalHint_interview" xml:space="preserve"><value>Повторить главное и порешать типовые задачи.</value></data>
-  <data name="LevelHint_0" xml:space="preserve"><value>Никогда не программировали.</value></data>
-  <data name="LevelHint_1" xml:space="preserve"><value>Писали простые программы, знаете переменные и циклы.</value></data>
-  <data name="LevelHint_2" xml:space="preserve"><value>Уверенно пишете код, хотите углубиться.</value></data>
-  <data name="LevelHint_3" xml:space="preserve"><value>Работаете с кодом, нужны сложные темы.</value></data>
   <data name="DepthHint_Quick" xml:space="preserve"><value>Только главное, без лишних подробностей.</value></data>
   <data name="DepthHint_Standard" xml:space="preserve"><value>Теория и практика в сбалансированном объёме.</value></data>
   <data name="DepthHint_Deep" xml:space="preserve"><value>Подробно, с дополнительными темами и задачами.</value></data>
@@ -1232,4 +1228,44 @@
   <data name="Catalog_NoMatches" xml:space="preserve"><value>По запросу «{0}» ничего не найдено.</value></data>
   <data name="Catalog_NoFilterMatches" xml:space="preserve"><value>В этом разделе пока нет курсов.</value></data>
   <data name="Catalog_ResetSearch" xml:space="preserve"><value>Сбросить поиск</value></data>
+  <data name="Rec_Diagnose" xml:space="preserve"><value>Проверка</value></data>
+  <data name="Rec_Remediate" xml:space="preserve"><value>Пробел</value></data>
+  <data name="Rec_Challenge" xml:space="preserve"><value>Испытание</value></data>
+  <data name="RecReason_Diagnose" xml:space="preserve"><value>Короткая проверка: пройдёте - тема засчитается, и её можно не изучать заново</value></data>
+  <data name="RecReason_Remediate" xml:space="preserve"><value>Проверка по этой теме не пройдена: урок закрывает пробел</value></data>
+  <data name="RecReason_Challenge" xml:space="preserve"><value>Задача повышенной сложности к пройденному уроку</value></data>
+  <data name="Section_programmer" xml:space="preserve"><value>Для программистов</value></data>
+  <data name="Prior_0" xml:space="preserve"><value>С нуля</value></data>
+  <data name="Prior_1" xml:space="preserve"><value>Знаю другой язык</value></data>
+  <data name="Prior_2" xml:space="preserve"><value>Уверенно знаю язык</value></data>
+  <data name="Prior_3" xml:space="preserve"><value>Профессионал</value></data>
+  <data name="PriorHint_0" xml:space="preserve"><value>Программирование впервые: каждое понятие объясняется с самого начала.</value></data>
+  <data name="PriorHint_1" xml:space="preserve"><value>Умею программировать на другом языке: быстрый курс без повторения основ, базовые уроки засчитываются.</value></data>
+  <data name="PriorHint_2" xml:space="preserve"><value>Знаю язык: короткие проверки по темам, чтобы пропустить известное и найти пробелы.</value></data>
+  <data name="PriorHint_3" xml:space="preserve"><value>Работаю с языком: диагностика по компетенциям и профессиональные темы.</value></data>
+  <data name="Prior_Note" xml:space="preserve"><value>Это только стартовая точка. Засчитанными темы становятся после пройденных уроков или проверок; уровень можно поменять в настройках.</value></data>
+  <data name="Diagnostic_Back" xml:space="preserve"><value>Главная</value></data>
+  <data name="Diagnostic_Title" xml:space="preserve"><value>Проверка знаний: {0}</value></data>
+  <data name="Diagnostic_Intro" xml:space="preserve"><value>Каждая проверка — короткое упражнение и несколько вопросов по одной теме. Если вы её проходите, уроки этой темы засчитываются.</value></data>
+  <data name="Diagnostic_IntroNote" xml:space="preserve"><value>Нет результата — значит «не проверено», а не «не знаете». Непройденная проверка ничего не отнимает от прогресса, и её можно пройти ещё раз.</value></data>
+  <data name="Diagnostic_Summary" xml:space="preserve"><value>Подтверждено: {0} · Есть пробел: {1} · Не проверено: {2}</value></data>
+  <data name="Diagnostic_StateConfirmed" xml:space="preserve"><value>Подтверждено</value></data>
+  <data name="Diagnostic_StateNeedsWork" xml:space="preserve"><value>Есть пробел</value></data>
+  <data name="Diagnostic_StateNotChecked" xml:space="preserve"><value>Не проверено</value></data>
+  <data name="Diagnostic_EvidencePassed" xml:space="preserve"><value>Проверка пройдена</value></data>
+  <data name="Diagnostic_EvidenceAllLessons" xml:space="preserve"><value>Все уроки темы пройдены</value></data>
+  <data name="Diagnostic_QuizFailed" xml:space="preserve"><value>Квиз ниже порога</value></data>
+  <data name="Diagnostic_ExerciseFailed" xml:space="preserve"><value>Упражнение не прошло тесты</value></data>
+  <data name="Diagnostic_Gap" xml:space="preserve"><value>Пробел: {0} из {1} уроков темы не пройдены</value></data>
+  <data name="Diagnostic_Covered" xml:space="preserve"><value>Пройдено уроков темы: {0} из {1}</value></data>
+  <data name="Diagnostic_WaitingFor" xml:space="preserve"><value>Рекомендуется после: {0}</value></data>
+  <data name="Diagnostic_Next" xml:space="preserve"><value>Следующая</value></data>
+  <data name="Diagnostic_Take" xml:space="preserve"><value>Пройти проверку</value></data>
+  <data name="Diagnostic_Retake" xml:space="preserve"><value>Пройти ещё раз</value></data>
+  <data name="Diagnostic_Open" xml:space="preserve"><value>Открыть проверку</value></data>
+  <data name="Diagnostic_StudyGap" xml:space="preserve"><value>Изучить пробел</value></data>
+  <data name="Diagnostic_Empty" xml:space="preserve"><value>Для этого направления проверок пока нет.</value></data>
+  <data name="Diagnostic_Entry" xml:space="preserve"><value>Проверить знания</value></data>
+  <data name="Diagnostic_DashboardLink" xml:space="preserve"><value>Проверка знаний: {0}</value></data>
+  <data name="Diagnostic_DashboardText" xml:space="preserve"><value>Короткие проверки по темам: подтвердите, что уже знаете, и найдите пробелы.</value></data>
 </root>

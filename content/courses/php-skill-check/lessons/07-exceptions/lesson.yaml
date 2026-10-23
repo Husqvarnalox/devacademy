@@ -1,0 +1,209 @@
+id: "php.check.exceptions"
+title: "Проверка: исключения и match"
+goal: "Обрабатывать ошибки исключениями, создавать свои классы исключений и выбирать значение выражением match."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: обрабатывать ошибки исключениями и выбирать значения выражением match."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "php"
+  - "check"
+  - "exceptions"
+assessmentFor:
+  - "php.fundamentals.errors-and-match"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $x = 4;
+        echo match (true) {
+            $x > 1 => "a",
+            $x > 3 => "b",
+            default => "c",
+        };
+        ```
+      options:
+        - "a"
+        - "b"
+        - "c"
+        - "ab"
+      answer: 0
+      explanation: "Ветки match (true) проверяются сверху вниз, и выбирается первая подходящая. Ветка $x > 1 истинна, поэтому результат a, а остальные ветки не проверяются."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $v = "1";
+        echo match ($v) {
+            1 => "int",
+            "1" => "string",
+            default => "other",
+        };
+        ```
+      options:
+        - "int"
+        - "other"
+        - "string"
+        - "intstring"
+      answer: 2
+      explanation: "match сравнивает строго (===), поэтому строка \"1\" не равна числу 1 и выбирается вторая ветка."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        function f(): string
+        {
+            try {
+                return "a";
+            } finally {
+                echo "b";
+            }
+        }
+
+        echo f();
+        ```
+      options:
+        - "ba"
+        - "ab"
+        - "a"
+        - "b"
+      answer: 0
+      explanation: "Значение для return вычисляется, затем выполняется finally и печатает b, и только после этого функция возвращает a, которое выводит echo."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        function run(): string
+        {
+            try {
+                try {
+                    throw new RuntimeException("низ");
+                } catch (RuntimeException $e) {
+                    throw new LogicException("верх", 1, $e);
+                }
+            } catch (Exception $e) {
+                return $e->getMessage() . "/" . $e->getPrevious()->getMessage();
+            }
+        }
+
+        echo run();
+        ```
+      options:
+        - "низ/верх"
+        - "верх/низ"
+        - "верх"
+        - "низ"
+      answer: 1
+      explanation: "Внутренний catch оборачивает RuntimeException в LogicException и передаёт его третьим аргументом как предыдущее. Внешний catch видит новое исключение, а getPrevious возвращает исходное."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        try {
+            echo 7 % 0;
+        } catch (Exception $e) {
+            echo "E";
+        } catch (Error $e) {
+            echo get_class($e);
+        }
+        ```
+      options:
+        - "E"
+        - "Error"
+        - "ArithmeticError"
+        - "DivisionByZeroError"
+      answer: 3
+      explanation: "Остаток от деления на ноль бросает DivisionByZeroError, который наследуется от Error, а не от Exception. Поэтому первый catch пропускается, а второй печатает имя конкретного класса."
+exercise:
+  id: "php.check.exceptions.exercise"
+  title: "Калькулятор: исключения и match"
+  prompt: |-
+    Основная часть программы готова: она читает выражения `a op b`, вызывает ваши функции, ловит `CalcException`, считает обработанные строки в `finally` и печатает итог. Допишите в `main.php` класс исключения и две функции, основную часть не меняйте.
+
+    1. `CalcException` - свой класс исключения, наследник `Exception`.
+    2. `evaluate(string $a, string $op, string $b): int` - вычисляет выражение для целых чисел и операций `+ - * / %` (`/` - целочисленное деление `intdiv`). Через `match`. Ошибки - `CalcException` с сообщениями: `не число: X` (проверка через `filter_var`, сначала левый операнд, затем правый), `неизвестная операция: X`, `деление на ноль` (при `/` и `%` с нулём справа; исходное `DivisionByZeroError` передайте третьим аргументом как причину).
+    3. `kind(int $n): string` - `отрицательное`, `ноль` или `положительное` (через `match (true)`).
+
+    **Пример.** Для ввода
+
+    ```
+    7 + 5
+    9 / 0
+    x * 2
+    ```
+
+    программа печатает
+
+    ```
+    7 + 5 = 12 (положительное)
+    ошибка: деление на ноль
+    причина: DivisionByZeroError
+    ошибка: не число: x
+    обработано: 3, ошибок: 2
+    ```
+
+    Часть тестов скрыта: в них неизвестные операции, остаток от деления на ноль, нули и неверный формат.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "class CalcException extends Exception - тело может быть пустым. Основная часть ловит именно этот тип."
+    - "Операнды проверяйте так: $left = filter_var($a, FILTER_VALIDATE_INT); if ($left === false) throw new CalcException(\"не число: {$a}\"). Строгое сравнение нужно, потому что 0 - корректное число."
+    - "evaluate: match ($op) { \"+\" => ..., \"/\" => intdiv($left, $right), \"%\" => $left % $right, default => throw new CalcException(...) }. Оберните match в try и поймайте DivisionByZeroError, затем бросьте new CalcException(\"деление на ноль\", 0, $e)."
+    - "kind: match (true) { $n < 0 => ..., $n === 0 => ..., default => ... } - ветки проверяются сверху вниз."
+  tests:
+    - id: "basic"
+      title: "Вычисления и ошибки"
+      stdin: "7 + 5\n9 / 0\nx * 2\n"
+      expected: "7 + 5 = 12 (положительное)\nошибка: деление на ноль\nпричина: DivisionByZeroError\nошибка: не число: x\nобработано: 3, ошибок: 2\n"
+      hint: "7 + 5 = 12 (положительное); деление на ноль даёт CalcException с причиной DivisionByZeroError; x - не число."
+    - id: "operations"
+      title: "Все операции"
+      stdin: "6 - 10\n6 * 7\n20 / 6\n20 % 6\n3 - 3\n"
+      expected: "6 - 10 = -4 (отрицательное)\n6 * 7 = 42 (положительное)\n20 / 6 = 3 (положительное)\n20 % 6 = 2 (положительное)\n3 - 3 = 0 (ноль)\nобработано: 5, ошибок: 0\n"
+      hint: "Результаты: -4 (отрицательное), 42, 3 (целочисленное деление), 2 и 0 (ноль)."
+    - id: "unknown-op"
+      title: "Неизвестная операция и формат (скрытый)"
+      stdin: "2 ^ 3\n1 +\n1 + 2 3\n"
+      expected: "ошибка: неизвестная операция: ^\nошибка: формат: a op b\nошибка: формат: a op b\nобработано: 3, ошибок: 3\n"
+      hidden: true
+      hint: "Операция ^ не из списка (сообщение неизвестная операция: ^); строки с двумя или четырьмя токенами - ошибка формата."
+    - id: "modulo-zero"
+      title: "Остаток от деления на ноль (скрытый)"
+      stdin: "5 % 0\n0 / 5\n0 % 5\n"
+      expected: "ошибка: деление на ноль\nпричина: DivisionByZeroError\n0 / 5 = 0 (ноль)\n0 % 5 = 0 (ноль)\nобработано: 3, ошибок: 1\n"
+      hidden: true
+      hint: "5 % 0 бросает DivisionByZeroError, которое нужно обернуть в CalcException; 0 / 5 и 0 % 5 корректны и дают 0."
+    - id: "operand-order"
+      title: "Какой операнд проверяется первым (скрытый)"
+      stdin: "abc + def\n5 + 1.5\n-3 * 4\n"
+      expected: "ошибка: не число: abc\nошибка: не число: 1.5\n-3 * 4 = -12 (отрицательное)\nобработано: 3, ошибок: 2\n"
+      hidden: true
+      hint: "Сначала проверяется левый операнд: «abc», а не «def»; 1.5 - не целое; -3 допустимо."
+    - id: "empty-lines"
+      title: "Пустые строки и итог (скрытый)"
+      stdin: "1 + 1\n\n\n2 * 2\nfoo\n"
+      expected: "1 + 1 = 2 (положительное)\n2 * 2 = 4 (положительное)\nошибка: формат: a op b\nобработано: 3, ошибок: 1\n"
+      hidden: true
+      hint: "Пустые строки пропускаются и не считаются обработанными; строка foo - ошибка формата; итог: обработано: 3, ошибок: 1."

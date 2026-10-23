@@ -1,0 +1,160 @@
+id: "typescript.from-zero.comparison-and-logic"
+title: "Сравнение и логика"
+goal: "Сравнивать значения операторами === !== < > <= >= и объединять условия с помощью && || !."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "typescript.from-zero.strings"
+objectives:
+  - "Записать сравнение и понять, что его результат - значение типа boolean."
+  - "Объяснить, почему для равенства используется ===, а не =."
+  - "Объединить условия операторами && (и), || (или) и ! (не) и предсказать результат."
+masteryCriteria:
+  - "Пять условий вычислены по формулам из переменных, а не записаны готовыми true и false."
+  - "Вы читаете TS2367 («типы не пересекаются») и понимаете, что сравнение разных типов лишено смысла."
+concepts:
+  introduces:
+    - "ts.comparison"
+    - "ts.logical-operators"
+  uses:
+    - "ts.boolean"
+    - "ts.number"
+    - "ts.string"
+    - "ts.const"
+    - "ts.variable"
+    - "ts.type-annotation"
+    - "ts.arithmetic"
+    - "ts.string-length"
+    - "ts.console-log"
+    - "ts.error-message"
+next:
+  - "typescript.from-zero.functions"
+tags:
+  - "typescript"
+  - "comparison"
+  - "boolean"
+  - "logic"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что сообщит проверка?
+
+        ```typescript
+        const x: number = 5;
+        console.log(x === "5");
+        ```
+      options:
+        - "Напечатается true: 5 и \"5\" одинаковы."
+        - "Напечатается false."
+        - "TS2367: типы number и string не пересекаются, сравнение не имеет смысла."
+        - "TS2322: Type 'string' is not assignable to type 'number'."
+      answer: 2
+      explanation: "Число и строка никогда не бывают равны через ===, поэтому проверка видит в такой записи ошибку и останавливает запуск."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        console.log(10 > 3 && 2 > 5);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "10"
+        - "Ошибка"
+      answer: 1
+      explanation: "&& («и») даёт true только если обе части истинны. 10 > 3 истинно, но 2 > 5 ложно, поэтому результат false."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        console.log(!(4 >= 4));
+        ```
+      options:
+        - "true"
+        - "false"
+        - "4"
+        - "!true"
+      answer: 1
+      explanation: "4 >= 4 истинно, а ! («не») меняет значение на противоположное: false."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        console.log(false || true && false);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "undefined"
+        - "Ошибка"
+      answer: 1
+      explanation: "&& выполняется раньше ||. Сначала true && false даёт false, затем false || false остаётся false. Со скобками (false || true) && false результат тот же, но в других выражениях скобки меняют итог."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const a: string = "Кот";
+        const b: string = "кот";
+        console.log(a === b);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "Кот"
+        - "Ошибка"
+      answer: 1
+      explanation: "Строки сравниваются посимвольно с учётом регистра: заглавная «К» и строчная «к» - разные символы."
+exercise:
+  id: "typescript.from-zero.comparison-and-logic.exercise"
+  title: "Условия магазина"
+  prompt: |
+    В заготовке заданы сумма заказа, возраст и признак участия в клубе. Пять условий пока записаны готовыми значениями. Замените их выражениями из переменных, чтобы программа напечатала:
+
+    ```
+    Бесплатная доставка: true
+    Детский билет: true
+    Скидка: false
+    В бюджете: true
+    Не участник клуба: true
+    ```
+
+    Условия заданы в комментариях над каждой переменной. Значения `true` и `false` писать нельзя: используйте сравнения и `&&`, `||`, `!`.
+  entryFile: "main.ts"
+  evaluation: "io"
+  hints:
+    - "Каждое условие - одно выражение справа от =. Например, возраст меньше 18 записывается как age < 18."
+    - "«Не меньше» - это >=, «не больше» - <=. «И» - &&, «или» - ||, «не» - !."
+    - "total >= 1000; age < 18; isMember || total > 5000; total >= 500 && total <= 1500; !isMember."
+  tests:
+    - id: "basic"
+      title: "Пять условий"
+      stdin: ""
+      expected: |
+        Бесплатная доставка: true
+        Детский билет: true
+        Скидка: false
+        В бюджете: true
+        Не участник клуба: true
+      hint: "Сумма 1200, возраст 17, не в клубе: доставка бесплатна, билет детский, скидки нет (не в клубе и сумма не больше 5000), сумма в бюджете, не участник."
+    - id: "exact"
+      title: "Точный формат вывода (скрытый)"
+      stdin: ""
+      expected: |
+        Бесплатная доставка: true
+        Детский билет: true
+        Скидка: false
+        В бюджете: true
+        Не участник клуба: true
+      hidden: true
+      hint: "Проверяется точное совпадение: подписи с двоеточием и пробелом, затем слово true или false строчными буквами."

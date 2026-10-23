@@ -17,7 +17,7 @@ masteryCriteria:
   - "Вы объясняете, почему запись в nil-карту падает, а append к nil-срезу работает."
   - "Вы заменяете ручной цикл подходящей функцией из slices или maps."
 related:
-  - "go.first-steps.slices-len-cap-and-append"
+  - "go.pro.slice-internals"
   - "go.fundamentals.goroutines-and-channels"
 next:
   - "go.fundamentals.goroutines-and-channels"

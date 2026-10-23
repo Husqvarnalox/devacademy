@@ -1,0 +1,185 @@
+id: "csharp.check.collections-linq"
+title: "Проверка: обобщённые коллекции и LINQ"
+goal: "Обрабатывать коллекции запросами LINQ и помнить о подвохах отложенного выполнения."
+difficulty: "medium"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: группировать, фильтровать и сортировать коллекции с помощью LINQ, различать отложенное и немедленное выполнение."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "csharp"
+  - "check"
+  - "linq"
+  - "collections"
+assessmentFor:
+  - "csharp.fundamentals.generics-and-collections"
+  - "csharp.fundamentals.linq"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        List<int> list = new List<int> { 1, 2, 3 };
+        IEnumerable<int> q = list.Where(x => x > 1);
+        list.Add(4);
+        Console.WriteLine(q.Count());
+        ```
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "Бросится исключение"
+      answer: 1
+      explanation: "LINQ-запрос выполняется отложенно, в момент перечисления, а не при объявлении. К этому моменту в списке уже есть 4, поэтому подходят 2, 3 и 4 - всего 3 элемента."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```csharp
+        Dictionary<string, int> d = new Dictionary<string, int> { ["a"] = 1 };
+        Console.WriteLine(d["b"]);
+        ```
+      options:
+        - "Выведется 0"
+        - "Выведется пустая строка"
+        - "Бросится KeyNotFoundException"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "Индексатор словаря бросает KeyNotFoundException, если ключа нет. Если отсутствие ключа - нормальная ситуация, используйте TryGetValue или ContainsKey."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        int r = new List<int>().FirstOrDefault();
+        Console.WriteLine(r);
+        ```
+      options:
+        - "0"
+        - "null"
+        - "Бросится InvalidOperationException"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "FirstOrDefault для пустой последовательности возвращает значение по умолчанию типа: для int это 0. Именно поэтому по результату нельзя отличить «нет элемента» от «элемент равен 0». Метод First в такой ситуации бросил бы InvalidOperationException."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```csharp
+        List<int> list = new List<int> { 1, 2, 3 };
+        foreach (int x in list)
+        {
+            if (x == 2) list.Remove(x);
+        }
+        ```
+      options:
+        - "Элемент 2 удалится, программа завершится без ошибок"
+        - "Бросится InvalidOperationException: коллекция изменена во время перебора"
+        - "Ошибка компиляции"
+        - "Удалятся все элементы"
+      answer: 1
+      explanation: "Менять список во время foreach нельзя: перечислитель замечает изменение и бросает InvalidOperationException. Для удаления перебирайте копию (ToList()) или используйте RemoveAll."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        string[] words = { "a", "bb", "cc", "d" };
+        IEnumerable<string> g = words
+            .GroupBy(w => w.Length)
+            .Select(x => $"{x.Key}:{x.Count()}");
+        Console.WriteLine(string.Join(",", g));
+        ```
+      options:
+        - "1:2,2:2"
+        - "2:2,1:2"
+        - "a:1,bb:1,cc:1,d:1"
+        - "1:1,2:1,1:1"
+      answer: 0
+      explanation: "GroupBy собирает элементы по длине. Группы идут в порядке первого появления ключа: длина 1 встретилась первой (a), затем длина 2 (bb). В каждой группе по два слова."
+exercise:
+  id: "csharp.check.collections-linq.exercise"
+  title: "Отчёт по записям на LINQ"
+  prompt: |
+    Основная часть программы написана: она читает команды (по одной на строку) и печатает результат вызова ваших методов. Запись `Entry` и вспомогательный метод `Numbers` уже есть в файле. Допишите в `Program.cs` четыре метода внизу. Основную часть не меняйте. Используйте LINQ там, где он делает код короче.
+
+    1. `TotalsByCategory(List<Entry> entries)` - список строк `категория=сумма` (суммы сгруппированы по категории), по убыванию суммы; при равных суммах - по названию категории с `StringComparer.Ordinal`.
+    2. `EvenSquares(List<int> values)` - квадраты чётных чисел по возрастанию.
+    3. `TopN(List<int> values, int n)` - `n` наибольших значений по убыванию. Повторы сохраняются; если значений меньше `n`, возвращаются все.
+    4. `FirstOver(List<int> values, int limit)` - первое значение, строго большее `limit`, в порядке списка; если такого нет - `null`.
+
+    Команды ввода: `add категория сумма`, `report`, `squares числа...`, `top n числа...`, `over предел числа...`. Если результат пуст, программа печатает `нет` (для `report` - `пусто`).
+
+    **Пример.** Для ввода
+
+    ```
+    add food 12
+    add rent 500
+    add food 30
+    report
+    squares 1 2 3 4
+    ```
+
+    программа печатает
+
+    ```
+    rent=500; food=42
+    4 16
+    ```
+
+    Часть тестов скрыта: в них отрицательные числа, нули, повторы и категории с разным регистром.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "TotalsByCategory: entries.GroupBy(e => e.Category).Select(g => new { Name = g.Key, Total = g.Sum(e => e.Amount) }), затем OrderByDescending(x => x.Total).ThenBy(x => x.Name, StringComparer.Ordinal)."
+    - "EvenSquares: Where(v => v % 2 == 0).Select(v => v * v).OrderBy(v => v).ToList()."
+    - "TopN: OrderByDescending(v => v).Take(n).ToList(); Take не бросает исключения, если элементов меньше n."
+    - "FirstOver: FirstOrDefault вернул бы 0 и для «нет такого», и для настоящего нуля. Возьмите Where(v => v > limit).Take(1).ToList() и проверьте Count."
+  tests:
+    - id: "basic"
+      title: "Отчёт, квадраты, наибольшие, первое"
+      stdin: "add food 12\nadd rent 500\nadd food 30\nadd fun 42\nreport\nsquares 1 2 3 4\ntop 2 5 1 9 7\nover 10 3 12 8 15\n"
+      expected: |
+        rent=500; food=42; fun=42
+        4 16
+        9 7
+        12
+      hint: "food и fun набрали по 42, поэтому порядок решает название с StringComparer.Ordinal: food идёт раньше fun. Квадраты чётных 2 и 4 - это 4 и 16."
+    - id: "empty"
+      title: "Пустые результаты"
+      stdin: "report\nsquares 5 7\ntop 5 1 2\nover 100 1 2\n"
+      expected: |
+        пусто
+        нет
+        2 1
+        нет
+      hint: "Без записей report печатает «пусто». Нечётные числа не дают квадратов. Если значений меньше n, TopN возвращает все. Если ничего не больше предела, FirstOver возвращает null."
+    - id: "negatives"
+      title: "Отрицательные, нули, повторы (скрытый)"
+      stdin: "squares -4 -3 2 0\ntop 3 4 4 1\nover -1 -5 0 3\nover 0 0\ntop 0 1 2\n"
+      expected: |
+        0 4 16
+        4 4 1
+        0
+        нет
+        нет
+      hidden: true
+      hint: "Чётные -4, 2 и 0 дают 16, 4 и 0. Повторы в TopN сохраняются. Значение 0 в over 0 не строго больше нуля, поэтому результат null, а не 0: не используйте FirstOrDefault."
+    - id: "case"
+      title: "Регистр в названиях категорий (скрытый)"
+      stdin: "add apple 5\nadd Apple 6\nadd Zed 6\nadd apple 1\nreport\n"
+      expected: |
+        Apple=6; Zed=6; apple=6
+      hidden: true
+      hint: "У трёх категорий сумма 6, apple и Apple - разные ключи. StringComparer.Ordinal сравнивает по кодам символов: заглавные буквы идут перед строчными, поэтому порядок Apple, Zed, apple."

@@ -6,7 +6,8 @@ requires rebuilding the app. The **C# validator is authoritative**; JSON Schemas
 `TheoryParser`). Unknown YAML keys are rejected, so typos show up as diagnostics.
 
 Workflow: edit → `make validate-content` (= `devacademy validate-content --content content --run-solutions`) → fix every
-error → commit. `--run-solutions` additionally runs each reference solution against its tests and each starter (must fail),
+error → commit. While authoring one course, `--only <course-id or lesson-id prefix>[,...]` limits `--run-solutions` to those
+lessons (structural validation still covers all content). Pedagogical rules: [../curriculum-standards.md](../curriculum-standards.md). `--run-solutions` additionally runs each reference solution against its tests and each starter (must fail),
 and executes runnable theory samples; it needs the language toolchain (a missing runtime is a warning and that language's solutions/samples are skipped) and is not run when content errors exist.
 
 ## 1. Layout
@@ -89,7 +90,11 @@ seeAlso: ["free text for topics that do not exist yet"]
 objectives: [...]       # what the learner can do afterwards
 masteryCriteria: [...]  # observable, verifiable statements
 tags: [...]
-assessmentFor: [lesson ids]   # placement quiz: passing credits those lessons; requires `quiz`; not self
+assessmentFor: [lesson ids]   # check: completing this lesson (exercise and quiz) credits those lessons; needs a quiz or an exercise; not self
+formerIds: [old lesson ids]   # ONLY for a rename with equivalent content: progress under these ids is carried over (see §4a)
+concepts:                     # what the lesson teaches and relies on (see §4a)
+  introduces: [go.for-loop]
+  uses: [go.variable, go.println]
 facts:
   - kind: internals | historical | misconception | performance | security | real-world
     text: ...
@@ -114,6 +119,23 @@ challenge: { ... }            # optional harder exercise, same shape
 ```
 
 Lesson completion: exercise passed (if any) **and** best quiz score ≥ threshold (if any); theory-only lessons use "Mark as read".
+
+## 4a. Concepts, former ids, the `programmer` section
+
+* **`concepts`.** `introduces` lists the concepts this lesson teaches, `uses` the ones its example, exercise or quiz needs.
+  The validator reports an ERROR when a used concept is introduced neither by the lesson nor by a lesson it depends on
+  (its prerequisites, transitively, plus every lesson of the courses its course `requires`). A concept introduced again
+  by a lesson that already depends on its introduction is a warning. Ids: `<language>.<concept>`, no spaces. Lessons
+  without `concepts` are not checked.
+* **`formerIds`.** When a lesson is renamed **and still teaches and checks the same skill**, list the old ids. At startup
+  `ProgressMigrationService` copies the stored progress of a former id to the new id if the new id has none (idempotent;
+  the old record is kept as history). Never use it for new material that only looks similar: then the old progress stays
+  history and credits nothing. Errors: a former id that is a current lesson id, the lesson's own id, or claimed twice.
+  Keep exercise ids unchanged on a rename so editor drafts survive.
+* **`programmer` section** (`<!-- section: programmer -->`): a 5-15 line summary for people who know another language.
+  Learners with prior knowledge 1+ open the lesson on it; absolute beginners see it last. See docs/learning-levels.md.
+* **Progression warnings** (heuristics): in a level-0 course, a lesson after the first without prerequisites, or with
+  difficulty above `easy`; a prerequisite from a course of a higher level.
 
 ## 5. Exercises
 
@@ -285,9 +307,32 @@ the first member until a choice is saved). Unpicked members are shown but are no
 a member that requires another member of its group, a member required by a target or by a non-alternative stage course, a
 duplicate member, or a member in two groups. Course dependency cycles are already errors.
 
-**Placement check.** A lesson with `assessmentFor: [lesson ids]` and a `quiz` is offered as "skip if you already know" on its
-course and on every path containing it. Passing credits the listed lessons (source Assessment) through the normal progress
-path; failing changes nothing. Make it theory-only with conceptual questions (see `python.advanced.placement`).
+**Placement check.** A lesson with `assessmentFor: [lesson ids]` and a `quiz` and/or `exercise` is offered as "skip if you
+already know" on its course and on every path containing it. When its completion rule holds (exercise passed if it has one,
+quiz at the threshold if it has one) the listed lessons are credited (source Assessment); failing changes nothing. Prefer a
+short exercise plus a code-reading quiz: a quiz alone is weak evidence of a skill.
+
+## 7a0. routes/<track>.yaml
+
+How a track is entered and which competencies can be checked (docs/learning-levels.md). File name == track id.
+
+```yaml
+track: go
+entry:
+  beginner: go.first-steps.first-program      # level-0 learners start here (should be in a level-0 course, no prerequisites)
+  programmer: go.programmers.syntax-and-control-flow   # learners who know another language
+competencies:                                 # ordered from simple to advanced
+  - id: basics
+    title: Синтаксис, типы, условия и циклы
+    description: ...
+    check: go.check.basics                    # a lesson with assessmentFor (exercise + quiz recommended)
+    after: []                                 # competencies whose checks are suggested first
+```
+
+Errors: unknown track or lesson, entry or check lesson outside the track's courses, a check without `assessmentFor`, a
+check lesson used twice, unknown or cyclic `after`. Warnings: a check without an exercise, an entry lesson with
+prerequisites, a beginner entry outside a level-0 course. Competency states (Confirmed / NeedsWork / NotChecked) are
+computed from progress by `DiagnosticEvaluator`; a check's quiz and exercise follow the normal completion rule.
 
 ## 7a. comparisons/<id>.yaml
 

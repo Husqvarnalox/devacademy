@@ -1,9 +1,10 @@
 id: "csharp.first-steps.how-csharp-runs"
 title: "Как выполняется C#: IL, CLR и JIT"
-goal: "Понять путь от Program.cs до машинного кода и написать программу, читающую числа из Console.In."
+goal: "Понять путь от Program.cs до машинного кода (IL, CLR, JIT) и закрепить на практике чтение всего ввода из Console.In и поведение int при переполнении."
 difficulty: "intro"
 estimatedMinutes: 30
-prerequisites: []
+prerequisites:
+  - "csharp.from-zero.classes-basics"
 objectives:
   - "Описать два этапа: компиляция в IL и JIT-компиляция средой CLR; назвать ReadyToRun и Native AOT."
   - "Объяснить многоуровневую компиляцию и управляемую память."

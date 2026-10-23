@@ -1,0 +1,214 @@
+id: "rust.check.ownership"
+title: "Проверка: владение и заимствование"
+goal: "Различать перемещение, копирование и заимствование и писать функции с `&`, `&mut` и ссылкой в результате."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: передавать значения в функции по значению, по `&` и по `&mut` и возвращать ссылку с явным временем жизни."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "rust"
+  - "check"
+  - "ownership"
+assessmentFor:
+  - "rust.from-zero.ownership-basics"
+  - "rust.first-steps.ownership-moves-and-borrowing"
+  - "rust.fundamentals.ownership-and-moves-in-depth"
+  - "rust.fundamentals.borrowing-and-lifetimes"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```rust
+        fn main() {
+            let s = String::from("a");
+            let t = s;
+            println!("{} {}", s, t);
+        }
+        ```
+      options:
+        - "Программа выведет a a"
+        - "Ошибка компиляции: значение s перемещено в t и использовано после этого"
+        - "Программа выведет пустую строку и a"
+        - "Ошибка выполнения: паника"
+      answer: 1
+      explanation: "Присваивание `let t = s;` для String перемещает владение, а не копирует строку. После этого s недоступна, и компилятор отклоняет программу с ошибкой E0382."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn main() {
+            let a = 5;
+            let b = a;
+            let x = String::from("hi");
+            let y = x.clone();
+            println!("{} {} {} {}", a, b, x, y);
+        }
+        ```
+      options:
+        - "5 5 hi hi"
+        - "5 5 hi (y недоступна)"
+        - "Ошибка компиляции: x перемещено"
+        - "Ошибка компиляции: a перемещено"
+      answer: 0
+      explanation: "Целое число относится к типам с копированием, поэтому a остаётся доступной. Метод clone() создаёт независимую копию строки, и x остаётся владельцем своей."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn shout(s: &mut String) {
+            s.push('!');
+        }
+
+        fn main() {
+            let mut text = String::from("hi");
+            shout(&mut text);
+            shout(&mut text);
+            println!("{}", text);
+        }
+        ```
+      options:
+        - "Ошибка компиляции: две изменяемые ссылки"
+        - "hi"
+        - "hi!"
+        - "hi!!"
+      answer: 3
+      explanation: "Каждый вызов берёт изменяемую ссылку лишь на время вызова и возвращает её, поэтому конфликта нет. Строка меняется на месте и получает два восклицательных знака."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при компиляции?
+
+        ```rust
+        fn main() {
+            let mut v = vec![1, 2, 3];
+            let first = &v[0];
+            v.push(4);
+            println!("{}", first);
+        }
+        ```
+      options:
+        - "Ошибка выполнения при push"
+        - "Программа выведет 1"
+        - "Ошибка компиляции: нельзя изменять вектор, пока жива ссылка на его элемент"
+        - "Программа выведет 4"
+      answer: 2
+      explanation: "Ссылка first читает элемент, а push требует изменяемого доступа к вектору и может перенести его буфер. Компилятор не допускает такой конфликт и сообщает об ошибке E0502."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```rust
+        fn pick<'a>(a: &'a str, b: &'a str) -> &'a str {
+            if a.len() >= b.len() { a } else { b }
+        }
+
+        fn main() {
+            let x = String::from("tea");
+            let y = String::from("cup");
+            println!("{}", pick(&x, &y));
+            println!("{}", x);
+        }
+        ```
+      options:
+        - "cup, затем tea"
+        - "tea, затем tea"
+        - "tea, затем пустая строка"
+        - "Ошибка компиляции: x заимствован и недоступен"
+      answer: 1
+      explanation: "Длины равны, условие a.len() >= b.len() истинно, и возвращается первый аргумент. Функция только заимствует строки, поэтому x остаётся доступной после вызова."
+exercise:
+  id: "rust.check.ownership.exercise"
+  title: "Функции с владением и заимствованием"
+  prompt: |-
+    Готовая функция `main` читает команды по одной в строке и вызывает три ваши функции. Допишите их над `main` в `main.rs`. Сигнатуры менять нельзя: именно они определяют, перемещается значение или заимствуется.
+
+    1. `shout(text: String) -> String` - забирает строку во владение и возвращает её в верхнем регистре с восклицательным знаком в конце (`hello` -> `HELLO!`).
+    2. `longest<'a>(a: &'a str, b: &'a str) -> &'a str` - возвращает более длинную строку по числу **байт** (`len()`). Если длины равны, возвращается первая.
+    3. `add_suffix(names: &mut Vec<String>, suffix: &str)` - дописывает `suffix` в конец каждой строки вектора.
+
+    Команды в `main`: `shout слово`, `longest слово1 слово2`, `suffix окончание имя1 имя2 ...`. Для `suffix` `main` печатает получившиеся имена через пробел.
+
+    **Пример.** Для ввода
+
+    ```
+    shout hello
+    longest apple fig
+    suffix -x ann bob
+    ```
+
+    программа печатает
+
+    ```
+    HELLO!
+    apple
+    ann-x bob-x
+    ```
+
+    Скрытые тесты проверяют равные длины и пустой список имён.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "shout получает String по значению, поэтому можно изменить её прямо в функции или создать новую: text.to_uppercase() возвращает новую строку, к которой можно дописать \"!\"."
+    - "В longest сравните a.len() и b.len(). Результат - ссылка, а не новая строка, поэтому возвращайте a или b без to_string(). При равенстве нужен первый аргумент."
+    - "В add_suffix переберите вектор через names.iter_mut(): каждый элемент - &mut String, и у него есть push_str(suffix)."
+    - "Сначала напишите условие: if b.len() > a.len() { b } else { a }. Строгое «больше» и даёт первый аргумент при равенстве."
+  tests:
+    - id: "basic"
+      title: "Три команды: shout, longest, suffix"
+      stdin: |
+        shout hello
+        longest apple fig
+        suffix -x ann bob
+      expected: |
+        HELLO!
+        apple
+        ann-x bob-x
+      hint: "shout печатает HELLO!, longest выбирает apple (5 байт против 3), suffix дописывает -x к каждому имени."
+    - id: "shout-more"
+      title: "Несколько вызовов подряд"
+      stdin: |
+        shout rust
+        shout Mix3d
+        longest a bbb
+      expected: |
+        RUST!
+        MIX3D!
+        bbb
+      hint: "Верхний регистр применяется к любой строке, а longest выбирает вторую строку, когда она длиннее."
+    - id: "tie"
+      title: "Равные длины - первая строка (скрытый)"
+      stdin: |
+        longest cat dog
+        longest dog cat
+        longest ab abc
+      expected: |
+        cat
+        dog
+        abc
+      hidden: true
+      hint: "При равной длине возвращается первый аргумент; строгое сравнение > даёт нужное поведение."
+    - id: "empty-names"
+      title: "Пустой список имён и один элемент (скрытый)"
+      stdin: |
+        suffix _1
+        suffix ! solo
+        suffix . a b c
+      expected: |
+
+        solo!
+        a. b. c.
+      hidden: true
+      hint: "Для пустого списка вектор остаётся пустым, и печатается пустая строка; суффикс добавляется к каждому имени, а не только к первому."

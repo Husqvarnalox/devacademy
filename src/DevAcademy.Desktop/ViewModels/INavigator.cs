@@ -13,4 +13,6 @@ public interface INavigator
     Task OpenLessonAsync(string lessonId);
     Task OpenPathAsync(string pathId);
     Task OpenComparisonAsync(string comparisonId);
+    /// <summary>Opens the knowledge-check page (per-competency evidence) of a track that defines competencies.</summary>
+    Task OpenDiagnosticAsync(string trackId);
 }

@@ -196,4 +196,4 @@ after scope
 * Деструктор вызывается при выходе из блока, в обратном порядке создания, в том числе при исключении.
 * RAII связывает владение ресурсом со временем жизни объекта: используйте `vector`, `string`, `unique_ptr`.
 
-Сравните с [ссылками в Java](lesson:java.first-steps.primitives-objects-and-equality) и [срезами Go](lesson:go.first-steps.slices-len-cap-and-append).
+Сравните с [ссылками в Java](lesson:java.first-steps.primitives-objects-and-equality) и [срезами Go](lesson:go.pro.slice-internals).

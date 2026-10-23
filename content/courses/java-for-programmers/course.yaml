@@ -1,0 +1,12 @@
+id: "java-for-programmers"
+version: "1.0.0"
+title: "Java для программистов"
+description: "Быстрый путь для тех, кто программирует на другом языке: отличия Java и его ловушки. Пройденные уроки зачитывают соответствующие уроки курса «Java с нуля»."
+languageId: "java"
+level: 1
+track: "java"
+lessons:
+  - "01-syntax-types-and-control-flow"
+  - "02-methods-collections-and-strings"
+  - "03-exceptions-and-classes"
+

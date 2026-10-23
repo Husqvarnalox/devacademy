@@ -1,0 +1,176 @@
+id: "typescript.from-zero.iterating-arrays"
+title: "Обход массива"
+goal: "Перебирать элементы массива циклом for...of и считать по ним сумму, количество и наибольшее значение."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "typescript.from-zero.arrays"
+objectives:
+  - "Записать цикл for...of и объяснить, что получает переменная цикла."
+  - "Выбрать между for...of и индексным циклом."
+  - "Посчитать сумму, среднее, количество и максимум по массиву чисел."
+  - "Корректно обработать пустой массив и отрицательные числа."
+masteryCriteria:
+  - "Функции с обходом верны для пустого массива, одного элемента и массива из одних отрицательных чисел."
+  - "Максимум начинается с первого элемента массива, а не с произвольного числа."
+concepts:
+  introduces:
+    - "ts.for-of"
+  uses:
+    - "ts.array"
+    - "ts.array-type"
+    - "ts.index"
+    - "ts.for"
+    - "ts.const"
+    - "ts.let"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.function"
+    - "ts.return"
+    - "ts.template-literal"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.arrow-functions"
+tags:
+  - "typescript"
+  - "arrays"
+  - "for-of"
+  - "loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const xs: number[] = [2, 4, 6];
+        let total: number = 0;
+        for (const x of xs) {
+          total = total + x;
+        }
+        console.log(total);
+        ```
+      options:
+        - "12"
+        - "6"
+        - "2"
+        - "0"
+      answer: 0
+      explanation: "Цикл по очереди берёт 2, 4 и 6 и складывает их в total: 2 + 4 + 6 = 12."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const xs: number[] = [-3, -1, -7];
+        let max: number = 0;
+        for (const x of xs) {
+          if (x > max) {
+            max = x;
+          }
+        }
+        console.log(max);
+        ```
+      options:
+        - "0"
+        - "-1"
+        - "-3"
+        - "-7"
+      answer: 0
+      explanation: "Ни один элемент не больше начального значения 0, поэтому max не меняется. Это ошибка в логике: максимум нужно начинать с первого элемента массива."
+    - id: "q3"
+      type: "single"
+      prompt: "В каком случае нужен индексный цикл for (let i = 0; i < values.length; i++), а не for...of?"
+      options:
+        - "Нужно напечатать номер каждого элемента или заменить элемент"
+        - "Нужно сложить все элементы"
+        - "Нужно найти наибольшее значение"
+        - "Массив пуст"
+      answer: 0
+      explanation: "Номер элемента и замена значения требуют индекса. Для суммы и максимума достаточно значений, их обходят через for...of."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        const xs: number[] = [1, 2, 3];
+        for (const x of xs) {
+          x = x + 1;
+        }
+        ```
+      options:
+        - "TS2588: нельзя присвоить x, потому что это константа"
+        - "TS2488: xs нельзя перебирать"
+        - "TS2322: нельзя присвоить строку числу"
+        - "Ничего, элементы массива станут 2, 3 и 4"
+      answer: 0
+      explanation: "Переменная цикла объявлена через const и изменяться не может. Даже с let присвоение изменило бы только копию, но не массив."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что вернёт функция?
+
+        ```typescript
+        function find(values: number[], target: number): number {
+          for (let i: number = 0; i < values.length; i++) {
+            if (values[i] === target) {
+              return i;
+            }
+          }
+          return -1;
+        }
+        console.log(find([4, 8, 8], 8));
+        ```
+      options:
+        - "1"
+        - "2"
+        - "8"
+        - "-1"
+      answer: 0
+      explanation: "Индекс первого найденного значения 8 равен 1: return завершает функцию сразу, до второй восьмёрки дело не доходит."
+exercise:
+  id: "typescript.from-zero.iterating-arrays.exercise"
+  title: "Максимум, подсчёт, поиск позиции"
+  prompt: |
+    В файле `iterate_task.ts` три функции:
+
+    * `maxOf(values)` - наибольший элемент массива; для пустого массива результат `0`. Например, `maxOf([3, 9, 4])` равно `9`, а `maxOf([-5, -2, -9])` равно `-2`.
+    * `countAbove(values, limit)` - сколько элементов **строго больше** `limit`. Например, `countAbove([5, 8, 3, 8], 5)` равно `2`.
+    * `indexOfValue(values, target)` - индекс **первого** элемента, равного `target`; если такого нет, результат `-1`. Например, `indexOfValue([7, 3, 9, 3], 3)` равно `1`.
+
+    Функции должны **возвращать** значение. Скрытые тесты проверяют пустой массив, отрицательные числа и повторяющиеся значения.
+  entryFile: "iterate_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В maxOf сначала обработайте пустой массив (верните 0), затем объявите best = values[0] и перебирайте элементы через for...of: если элемент больше best, запомните его."
+    - "Начинать максимум с 0 нельзя: для массива из отрицательных чисел получится неверный ответ 0."
+    - "В countAbove заведите счётчик count = 0 и для каждого элемента проверяйте v > limit (строго больше): если верно, увеличивайте count."
+    - "В indexOfValue нужен индексный цикл: for (let i = 0; i < values.length; i++). Как только values[i] === target, сразу return i. Если цикл закончился - return -1."
+  tests:
+    - id: "max-basic"
+      title: "maxOf: обычные массивы"
+      hint: "Наибольший в [3, 9, 4] - 9; в [1, 2, 3] - 3; в [8] - 8."
+    - id: "above-basic"
+      title: "countAbove: обычные массивы"
+      hint: "Строго больше 5: в [5, 8, 3, 8] подходят две восьмёрки; в [1, 2, 3] все больше 0."
+    - id: "index-basic"
+      title: "indexOfValue: найдено и не найдено"
+      hint: "В [7, 3, 9, 3] первая тройка стоит на индексе 1; значения 4 нет - результат -1."
+    - id: "max-edge"
+      title: "maxOf: пустой, отрицательные (скрытый)"
+      hidden: true
+      hint: "Для [] результат 0; для [-5, -2, -9] ответ -2, а не 0: начинать нужно с первого элемента."
+    - id: "above-edge"
+      title: "countAbove: границы (скрытый)"
+      hidden: true
+      hint: "Равные limit элементы не считаются: [5, 5] при limit 5 даёт 0; в пустом массиве подходящих нет; для -2 больше только -1."
+    - id: "index-edge"
+      title: "indexOfValue: пустой, ноль, повторы (скрытый)"
+      hidden: true
+      hint: "В [] ответ -1; значение 0 на индексе 0 - допустимый ответ (0, а не -1); при повторах нужен первый индекс."

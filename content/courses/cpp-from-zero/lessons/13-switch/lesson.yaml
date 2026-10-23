@@ -1,0 +1,215 @@
+id: "cpp.from-zero.switch"
+title: "Выбор по значению: switch"
+goal: "Выбирать действие по значению целого числа или символа командой switch."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "cpp.from-zero.if-else"
+objectives:
+  - "Написать switch с ветками case, командой break и веткой default."
+  - "Объединить несколько значений в одну ветку."
+  - "Объяснить, что происходит, если забыть break, и почему switch не работает со строками."
+masteryCriteria:
+  - "Вы заканчиваете каждую ветку командой break (кроме намеренно объединённых значений)."
+  - "Вы всегда пишете ветку default для неожиданных значений."
+  - "Вы выбираете между switch и else if: switch для сравнения одной переменной с набором конкретных значений."
+concepts:
+  introduces:
+    - "cpp.switch"
+    - "cpp.case-break"
+  uses:
+    - "cpp.if"
+    - "cpp.else"
+    - "cpp.block"
+    - "cpp.int"
+    - "cpp.char"
+    - "cpp.string"
+    - "cpp.comparison"
+    - "cpp.cin"
+    - "cpp.output-chain"
+    - "cpp.compile-error"
+    - "cpp.warning"
+next:
+  - "cpp.from-zero.while-loop"
+tags:
+  - "cpp"
+  - "switch"
+  - "branching"
+facts:
+  - kind: "misconception"
+    text: "«Ветка case заканчивается сама» - нет. После выполнения ветки программа продолжает со следующей (провал, fall-through), пока не встретит break или конец switch. Это определённое поведение, а не ошибка компилятора, поэтому забытый break легко не заметить."
+    sources: []
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        int n = 2;
+        switch (n) {
+            case 1:
+                std::cout << "один\n";
+                break;
+            case 2:
+                std::cout << "два\n";
+                break;
+            default:
+                std::cout << "другое\n";
+        }
+        ```
+      options:
+        - "два"
+        - "два и другое"
+        - "один и два"
+        - "другое"
+      answer: 0
+      explanation: "Значение 2 совпало с case 2: напечатано «два», а break завершил switch. Ветка default выполняется, только когда не подошла ни одна из веток."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        int n = 1;
+        switch (n) {
+            case 1:
+                std::cout << "A";
+            case 2:
+                std::cout << "B";
+                break;
+            case 3:
+                std::cout << "C";
+        }
+        std::cout << "\n";
+        ```
+      options:
+        - "AB"
+        - "A"
+        - "ABC"
+        - "B"
+      answer: 0
+      explanation: "В ветке case 1 нет break, поэтому выполнение «проваливается» в case 2: печатается A, затем B, и только там встречается break."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой тип у выражения в круглых скобках switch допустим?"
+      options:
+        - "int и char (целочисленные типы)"
+        - "std::string"
+        - "double"
+        - "Любой тип"
+      answer: 0
+      explanation: "switch работает с целыми типами, включая char. Строки и дробные числа в switch использовать нельзя: компилятор выдаст ошибку «statement requires expression of integer type». Для строк используют цепочку if / else if."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа при c = 'b'?
+
+        ```cpp
+        switch (c) {
+            case 'a':
+            case 'b':
+                std::cout << "первая группа\n";
+                break;
+            case 'c':
+                std::cout << "вторая группа\n";
+                break;
+        }
+        ```
+      options:
+        - "первая группа"
+        - "вторая группа"
+        - "Ничего."
+        - "Обе строки."
+      answer: 0
+      explanation: "Метки case 'a' и case 'b' идут подряд: у 'a' нет своей команды, и выполнение переходит дальше к общей ветке. Так намеренно объединяют несколько значений."
+    - id: "q5"
+      type: "single"
+      prompt: "Что произойдёт, если ни одна метка case не совпала и ветки default нет?"
+      options:
+        - "Весь блок switch пропускается, программа идёт дальше."
+        - "Программа останавливается с ошибкой."
+        - "Выполняется первая ветка."
+        - "Выполняется последняя ветка."
+      answer: 0
+      explanation: "Без default пропущенное значение молча ничего не делает. Поэтому для входных данных, которые бывают неожиданными, ветку default пишут всегда."
+exercise:
+  id: "cpp.from-zero.switch.exercise"
+  title: "День недели и ответ"
+  prompt: |
+    Программа читает целое число `day` (номер дня недели) и символ `answer`. Допишите два `switch`.
+
+    **День.** `1`-`5` - «Рабочий день», `6` и `7` - «Выходной», любое другое число - «Нет такого дня».
+
+    **Ответ.** Символы `y` и `Y` - «Да», `n` и `N` - «Нет», любой другой символ - «Не понял».
+
+    Например, для ввода `6 Y`:
+
+    ```
+    Выходной
+    Да
+    ```
+
+    Чтение и вывод в заготовке написаны. В переменные `dayText` и `answerText` нужно записать нужные строки.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "switch (day) { ... } сравнивает day с каждой меткой case. В каждой ветке присвойте dayText нужный текст и закончите ветку командой break;"
+    - "Несколько значений в одну ветку собирают подряд идущими метками: case 1: case 2: case 3: case 4: case 5: dayText = ...; break;"
+    - "Для символов метки пишутся в одинарных кавычках: case 'y': case 'Y': answerText = \"Да\"; break;"
+    - "Не забудьте ветку default для остальных значений в обоих switch."
+  tests:
+    - id: "weekday"
+      title: "Рабочий день"
+      stdin: |
+        3 y
+      expected: |
+        Рабочий день
+        Да
+      hint: "День 3 попадает в диапазон 1-5, а символ y даёт «Да»."
+    - id: "weekend"
+      title: "Выходной"
+      stdin: |
+        6 Y
+      expected: |
+        Выходной
+        Да
+      hint: "6 - выходной, а заглавная Y должна давать то же, что и строчная y."
+    - id: "no-day"
+      title: "Нет такого дня (скрытый)"
+      stdin: |
+        9 n
+      expected: |
+        Нет такого дня
+        Нет
+      hidden: true
+      hint: "Любое число вне диапазона 1-7 попадает в default первого switch."
+    - id: "unknown-answer"
+      title: "Неизвестный ответ (скрытый)"
+      stdin: |
+        7 x
+      expected: |
+        Выходной
+        Не понял
+      hidden: true
+      hint: "Символы, отличные от y, Y, n, N, попадают в default второго switch."
+    - id: "borders"
+      title: "Граничные значения (скрытый)"
+      stdin: |
+        1 N
+      expected: |
+        Рабочий день
+        Нет
+      hidden: true
+      hint: "День 1 уже рабочий, а заглавная N должна давать «Нет»."
+    - id: "zero"
+      title: "Ноль (скрытый)"
+      stdin: |
+        0 y
+      expected: |
+        Нет такого дня
+        Да
+      hidden: true
+      hint: "Ноль не входит ни в одну ветку с номерами дней: это default."

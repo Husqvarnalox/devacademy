@@ -154,4 +154,4 @@ fn main() {
 * `&T` - много читателей, `&mut T` - один писатель без читателей; borrow checker проверяет это во время компиляции.
 * Ссылка не может пережить значение; ссылка живёт до последнего использования.
 
-Сравните с [копированием и ссылками в C++](lesson:cpp.first-steps.value-semantics-references-and-raii) и [срезами в Go](lesson:go.first-steps.slices-len-cap-and-append).
+Сравните с [копированием и ссылками в C++](lesson:cpp.first-steps.value-semantics-references-and-raii) и [срезами в Go](lesson:go.pro.slice-internals).

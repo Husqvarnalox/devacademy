@@ -1,0 +1,149 @@
+id: "go.first-steps.reading-input"
+title: "Чтение ввода"
+goal: "Прочитать числа и слова из ввода с помощью fmt.Scan и обработать их."
+difficulty: "easy"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.arithmetic"
+objectives:
+  - "Читать значения из ввода функцией fmt.Scan в переменные нужных типов."
+  - "Объяснять, зачем перед именем переменной ставят &."
+  - "Предсказывать, как Scan делит ввод на значения: по пробелам и переводам строки."
+masteryCriteria:
+  - "Программа читает два целых числа, записанных в одной строке или в разных, и печатает их сумму."
+  - "Вы называете, что произойдёт, если забыть & или ввести значение другого типа."
+concepts:
+  introduces:
+    - "go.scan"
+  uses:
+    - "go.variable"
+    - "go.int"
+    - "go.float64"
+    - "go.string"
+    - "go.type"
+    - "go.zero-value"
+    - "go.arithmetic"
+    - "go.println"
+    - "go.print-values"
+next:
+  - "go.first-steps.type-conversion"
+tags:
+  - "go"
+  - "input"
+  - "scan"
+  - "stdin"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Как правильно прочитать целое число в переменную n (var n int)?"
+      options:
+        - "fmt.Scan(n)"
+        - "fmt.Scan(&n)"
+        - "fmt.Scan(int)"
+        - "n = fmt.Scan()"
+      answer: 1
+      explanation: "Функции нужно знать, куда положить прочитанное значение, поэтому передают &n (адрес переменной). Без & значение никуда не попадёт."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа, если ввод - «Анна Иванова»?
+
+        ```go
+        var name string
+        fmt.Scan(&name)
+        fmt.Println(name)
+        ```
+      options:
+        - "Анна Иванова"
+        - "Анна"
+        - "Иванова"
+        - "Пустая строка"
+      answer: 1
+      explanation: "Scan читает одно слово: чтение значения останавливается на пробеле. Остаток «Иванова» останется во вводе."
+    - id: "q3"
+      type: "single"
+      prompt: "Программа читает var a, b int и fmt.Scan(&a, &b). Какой ввод подойдёт?"
+      options:
+        - "Только 3 4 в одной строке."
+        - "Только каждое число на своей строке."
+        - "И 3 4, и 3 и 4 на разных строках."
+        - "Только 3,4 через запятую."
+      answer: 2
+      explanation: "Scan считает разделителями и пробелы, и переводы строк, поэтому оба варианта читаются одинаково."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа при вводе «abc»?
+
+        ```go
+        var n int
+        fmt.Scan(&n)
+        fmt.Println(n)
+        ```
+      options:
+        - "abc"
+        - "0"
+        - "Ошибка компиляции"
+        - "-1"
+      answer: 1
+      explanation: "Текст не получится прочитать как целое. Scan вернёт ошибку, а переменная останется со своим нулевым значением - 0."
+exercise:
+  id: "go.first-steps.reading-input.exercise"
+  title: "Сумма двух чисел"
+  prompt: |
+    Напишите программу, которая читает два целых числа и печатает их сумму.
+
+    Числа могут быть записаны в одной строке через пробел или на разных строках, они могут быть отрицательными.
+
+    **Пример.** Ввод:
+
+    ```
+    3 4
+    ```
+
+    Вывод:
+
+    ```
+    7
+    ```
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Объявите две переменные типа int и прочитайте оба числа одним вызовом fmt.Scan."
+    - "var a, b int объявляет две переменные сразу. fmt.Scan(&a, &b) прочитает оба значения."
+    - "Сумма - a + b. Напечатайте её через fmt.Println."
+  tests:
+    - id: "basic"
+      title: "Два числа в одной строке"
+      stdin: |
+        3 4
+      expected: |
+        7
+      hint: "3 + 4 должно дать 7."
+    - id: "lines"
+      title: "Числа на разных строках (скрытый)"
+      stdin: |
+        10
+        25
+      expected: |
+        35
+      hidden: true
+      hint: "Scan должен читать числа и через пробел, и через перевод строки."
+    - id: "negative"
+      title: "Отрицательное число (скрытый)"
+      stdin: |
+        -5 12
+      expected: |
+        7
+      hidden: true
+      hint: "Отрицательные числа читаются так же: -5 + 12 = 7."
+    - id: "zero"
+      title: "Нули (скрытый)"
+      stdin: |
+        0 0
+      expected: |
+        0
+      hidden: true
+      hint: "Сумма двух нулей - 0."

@@ -1,0 +1,214 @@
+id: "csharp.from-zero.arrays"
+title: "Массивы"
+goal: "Хранить набор значений в массиве, обходить его циклами for и foreach и передавать массив в метод."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "csharp.from-zero.return-values"
+objectives:
+  - "Создавать массив литералом и через new, обращаться к элементам по индексу."
+  - "Обходить массив циклами for и foreach, знать границы индексов."
+  - "Передавать массив в метод и возвращать результат вычисления по нему."
+  - "Распознавать выход за границы массива и другие типичные ошибки."
+masteryCriteria:
+  - "Вы находите сумму, наибольшее значение и количество элементов, удовлетворяющих условию, в массиве."
+  - "Вы объясняете, почему последний индекс равен Length - 1."
+  - "Вы пишете метод с параметром int[] и вызываете его."
+concepts:
+  introduces:
+    - "csharp.array"
+    - "csharp.index"
+    - "csharp.array-length"
+    - "csharp.foreach"
+  uses:
+    - "csharp.for"
+    - "csharp.if"
+    - "csharp.int"
+    - "csharp.string"
+    - "csharp.method"
+    - "csharp.parameter"
+    - "csharp.return"
+    - "csharp.parse"
+    - "csharp.read-line"
+    - "csharp.interpolation"
+next:
+  - "csharp.from-zero.lists"
+tags:
+  - "csharp"
+  - "arrays"
+  - "foreach"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int[] a = { 10, 20, 30, 40 };
+        Console.WriteLine(a[1] + a[3]);
+        ```
+      options:
+        - "30"
+        - "50"
+        - "60"
+        - "70"
+      answer: 2
+      explanation: "Индексы начинаются с нуля: a[1] равно 20, a[3] равно 40. Их сумма 60."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Чему равно a.Length для массива, созданного как int[] a = new int[6];?
+      options:
+        - "5"
+        - "6"
+        - "7"
+        - "0"
+      answer: 1
+      explanation: "Length - количество элементов. new int[6] создаёт шесть элементов с индексами от 0 до 5."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```csharp
+        int[] a = { 1, 2, 3 };
+        int s = 0;
+        for (int i = 0; i <= a.Length; i++)
+        {
+            s += a[i];
+        }
+        Console.WriteLine(s);
+        ```
+      options:
+        - "Выведется 6."
+        - "Выведется 3."
+        - "Программа остановится с IndexOutOfRangeException."
+        - "Ошибка компиляции."
+      answer: 2
+      explanation: "При i равном 3 условие i <= a.Length ещё истинно, а элемента a[3] нет. Допустимые индексы - от 0 до 2."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int[] a = { 4, 8, 15 };
+        int count = 0;
+        foreach (int x in a)
+        {
+            if (x > 5)
+            {
+                count++;
+            }
+        }
+        Console.WriteLine(count);
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "27"
+      answer: 1
+      explanation: "Условие x > 5 выполняется для 8 и 15. Для 4 оно ложно. Получается 2."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int[] a = new int[3];
+        a[1] = 7;
+        Console.WriteLine(string.Join(",", a));
+        ```
+      options:
+        - "7"
+        - "0,7,0"
+        - "7,7,7"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "new int[3] создаёт три элемента со значением 0. Присваивание меняет только элемент с индексом 1."
+exercise:
+  id: "csharp.from-zero.arrays.exercise"
+  title: "Температуры недели"
+  prompt: |
+    Основная часть программы читает количество измерений `n`, затем `n` температур в массив `temps`, затем порог `limit`. Она печатает результаты трёх методов. Напишите эти методы:
+
+    * `Sum(int[] values)` - возвращает сумму всех элементов;
+    * `Max(int[] values)` - возвращает наибольший элемент (в массиве есть хотя бы один элемент);
+    * `CountAbove(int[] values, int limit)` - возвращает, сколько элементов **строго больше** `limit`.
+
+    **Пример.** Для ввода
+
+    ```
+    5
+    12
+    15
+    9
+    20
+    17
+    14
+    ```
+
+    программа печатает
+
+    ```
+    Сумма: 73
+    Максимум: 20
+    Выше 14: 3
+    ```
+
+    Основную часть не меняйте: тесты подают разные массивы. Методы должны возвращать значения, а не печатать.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "В заготовке методы возвращают 0. Для каждого метода понадобится цикл foreach или for по values."
+    - "Sum: заведите int sum = 0 и добавляйте каждый элемент. CountAbove: увеличивайте счётчик, если элемент больше limit."
+    - "Max: начните с values[0] и заменяйте результат, когда нашли элемент больше. Начальное значение 0 не подойдёт для отрицательных температур."
+    - "int max = values[0]; foreach (int v in values) { if (v > max) { max = v; } } return max;"
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "5\n12\n15\n9\n20\n17\n14\n"
+      expected: |
+        Сумма: 73
+        Максимум: 20
+        Выше 14: 3
+      hint: "Сумма 12+15+9+20+17 равна 73, наибольшее 20, больше 14 три значения: 15, 20 и 17."
+    - id: "negative"
+      title: "Отрицательные температуры (скрытый)"
+      stdin: "4\n-5\n-2\n-9\n-7\n-6\n"
+      expected: |
+        Сумма: -23
+        Максимум: -2
+        Выше -6: 2
+      hidden: true
+      hint: "Максимум отрицательных чисел отрицателен: начальным значением должен быть первый элемент, а не 0."
+    - id: "single"
+      title: "Один элемент (скрытый)"
+      stdin: "1\n8\n8\n"
+      expected: |
+        Сумма: 8
+        Максимум: 8
+        Выше 8: 0
+      hidden: true
+      hint: "Порог сравнивается строго: значение, равное порогу, не считается превышающим."
+    - id: "zeros"
+      title: "Нули и граница (скрытый)"
+      stdin: "3\n0\n0\n0\n0\n"
+      expected: |
+        Сумма: 0
+        Максимум: 0
+        Выше 0: 0
+      hidden: true
+      hint: "Если все элементы равны порогу, превышающих нет."
+    - id: "all-above"
+      title: "Все выше порога (скрытый)"
+      stdin: "4\n30\n40\n50\n60\n10\n"
+      expected: |
+        Сумма: 180
+        Максимум: 60
+        Выше 10: 4
+      hidden: true
+      hint: "Каждый элемент больше 10, поэтому счётчик равен длине массива."

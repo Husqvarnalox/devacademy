@@ -1,0 +1,60 @@
+// Четыре функции, которые обходят массив. Слово export делает функцию видимой для проверки.
+
+/**
+ * Сумма всех чисел массива. Для пустого массива - 0.
+ * sumOf([2, 3, 5]) -> 10.
+ * Идея: переменная-накопитель и цикл for...of.
+ */
+export function sumOf(numbers) {
+  let total = 0;
+  for (const n of numbers) {
+    total = total + n;
+  }
+  return total;
+}
+
+/**
+ * Наибольшее число массива. Для пустого массива - undefined.
+ * maxOf([3, 9, 4]) -> 9, maxOf([-5, -2, -9]) -> -2.
+ * Идея: начните с первого элемента, а не с нуля.
+ */
+export function maxOf(numbers) {
+  if (numbers.length === 0) {
+    return undefined;
+  }
+  let best = numbers[0];
+  for (const n of numbers) {
+    if (n > best) {
+      best = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * Индекс первого элемента, равного target (сравнение через ===). Если такого нет - -1.
+ * firstIndex(["a", "b", "a"], "a") -> 0, firstIndex(["a"], "z") -> -1.
+ * Идея: нужен номер, поэтому цикл со счётчиком.
+ */
+export function firstIndex(items, target) {
+  for (let i = 0; i < items.length; i++) {
+    if (items[i] === target) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Сколько слов имеют длину не меньше minLength.
+ * countLong(["дом", "ручка", "стол"], 4) -> 2.
+ */
+export function countLong(words, minLength) {
+  let count = 0;
+  for (const word of words) {
+    if (word.length >= minLength) {
+      count++;
+    }
+  }
+  return count;
+}

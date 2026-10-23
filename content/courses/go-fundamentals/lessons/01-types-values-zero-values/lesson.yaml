@@ -4,7 +4,7 @@ goal: "Понимать, какое значение получает перем
 difficulty: "easy"
 estimatedMinutes: 55
 prerequisites:
-  - "go.first-steps.packages-and-go-test"
+  - "go.first-steps.strings-and-runes"
 objectives:
   - "Назвать нулевое значение любого базового, ссылочного и составного типа Go."
   - "Объяснить, чем нетипизированная константа отличается от типизированной, и почему const limit = 1000 подходит и для float64, и для time.Duration."

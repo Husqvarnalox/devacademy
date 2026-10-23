@@ -1,0 +1,203 @@
+id: "csharp.from-zero.dictionaries"
+title: "Словари Dictionary"
+goal: "Хранить пары ключ-значение в Dictionary, безопасно читать по ключу и подсчитывать вхождения."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "csharp.from-zero.lists"
+objectives:
+  - "Создавать Dictionary<TKey, TValue>, добавлять и заменять значения через индексатор."
+  - "Проверять наличие ключа через ContainsKey и TryGetValue."
+  - "Обходить словарь через foreach и получать упорядоченный вывод через отсортированные ключи."
+  - "Применять шаблон подсчёта вхождений."
+masteryCriteria:
+  - "Вы объясняете, почему чтение отсутствующего ключа приводит к ошибке, и предотвращаете её."
+  - "Вы подсчитываете, сколько раз встречается каждое значение в списке."
+  - "Вы не опираетесь на порядок пар в словаре."
+concepts:
+  introduces:
+    - "csharp.dictionary"
+    - "csharp.try-get-value"
+  uses:
+    - "csharp.list"
+    - "csharp.list-methods"
+    - "csharp.array"
+    - "csharp.foreach"
+    - "csharp.if"
+    - "csharp.for"
+    - "csharp.method"
+    - "csharp.return"
+    - "csharp.parse"
+    - "csharp.read-line"
+    - "csharp.interpolation"
+next:
+  - "csharp.from-zero.string-methods"
+tags:
+  - "csharp"
+  - "dictionary"
+  - "collections"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Dictionary<string, int> d = new Dictionary<string, int>();
+        d["a"] = 1;
+        d["b"] = 2;
+        d["a"] = 10;
+        Console.WriteLine(d.Count + " " + d["a"]);
+        ```
+      options:
+        - "3 10"
+        - "2 10"
+        - "2 1"
+        - "3 1"
+      answer: 1
+      explanation: "Повторное присваивание по существующему ключу заменяет значение, а не добавляет запись. В словаре две пары, а значение по ключу a равно 10."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что произойдёт при запуске?
+
+        ```csharp
+        Dictionary<string, int> d = new Dictionary<string, int>();
+        d["яблоко"] = 3;
+        Console.WriteLine(d["груша"]);
+        ```
+      options:
+        - "Выведется 0."
+        - "Выведется пустая строка."
+        - "Программа остановится с KeyNotFoundException."
+        - "Ошибка компиляции."
+      answer: 2
+      explanation: "Чтение отсутствующего ключа через индексатор бросает KeyNotFoundException. Чтобы этого избежать, используйте ContainsKey или TryGetValue."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        Dictionary<string, int> d = new Dictionary<string, int>();
+        d["a"] = 5;
+        if (d.TryGetValue("b", out int v))
+        {
+            Console.WriteLine("найдено " + v);
+        }
+        else
+        {
+            Console.WriteLine("нет " + v);
+        }
+        ```
+      options:
+        - "найдено 5"
+        - "нет 0"
+        - "нет 5"
+        - "Ошибка при запуске"
+      answer: 1
+      explanation: "Ключа b нет, поэтому TryGetValue возвращает false, а переменная v получает значение по умолчанию для int - 0."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что означает слово out в вызове d.TryGetValue("a", out int v)?
+      options:
+        - "Метод удалит ключ a из словаря."
+        - "Метод положит найденное значение в переменную v."
+        - "Метод выведет значение на экран."
+        - "Метод вернёт ключ вместо значения."
+      answer: 1
+      explanation: "Параметр out служит для передачи результата из метода в переменную. Метод кладёт в v найденное значение или значение по умолчанию."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Как правильно подсчитать, сколько раз слово w встретилось?
+
+        ```csharp
+        Dictionary<string, int> counts = new Dictionary<string, int>();
+        // для каждого слова w:
+        ```
+      options:
+        - "counts[w] = counts[w] + 1;"
+        - "if (counts.ContainsKey(w)) { counts[w] = counts[w] + 1; } else { counts[w] = 1; }"
+        - "counts.Add(w, 1);"
+        - "counts[w]++;"
+      answer: 1
+      explanation: "Для нового слова ключа ещё нет, поэтому чтение counts[w] сломало бы программу, а Add для повторного слова бросит исключение. Нужно сначала проверить, есть ли ключ."
+exercise:
+  id: "csharp.from-zero.dictionaries.exercise"
+  title: "Частота слов"
+  prompt: |
+    Основная часть программы читает число `n`, затем `n` слов (по одному в строке) в список `words`, затем слово-запрос `query`. Она вызывает ваш метод и печатает результат. Напишите метод:
+
+    * `CountWords(List<string> words)` - возвращает словарь, в котором ключ - слово, а значение - сколько раз оно встретилось в списке.
+
+    **Пример.** Для ввода
+
+    ```
+    5
+    кот
+    пёс
+    кот
+    ёж
+    кот
+    кот
+    ```
+
+    программа печатает
+
+    ```
+    Разных слов: 3
+    кот: 3
+    ```
+
+    Для слова, которого нет в словаре, основная часть печатает `<слово>: нет`. Слова `Кот` и `кот` считаются разными. Основную часть не меняйте.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Метод должен создать Dictionary<string, int> result, обойти words и вернуть result."
+    - "Для каждого слова: если result уже содержит ключ, увеличьте значение на 1, иначе запишите 1."
+    - "Проверка ключа: result.ContainsKey(word). Увеличение: result[word] = result[word] + 1;"
+    - "foreach (string word in words) { if (result.ContainsKey(word)) { result[word] = result[word] + 1; } else { result[word] = 1; } }"
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "5\nкот\nпёс\nкот\nёж\nкот\nкот\n"
+      expected: |
+        Разных слов: 3
+        кот: 3
+      hint: "Среди кот, пёс, кот, ёж, кот три разных слова; слово кот встречается три раза."
+    - id: "missing"
+      title: "Слова нет (скрытый)"
+      stdin: "3\nа\nб\nа\nрыба\n"
+      expected: |
+        Разных слов: 2
+        рыба: нет
+      hidden: true
+      hint: "Для отсутствующего слова основная часть печатает «нет»: метод должен вернуть словарь без такого ключа."
+    - id: "case"
+      title: "Регистр различается (скрытый)"
+      stdin: "3\nКот\nкот\nКот\nКот\n"
+      expected: |
+        Разных слов: 2
+        Кот: 2
+      hidden: true
+      hint: "Слова Кот и кот - разные ключи, приводить регистр не нужно."
+    - id: "empty"
+      title: "Нет слов (скрытый)"
+      stdin: "0\nкот\n"
+      expected: |
+        Разных слов: 0
+        кот: нет
+      hidden: true
+      hint: "При n = 0 словарь пуст: метод должен вернуть пустой словарь, а не завершиться ошибкой."
+    - id: "same"
+      title: "Все слова одинаковые (скрытый)"
+      stdin: "4\nда\nда\nда\nда\nда\n"
+      expected: |
+        Разных слов: 1
+        да: 4
+      hidden: true
+      hint: "Одно слово повторяется четыре раза: один ключ и значение 4."

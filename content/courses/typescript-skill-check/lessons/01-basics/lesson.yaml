@@ -1,0 +1,165 @@
+id: "typescript.check.basics"
+title: "Проверка: основы - значения, условия, циклы, функции"
+goal: "Читать и писать небольшие функции с типизированными параметрами, условиями и циклами и предсказывать результат простых выражений."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: читать и писать небольшие функции с типизированными параметрами, условиями и циклами и предсказывать результат простых выражений"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "basics"
+assessmentFor:
+  - "typescript.from-zero.first-program"
+  - "typescript.from-zero.reading-errors"
+  - "typescript.from-zero.values-and-types"
+  - "typescript.from-zero.variables"
+  - "typescript.from-zero.type-checking"
+  - "typescript.from-zero.arithmetic"
+  - "typescript.from-zero.strings"
+  - "typescript.from-zero.comparison-and-logic"
+  - "typescript.from-zero.functions"
+  - "typescript.from-zero.if-else"
+  - "typescript.from-zero.while-loop"
+  - "typescript.from-zero.for-loop"
+  - "typescript.from-zero.loop-control"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log(typeof 5, typeof "5", typeof null, typeof undefined);
+        ```
+      options:
+        - "number string object undefined"
+        - "number string null undefined"
+        - "number string object object"
+        - "number number object undefined"
+      answer: 0
+      explanation: "Оператор typeof возвращает название вида значения. Число - \"number\", текст в кавычках - \"string\", undefined - \"undefined\". Для null он возвращает \"object\": это историческая особенность языка, исправлять её не стали."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        let total = 0;
+        for (let i = 1; i <= 6; i++) {
+          if (i % 2 === 0) {
+            continue;
+          }
+          total += i;
+        }
+        console.log(total);
+        ```
+      options:
+        - "21"
+        - "12"
+        - "9"
+        - "6"
+      answer: 2
+      explanation: "continue пропускает чётные i, поэтому складываются только 1, 3 и 5: 1 + 3 + 5 = 9."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log(7 / 2, 7 % 2, Math.floor(-7 / 2), 2 ** 3 ** 2);
+        ```
+      options:
+        - "3 1 -3 64"
+        - "3.5 1 -4 512"
+        - "3.5 1 -3 64"
+        - "3.5 3 -4 512"
+      answer: 1
+      explanation: "Деление дробное: 7 / 2 равно 3.5. Остаток от 7 на 2 равен 1. Math.floor округляет вниз, и -3.5 превращается в -4. Оператор ** выполняется справа налево: 3 ** 2 равно 9, затем 2 ** 9 равно 512."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```typescript
+        let count: number = "3";
+        console.log(count + 1);
+        ```
+      options:
+        - "Выведется 4"
+        - "Выведется 31"
+        - "Проверка типов сообщит об ошибке TS2322: строку нельзя присвоить числу, программа не запустится"
+        - "Выведется NaN"
+      answer: 2
+      explanation: "Переменная count объявлена как number, а справа стоит строка в кавычках. Проверка типов отвергает такое присваивание ошибкой TS2322 ещё до запуска, поэтому программа не выполняется и ничего не печатает."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log("5" + 3, Number("5") - 3, 5 + 3 + "5");
+        ```
+      options:
+        - "8 2 85"
+        - "53 2 85"
+        - "53 2 535"
+        - "53 NaN 85"
+      answer: 1
+      explanation: "Плюс со строкой склеивает: \"5\" + 3 даёт \"53\". Number(\"5\") - 3 равно 2. Сложение идёт слева направо: 5 + 3 равно 8, и только затем 8 + \"5\" даёт строку \"85\"."
+exercise:
+  id: "typescript.check.basics.exercise"
+  title: "Календарь и делители"
+  prompt: |
+    В файле `basics_check.ts` реализуйте четыре экспортируемые функции.
+
+    1. `isLeapYear(year)` - `true` для високосного года: год делится на 4, но не на 100, либо делится на 400.
+    2. `daysInMonth(year, month)` - число дней в месяце (`month` от 1 до 12) в заданном году; в високосный год февраль имеет 29 дней. Для месяца вне диапазона 1-12 верните `0`.
+    3. `gcd(a, b)` - наибольший общий делитель двух неотрицательных целых чисел. `gcd(7, 0)` равно `7`, `gcd(0, 0)` равно `0`.
+    4. `countMultiples(limit, divisor)` - сколько чисел от 1 до `limit` включительно делятся на `divisor` без остатка. Если `limit` меньше 1, результат `0`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "basics_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Для isLeapYear запишите правило одним выражением с && и ||: (кратно 4 и не кратно 100) или кратно 400."
+    - "daysInMonth: сначала проверьте месяц вне диапазона, затем февраль (через isLeapYear), затем месяцы с 30 днями (4, 6, 9, 11); остальные имеют 31 день."
+    - "gcd по Евклиду: пока b не равно 0, вычислите остаток a % b, затем замените пару (a, b) парой (b, остаток). Результат - a. Не меняйте параметры функции, заведите отдельные переменные."
+    - "countMultiples: цикл for от 1 до limit включительно и счётчик; если limit < 1, цикл не выполнится ни разу, и ответ останется 0."
+  tests:
+    - id: "leap-basic"
+      title: "isLeapYear - обычные годы"
+      hint: "Год 2024 високосный, 2023 нет, 2000 високосный, 1900 нет (делится на 100, но не на 400)."
+    - id: "days-basic"
+      title: "daysInMonth - обычные месяцы"
+      hint: "В январе 31 день, в апреле 30; в феврале 28 или 29 в зависимости от года."
+    - id: "gcd-basic"
+      title: "gcd - обычные пары"
+      hint: "gcd(12, 18) равно 6, gcd(17, 5) равно 1."
+    - id: "count-basic"
+      title: "countMultiples - обычные случаи"
+      hint: "От 1 до 10 на 3 делятся 3, 6 и 9 - всего три числа."
+    - id: "leap-edge"
+      title: "isLeapYear - границы столетий (скрытый)"
+      hidden: true
+      hint: "2100 не високосный (делится на 100, но не на 400), 1600 високосный."
+    - id: "days-edge"
+      title: "daysInMonth - месяц вне диапазона и февраль (скрытый)"
+      hidden: true
+      hint: "Месяцы 0 и 13 дают 0; февраль 2100 года - 28 дней, февраль 2000 года - 29; сентябрь, ноябрь и июнь - по 30."
+    - id: "gcd-edge"
+      title: "gcd - нули и равные числа (скрытый)"
+      hidden: true
+      hint: "Ноль в одном из аргументов даёт второй аргумент; gcd(0, 0) равно 0; gcd(13, 13) равно 13."
+    - id: "count-edge"
+      title: "countMultiples - пустой диапазон (скрытый)"
+      hidden: true
+      hint: "При limit 0 или отрицательном ответ 0; делитель, равный limit, даёт 1."

@@ -1,0 +1,219 @@
+id: "cpp.check.smart-pointers"
+title: "Проверка: умные указатели"
+goal: "Выбирать между unique_ptr, shared_ptr и weak_ptr и понимать, кто владеет объектом и когда он освобождается."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: передавать и возвращать unique_ptr, считать владельцев shared_ptr, получать объект через weak_ptr::lock."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "smart-pointers"
+assessmentFor:
+  - "cpp.fundamentals.raii-smart-pointers"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```cpp
+        int main() {
+            auto a = std::make_unique<int>(5);
+            auto b = a;
+            std::cout << *b;
+        }
+        ```
+      options:
+        - "Выведется 5"
+        - "Ошибка компиляции: unique_ptr нельзя копировать"
+        - "Выведется 5, но возникнет утечка памяти"
+        - "Неопределённое поведение: двойное освобождение"
+      answer: 1
+      explanation: "Копирующий конструктор у unique_ptr удалён: владелец объекта должен быть единственным. Чтобы передать владение, нужно написать auto b = std::move(a);."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        int main() {
+            auto a = std::make_unique<int>(5);
+            auto b = std::move(a);
+            std::cout << (a == nullptr) << (b != nullptr) << *b;
+        }
+        ```
+      options:
+        - "115"
+        - "101"
+        - "015"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "После перемещения владение переходит к b, а a становится пустым. Поэтому a == nullptr даёт 1, b != nullptr даёт 1, а *b равно 5: выводится 115."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        int main() {
+            auto a = std::make_shared<int>(1);
+            auto b = a;
+            {
+                auto c = b;
+                auto d = std::move(c);
+            }
+            std::weak_ptr<int> w = a;
+            std::cout << a.use_count() << " " << w.use_count();
+        }
+        ```
+      options:
+        - "3 2"
+        - "2 2"
+        - "2 3"
+        - "4 3"
+      answer: 1
+      explanation: "Во внутреннем блоке копия c увеличивает счётчик, перемещение в d счётчик не меняет, а в конце блока c и d уничтожаются. Остаются владельцы a и b: use_count равен 2. weak_ptr не владеет объектом и в счётчик не входит, а w.use_count() возвращает число владельцев - тоже 2."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        int main() {
+            std::weak_ptr<int> w;
+            {
+                auto s = std::make_shared<int>(7);
+                w = s;
+                std::cout << w.expired();
+            }
+            std::cout << w.expired();
+            if (auto s = w.lock()) {
+                std::cout << *s;
+            } else {
+                std::cout << "-";
+            }
+        }
+        ```
+      options:
+        - "10-"
+        - "00-"
+        - "011"
+        - "01-"
+      answer: 3
+      explanation: "Пока жив shared_ptr s, w.expired() равно 0 (false). После выхода из блока владельцев нет, объект уничтожен: expired() даёт 1, а lock() возвращает пустой shared_ptr, поэтому срабатывает ветка else и печатается «-»."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        struct Node {
+            std::shared_ptr<Node> next;
+            ~Node() { std::cout << "x"; }
+        };
+
+        int main() {
+            auto a = std::make_shared<Node>();
+            auto b = std::make_shared<Node>();
+            a->next = b;
+            b->next = a;
+            std::cout << "end";
+        }
+        ```
+      options:
+        - "endxx"
+        - "xxend"
+        - "end"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "Узлы ссылаются друг на друга через shared_ptr, поэтому после выхода из main счётчик каждого остаётся равным 1 и деструкторы не вызываются: память утекает. Печатается только «end». Разорвать цикл можно, сделав один из указателей weak_ptr."
+exercise:
+  id: "cpp.check.smart-pointers.exercise"
+  title: "Фабрика, sink и счётчик владельцев"
+  prompt: |
+    В заготовке уже есть структура `Item` (её конструктор и деструктор считают живые объекты в переменной `g_alive`) и готовый `main`: он читает команды и вызывает ваши функции. Допишите четыре функции. Основную часть (после комментария «Дальше основная часть») менять не нужно.
+
+    1. `std::unique_ptr<Item> makeItem(const std::string& name, int qty)` - фабрика: создаёт `Item` через `std::make_unique` и возвращает его.
+    2. `int consume(std::unique_ptr<Item> item)` - принимает владение объектом и возвращает его `qty`; сам объект уничтожается при выходе из функции.
+    3. `void addHolder(std::vector<std::shared_ptr<Item>>& holders, const std::shared_ptr<Item>& item)` - добавляет в `holders` ещё одного владельца того же объекта.
+    4. `int qtyOrMinusOne(const std::weak_ptr<Item>& weak)` - возвращает `qty`, если объект ещё жив, и `-1`, если он уже уничтожен.
+
+    **Пример.** Для ввода
+
+    ```
+    unique pen 5
+    shared cup 3 2
+    ```
+
+    программа печатает
+
+    ```
+    alive=1 name=pen
+    got=5 alive=0 empty=yes
+    owners=3 qty=3
+    owners=1 alive=1
+    qty=-1 alive=0
+    ```
+
+    Первая команда: `unique имя qty`. Вторая: `shared имя qty n` - создаётся объект, `n` дополнительных владельцев, затем они освобождаются, а в конце освобождается и главный владелец.
+
+    Часть тестов скрыта: в них ноль дополнительных владельцев и несколько команд подряд.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "makeItem: return std::make_unique<Item>(name, qty); - вызывающий получит единоличное владение."
+    - "consume: параметр item уже владеет объектом, достаточно вернуть item->qty. Деструктор Item вызовется сам при выходе из функции."
+    - "addHolder: holders.push_back(item); - копия shared_ptr увеличивает счётчик владельцев (use_count)."
+    - "qtyOrMinusOne: if (std::shared_ptr<Item> locked = weak.lock()) { return locked->qty; } return -1; - lock() даёт пустой указатель, если объект уже уничтожен."
+  tests:
+    - id: "basic"
+      title: "Единоличное и совместное владение"
+      stdin: "unique pen 5\nshared cup 3 2\n"
+      expected: |
+        alive=1 name=pen
+        got=5 alive=0 empty=yes
+        owners=3 qty=3
+        owners=1 alive=1
+        qty=-1 alive=0
+      hint: "consume забирает владение и уничтожает объект (alive=0), в p остаётся nullptr; два дополнительных владельца дают owners=3, а после reset главного владельца weak возвращает -1."
+    - id: "unique-only"
+      title: "Две фабрики подряд"
+      stdin: "unique a 1\nunique book 42\n"
+      expected: |
+        alive=1 name=a
+        got=1 alive=0 empty=yes
+        alive=1 name=book
+        got=42 alive=0 empty=yes
+      hint: "Объект создаётся фабрикой с переданными name и qty; после consume живых объектов нет, и это верно для каждой команды."
+    - id: "zero-holders"
+      title: "Без дополнительных владельцев (скрытый)"
+      stdin: "shared box 1 0\nshared big 99 5\nunique z 0\n"
+      expected: |
+        owners=1 qty=1
+        owners=1 alive=1
+        qty=-1 alive=0
+        owners=6 qty=99
+        owners=1 alive=1
+        qty=-1 alive=0
+        alive=1 name=z
+        got=0 alive=0 empty=yes
+      hidden: true
+      hint: "Без addHolder счётчик равен 1; пять копий дают 6. После holders.clear() остаётся один владелец, после reset объект уничтожается, и weak_ptr это видит."
+    - id: "negative-qty"
+      title: "Отрицательное количество (скрытый)"
+      stdin: "shared loss -4 1\nunique neg -7\n"
+      expected: |
+        owners=2 qty=-4
+        owners=1 alive=1
+        qty=-1 alive=0
+        alive=1 name=neg
+        got=-7 alive=0 empty=yes
+      hidden: true
+      hint: "qty = -4 - допустимое значение объекта, а -1 из qtyOrMinusOne означает только отсутствие объекта; результат consume возвращает qty как есть, в том числе отрицательное."

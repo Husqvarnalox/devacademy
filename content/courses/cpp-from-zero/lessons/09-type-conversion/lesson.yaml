@@ -1,0 +1,173 @@
+id: "cpp.from-zero.type-conversion"
+title: "Преобразование типов"
+goal: "Явно превращать числа из одного типа в другой и переводить числа в строки и обратно."
+difficulty: "intro"
+estimatedMinutes: 35
+prerequisites:
+  - "cpp.from-zero.reading-input"
+objectives:
+  - "Получить дробный результат деления двух int с помощью static_cast<double>."
+  - "Объяснить, что преобразование double в int отбрасывает дробную часть, а не округляет."
+  - "Превратить строку в число (std::stoi, std::stod) и число в строку (std::to_string)."
+masteryCriteria:
+  - "Вы преобразуете хотя бы один операнд деления в double до самого деления, а не после."
+  - "Вы отличаете округление от отбрасывания дробной части."
+  - "Вы знаете, что std::stoi на неподходящем тексте останавливает программу."
+concepts:
+  introduces:
+    - "cpp.type-conversion"
+    - "cpp.static-cast"
+    - "cpp.narrowing"
+    - "cpp.stoi"
+    - "cpp.to-string"
+  uses:
+    - "cpp.int"
+    - "cpp.double"
+    - "cpp.char"
+    - "cpp.string"
+    - "cpp.integer-division"
+    - "cpp.arithmetic"
+    - "cpp.cin"
+    - "cpp.string-concat"
+    - "cpp.warning"
+    - "cpp.compile-error"
+next:
+  - "cpp.from-zero.formatted-output"
+tags:
+  - "cpp"
+  - "conversion"
+  - "static_cast"
+facts:
+  - kind: "misconception"
+    text: "«double avg = sum / count; даст дробный результат, потому что слева double» - нет. Деление двух int выполняется целочисленно ещё до присваивания; тип переменной слева на него не влияет."
+    sources: []
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        int a = 7;
+        int b = 2;
+        std::cout << static_cast<double>(a) / b << "\n";
+        ```
+      options:
+        - "3.5"
+        - "3"
+        - "3.0"
+        - "4"
+      answer: 0
+      explanation: "static_cast<double>(a) делает из 7 число 7.0. Деление дробного на целое даёт дробный результат: 3.5."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        double d = 2.99;
+        std::cout << static_cast<int>(d) << "\n";
+        ```
+      options:
+        - "2"
+        - "3"
+        - "2.99"
+        - "Программа не соберётся."
+      answer: 0
+      explanation: "Преобразование double в int отбрасывает дробную часть, а не округляет: 2.99 становится 2. То же с отрицательными числами: -2.99 становится -2."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        int sum = 7;
+        int count = 2;
+        double avg = sum / count;
+        std::cout << avg << "\n";
+        ```
+      options:
+        - "3"
+        - "3.5"
+        - "4"
+        - "3.50000"
+      answer: 0
+      explanation: "Деление sum / count выполняется над двумя int и даёт 3. Только потом результат превращается в double. Чтобы получить 3.5, нужно преобразовать операнд до деления: static_cast<double>(sum) / count."
+    - id: "q4"
+      type: "single"
+      prompt: "Что делает `std::stoi(\"abc\")`?"
+      options:
+        - "Бросает исключение std::invalid_argument: программа аварийно завершается, если его не перехватить."
+        - "Возвращает 0."
+        - "Возвращает код первой буквы."
+        - "Не компилируется."
+      answer: 0
+      explanation: "std::stoi строго проверяет текст: если число прочитать нельзя, она бросает исключение std::invalid_argument. Исключения мы разберём в уроке 22. Заметьте, что это отличается от std::cin >>, который молча записывает 0."
+    - id: "q5"
+      type: "single"
+      prompt: "Как правильно получить строку \"Итого: 5\" из числа n = 5?"
+      options:
+        - "\"Итого: \" + std::to_string(n)"
+        - "\"Итого: \" + n"
+        - "\"Итого: \" + static_cast<std::string>(n)"
+        - "\"Итого: \" + stoi(n)"
+      answer: 0
+      explanation: "std::to_string(n) превращает число в std::string, и строки склеиваются через +. Запись \"Итого: \" + n компилируется с предупреждением, но не добавляет число к тексту, а смещает указатель на текст и печатает мусор."
+exercise:
+  id: "cpp.from-zero.type-conversion.exercise"
+  title: "Поровну на всех"
+  prompt: |
+    На вход приходят два целых числа: сумма `total` и число людей `people` (всегда больше нуля). Нужно разделить сумму поровну и напечатать долю каждого с дробной частью, а также её целую часть:
+
+    ```
+    Каждому: 12.5
+    Целая часть: 12
+    ```
+
+    (для ввода `100 8`).
+
+    В заготовке вывод уже написан, но деление целочисленное. Исправьте деление через `static_cast<double>` и получите целую часть через `static_cast<int>`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Деление sum / count над двумя int даёт целое. Превратите одно число в double до самого деления: static_cast<double>(total) / people."
+    - "Целая часть доли: static_cast<int>(share). Дробная часть отбрасывается, а не округляется."
+    - "double share = static_cast<double>(total) / people;"
+    - "int whole = static_cast<int>(share); Остальное в заготовке уже напечатано."
+  tests:
+    - id: "basic"
+      title: "100 на 8 человек"
+      stdin: |
+        100 8
+      expected: |
+        Каждому: 12.5
+        Целая часть: 12
+      hint: "100 / 8 = 12.5; целая часть 12. Если вы получили 12 в обеих строках, деление всё ещё целочисленное."
+    - id: "repeating"
+      title: "Бесконечная дробь"
+      stdin: |
+        10 3
+      expected: |
+        Каждому: 3.33333
+        Целая часть: 3
+      hint: "std::cout по умолчанию печатает шесть значащих цифр: 3.33333. Целая часть - 3."
+    - id: "exact"
+      title: "Делится нацело (скрытый)"
+      stdin: |
+        9 3
+      expected: |
+        Каждому: 3
+        Целая часть: 3
+      hidden: true
+      hint: "Когда сумма делится нацело, дробная часть равна нулю, и std::cout печатает просто 3."
+    - id: "half"
+      title: "Одна и вторая половина (скрытый)"
+      stdin: |
+        7 2
+      expected: |
+        Каждому: 3.5
+        Целая часть: 3
+      hidden: true
+      hint: "Целая часть получается преобразованием доли в int (3), а не округлением (4)."

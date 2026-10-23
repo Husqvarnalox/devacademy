@@ -1,0 +1,208 @@
+id: "csharp.programmers.syntax-and-control-flow"
+title: "Числа, строки и управление потоком: ловушки C#"
+goal: "Писать вычисления с целыми и десятичными числами, остатком, округлением и выбором по значению так, чтобы переполнение, усечение и культура компьютера не искажали результат."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "csharp.programmers.methods-and-collections"
+objectives:
+  - "Предсказывать результат целочисленного деления и остатка для отрицательных чисел и избегать переполнения int."
+  - "Выбирать между double и decimal и явно задавать режим округления Math.Round."
+  - "Объяснять, что строка в C# неизменяема, сравнивается по значению и что Length считает единицы UTF-16."
+  - "Фиксировать культуру через CultureInfo.InvariantCulture при выводе и разборе чисел."
+  - "Записывать выбор по значению через switch-выражение с образцами."
+masteryCriteria:
+  - "Average, FloorMod, OrderTotal и Grade дают верные результаты на обычных и граничных значениях: переполнение int, отрицательные числа, середина между копейками, оценки вне диапазона."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "csharp"
+  - "programmers"
+  - "numbers"
+  - "control-flow"
+assessmentFor:
+  - "csharp.from-zero.first-program"
+  - "csharp.from-zero.compiler-errors"
+  - "csharp.from-zero.output"
+  - "csharp.from-zero.variables-and-types"
+  - "csharp.from-zero.arithmetic"
+  - "csharp.from-zero.double-and-decimal"
+  - "csharp.from-zero.strings"
+  - "csharp.from-zero.comparison-and-logic"
+  - "csharp.from-zero.if-else"
+  - "csharp.from-zero.switch"
+  - "csharp.from-zero.while-loop"
+  - "csharp.from-zero.for-loop"
+  - "csharp.from-zero.loop-control"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        int x = int.MaxValue;
+        x++;
+        Console.WriteLine(x);
+        ```
+      options:
+        - "2147483648"
+        - "-2147483648"
+        - "Бросится OverflowException"
+        - "0"
+      answer: 1
+      explanation: "По умолчанию целочисленная арифметика не проверяет переполнение: значение переходит через границу и становится наименьшим int. Исключение появилось бы только в контексте checked. Число 2147483648 в int не помещается."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.WriteLine(-7 / 2 + " " + -7 % 3);
+        ```
+      options:
+        - "-4 2"
+        - "-3 -1"
+        - "-3 2"
+        - "-4 -1"
+      answer: 1
+      explanation: "Целочисленное деление усекает к нулю, поэтому -7 / 2 равно -3. Остаток получает знак делимого: -7 = (-2) * 3 + (-1), то есть -7 % 3 равно -1. Результаты -4 и 2 типичны для Python, но не для C#."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.WriteLine(Math.Round(2.5) + " " + Math.Round(3.5));
+        ```
+      options:
+        - "3 4"
+        - "2 3"
+        - "2 4"
+        - "3 3"
+      answer: 2
+      explanation: "Math.Round без параметров округляет половину к ближайшему чётному: 2.5 даёт 2, а 3.5 даёт 4. Чтобы получить привычное округление половины вверх, передают MidpointRounding.AwayFromZero."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        string s = "abc";
+        s.ToUpper();
+        Console.WriteLine(s);
+        ```
+      options:
+        - "ABC"
+        - "abc"
+        - "Ошибка компиляции"
+        - "Aabc"
+      answer: 1
+      explanation: "Строки неизменяемы: ToUpper возвращает новую строку, а исходная не меняется. Результат вызова здесь отброшен, поэтому выводится abc. Чтобы использовать результат, его присваивают: s = s.ToUpper();"
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        Console.WriteLine(1 + 2 + "x" + 1 + 2);
+        ```
+      options:
+        - "3x3"
+        - "12x12"
+        - "3x12"
+        - "1x2x12"
+      answer: 2
+      explanation: "Операции + выполняются слева направо. Сначала складываются числа 1 + 2 = 3, затем число склеивается со строкой, и дальше каждый + склеивает строку с 1 и 2 по отдельности. Получается 3x12."
+exercise:
+  id: "csharp.programmers.syntax-and-control-flow.exercise"
+  title: "Среднее, остаток, сумма заказа и оценка"
+  prompt: |
+    Основная часть программы написана: она читает команды (по одной на строку) и печатает результат вызова ваших методов. Напишите четыре метода в `Program.cs`. Основную часть не меняйте.
+
+    1. `Average(int a, int b)` - среднее двух чисел как `int`, дробная часть отбрасывается к нулю. Результат должен быть верным и для больших значений (`2147483647` и `2147483647`).
+    2. `FloorMod(int a, int b)` - остаток от деления `a` на `b` (`b` больше нуля), всегда в диапазоне от `0` до `b - 1`: `FloorMod(-7, 3)` равно `2`.
+    3. `OrderTotal(decimal price, int quantity, decimal discountPercent)` - стоимость `price * quantity` после скидки в процентах, округлённая до двух знаков. Половина копейки округляется от нуля: `0.025` даёт `0.03`.
+    4. `Grade(int score)` - `"A"` от 90, `"B"` от 75, `"C"` от 60, иначе `"D"`; для значений вне диапазона от 0 до 100 - `"?"`.
+
+    **Пример.** Для ввода
+
+    ```
+    avg 10 20
+    mod -7 3
+    total 19.99 3 15
+    grade 75
+    ```
+
+    программа печатает
+
+    ```
+    15
+    2
+    50.97
+    B
+    ```
+
+    Часть тестов скрыта: в них переполнение, ничья при округлении и граничные оценки.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "В заготовке методы возвращают заглушки. Каждый метод можно проверять отдельно: команда avg вызывает Average, mod - FloorMod, total - OrderTotal, grade - Grade."
+    - "Average: сложите числа в long, потому что int.MaxValue + int.MaxValue не помещается в int, поделите на 2 и приведите результат к int. FloorMod: ((a % b) + b) % b."
+    - "OrderTotal: price * quantity * (100 - discountPercent) / 100, затем Math.Round(значение, 2, MidpointRounding.AwayFromZero). Без последнего аргумента половина округлится до чётного."
+    - "Grade: switch-выражение с ветками < 0 or > 100 => \"?\", >= 90 => \"A\" и так далее; порядок веток важен, проверка диапазона идёт первой."
+  tests:
+    - id: "average-and-mod"
+      title: "Среднее и остаток для обычных чисел"
+      stdin: "avg 10 20\navg 7 8\nmod 7 3\nmod -7 3\n"
+      expected: |
+        15
+        7
+        1
+        2
+      hint: "avg 7 8 даёт 15 / 2 = 7 (дробная часть отбрасывается); mod -7 3 даёт 2, а не -1."
+    - id: "total-and-grade"
+      title: "Сумма заказа со скидкой и оценки"
+      stdin: "total 19.99 3 15\ngrade 95\ngrade 75\ngrade 59\n"
+      expected: |
+        50.97
+        A
+        B
+        D
+      hint: "19.99 * 3 = 59.97, скидка 15% оставляет 85% от суммы: 50.9745, округляется до 50.97. Оценка 75 - это B, а 59 - D."
+    - id: "overflow"
+      title: "Среднее больших и отрицательных чисел (скрытый)"
+      stdin: "avg 2147483647 2147483647\navg -7 -8\navg -2147483648 -2147483648\navg 2000000000 2000000000\n"
+      expected: |
+        2147483647
+        -7
+        -2147483648
+        2000000000
+      hidden: true
+      hint: "Сумма двух больших int не помещается в int: вычисляйте в long. Деление усекает к нулю, поэтому среднее -7 и -8 равно -7."
+    - id: "rounding-ties"
+      title: "Округление половины копейки (скрытый)"
+      stdin: "total 0.05 1 50\ntotal 2.665 1 0\ntotal 10 3 0\n"
+      expected: |
+        0.03
+        2.67
+        30.00
+      hidden: true
+      hint: "Половина копейки округляется от нуля: 0.025 даёт 0.03, а 2.665 даёт 2.67. Передайте MidpointRounding.AwayFromZero. Результат 30 печатается как 30.00."
+    - id: "mod-and-grade-edges"
+      title: "Граничные остатки и оценки (скрытый)"
+      stdin: "mod -3 3\nmod -1 5\nmod 0 4\ngrade 90\ngrade 89\ngrade 60\ngrade 0\ngrade 101\ngrade -1\n"
+      expected: |
+        0
+        4
+        0
+        A
+        B
+        C
+        D
+        ?
+        ?
+      hidden: true
+      hint: "mod -3 3 даёт 0, а mod -1 5 даёт 4. Оценки 90, 60 и 0 лежат на границах: 90 - A, 60 - C, 0 - D; значения 101 и -1 вне диапазона и дают ?."

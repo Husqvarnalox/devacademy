@@ -1,0 +1,168 @@
+id: "javascript.programmers.syntax-and-control-flow"
+title: "Типы, равенство и управление потоком: ловушки JavaScript"
+goal: "Писать условия, числовые вычисления и значения по умолчанию так, чтобы приведение типов, NaN и неточность дробей не искажали результат."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "javascript.programmers.collections-and-functions"
+objectives:
+  - "Выбирать === вместо == и объяснять, где допустим x == null."
+  - "Проверять NaN и конечность чисел через Number.isNaN и Number.isFinite и избегать прямого сравнения дробей."
+  - "Различать undefined и null, ?? и || и предсказывать ложные значения."
+  - "Предсказывать поведение let, const, var и зоны временной недоступности."
+  - "Выбирать между for...in и for...of."
+masteryCriteria:
+  - "addMoney, isBlank, firstDefined и sumNumbers дают верные результаты на обычных и граничных значениях, включая 0, пустую строку, NaN и строки вместо чисел."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "javascript"
+  - "programmers"
+  - "coercion"
+  - "control-flow"
+assessmentFor:
+  - "javascript.from-zero.first-program"
+  - "javascript.from-zero.reading-errors"
+  - "javascript.from-zero.values-and-types"
+  - "javascript.from-zero.variables"
+  - "javascript.from-zero.arithmetic"
+  - "javascript.from-zero.strings"
+  - "javascript.from-zero.comparison-and-logic"
+  - "javascript.from-zero.functions"
+  - "javascript.from-zero.if-else"
+  - "javascript.from-zero.while-loop"
+  - "javascript.from-zero.for-loop"
+  - "javascript.from-zero.loop-control"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(typeof null, typeof NaN, typeof [], typeof undefined);
+        ```
+      options:
+        - "null number array undefined"
+        - "object number object undefined"
+        - "object NaN array undefined"
+        - "null number object undefined"
+      answer: 1
+      explanation: "typeof null возвращает \"object\" из-за исторической ошибки языка, NaN имеет тип number, а массив - обычный объект, поэтому typeof [] тоже \"object\". Для массива нужен Array.isArray. Строк \"null\", \"array\" и \"NaN\" typeof не возвращает вообще."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(0.1 * 3, 0.1 * 3 === 0.3);
+        ```
+      options:
+        - "0.3 true"
+        - "0.30000000000000004 false"
+        - "0.3 false"
+        - "0.30000000000000004 true"
+      answer: 1
+      explanation: "Число 0.1 не представимо в двоичной дроби точно, поэтому произведение чуть больше 0.3, и console.log показывает кратчайшую запись, которая однозначно задаёт это число. Строгое сравнение с 0.3 ложно. Так работает любой язык с double; в JavaScript других чисел для дробей нет."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```javascript
+        let x = 1;
+        {
+          console.log(x);
+          let x = 2;
+        }
+        ```
+      options:
+        - "выведет 1"
+        - "выведет undefined"
+        - "выведет 2"
+        - "ReferenceError"
+      answer: 3
+      explanation: "Внутренний let x объявлен на весь блок, а значит, затеняет внешнюю x с самого начала блока. До строки с объявлением переменная находится в зоне временной недоступности, и чтение даёт ReferenceError. С var получилось бы undefined, а внешнюю x код не увидит."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([0 ?? "a", 0 || "a", null ?? "c"].join());
+        ```
+      options:
+        - "a,a,c"
+        - "0,0,c"
+        - "0,a,c"
+        - "0,a,null"
+      answer: 2
+      explanation: "?? заменяет значение только когда слева null или undefined, поэтому 0 ?? \"a\" остаётся 0. Оператор || заменяет любое ложное значение, и 0 || \"a\" даёт \"a\". null ?? \"c\" даёт \"c\"."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const a = [10, 20];
+        for (const k in a) console.log(k + 1);
+        ```
+      options:
+        - "11 и 21"
+        - "1 и 2"
+        - "01 и 11"
+        - "10 и 20"
+      answer: 2
+      explanation: "for...in перебирает имена свойств, а они всегда строки: \"0\" и \"1\". Операция \"0\" + 1 склеивает строки и даёт \"01\". Чтобы получить значения, нужен for...of; чтобы получить индексы-числа, - обычный цикл for или a.entries()."
+exercise:
+  id: "javascript.programmers.syntax-and-control-flow.exercise"
+  title: "Деньги, пустые значения и суммы без сюрпризов"
+  prompt: |
+    В файле `basics_task.mjs` реализуйте четыре экспортируемые функции. Сравнивайте строго, без `==`.
+
+    1. `addMoney(a, b)` - сумма двух денежных значений в долларах (не больше двух знаков после запятой), округлённая до центов: `addMoney(0.1, 0.2)` должно вернуть ровно `0.3`. Если любой аргумент не конечное число (строка, `NaN`, `Infinity`, `null`), бросьте `TypeError`.
+    2. `isBlank(value)` - `true` для `null`, `undefined` и строк из одних пробельных символов (или пустых). Для всего остального `false`, в том числе для `0`, `false`, `NaN`, `"0"` и `[]`.
+    3. `firstDefined(...values)` - первый аргумент, который не `null` и не `undefined`. Подходят и `0`, и `""`, и `false`, и `NaN`. Если подходящих нет, вернуть `undefined`.
+    4. `sumNumbers(values)` - сумма тех элементов массива, которые являются конечными числами. Строки (даже `"5"`), `null`, `undefined`, булевы значения, `NaN` и `Infinity` пропускаются. Для пустого массива - `0`.
+
+    Часть тестов скрыта: в них граничные значения.
+  entryFile: "basics_task.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Прежде чем писать условие, выпишите, какие значения «ложные» в JavaScript, и проверьте, какие из них должны сработать в каждой функции."
+    - "addMoney: умножьте каждое слагаемое на 100 и округлите через Math.round, сложите целые центы и поделите на 100. Проверку входа делайте через Number.isFinite - он не приводит типы."
+    - "isBlank и firstDefined: сравнивайте с null и undefined явно (value === null || value === undefined), а для строки добавьте typeof value === \"string\" и trim()."
+    - "sumNumbers: в цикле for...of добавляйте элемент только если Number.isFinite(v). Не используйте reduce без проверки: \"2\" склеится со строкой, а NaN испортит всю сумму."
+  tests:
+    - id: "money-basic"
+      title: "addMoney - обычные суммы"
+      hint: "0.1 + 0.2 даёт 0.30000000000000004. Считайте в целых центах и делите на 100 в конце."
+    - id: "blank-basic"
+      title: "isBlank - пустые и обычные значения"
+      hint: "null, undefined, \"\" и \"  \" - пустые; строка с буквой и число 0 - нет."
+    - id: "first-basic"
+      title: "firstDefined - первый подходящий"
+      hint: "Пропускайте только null и undefined; пустой список аргументов даёт undefined."
+    - id: "sum-basic"
+      title: "sumNumbers - числа и строка среди чисел"
+      hint: "Строка \"2\" не число: пропустите её, а не складывайте."
+    - id: "money-edge"
+      title: "addMoney - отрицательные, большие и неверные аргументы (скрытый)"
+      hidden: true
+      hint: "Результат для -1.1 и -2.2 должен быть -3.3, а любой не конечный аргумент (\"1\", NaN, Infinity, null) должен приводить к TypeError."
+    - id: "blank-edge"
+      title: "isBlank - ложные, но не пустые значения (скрытый)"
+      hidden: true
+      hint: "Только null, undefined и строки из пробелов считаются пустыми. 0, false, NaN, \"0\", [] и {} - не пустые."
+    - id: "first-edge"
+      title: "firstDefined - 0, пустая строка, false и NaN (скрытый)"
+      hidden: true
+      hint: "Не используйте || и find(Boolean): они пропустят 0, \"\", false и NaN. Сравнивайте с null и undefined."
+    - id: "sum-edge"
+      title: "sumNumbers - NaN, Infinity и не числа (скрытый)"
+      hidden: true
+      hint: "Number.isFinite отсекает NaN, Infinity, строки, булевы значения и null одним вызовом."

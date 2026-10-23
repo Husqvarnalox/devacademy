@@ -1,0 +1,156 @@
+id: "cpp.from-zero.basic-types"
+title: "Основные типы: double, bool, char и const"
+goal: "Выбрать подходящий тип для дробного числа, логического значения и символа и сделать значение неизменяемым."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "cpp.from-zero.variables"
+objectives:
+  - "Выбирать между int, double, bool, char и std::string по смыслу значения."
+  - "Записывать литералы: 21.5, true, 'B'."
+  - "Объявить неизменяемое значение с const и объяснить, что даст попытка его изменить."
+masteryCriteria:
+  - "Вы храните дробные числа в double, а не в int."
+  - "Вы различаете 'A' (символ) и \"A\" (строка)."
+  - "Вы печатаете bool словами с std::boolalpha и помните, что без него выводятся 1 и 0."
+concepts:
+  introduces:
+    - "cpp.type"
+    - "cpp.double"
+    - "cpp.bool"
+    - "cpp.char"
+    - "cpp.const"
+  uses:
+    - "cpp.variable"
+    - "cpp.assignment"
+    - "cpp.int"
+    - "cpp.string"
+    - "cpp.initialization"
+    - "cpp.cout"
+    - "cpp.output-chain"
+    - "cpp.compile-error"
+next:
+  - "cpp.from-zero.arithmetic"
+tags:
+  - "cpp"
+  - "double"
+  - "bool"
+  - "char"
+  - "const"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой тип выбрать для цены 49.90?"
+      options:
+        - "double"
+        - "int"
+        - "bool"
+        - "char"
+      answer: 0
+      explanation: "Цена с дробной частью хранится в double. В int дробная часть отбрасывается: int x = 49.90; даст 49."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        bool ok = false;
+        std::cout << ok << " " << std::boolalpha << ok << "\n";
+        ```
+      options:
+        - "0 false"
+        - "false false"
+        - "0 0"
+        - "false 0"
+      answer: 0
+      explanation: "Без std::boolalpha значение bool печатается как 1 или 0. Манипулятор boolalpha включает слова true и false, но действует только на вывод после него."
+    - id: "q3"
+      type: "single"
+      prompt: "Что верно про 'A' и \"A\"?"
+      options:
+        - "'A' - один символ типа char, \"A\" - текст (строка)."
+        - "Это одно и то же."
+        - "'A' - текст, \"A\" - символ."
+        - "Обе записи - числа."
+      answer: 0
+      explanation: "Одиночные кавычки обозначают один символ char, двойные - текст. char c = \"A\"; не компилируется."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит компилятор?
+
+        ```cpp
+        const int DAYS = 7;
+        DAYS = 8;
+        ```
+      options:
+        - "error: cannot assign to variable 'DAYS' with const-qualified type 'const int'"
+        - "Ничего: DAYS станет 8."
+        - "warning: unused variable"
+        - "Ничего, но программа упадёт при запуске."
+      answer: 0
+      explanation: "const делает значение неизменяемым, и попытка присвоить новое значение - ошибка компиляции, то есть программа не запустится с неверным значением."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        int x = 3.7;
+        std::cout << x << "\n";
+        ```
+      options:
+        - "3 (и предупреждение компилятора о потере дробной части)"
+        - "4"
+        - "3.7"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "При записи double в int дробная часть отбрасывается, а не округляется. Компилятор предупреждает: implicit conversion from 'double' to 'int' changes value."
+exercise:
+  id: "cpp.from-zero.basic-types.exercise"
+  title: "Прогноз погоды"
+  prompt: |
+    В заготовке уже есть вывод, но нет переменных. Объявите их, подобрав типы:
+
+    * `temperature` - температура `21.5`;
+    * `rain` - идёт ли дождь, значение `true`;
+    * `grade` - оценка, символ `B`;
+    * `DAYS` - число дней в неделе `7`, которое нельзя изменить (`const`).
+
+    Кроме того, значение `rain` должно печататься словом `true`, а не числом. Программа должна напечатать:
+
+    ```
+    Температура: 21.5
+    Дождь: true
+    Оценка: B
+    Дней в неделе: 7
+    ```
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Типы: double для 21.5, bool для true, char для буквы в одиночных кавычках 'B', const int для 7."
+    - "Объявления: double temperature = 21.5; bool rain = true; char grade = 'B'; const int DAYS = 7;"
+    - "Слова true/false вместо 1/0 печатает std::boolalpha: добавьте его в цепочку перед rain."
+    - "std::cout << \"Дождь: \" << std::boolalpha << rain << \"\\n\";"
+  tests:
+    - id: "basic"
+      title: "Все четыре значения"
+      stdin: ""
+      expected: |
+        Температура: 21.5
+        Дождь: true
+        Оценка: B
+        Дней в неделе: 7
+      hint: "Должно быть четыре строки; во второй написано слово true."
+    - id: "exact"
+      title: "Типы и вывод (скрытый)"
+      stdin: ""
+      expected: |
+        Температура: 21.5
+        Дождь: true
+        Оценка: B
+        Дней в неделе: 7
+      hidden: true
+      hint: "Проверяется точный вывод: температура 21.5 с дробной частью (нужен double), дождь словом true (нужен std::boolalpha), оценка буквой B (char), дней 7."

@@ -1,0 +1,150 @@
+id: "javascript.from-zero.values-and-types"
+title: "Значения и типы"
+goal: "Определить тип значения с помощью typeof и отличить число от текста."
+difficulty: "intro"
+estimatedMinutes: 20
+prerequisites:
+  - "javascript.from-zero.reading-errors"
+objectives:
+  - "Назвать три базовых типа: число, строка, логическое значение."
+  - "Отличить число 42 от строки \"42\" и объяснить, чем они различаются."
+  - "Узнать тип значения командой typeof."
+masteryCriteria:
+  - "Программа печатает типы четырёх значений в заданном порядке."
+  - "Вы отличаете число в кавычках (строка) от числа без кавычек."
+concepts:
+  introduces:
+    - "js.number"
+    - "js.string"
+    - "js.boolean"
+    - "js.typeof"
+  uses:
+    - "js.console-log"
+    - "js.string-literal"
+next:
+  - "javascript.from-zero.variables"
+tags:
+  - "javascript"
+  - "types"
+  - "typeof"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log(typeof "100");
+        ```
+      options:
+        - "number"
+        - "string"
+        - "boolean"
+        - "100"
+      answer: 1
+      explanation: "Всё, что записано в кавычках, - строка, даже если внутри только цифры. typeof \"100\" даёт \"string\"; цифры в кавычках - это символы, а не число."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log(typeof true);
+        ```
+      options:
+        - "string"
+        - "true"
+        - "boolean"
+        - "number"
+      answer: 2
+      explanation: "true - логическое значение (boolean): оно бывает только true или false. typeof возвращает не само значение, а название его типа."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log(typeof 3.14);
+        ```
+      options:
+        - "float"
+        - "decimal"
+        - "number"
+        - "string"
+      answer: 2
+      explanation: "В JavaScript один числовой тип для целых и дробных чисел: number. Отдельных int и float нет."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        console.log("true", true);
+        console.log(typeof "true");
+        ```
+      options:
+        - "true true, затем boolean"
+        - "true true, затем string"
+        - "\"true\" true, затем string"
+        - "true true, затем true"
+      answer: 1
+      explanation: "console.log печатает и текст, и логическое значение одинаково: true. Но \"true\" в кавычках остаётся строкой, поэтому typeof даёт string."
+    - id: "q5"
+      type: "single"
+      prompt: "Какое из значений является числом (typeof даёт number)?"
+      options:
+        - "\"7\""
+        - "7"
+        - "\"семь\""
+        - "false"
+      answer: 1
+      explanation: "Только 7 без кавычек - число. \"7\" - строка, false - логическое значение."
+exercise:
+  id: "javascript.from-zero.values-and-types.exercise"
+  title: "Определите типы"
+  prompt: |
+    В файле уже напечатан тип числа `42`. Допишите программу так, чтобы она напечатала типы четырёх значений, по одному в строке, в таком порядке:
+
+    1. `42`
+    2. `"42"` (число в кавычках)
+    3. `true`
+    4. `3.5`
+
+    Ожидаемый вывод:
+
+    ```
+    number
+    string
+    boolean
+    number
+    ```
+
+    Значения записывайте прямо в программе, не копируя результат: проверка запускает вашу программу.
+  entryFile: "main.js"
+  evaluation: "io"
+  hints:
+    - "Образец - первая строка: console.log(typeof 42); Остальные строки устроены так же, меняется только значение после typeof."
+    - "Значение \"42\" нужно записать в кавычках, а true и 3.5 - без кавычек."
+    - "Нужные строки: console.log(typeof \"42\"); console.log(typeof true); console.log(typeof 3.5);"
+  tests:
+    - id: "basic"
+      title: "Четыре типа напечатаны по порядку"
+      stdin: ""
+      expected: |
+        number
+        string
+        boolean
+        number
+      hint: "Должно быть четыре строки: number, string, boolean, number - именно в этом порядке."
+    - id: "exact"
+      title: "Число в кавычках - строка (скрытый)"
+      stdin: ""
+      expected: |
+        number
+        string
+        boolean
+        number
+      hidden: true
+      hint: "Второе значение должно быть записано в кавычках (\"42\") и дать string; значения true и 3.5 пишутся без кавычек. Вывод - ровно четыре строки."

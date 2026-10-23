@@ -1,0 +1,189 @@
+id: "php.from-zero.exceptions"
+title: "Исключения"
+goal: "Сообщать об ошибке из функции через throw и обрабатывать её через try/catch, не ломая программу."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "php.from-zero.reading-all-input"
+objectives:
+  - "Бросать исключение через throw new InvalidArgumentException с понятным сообщением."
+  - "Ловить исключение через try/catch и читать сообщение через getMessage()."
+  - "Объяснять, что происходит с непойманным исключением и в каком порядке проверяются блоки catch."
+masteryCriteria:
+  - "Ваша функция parseAge проверяет число и бросает исключения с точными сообщениями, а вызывающий код печатает их."
+  - "Вы ставите try/catch внутрь цикла, чтобы одна плохая запись не останавливала остальные."
+  - "Вы выбираете тип в catch, который подходит к брошенному."
+concepts:
+  introduces:
+    - "php.exception"
+    - "php.throw"
+    - "php.try-catch"
+  uses:
+    - "php.function"
+    - "php.parameter"
+    - "php.return"
+    - "php.type-declaration"
+    - "php.strict-types"
+    - "php.read-lines"
+    - "php.fgets"
+    - "php.trim"
+    - "php.if"
+    - "php.break-continue"
+    - "php.logical-operators"
+    - "php.concatenation"
+    - "php.foreach"
+    - "php.string-functions"
+    - "php.strict-equality"
+next:
+  - "php.from-zero.classes-intro"
+tags:
+  - "php"
+  - "exceptions"
+  - "try-catch"
+  - "validation"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        try {
+            echo "A";
+            throw new InvalidArgumentException("x");
+            echo "B";
+        } catch (InvalidArgumentException $e) {
+            echo "C";
+        }
+        echo "D";
+        ```
+      options:
+        - "ABCD"
+        - "ACD"
+        - "AC"
+        - "ABD"
+      answer: 1
+      explanation: "После throw остаток try пропускается: B не печатается. Затем выполняется catch (C), а после него программа продолжается (D)."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        try {
+            throw new InvalidArgumentException("нет данных");
+        } catch (InvalidArgumentException $e) {
+            echo $e->getMessage();
+        }
+        ```
+      options:
+        - "InvalidArgumentException"
+        - "нет данных"
+        - "Ничего"
+        - "Fatal error"
+      answer: 1
+      explanation: "getMessage() возвращает текст, переданный в конструктор исключения."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт, если брошено `InvalidArgumentException`, а программа ловит только `DivisionByZeroError`?
+      options:
+        - "Сработает этот catch"
+        - "Исключение останется непойманным, и программа завершится с Fatal error: Uncaught"
+        - "Исключение будет проигнорировано"
+        - "Программа напечатает пустое сообщение"
+      answer: 1
+      explanation: "catch срабатывает только для своего типа и его потомков. Непойманное исключение останавливает программу."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Где нужно поставить `try`/`catch`, чтобы одна плохая строка не останавливала обработку остальных?
+      options:
+        - "Вокруг всего цикла"
+        - "Внутри тела цикла, вокруг обработки одной строки"
+        - "Перед циклом"
+        - "Не имеет значения"
+      answer: 1
+      explanation: "Если try окружает весь цикл, первое исключение завершает цикл. Внутри тела цикла продолжается следующая итерация."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Какую ошибку содержит код?
+
+        ```php
+        <?php
+        function f(int $n): int {
+            if ($n < 0) {
+                throw "отрицательное";
+            }
+            return $n;
+        }
+        ```
+      options:
+        - "Бросать можно только объекты исключений: нужно throw new InvalidArgumentException(...)"
+        - "Нельзя бросать внутри функции"
+        - "Не хватает try"
+        - "Тип int нельзя использовать"
+      answer: 0
+      explanation: "throw принимает только объект, реализующий Throwable. Строку бросить нельзя: получится Error: Can only throw objects."
+exercise:
+  id: "php.from-zero.exceptions.exercise"
+  title: "Проверка возраста"
+  prompt: |
+    Допишите функцию `parseAge(string $text): int`. Остальной код (чтение строк и печать результата) уже написан и менять его не нужно.
+
+    * Если `$text` не является целым числом, функция бросает `InvalidArgumentException` с сообщением `не целое число: <текст>`.
+    * Если число меньше 0 или больше 120, функция бросает `InvalidArgumentException` с сообщением `возраст вне диапазона 0-120: <число>`.
+    * Иначе возвращает число.
+
+    Готовый код читает строки до конца ввода, пропускает пустые и печатает для каждой либо `OK: <возраст>`, либо `Ошибка: <сообщение>`.
+
+    **Пример.** Ввод:
+
+    ```
+    34
+    abc
+    200
+    ```
+
+    Вывод:
+
+    ```
+    OK: 34
+    Ошибка: не целое число: abc
+    Ошибка: возраст вне диапазона 0-120: 200
+    ```
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Проверка числа: $age = filter_var($text, FILTER_VALIDATE_INT); если $age === false, бросьте исключение."
+    - "Исключение: throw new InvalidArgumentException(\"не целое число: \" . $text);"
+    - "Диапазон проверьте после первой проверки: if ($age < 0 || $age > 120) { throw ...; }, в сообщение добавьте число через конкатенацию."
+    - "В конце функции верните $age. Сообщения должны совпадать с условием дословно."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "34\nabc\n200\n"
+      expected: "OK: 34\nОшибка: не целое число: abc\nОшибка: возраст вне диапазона 0-120: 200\n"
+      hint: "Первая строка корректна, вторая не число, третья вне диапазона 0-120."
+    - id: "bounds"
+      title: "Границы диапазона"
+      stdin: "0\n120\n121\n-1\n"
+      expected: "OK: 0\nOK: 120\nОшибка: возраст вне диапазона 0-120: 121\nОшибка: возраст вне диапазона 0-120: -1\n"
+      hint: "Значения 0 и 120 допустимы, 121 и -1 нет: проверяйте границы нестрого (< 0 и > 120)."
+    - id: "bad-formats"
+      title: "Неверный формат (скрытый)"
+      stdin: "5.5\n12px\n 7 \n\n30\n"
+      expected: "Ошибка: не целое число: 5.5\nОшибка: не целое число: 12px\nOK: 7\nOK: 30\n"
+      hidden: true
+      hint: "Дробь и текст с мусором - не целые числа; пробелы по краям убирает готовый код, пустая строка пропускается."
+    - id: "message-with-value"
+      title: "Сообщение содержит значение (скрытый)"
+      stdin: "999\nxyz\n"
+      expected: "Ошибка: возраст вне диапазона 0-120: 999\nОшибка: не целое число: xyz\n"
+      hidden: true
+      hint: "В сообщении после двоеточия и пробела должно стоять само значение: число для диапазона, исходный текст для формата."

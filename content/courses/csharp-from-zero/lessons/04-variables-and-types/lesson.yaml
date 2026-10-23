@@ -1,0 +1,161 @@
+id: "csharp.from-zero.variables-and-types"
+title: "Переменные и типы"
+goal: "Хранить значения в переменных типов int, string и bool, менять их и выводить на экран."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "csharp.from-zero.output"
+objectives:
+  - "Объявить переменную с явным типом и начальным значением, а также с var."
+  - "Выбрать тип для числа (int), текста (string) и признака «да/нет» (bool)."
+  - "Присвоить переменной новое значение и объяснить, что присваивание копирует значение."
+  - "Прочитать ошибку «Cannot implicitly convert type» и исправить её."
+masteryCriteria:
+  - "Вы объявляете переменные трёх типов и выводите их значения."
+  - "Вы объясняете, почему в int нельзя положить строку."
+  - "Вы предсказываете значения двух переменных после b = a и последующего изменения a."
+concepts:
+  introduces:
+    - "csharp.variable"
+    - "csharp.type"
+    - "csharp.int"
+    - "csharp.string"
+    - "csharp.bool"
+    - "csharp.var"
+    - "csharp.assignment"
+  uses:
+    - "csharp.console-writeline"
+    - "csharp.console-write"
+    - "csharp.string-literal"
+    - "csharp.comment"
+    - "csharp.compiler-error"
+next:
+  - "csharp.from-zero.arithmetic"
+tags:
+  - "csharp"
+  - "variable"
+  - "int"
+  - "string"
+  - "bool"
+  - "var"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        int a = 5;
+        int b = a;
+        a = 9;
+        Console.WriteLine(b);
+        ```
+      options:
+        - "5"
+        - "9"
+        - "14"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "int b = a; копирует значение 5 в b. Позднее присваивание a = 9 меняет только a: b остаётся 5."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой тип подходит для переменной, которая хранит ответ на вопрос «Магазин открыт?»"
+      options:
+        - "int"
+        - "string"
+        - "bool"
+        - "var без значения"
+      answer: 2
+      explanation: "bool хранит одно из двух значений: true или false. Подходит для признаков вида «да/нет». string тоже сработал бы для слов «да» и «нет», но bool точнее и защищает от опечаток в тексте."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что сообщит компилятор?
+
+        ```csharp
+        int count = 3;
+        count = "пять";
+        ```
+      options:
+        - "Программа напечатает пять."
+        - "Ошибку CS0029: нельзя неявно преобразовать string в int."
+        - "Предупреждение, но программа запустится."
+        - "Ничего: тип переменной изменится на string."
+      answer: 1
+      explanation: "Тип переменной задаётся при объявлении и не меняется. В int помещаются только целые числа, поэтому присваивание строки не компилируется."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        bool ready = true;
+        Console.WriteLine(ready);
+        ```
+      options:
+        - "true"
+        - "True"
+        - "1"
+        - "истина"
+      answer: 1
+      explanation: "В тексте программы значение пишется true, а при выводе C# печатает его как True. Это внешний вид вывода, значение то же."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Какая запись не скомпилируется?
+      options:
+        - "var city = \"Казань\";"
+        - "int year = 2025;"
+        - "var total;"
+        - "string name = \"Анна\";"
+      answer: 2
+      explanation: "var говорит компилятору вывести тип из значения справа. Без значения выводить нечего: ошибка CS0818 «Implicitly-typed variables must be initialized»."
+exercise:
+  id: "csharp.from-zero.variables-and-types.exercise"
+  title: "Карточка товара"
+  prompt: |
+    Программа печатает карточку товара, но две переменные не объявлены, а значение количества нужно изменить после поставки. Допишите программу так, чтобы она напечатала:
+
+    ```
+    Товар: Тетрадь
+    Количество: 10
+    В наличии: True
+    Количество после поставки: 25
+    ```
+
+    Нужно:
+
+    1. объявить `quantity` типа `int` со значением `10`;
+    2. объявить `inStock` типа `bool` со значением `true`;
+    3. после печати карточки присвоить `quantity` значение `25` (без повторного объявления).
+
+    Остальные строки менять не нужно.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Нажмите «Запустить»: компилятор сообщит, каких имён не хватает."
+    - "Объявление выглядит так: тип, имя, знак равенства и значение, например string product = \"Тетрадь\";"
+    - "Для третьего пункта тип не пишется: quantity = 25; - иначе компилятор скажет, что переменная уже объявлена."
+    - "Нужны три строки: int quantity = 10; bool inStock = true; и quantity = 25; перед печатью «Количество после поставки»."
+  tests:
+    - id: "basic"
+      title: "Карточка товара и новое количество"
+      stdin: ""
+      expected: |
+        Товар: Тетрадь
+        Количество: 10
+        В наличии: True
+        Количество после поставки: 25
+      hint: "Должно быть четыре строки. После поставки количество равно 25, а до неё - 10; значение bool печатается как True."
+    - id: "exact"
+      title: "Значения переменных (скрытый)"
+      stdin: ""
+      expected: |
+        Товар: Тетрадь
+        Количество: 10
+        В наличии: True
+        Количество после поставки: 25
+      hidden: true
+      hint: "Проверяется вывод целиком: количество до присваивания 10, после - 25, и inStock равно true (печатается True)."

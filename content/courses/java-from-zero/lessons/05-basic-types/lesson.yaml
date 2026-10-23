@@ -1,0 +1,156 @@
+id: "java.from-zero.basic-types"
+title: "Типы данных: int, double, boolean, char, String"
+goal: "Выбирать подходящий тип для значения, объявлять переменные пяти основных типов и объявлять константы через final."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "java.from-zero.variables"
+objectives:
+  - "Назвать пять основных типов (int, double, boolean, char, String) и значения, которые они хранят."
+  - "Записывать литералы: 42, 59.9, true, 'A', \"текст\"."
+  - "Объяснить, почему Java не даёт положить дробное число в int и текст в число."
+  - "Объявлять неизменяемые значения через final."
+masteryCriteria:
+  - "Программа объявляет переменные нужных типов с нужными значениями и печатает их."
+  - "Вы отличаете 'A' (char) от \"A\" (String) и 3 (int) от 3.0 (double)."
+  - "Вы читаете сообщения incompatible types и integer number too large и называете, что в них исправить."
+concepts:
+  introduces:
+    - "java.type"
+    - "java.double"
+    - "java.boolean"
+    - "java.char"
+    - "java.final"
+  uses:
+    - "java.variable"
+    - "java.assignment"
+    - "java.int"
+    - "java.string"
+    - "java.println"
+    - "java.concatenation"
+    - "java.comment"
+    - "java.compile-error"
+next:
+  - "java.from-zero.arithmetic"
+tags:
+  - "java"
+  - "types"
+  - "double"
+  - "boolean"
+  - "char"
+  - "final"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой тип подходит для цены 59.9?"
+      options:
+        - "double"
+        - "int"
+        - "boolean"
+        - "char"
+      answer: 0
+      explanation: "double хранит числа с дробной частью. В int поместятся только целые числа, поэтому int price = 59.9; даст ошибку компиляции."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        public class Main {
+            public static void main(String[] args) {
+                double d = 7;
+                System.out.println(d);
+            }
+        }
+        ```
+      options:
+        - "7.0"
+        - "7"
+        - "7,0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Целое число можно положить в double, оно превращается в 7.0. Println печатает double с точкой и дробной частью. Обратное (положить 7.5 в int) запрещено."
+    - id: "q3"
+      type: "single"
+      prompt: "Компилятор сообщает: incompatible types: possible lossy conversion from double to int. Что произошло?"
+      options:
+        - "В переменную типа int пытаются положить число с дробной частью, и она бы потерялась."
+        - "Число слишком большое для типа double."
+        - "В int пытаются положить текст."
+        - "Пропущена точка с запятой."
+      answer: 0
+      explanation: "lossy conversion - «преобразование с потерей». Java не округляет молча: если вам нужен int, надо явно преобразовать значение (это отдельный урок), иначе выберите тип double."
+    - id: "q4"
+      type: "multiple"
+      prompt: "Какие записи верны?"
+      options:
+        - "char letter = 'Я';"
+        - "String word = \"Я\";"
+        - "char letter = \"Я\";"
+        - "boolean ready = true;"
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Один символ в одинарных кавычках - char, текст в двойных - String. Положить текст в двойных кавычках в char нельзя, даже если в нём одна буква."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что сообщит компилятор?
+
+        ```java
+        final int limit = 10;
+        limit = 20;
+        ```
+      options:
+        - "cannot assign a value to final variable limit"
+        - "Ничего: значение изменится на 20."
+        - "variable limit is already defined"
+        - "integer number too large"
+      answer: 0
+      explanation: "final делает переменную неизменяемой: присвоить значение можно один раз. Попытка изменить её - ошибка компиляции."
+exercise:
+  id: "java.from-zero.basic-types.exercise"
+  title: "Карточка товара"
+  prompt: |
+    Объявите в программе четыре недостающие переменные, чтобы она напечатала карточку товара:
+
+    ```
+    Товар: Тетрадь
+    Количество: 12
+    Цена: 59.5
+    В наличии: true
+    Оценка: B
+    ```
+
+    Переменная `product` уже объявлена. Нужно добавить: `quantity` (целое число 12), `price` (число 59.5), `inStock` (логическое значение «да») и `grade` (одна буква B). Для каждой подберите тип из урока.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Образец уже есть: String product = \"Тетрадь\"; Для остальных переменных меняются тип, имя и значение."
+    - "Цена с точкой - double, одна буква в одинарных кавычках - char, значение «да» записывается как true и имеет тип boolean."
+    - "Должно получиться: int quantity = 12; double price = 59.5; boolean inStock = true; char grade = 'B';"
+  tests:
+    - id: "basic"
+      title: "Карточка из пяти строк"
+      stdin: ""
+      expected: |
+        Товар: Тетрадь
+        Количество: 12
+        Цена: 59.5
+        В наличии: true
+        Оценка: B
+      hint: "Должно быть пять строк: товар, количество, цена, наличие и оценка. Проверьте типы переменных."
+    - id: "exact"
+      title: "Значения и регистр (скрытый)"
+      stdin: ""
+      expected: |
+        Товар: Тетрадь
+        Количество: 12
+        Цена: 59.5
+        В наличии: true
+        Оценка: B
+      hidden: true
+      hint: "Проверяется точное совпадение: цена 59.5, значение true строчными буквами, оценка - латинская заглавная B."

@@ -1,0 +1,165 @@
+id: "go.first-steps.range"
+title: "Обход через range"
+goal: "Обходить срез и массив конструкцией for ... range и выбирать между индексом и значением."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "go.first-steps.slices"
+objectives:
+  - "Записывать for i, v := range s и объяснять, что получают i и v."
+  - "Пропускать ненужный индекс или значение через _."
+  - "Считать сумму и количество элементов с условием за один обход."
+masteryCriteria:
+  - "Программа находит среднее и считает числа строго больше него."
+  - "Числа, равные среднему, не учитываются; при одинаковых числах ответ 0."
+  - "Вы объясняете, почему изменение v внутри range не меняет срез."
+concepts:
+  introduces:
+    - "go.range"
+  uses:
+    - "go.slice"
+    - "go.append"
+    - "go.array"
+    - "go.index"
+    - "go.len"
+    - "go.for-loop"
+    - "go.if"
+    - "go.comparison"
+    - "go.int"
+    - "go.float64"
+    - "go.type-conversion"
+    - "go.string"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.assignment"
+    - "go.scan"
+    - "go.println"
+    - "go.print-values"
+    - "go.arithmetic"
+    - "go.integer-division"
+next:
+  - "go.first-steps.slice-algorithms"
+tags:
+  - "go"
+  - "range"
+  - "slice"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        for i, v := range []string{"а", "б"} {
+            fmt.Println(i, v)
+        }
+        ```
+      options:
+        - "0 а, затем 1 б (каждое на своей строке)"
+        - "а б"
+        - "1 а, затем 2 б"
+        - "а, затем б"
+      answer: 0
+      explanation: "range выдаёт пары (индекс, значение); индекс начинается с нуля."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что не так с кодом?
+
+        ```go
+        sum := 0
+        for i, v := range nums {
+            sum += v
+        }
+        ```
+      options:
+        - "Ничего."
+        - "Переменная i объявлена и не использована: ошибка компиляции."
+        - "range нельзя применять к срезам."
+        - "sum += v недопустимо."
+      answer: 1
+      explanation: "Неиспользуемая переменная - ошибка. Если индекс не нужен, пишут for _, v := range nums."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        nums := []int{1, 2, 3}
+        for _, v := range nums {
+            v = v * 10
+        }
+        fmt.Println(nums)
+        ```
+      options:
+        - "[10 20 30]"
+        - "[1 2 3]"
+        - "[0 0 0]"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "v - копия значения элемента. Присваивание копии не меняет срез. Чтобы изменить элемент, пишут nums[i] = ... по индексу."
+    - id: "q4"
+      type: "single"
+      prompt: "Какой цикл посчитает сумму элементов среза?"
+      options:
+        - "for v := range nums { sum += v }"
+        - "for _, v := range nums { sum += v }"
+        - "for _, v := range nums { sum = v }"
+        - "for i := range nums { sum += nums }"
+      answer: 1
+      explanation: "В первом варианте v - индекс, а не значение. В третьем сумма перезаписывается, в четвёртом складывается срез целиком. Нужна пара _, v."
+exercise:
+  id: "go.first-steps.range.exercise"
+  title: "Сколько значений выше среднего"
+  prompt: |
+    Программа получает число `n` (1 <= n <= 100), а затем `n` целых чисел. Найдите среднее арифметическое (дробное) и выведите, сколько чисел **строго больше** среднего.
+
+    **Пример 1.** Ввод `4` и затем `1 2 3 4` даёт `2`: среднее равно 2.5, больше него 3 и 4.
+
+    **Пример 2.** Ввод `5` и затем `1 2 3 4 10` даёт `1`: среднее равно 4, строго больше него только 10.
+
+    Числа, равные среднему, не считаются. Среднее нельзя округлять до целого.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Сначала прочитайте числа в срез, затем два обхода: первый считает сумму, второй - количество подходящих."
+    - "Обход: for _, v := range nums { ... }. Индекс не нужен, поэтому вместо него _."
+    - "Среднее дробное: avg := float64(sum) / float64(len(nums)). Сравнивайте float64(v) > avg."
+    - "Счётчик count увеличивайте на единицу внутри if float64(v) > avg."
+  tests:
+    - id: "basic"
+      title: "Среднее 2.5"
+      stdin: "4\n1 2 3 4\n"
+      expected: "2\n"
+      hint: "Среднее 2.5 не округляется: больше него только 3 и 4."
+    - id: "one-big"
+      title: "Одно большое число"
+      stdin: "5\n1 2 3 4 10\n"
+      expected: "1\n"
+      hint: "Среднее 4: число 4 не строго больше среднего."
+    - id: "equal"
+      title: "Все числа равны (скрытый)"
+      stdin: "3\n7 7 7\n"
+      expected: "0\n"
+      hidden: true
+      hint: "Равные среднему числа не считаются."
+    - id: "single"
+      title: "Одно число (скрытый)"
+      stdin: "1\n5\n"
+      expected: "0\n"
+      hidden: true
+      hint: "Единственное число равно среднему."
+    - id: "negatives"
+      title: "Отрицательные числа (скрытый)"
+      stdin: "4\n-5 -1 -3 -10\n"
+      expected: "2\n"
+      hidden: true
+      hint: "Среднее -4.75; больше него -1 и -3. Целочисленное деление дало бы другой ответ."
+    - id: "fraction"
+      title: "Среднее с дробной частью (скрытый)"
+      stdin: "3\n1 1 2\n"
+      expected: "1\n"
+      hidden: true
+      hint: "Среднее 1.33...: больше него только 2. При целочисленном среднем 1 ответ бы совпал, но проверьте деление в float64."

@@ -1,0 +1,147 @@
+id: "go.check.input"
+title: "Проверка: потоковый ввод"
+goal: "Читать числа и строки через bufio и обрабатывать конец и ошибки ввода."
+difficulty: "medium"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: читать числа и строки через bufio и обрабатывать конец и ошибки ввода."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "bufio"
+  - "input"
+assessmentFor:
+  - "go.first-steps.number-stream"
+  - "go.first-steps.text-lines"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Как отличить конец ввода от ошибки чтения в цикле `for sc.Scan()` для `bufio.Scanner`?"
+      options:
+        - "По значению sc.Text() после цикла"
+        - "Вызвать sc.Err() после цикла: для конца данных он вернёт nil"
+        - "Scan вызывает панику при ошибке"
+        - "Никак: различия нет"
+      answer: 1
+      explanation: "`Scan` возвращает `false` и при конце данных, и при ошибке. Причину сообщает `sc.Err()`: для нормального конца это `nil`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        fmt.Println(len(strings.Fields("  a   b ")), len(strings.Split("a,,b", ",")))
+        ```
+      options:
+        - "2 2"
+        - "2 3"
+        - "3 3"
+        - "4 3"
+      answer: 1
+      explanation: "`Fields` делит по группам пробелов и не создаёт пустых элементов: `a`, `b`. `Split` делит по каждому разделителю и сохраняет пустую строку между запятыми: `a`, пустая строка, `b`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var b byte = 250
+        b += 10
+        fmt.Println(b)
+        ```
+      options:
+        - "260"
+        - "4"
+        - "255"
+        - "Паника"
+      answer: 1
+      explanation: "Тип `byte` (`uint8`) вмещает 0..255. Результат заворачивается по модулю 256: 260 - 256 = 4. Ошибки при этом нет."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Сколько раз выполнится тело цикла?
+
+        ```go
+        sc := bufio.NewScanner(strings.NewReader("1 2\n3"))
+        sc.Split(bufio.ScanWords)
+        for sc.Scan() {
+        }
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+      answer: 2
+      explanation: "`ScanWords` делит по пробельным символам, включая перевод строки: токены `1`, `2`, `3`."
+    - id: "q5"
+      type: "single"
+      prompt: "Какое условие завершает цикл чтения чисел `for { _, err := fmt.Fscan(in, &v); ... }`?"
+      options:
+        - "v == 0"
+        - "err == io.EOF"
+        - "err != nil для любой ошибки, без проверки причины"
+        - "in.Len() == 0"
+      answer: 1
+      explanation: "Конец данных - значение `io.EOF`. Нулевое число может быть обычным вводом. Любую другую ошибку (неверный формат) стоит отличать от конца данных и сообщать пользователю."
+exercise:
+  id: "go.check.input.exercise"
+  title: "totalByName: суммы по именам"
+  prompt: |
+    Напишите функцию в `main.go`:
+
+    **`totalByName(r io.Reader) (map[string]int64, error)`** читает строки вида `имя сумма` и суммирует суммы по именам. Имя - одно слово (любые символы без пробелов), сумма - целое число (возможно, отрицательное) в диапазоне `int64`.
+
+    * Пустые строки и строки из одних пробелов пропускаются.
+    * Строка не из двух полей или с нечисловой суммой - ошибка: верните `nil` и ошибку (желательно с номером строки).
+    * Пустой ввод даёт пустую карту и `nil`.
+    * Строки Windows (`\r\n`) читаются так же.
+
+    Пример: ввод `"anna 10\nboris 5\nanna 7\n"` даёт `anna: 17, boris: 5`.
+
+    **Как проверяется.** Функция принимает `io.Reader`, тесты подают `strings.NewReader`. Проверяются большие суммы (больше 32 бит), кириллица, пустые строки и ошибочные строки в конце ввода.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Читайте строки через `bufio.NewScanner(r)` в цикле `for sc.Scan()`; текущую строку даёт `sc.Text()`."
+    - "Строку обрежьте `strings.TrimSpace`; если она пустая, `continue`. Поля получите `strings.Fields`."
+    - "Сумму переведите `strconv.ParseInt(field, 10, 64)`, добавьте `totals[name] += amount`."
+    - "После цикла проверьте `sc.Err()`. При любой ошибке разбора возвращайте `nil, err`."
+  tests:
+    - id: "totals-basic"
+      title: "totalByName: сумма по именам"
+      match: "TestTotalByName/basic"
+      hint: "Строки одного имени суммируются в одно значение."
+    - id: "totals-invalid-basic"
+      title: "totalByName: строка из одного поля"
+      match: "TestTotalByNameInvalid/one_field"
+      hint: "Строка без суммы должна давать ошибку."
+    - id: "totals-all"
+      title: "totalByName: пустые строки, кириллица, большие суммы (скрытый)"
+      match: "TestTotalByName/*"
+      hidden: true
+      hint: "Пустые строки пропускаются, суммы хранятся в int64, \\r\\n не мешает разбору."
+    - id: "totals-invalid-all"
+      title: "totalByName: ошибки в середине и в конце (скрытый)"
+      match: "TestTotalByNameInvalid/*"
+      hidden: true
+      hint: "Ошибка в любой строке ввода, даже последней, должна быть возвращена."

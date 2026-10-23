@@ -1,0 +1,166 @@
+id: "javascript.from-zero.iterating-arrays"
+title: "Обход массива"
+goal: "Пройти по всем элементам массива циклом for...of или циклом с индексом и посчитать сумму, максимум и количество."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "javascript.from-zero.arrays"
+objectives:
+  - "Записать цикл for...of и объяснить, что в переменной цикла лежит очередной элемент."
+  - "Выбрать между for...of (нужны значения) и циклом с индексом (нужен номер)."
+  - "Накопить сумму, найти наибольшее значение и посчитать подходящие элементы."
+masteryCriteria:
+  - "Функции работают на пустом массиве, на массиве из одного элемента и на отрицательных числах."
+  - "maxOf не возвращает 0 для массива отрицательных чисел."
+  - "firstIndex возвращает -1, если элемента нет, и сравнивает значения строго (через ===)."
+concepts:
+  introduces:
+    - "js.for-of"
+  uses:
+    - "js.array"
+    - "js.index"
+    - "js.push"
+    - "js.for"
+    - "js.let"
+    - "js.const"
+    - "js.if"
+    - "js.comparison"
+    - "js.string-length"
+    - "js.break-continue"
+    - "js.function"
+    - "js.return"
+    - "js.arithmetic"
+next:
+  - "javascript.from-zero.arrow-functions"
+tags:
+  - "javascript"
+  - "array"
+  - "for-of"
+  - "loop"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const marks = [4, 5, 3];
+        let total = 0;
+        for (const mark of marks) {
+          total = total + mark;
+        }
+        console.log(total);
+        ```
+      options:
+        - "3"
+        - "12"
+        - "[ 4, 5, 3 ]"
+        - "0"
+      answer: 1
+      explanation: "Цикл по очереди берёт 4, 5 и 3 и прибавляет каждое к total: 0 + 4 + 5 + 3 = 12."
+    - id: "q2"
+      type: "single"
+      prompt: "Когда вместо for...of лучше использовать цикл for (let i = 0; i < items.length; i++)?"
+      options:
+        - "Когда нужен номер элемента, а не только его значение."
+        - "Когда массив пустой."
+        - "Всегда: for...of устарел."
+        - "Когда элементы - строки."
+      answer: 0
+      explanation: "for...of выдаёт только значения. Если нужен индекс (например, чтобы вернуть позицию найденного элемента), используют цикл со счётчиком. Для пустого массива и для строк подходят оба варианта."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const values = [-5, -2, -9];
+        let best = 0;
+        for (const v of values) {
+          if (v > best) {
+            best = v;
+          }
+        }
+        console.log(best);
+        ```
+      options:
+        - "-2"
+        - "-5"
+        - "0"
+        - "-9"
+      answer: 2
+      explanation: "Начальное значение best равно 0, а все числа меньше нуля, поэтому условие v > best не срабатывает ни разу. Правильнее начинать с первого элемента массива: let best = values[0]."
+    - id: "q4"
+      type: "numeric"
+      prompt: |
+        Сколько слов длиннее трёх букв посчитает программа?
+
+        ```javascript
+        const words = ["дом", "кот", "ручка", "стол", "я"];
+        let count = 0;
+        for (const word of words) {
+          if (word.length > 3) {
+            count++;
+          }
+        }
+        console.log(count);
+        ```
+      answer: 2
+      tolerance: 0
+      explanation: "Длиннее трёх букв только «ручка» (5) и «стол» (4). «дом» и «кот» состоят ровно из трёх букв, «я» - из одной."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт?
+
+        ```javascript
+        const prices = [10, 20];
+        for (const price of prices) {
+          price = price * 2;
+        }
+        ```
+      options:
+        - "Массив станет [20, 40]."
+        - "TypeError: Assignment to constant variable."
+        - "Ничего: цикл не выполнится."
+        - "Массив не изменится, но ошибки не будет."
+      answer: 1
+      explanation: "В каждом шаге price объявляется как const, ему нельзя присвоить новое значение. Чтобы изменить элементы массива, используют цикл с индексом: prices[i] = prices[i] * 2."
+exercise:
+  id: "javascript.from-zero.iterating-arrays.exercise"
+  title: "Сумма, максимум, позиция и длинные слова"
+  prompt: |
+    В файле `iterating.mjs` четыре функции без тела. Напишите их:
+
+    * `sumOf(numbers)` - сумма всех чисел массива; для пустого массива `0`. `sumOf([2, 3, 5])` даёт `10`.
+    * `maxOf(numbers)` - наибольшее число; для пустого массива `undefined`. `maxOf([3, 9, 4])` даёт `9`, `maxOf([-5, -2, -9])` - `-2`.
+    * `firstIndex(items, target)` - индекс первого элемента, равного `target` (сравнивайте через `===`); если такого нет, `-1`. `firstIndex(["a", "b", "a"], "a")` даёт `0`, `firstIndex(["a"], "z")` - `-1`.
+    * `countLong(words, minLength)` - сколько слов имеют длину не меньше `minLength`. `countLong(["дом", "ручка", "стол"], 4)` даёт `2`.
+
+    Функции должны возвращать результат, а не печатать. Скрытые тесты проверяют пустой массив, отрицательные числа и кириллицу.
+  entryFile: "iterating.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Во всех функциях нужно пройти по массиву. sumOf и countLong удобны с for...of, firstIndex требует номер элемента, значит, цикл со счётчиком. maxOf нужна переменная, в которой хранится лучшее значение на данный момент."
+    - "Для maxOf не начинайте с 0: все числа могут быть отрицательными. Начните с первого элемента, а пустой массив обработайте отдельно. В firstIndex, как только элемент найден, верните его индекс прямо из цикла; если цикл закончился, верните -1."
+    - "sumOf: let total = 0; for (const n of numbers) { total = total + n; } return total; firstIndex: for (let i = 0; i < items.length; i++) { if (items[i] === target) { return i; } } return -1;"
+    - "maxOf: if (numbers.length === 0) { return undefined; } let best = numbers[0]; for (const n of numbers) { if (n > best) { best = n; } } return best; countLong: счётчик count, в цикле if (word.length >= minLength) { count++; }"
+  tests:
+    - id: "sum-max-basic"
+      title: "sumOf и maxOf: обычные массивы"
+      hint: "Сумма [2, 3, 5] равна 10, максимум [3, 9, 4] - 9. Проверьте, что цикл проходит по всем элементам, включая последний."
+    - id: "index-count-basic"
+      title: "firstIndex и countLong: обычные массивы"
+      hint: "В [\"a\", \"b\", \"a\"] первое «a» стоит на позиции 0; из слов [\"дом\", \"ручка\", \"стол\"] длиной от 4 букв подходят два."
+    - id: "sum-max-edge"
+      title: "sumOf и maxOf: пустой массив, отрицательные, один элемент (скрытый)"
+      hidden: true
+      hint: "Для [] сумма 0, а максимум undefined. Максимум [-5, -2, -9] равен -2, а не 0: начальное значение должно быть первым элементом, а не нулём."
+    - id: "index-count-edge"
+      title: "firstIndex и countLong: нет элемента, пустой массив, кириллица (скрытый)"
+      hidden: true
+      hint: "Если элемента нет или массив пустой, firstIndex возвращает -1. Условие в countLong включает границу: слово длиной ровно minLength считается. Строки сравниваются через ===, регистр важен."

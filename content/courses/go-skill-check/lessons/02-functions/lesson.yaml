@@ -1,0 +1,174 @@
+id: "go.check.functions"
+title: "Проверка: функции и ошибки-значения"
+goal: "Писать функции с несколькими результатами и обрабатывать ошибки как значения."
+difficulty: "easy"
+estimatedMinutes: 20
+objectives:
+  - "Показать на практике умение: писать функции с несколькими результатами и обрабатывать ошибки как значения."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "functions"
+assessmentFor:
+  - "go.first-steps.functions"
+  - "go.first-steps.return-values"
+  - "go.first-steps.scope"
+  - "go.first-steps.errors-first-look"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```go
+        func div(a, b int) (int, error) { return a / b, nil }
+
+        func main() {
+        	r := div(4, 2)
+        	fmt.Println(r)
+        }
+        ```
+      options:
+        - "Напечатает 2"
+        - "Ошибка: присваивание двух значений одной переменной"
+        - "Напечатает 2 <nil>"
+        - "Паника"
+      answer: 1
+      explanation: "Функция возвращает два значения, а переменная слева одна: `assignment mismatch`. Нужно `r, err := div(4, 2)`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        func main() {
+        	defer fmt.Print("a")
+        	defer fmt.Print("b")
+        	fmt.Print("c")
+        }
+        ```
+      options:
+        - "abc"
+        - "cab"
+        - "cba"
+        - "bac"
+      answer: 2
+      explanation: "Основное тело печатает `c`, затем отложенные вызовы идут в обратном порядке: `b`, потом `a`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        func inc(n int) { n++ }
+
+        func main() {
+        	x := 1
+        	inc(x)
+        	fmt.Println(x)
+        }
+        ```
+      options:
+        - "1"
+        - "2"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Параметры передаются по значению: функция изменила свою копию, а `x` не изменилась."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Скомпилируется ли этот код?
+
+        ```go
+        x, err := f()
+        y, err := g()
+        ```
+        (`f` и `g` возвращают значение и ошибку; `x`, `y`, `err` ранее не объявлялись)
+      options:
+        - "Да: во второй строке новая переменная y, а err переиспользуется"
+        - "Нет: err объявлена дважды"
+        - "Нет: := нельзя использовать дважды"
+        - "Да, но y получит значение nil"
+      answer: 0
+      explanation: "Оператор `:=` допускает повторное использование переменных из того же блока, если хотя бы одна переменная слева новая. Здесь новой будет `y`. Ошибка `no new variables on left side of :=` возникла бы, если бы слева не было новых имён."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var ErrX = errors.New("x")
+
+        err := fmt.Errorf("ctx: %w", ErrX)
+        fmt.Println(errors.Is(err, ErrX))
+        ```
+      options:
+        - "true"
+        - "false"
+        - "ctx: x"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Глагол `%w` оборачивает исходную ошибку, и `errors.Is` находит её в цепочке."
+exercise:
+  id: "go.check.functions.exercise"
+  title: "safeDivide и parseKV"
+  prompt: |
+    Напишите две функции в `main.go`. В заготовке уже объявлена ошибка `ErrZero`.
+
+    * **`safeDivide(a, b int) (int, error)`** - целочисленное частное. При `b == 0` верните `0` и `ErrZero` (проверка `errors.Is(err, ErrZero)` должна быть истинной).
+    * **`parseKV(s string) (string, int, error)`** - разбирает строку `"ключ=число"`; пробелы вокруг ключа и значения допустимы. Ошибка: нет знака `=`, ключ пустой (после обрезки пробелов), значение не целое число. При ошибке верните `"", 0, err`.
+
+    Пример: `parseKV(" width = 5 ")` возвращает `"width", 5, nil`.
+
+    **Как проверяется.** Тесты проверяют значения, наличие ошибки и `ErrZero`; текст ошибок парсинга не сравнивается.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Для `safeDivide` проверьте делитель до деления: деление целого на ноль вызывает панику."
+    - "В `parseKV` разделите строку по первому знаку `=`: `strings.Cut(s, \"=\")` возвращает три значения, последнее - нашёлся ли разделитель."
+    - "Ключ и значение обрежьте `strings.TrimSpace`, значение переведите `strconv.Atoi`."
+    - "На каждой ошибке возвращайте `\"\", 0, err`: значения рядом с ошибкой не должны быть частично заполнены."
+  tests:
+    - id: "div-basic"
+      title: "safeDivide: обычный случай"
+      match: "TestSafeDivide/basic"
+      hint: "7 / 2 даёт 3 и nil."
+    - id: "kv-basic"
+      title: "parseKV: простая пара"
+      match: "TestParseKV/simple"
+      hint: "Строка age=30 даёт ключ age и значение 30."
+    - id: "div-all"
+      title: "safeDivide: ноль и отрицательные (скрытый)"
+      match: "TestSafeDivide/*"
+      hidden: true
+      hint: "Делитель 0 даёт ErrZero и нулевой результат без паники."
+    - id: "kv-invalid"
+      title: "parseKV: некорректные строки (скрытый)"
+      match: "TestParseKVInvalid/*"
+      hidden: true
+      hint: "Нет =, пустой или пробельный ключ, нечисловое и пустое значение - ошибка и нулевые результаты."
+    - id: "kv-valid"
+      title: "parseKV: пробелы, минус, кириллица (скрытый)"
+      match: "TestParseKV/*"
+      hidden: true
+      hint: "Пробелы вокруг частей допустимы; значение может быть отрицательным; ключ может быть на кириллице."

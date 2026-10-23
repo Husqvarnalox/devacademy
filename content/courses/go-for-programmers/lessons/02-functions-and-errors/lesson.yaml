@@ -1,0 +1,190 @@
+id: "go.programmers.functions-and-errors"
+title: "Функции, ошибки-значения и области видимости"
+goal: "Писать функции с несколькими результатами и ошибками-значениями, избегая затенения err и сравнения обёрнутых ошибок через ==."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites:
+  - "go.programmers.syntax-and-control-flow"
+next:
+  - "go.programmers.collections-and-strings"
+objectives:
+  - "Заменять исключения проверкой err != nil и объяснять, почему это решение языка."
+  - "Оборачивать ошибки через %w и сравнивать через errors.Is."
+  - "Находить затенение err и результата через :=."
+  - "Применять defer, именованные результаты и пустой идентификатор."
+masteryCriteria:
+  - "divmod, parseRange и sumRange возвращают правильные значения и ошибки на корректных и некорректных входах."
+  - "divmod возвращает ErrDivByZero так, что errors.Is его распознаёт."
+tags:
+  - "go"
+  - "programmers"
+  - "errors"
+  - "functions"
+assessmentFor:
+  - "go.first-steps.functions"
+  - "go.first-steps.return-values"
+  - "go.first-steps.scope"
+  - "go.first-steps.errors-first-look"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```go
+        func f() (int, error) { return 1, nil }
+
+        func main() {
+        	x := f()
+        	fmt.Println(x)
+        }
+        ```
+      options:
+        - "x получит 1, ошибка будет отброшена"
+        - "Ошибка компиляции: assignment mismatch (одна переменная, два значения)"
+        - "x станет кортежем (1, nil)"
+        - "Ошибка во время выполнения"
+      answer: 1
+      explanation: "Функция возвращает два значения, и присвоить их одной переменной нельзя. Нужно написать `x, err := f()` или явно отбросить ошибку: `x, _ := f()`. Кортежей в Go нет."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа `run()`?
+
+        ```go
+        func load() (int, error) { return 0, errors.New("fail") }
+
+        func run() error {
+        	var err error
+        	if true {
+        		_, err := load()
+        		_ = err
+        	}
+        	return err
+        }
+
+        func main() { fmt.Println(run()) }
+        ```
+      options:
+        - "fail"
+        - "<nil>"
+        - "0"
+        - "Ошибка компиляции: err объявлена повторно"
+      answer: 1
+      explanation: "`_, err := load()` внутри блока создаёт новую переменную `err`, которая затеняет внешнюю. Внешняя так и остаётся `nil`, поэтому `run` возвращает `<nil>` - потерянная ошибка. Правильно: `_, err = load()`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var ErrNotFound = errors.New("not found")
+
+        err := fmt.Errorf("load: %w", ErrNotFound)
+        fmt.Println(errors.Is(err, ErrNotFound), err == ErrNotFound)
+        ```
+      options:
+        - "true true"
+        - "true false"
+        - "false true"
+        - "false false"
+      answer: 1
+      explanation: "`errors.Is` разворачивает цепочку `%w` и находит `ErrNotFound`. Прямое сравнение `==` сравнивает обёртку с исходной ошибкой, это разные значения, поэтому `false`."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        func main() {
+        	for i := 0; i < 3; i++ {
+        		defer fmt.Print(i, " ")
+        	}
+        }
+        ```
+      options:
+        - "0 1 2 "
+        - "2 1 0 "
+        - "3 3 3 "
+        - "Ничего"
+      answer: 1
+      explanation: "Отложенные вызовы выполняются в порядке LIFO, а аргумент `i` вычисляется в момент `defer`: сначала сработает отложенный вызов с `2`, затем с `1`, затем с `0`."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        n, _ := strconv.Atoi("x")
+        fmt.Println(n + 1)
+        ```
+      options:
+        - "Паника: неверная строка"
+        - "1"
+        - "Ошибка компиляции из-за `_`"
+        - "NaN"
+      answer: 1
+      explanation: "При ошибке `Atoi` возвращает `0`, а отброшенная через `_` ошибка не вызывает паники: программа продолжает работать с `0 + 1 = 1`. Так игнорирование ошибок превращается в ложные данные."
+exercise:
+  id: "go.programmers.functions-and-errors.exercise"
+  title: "divmod, parseRange, sumRange"
+  prompt: |
+    Напишите три функции в `main.go`. В заготовке уже объявлена ошибка **`ErrDivByZero`** и есть `main`.
+
+    * **`divmod(a, b int) (q, r int, err error)`** - частное и остаток как в Go (`17, 5` дают `3, 2`; `-7, 2` дают `-3, -1`). При `b == 0` верните `0, 0` и ошибку `ErrDivByZero` (то есть `errors.Is(err, ErrDivByZero)` должна быть истинной).
+    * **`parseRange(s string) (lo, hi int, err error)`** - разбирает строку вида `"3-7"`: два неотрицательных целых через дефис, вокруг чисел допустимы пробелы (`" 2 - 5 "`). Верните ошибку, если: частей не две (`"7"`, `"1-2-3"`), часть не число (`"a-5"`, `"1-"`), или `lo > hi`. При ошибке `lo` и `hi` равны `0`.
+    * **`sumRange(s string) (int, error)`** - сумма всех чисел от `lo` до `hi` включительно для диапазона `s`; использует `parseRange` и передаёт его ошибку дальше. `sumRange("1-4")` возвращает `10`.
+
+    **Как проверяется.** Тесты вызывают функции с корректными и некорректными строками, проверяют наличие ошибки, значения при ошибке и `errors.Is` для деления. Текст ошибок парсинга не сравнивается.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Начните с `divmod`: проверьте `b == 0` до деления, иначе произойдёт паника. Ошибку верните через `ErrDivByZero`."
+    - "В `parseRange` разделите строку: `parts := strings.Split(s, \"-\")`, затем проверьте `len(parts) != 2`. Пробелы уберите через `strings.TrimSpace`."
+    - "Число из части получите `strconv.Atoi`; при ошибке верните `0, 0, err`. Отрицательные части невозможны, если частей ровно две и они разобрались: знак `-` уже использован как разделитель."
+    - "`sumRange`: `lo, hi, err := parseRange(s)`; если `err != nil`, верните `0, err`; иначе сложите числа циклом `for i := lo; i <= hi; i++`."
+  tests:
+    - id: "divmod-basic"
+      title: "divmod: частное и остаток"
+      match: "TestDivmod/basic"
+      hint: "17 / 5 даёт частное 3 и остаток 2."
+    - id: "parse-range-basic"
+      title: "parseRange: простой диапазон"
+      match: "TestParseRange/simple"
+      hint: "Строка \"3-7\" даёт lo=3, hi=7 и ошибку nil."
+    - id: "divmod-all"
+      title: "divmod: деление на ноль и отрицательные (скрытый)"
+      match: "TestDivmod/*"
+      hidden: true
+      hint: "При b == 0 нужна ошибка ErrDivByZero, а не паника; отрицательные числа делятся с округлением к нулю."
+    - id: "parse-range-invalid"
+      title: "parseRange: некорректные строки (скрытый)"
+      match: "TestParseRangeInvalid/*"
+      hidden: true
+      hint: "Пустая строка, одна часть, три части, нечисла и lo > hi должны давать ошибку и нули."
+    - id: "parse-range-valid"
+      title: "parseRange: пробелы и границы (скрытый)"
+      match: "TestParseRange/*"
+      hidden: true
+      hint: "Пробелы вокруг частей допустимы; диапазон из одного числа (5-5) корректен."
+    - id: "sum-range"
+      title: "sumRange: сумма и передача ошибок (скрытый)"
+      match: "TestSumRange/*"
+      hidden: true
+      hint: "Сумма включает обе границы; ошибка parseRange передаётся наружу вместе с нулём."

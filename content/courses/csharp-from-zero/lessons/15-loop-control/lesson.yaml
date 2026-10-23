@@ -1,0 +1,236 @@
+id: "csharp.from-zero.loop-control"
+title: "Управление циклом: break и continue"
+goal: "Прерывать цикл и пропускать проходы командами break и continue и записывать вложенные циклы."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "csharp.from-zero.for-loop"
+objectives:
+  - "Прерывать цикл командой break, когда ответ найден."
+  - "Пропускать проход командой continue и не ломать при этом счётчик."
+  - "Записывать вложенные циклы и предсказывать число их проходов."
+  - "Читать строки ввода до признака конца и пропускать ненужные."
+masteryCriteria:
+  - "Вы объясняете, какой цикл прерывает break во вложенных циклах."
+  - "Вы читаете ввод до слова-признака или до конца ввода и пропускаете некорректные значения."
+  - "Вы печатаете прямоугольник и треугольник из символов двумя вложенными циклами."
+concepts:
+  introduces:
+    - "csharp.break-continue"
+    - "csharp.nested-loops"
+  uses:
+    - "csharp.while"
+    - "csharp.for"
+    - "csharp.if"
+    - "csharp.comparison"
+    - "csharp.logical-operators"
+    - "csharp.remainder"
+    - "csharp.end-of-input"
+    - "csharp.parse"
+    - "csharp.read-line"
+    - "csharp.console-write"
+next:
+  - "csharp.from-zero.methods"
+tags:
+  - "csharp"
+  - "break"
+  - "continue"
+  - "nested-loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        for (int i = 1; i <= 5; i++)
+        {
+            if (i == 3)
+            {
+                break;
+            }
+            Console.Write(i);
+        }
+        ```
+      options:
+        - "12"
+        - "123"
+        - "1245"
+        - "12345"
+      answer: 0
+      explanation: "При i равном 3 выполняется break, и цикл завершается. Значения 1 и 2 успели напечататься, 3 - нет."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```csharp
+        for (int i = 1; i <= 5; i++)
+        {
+            if (i == 3)
+            {
+                continue;
+            }
+            Console.Write(i);
+        }
+        ```
+      options:
+        - "12"
+        - "1245"
+        - "12345"
+        - "345"
+      answer: 1
+      explanation: "continue пропускает остаток прохода только для i равного 3, цикл продолжается. Остальные значения печатаются."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Сколько раз выполнится команда Console.Write("x")?
+
+        ```csharp
+        for (int a = 0; a < 3; a++)
+        {
+            for (int b = 0; b < 4; b++)
+            {
+                Console.Write("x");
+            }
+        }
+        ```
+      options:
+        - "3 раза"
+        - "4 раза"
+        - "7 раз"
+        - "12 раз"
+      answer: 3
+      explanation: "На каждый из 3 проходов внешнего цикла внутренний выполняется 4 раза: 3 x 4 = 12."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что делает break в этом коде?
+
+        ```csharp
+        for (int a = 0; a < 3; a++)
+        {
+            for (int b = 0; b < 3; b++)
+            {
+                if (b == 1)
+                {
+                    break;
+                }
+            }
+        }
+        ```
+      options:
+        - "Прерывает оба цикла."
+        - "Прерывает только внутренний цикл; внешний продолжается."
+        - "Прерывает только внешний цикл."
+        - "Приводит к ошибке компиляции."
+      answer: 1
+      explanation: "break завершает ближайший цикл, то есть внутренний. Внешний переходит к следующему значению a."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Почему этот цикл бесконечный?
+
+        ```csharp
+        int i = 0;
+        while (i < 5)
+        {
+            if (i == 2)
+            {
+                continue;
+            }
+            i++;
+        }
+        ```
+      options:
+        - "continue завершает программу."
+        - "При i равном 2 команда continue пропускает i++, и i больше не меняется."
+        - "Условие i < 5 всегда ложно."
+        - "continue нельзя использовать в while."
+      answer: 1
+      explanation: "После continue управление возвращается к проверке условия, а i++ в этом проходе пропущено. Значение 2 остаётся навсегда."
+exercise:
+  id: "csharp.from-zero.loop-control.exercise"
+  title: "Касса с отсеиванием"
+  prompt: |
+    Касса читает цены покупок, по одной в строке (целые числа). Правила:
+
+    * строка `0` означает конец чека: после неё ничего читать не нужно;
+    * ввод может закончиться и без нуля;
+    * отрицательная цена - ошибка кассира; её нужно пропустить (не добавлять в сумму) и посчитать.
+
+    Напечатайте две строки:
+
+    ```
+    Сумма: <сумма корректных цен>
+    Пропущено: <сколько отрицательных цен встретилось до нуля>
+    ```
+
+    **Пример.** Для ввода
+
+    ```
+    50
+    30
+    -5
+    20
+    0
+    99
+    ```
+
+    программа печатает
+
+    ```
+    Сумма: 100
+    Пропущено: 1
+    ```
+
+    Число 99 после нуля не читается. Используйте `break` и `continue`.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Заведите total и skipped. Цикл while (true): первой командой тела прочитайте string? line."
+    - "Если line == null или line == \"0\", выходите из цикла break. Иначе превратите строку в число через int.Parse."
+    - "Отрицательное число: увеличьте skipped и перейдите к следующему проходу командой continue. Так чтение уже выполнено до continue."
+    - "while (true) { string? line = Console.ReadLine(); if (line == null || line == \"0\") { break; } int price = int.Parse(line); if (price < 0) { skipped++; continue; } total += price; }"
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "50\n30\n-5\n20\n0\n99\n"
+      expected: |
+        Сумма: 100
+        Пропущено: 1
+      hint: "Читать нужно до строки 0; число 99 после нуля не учитывается, отрицательное -5 пропускается."
+    - id: "no-zero"
+      title: "Ввод без нуля (скрытый)"
+      stdin: "10\n-1\n-2\n5\n"
+      expected: |
+        Сумма: 15
+        Пропущено: 2
+      hidden: true
+      hint: "Если нуля нет, чтение прекращается в конце ввода (ReadLine возвращает null)."
+    - id: "zero-first"
+      title: "Ноль в начале (скрытый)"
+      stdin: "0\n-5\n7\n"
+      expected: |
+        Сумма: 0
+        Пропущено: 0
+      hidden: true
+      hint: "Строка 0 завершает чтение сразу; последующие числа, в том числе отрицательные, не считаются."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Сумма: 0
+        Пропущено: 0
+      hidden: true
+      hint: "Пустой ввод - это немедленный конец: сумма и число пропущенных равны нулю."
+    - id: "all-negative"
+      title: "Только отрицательные (скрытый)"
+      stdin: "-1\n-2\n-3\n0\n"
+      expected: |
+        Сумма: 0
+        Пропущено: 3
+      hidden: true
+      hint: "Все три цены отрицательные: сумма 0, пропущено 3."

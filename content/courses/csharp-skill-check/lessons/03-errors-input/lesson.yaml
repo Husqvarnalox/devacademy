@@ -1,0 +1,199 @@
+id: "csharp.check.errors-input"
+title: "Проверка: ввод и ошибки"
+goal: "Читать ввод до конца, разбирать числа строго без исключений и считать неверные записи."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разбирать строки ввода через TryParse и учитывать неверные записи."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "csharp"
+  - "check"
+  - "errors-input"
+assessmentFor:
+  - "csharp.from-zero.reading-input"
+  - "csharp.from-zero.parsing-numbers"
+  - "csharp.from-zero.exceptions"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        int.TryParse("12a", out int n);
+        Console.WriteLine(n);
+        ```
+      options:
+        - "12"
+        - "0"
+        - "Бросится FormatException"
+        - "Ничего не выведется"
+      answer: 1
+      explanation: "TryParse не бросает исключение: при неудаче он возвращает false, а в out-переменную кладёт 0. Строка 12a целиком числом не является, поэтому выводится 0."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        try
+        {
+            Console.Write("a");
+            int.Parse("x");
+            Console.Write("b");
+        }
+        catch (FormatException)
+        {
+            Console.Write("c");
+        }
+        finally
+        {
+            Console.Write("d");
+        }
+        ```
+      options:
+        - "abcd"
+        - "acd"
+        - "ad"
+        - "acbd"
+      answer: 1
+      explanation: "После вывода a метод Parse бросает FormatException, команда с b пропускается. Блок catch печатает c, а finally выполняется всегда и печатает d. Получается acd."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа, если стандартный ввод пуст?
+
+        ```csharp
+        string? line = Console.ReadLine();
+        Console.WriteLine(line == null);
+        ```
+      options:
+        - "True"
+        - "False"
+        - "Бросится исключение"
+        - "Выведется пустая строка"
+      answer: 0
+      explanation: "Когда ввод закончился, ReadLine возвращает null, а не пустую строку и не бросает исключение. Поэтому цикл чтения до конца ввода проверяет line != null."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        static int P(string t)
+        {
+            try
+            {
+                return int.Parse(t);
+            }
+            catch (FormatException)
+            {
+                return -1;
+            }
+        }
+
+        Console.WriteLine(P("5") + P("x"));
+        ```
+      options:
+        - "4"
+        - "6"
+        - "-1"
+        - "Бросится FormatException"
+      answer: 0
+      explanation: "P(\"5\") возвращает 5, а P(\"x\") перехватывает FormatException и возвращает -1. Сумма 5 + (-1) равна 4."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```csharp
+        using System.Globalization;
+
+        bool ok = decimal.TryParse("1,5", NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal d);
+        Console.WriteLine(ok);
+        ```
+      options:
+        - "True"
+        - "False"
+        - "Бросится FormatException"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Стиль AllowDecimalPoint разрешает только десятичную точку, а при InvariantCulture запятая не является ни десятичным разделителем, ни разделителем тысяч. Поэтому TryParse возвращает False."
+exercise:
+  id: "csharp.check.errors-input.exercise"
+  title: "Разбор записей «имя оценка»"
+  prompt: |
+    Основная часть программы написана: она читает записи `имя оценка` до конца ввода, считает верные и неверные и печатает итоги. Допишите в `Program.cs` два метода. Основную часть не меняйте.
+
+    1. `TryParseEntry(string line, out string name, out int score)` - разбирает одну запись. Запись верна, если это **ровно две части, разделённые одним пробелом**, а вторая часть - целое число от 0 до 100 без знака, пробелов и дробной части (`+5`, `-5`, `5.5`, `101` неверны). При успехе метод возвращает `true` и имя с оценкой, при неудаче - `false`, пустое имя и `0`.
+    2. `Average(List<int> scores)` - среднее арифметическое оценок как `double`; для пустого списка `0`.
+
+    **Пример.** Для ввода
+
+    ```
+    Anna 90
+    Boris 75
+    Clara 100
+    ```
+
+    программа печатает
+
+    ```
+    верных: 3
+    неверных: 0
+    среднее: 88.33
+    лучший: Clara
+    ```
+
+    Пустые строки пропускаются и не считаются неверными. Если лучших несколько, выбирается первый. Часть тестов скрыта: в них знаки, дробные числа, лишние пробелы и пустой результат.
+  entryFile: "Program.cs"
+  evaluation: "io"
+  hints:
+    - "Разбейте строку через line.Split(' '): при двух пробелах подряд частей будет больше двух, и такая запись сразу неверна. Не забудьте присвоить out-параметры name и score в начале метода."
+    - "Для строгого разбора оценки используйте int.TryParse(текст, NumberStyles.None, CultureInfo.InvariantCulture, out int value): NumberStyles.None не принимает знак, пробелы и дробную часть. Затем проверьте диапазон 0..100."
+    - "Average: если Count равен 0, верните 0 до деления; иначе сумму, приведённую к double, делите на Count: (double)total / scores.Count."
+  tests:
+    - id: "good-lines"
+      title: "Все записи верные"
+      stdin: "Anna 90\nBoris 75\nClara 100\n"
+      expected: |
+        верных: 3
+        неверных: 0
+        среднее: 88.33
+        лучший: Clara
+      hint: "(90 + 75 + 100) / 3 = 88.33; лучшая оценка у Clara."
+    - id: "some-bad"
+      title: "Среди записей есть неверные"
+      stdin: "Anna 90\nBoris abc\nClara\nDan 101\n"
+      expected: |
+        верных: 1
+        неверных: 3
+        среднее: 90.00
+        лучший: Anna
+      hint: "Boris abc - не число, Clara - только одна часть, Dan 101 - число вне диапазона. Верна только запись Anna 90."
+    - id: "strict-format"
+      title: "Знаки, дробные числа, лишние пробелы, границы (скрытый)"
+      stdin: "Eve -5\nFay +5\nGus 5.5\nHal 0\n\nIvy  70\nJo 100 x\nKim 99\nLee 99\nMax 100\nNed 101\n"
+      expected: |
+        верных: 4
+        неверных: 6
+        среднее: 74.50
+        лучший: Max
+      hidden: true
+      hint: "Верны только Hal 0, Kim 99, Lee 99 и Max 100 (границы 0 и 100 включены). Знаки + и -, дробь 5.5, двойной пробел, лишняя часть и 101 неверны; пустая строка пропускается. Для строгого разбора используйте NumberStyles.None."
+    - id: "nothing-valid"
+      title: "Нет верных записей (скрытый)"
+      stdin: "x\n \nabc def\n"
+      expected: |
+        верных: 0
+        неверных: 2
+        среднее: 0.00
+        лучший: нет
+      hidden: true
+      hint: "Пробельная строка пропускается основной частью. Среднее пустого списка равно 0, а не NaN: проверьте Count до деления."

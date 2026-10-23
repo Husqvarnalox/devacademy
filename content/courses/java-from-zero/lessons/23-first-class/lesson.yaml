@@ -1,0 +1,245 @@
+id: "java.from-zero.first-class"
+title: "Первый класс: поля, конструктор, методы"
+goal: "Написать класс с полями, конструктором и методами и создавать его объекты через new."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "java.from-zero.exceptions"
+objectives:
+  - "Описывать класс с полями, конструктором и методами и создавать объекты оператором new."
+  - "Использовать this для различения поля и параметра с одинаковым именем."
+  - "Вызывать методы объекта через точку и объяснять, почему статический main не может вызвать их без объекта."
+  - "Объяснять, что переменная объектного типа хранит ссылку, а не сам объект."
+masteryCriteria:
+  - "Метод кошелька не списывает деньги, если сумма не положительная или превышает баланс."
+  - "Метод описания возвращает строку из имени владельца и текущего баланса."
+  - "Вы объясняете, почему в конструкторе запись name = name не заполняет поле."
+concepts:
+  introduces:
+    - "java.class"
+    - "java.field"
+    - "java.constructor"
+    - "java.object"
+    - "java.this"
+  uses:
+    - "java.string"
+    - "java.int"
+    - "java.boolean"
+    - "java.method"
+    - "java.parameter"
+    - "java.return"
+    - "java.static"
+    - "java.void"
+    - "java.if"
+    - "java.else"
+    - "java.logical-operators"
+    - "java.comparison"
+    - "java.for"
+    - "java.new"
+    - "java.arraylist"
+    - "java.type-argument"
+    - "java.equals"
+    - "java.scanner"
+    - "java.println"
+    - "java.concatenation"
+    - "java.compound-assignment"
+    - "java.compile-error"
+next:
+  - "java.from-zero.mini-project"
+tags:
+  - "java"
+  - "class"
+  - "object"
+  - "constructor"
+  - "this"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        class Box {
+            int size;
+            Box(int size) {
+                this.size = size;
+            }
+        }
+        // в main:
+        Box a = new Box(3);
+        Box b = a;
+        b.size = 7;
+        System.out.println(a.size);
+        ```
+      options:
+        - "7"
+        - "3"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Присваивание Box b = a копирует ссылку, а не объект. Обе переменные указывают на один объект, поэтому изменение через b видно через a."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Конструктор написан так:
+
+        ```java
+        Product(String name, int price) {
+            name = name;
+            price = price;
+        }
+        ```
+
+        Что окажется в полях после `new Product("Чай", 120)`?
+      options:
+        - "null и 0"
+        - "Чай и 120"
+        - "Чай и 0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Запись name = name присваивает параметр самому себе, поля не затрагиваются и остаются со значениями по умолчанию: null для String и 0 для int. Нужно this.name = name."
+    - id: "q3"
+      type: "single"
+      prompt: "Какой код создаёт объект класса Product с конструктором `Product(String name, int price)`?"
+      options:
+        - "Product p = new Product(\"Чай\", 120);"
+        - "Product p = Product(\"Чай\", 120);"
+        - "Product p = new Product;"
+        - "Product p = new(\"Чай\", 120);"
+      answer: 0
+      explanation: "Объект создаётся оператором new с вызовом конструктора и аргументами. Без new Java ищет обычный метод Product, которого нет."
+    - id: "q4"
+      type: "single"
+      prompt: "В классе есть метод `String describe()` без `static`. Что произойдёт при вызове `describe();` прямо из `main`?"
+      options:
+        - "Ошибка компиляции: нестатический метод нельзя вызвать из статического контекста"
+        - "Метод выполнится"
+        - "Вернётся null"
+        - "Исключение во время работы"
+      answer: 0
+      explanation: "main относится к классу, а не к объекту, и не имеет текущего объекта. Метод describe нужно вызывать у созданного объекта: p.describe()."
+    - id: "q5"
+      type: "single"
+      prompt: "Переменная `Product p = null;`. Что произойдёт при выполнении `System.out.println(p.name);`?"
+      options:
+        - "NullPointerException"
+        - "Напечатается null"
+        - "Напечатается 0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "В p нет ссылки на объект, поэтому обращение к полю через точку невозможно. Компилятор такое не обнаруживает, ошибка возникает при запуске."
+exercise:
+  id: "java.from-zero.first-class.exercise"
+  title: "Кошелёк"
+  prompt: |
+    В заготовке уже есть `main`. Вам нужно написать класс `Wallet` (кошелёк). `main` читает имя владельца и начальную сумму, затем `n` команд. Каждая команда состоит из слова и суммы:
+
+    * `add <сумма>` - пополнить кошелёк;
+    * `spend <сумма>` - потратить; `main` печатает `Покупка на <сумма> выполнена` или `Не хватает денег на <сумма>`;
+    * любое другое слово - `main` печатает `Неизвестная команда: <слово>`.
+
+    В конце `main` печатает результат `describe()`.
+
+    Класс `Wallet` должен содержать:
+
+    * поля `owner` (`String`) и `balance` (`int`);
+    * конструктор `Wallet(String owner, int balance)`;
+    * метод `void add(int amount)` - увеличивает баланс, если сумма положительна; иначе ничего не меняет;
+    * метод `boolean spend(int amount)` - если сумма положительна и не больше баланса, уменьшает баланс и возвращает `true`; иначе баланс не меняется и возвращается `false`;
+    * метод `String describe()` - возвращает `<владелец>: <баланс>`.
+
+    **Пример.** Ввод:
+
+    ```
+    Анна 100
+    4
+    spend 30
+    add 50
+    spend 500
+    ну 1
+    ```
+
+    Вывод:
+
+    ```
+    Покупка на 30 выполнена
+    Не хватает денег на 500
+    Неизвестная команда: ну
+    Анна: 120
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "В классе нужны два поля, конструктор с теми же именами параметров, что и у полей (this.owner = owner), и три метода из условия."
+    - "spend: сначала проверьте условие amount > 0 && amount <= balance. Если оно верно, вычтите amount из balance и верните true, иначе верните false."
+    - "add меняет баланс только при положительной сумме. describe возвращает owner + \": \" + balance."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: |
+        Анна 100
+        4
+        spend 30
+        add 50
+        spend 500
+        ну 1
+      expected: |
+        Покупка на 30 выполнена
+        Не хватает денег на 500
+        Неизвестная команда: ну
+        Анна: 120
+      hint: "Покупка на 30 проходит, пополнение на 50 увеличивает баланс, покупка на 500 отклоняется, неизвестная команда сообщается."
+    - id: "no-commands"
+      title: "Нет команд"
+      stdin: |
+        Олег 0
+        0
+      expected: |
+        Олег: 0
+      hint: "Без команд печатается только описание кошелька с начальным балансом."
+    - id: "exact"
+      title: "Потратить весь баланс (скрытый)"
+      stdin: |
+        Мария 200
+        3
+        spend 200
+        spend 1
+        add 10
+      expected: |
+        Покупка на 200 выполнена
+        Не хватает денег на 1
+        Мария: 10
+      hidden: true
+      hint: "Сумма, равная балансу, допустима; после неё баланс 0 и следующая покупка отклоняется."
+    - id: "non-positive"
+      title: "Нулевые и отрицательные суммы (скрытый)"
+      stdin: |
+        Иван 50
+        4
+        add -20
+        add 0
+        spend 0
+        spend -5
+      expected: |
+        Не хватает денег на 0
+        Не хватает денег на -5
+        Иван: 50
+      hidden: true
+      hint: "Пополнение и покупка не положительной суммой не меняют баланс; покупка на 0 и на -5 отклоняется."
+    - id: "separate"
+      title: "Баланс не уходит в минус (скрытый)"
+      stdin: |
+        Пётр 10
+        3
+        spend 11
+        spend 10
+        spend 1
+      expected: |
+        Не хватает денег на 11
+        Покупка на 10 выполнена
+        Не хватает денег на 1
+        Пётр: 0
+      hidden: true
+      hint: "Покупка дороже баланса не выполняется, на ровную сумму хватает, дальше денег нет."

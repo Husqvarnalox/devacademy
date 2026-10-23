@@ -1,0 +1,163 @@
+id: python.fundamentals.lists
+title: Списки
+goal: Хранить несколько значений в списке, обходить его циклом, добавлять и удалять элементы, считать сумму, минимум и максимум и сортировать.
+difficulty: easy
+estimatedMinutes: 50
+prerequisites: [python.fundamentals.strings]
+objectives:
+  - Создавать список и получать элементы по индексу и срезу.
+  - Обходить список циклом for и проверять наличие элемента через in.
+  - Добавлять, удалять и менять элементы (append, insert, remove, pop, присваивание по индексу).
+  - Использовать len, sum, min, max, sorted и метод sort.
+  - Объяснять, что два имени могут указывать на один и тот же список.
+masteryCriteria:
+  - Вы предсказываете содержимое списка после последовательности операций.
+  - Вы пишете функции для обработки списков и не изменяете исходный список там, где этого не требуется.
+  - Вы объясняете, почему b = a не копирует список, и умеете сделать копию.
+concepts:
+  introduces: [python.list, python.list-methods]
+  uses: [python.print, python.variable, python.assignment, python.input, python.int, python.len, python.f-string, python.if, python.comparison, python.for-range, python.def, python.parameter, python.return, python.string-index, python.slice, python.string-methods, python.traceback]
+related: []
+next: [python.fundamentals.dicts-and-sets]
+tags: [python, lists, append, sort, mutation]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет программа?
+        nums = [10, 20, 30]
+        nums.append(40)
+        print(len(nums), nums[-1], nums[1:3])
+      options:
+        - "4 40 [20, 30]"
+        - "4 40 [10, 20]"
+        - "3 30 [20, 30]"
+        - "4 30 [20, 30, 40]"
+      answer: 0
+      explanation: >-
+        После append в списке четыре элемента, последний - 40. Срез [1:3] берёт элементы с индексами 1 и 2: 20 и 30.
+    - id: q2
+      type: single
+      prompt: |
+        Что выведет программа?
+        a = [1, 2]
+        b = a
+        b.append(3)
+        print(a)
+      options:
+        - "[1, 2]"
+        - "[1, 2, 3]"
+        - "[3]"
+        - "Ошибка"
+      answer: 1
+      explanation: >-
+        b = a не создаёт копию: оба имени указывают на один и тот же список. Изменение через b видно через a. Копию делают срезом a[:] или функцией list(a).
+    - id: q3
+      type: single
+      prompt: |
+        Что выведет программа?
+        x = [3, 1, 2]
+        y = sorted(x)
+        print(x, y)
+      options:
+        - "[1, 2, 3] [1, 2, 3]"
+        - "[3, 1, 2] [1, 2, 3]"
+        - "[3, 1, 2] None"
+        - "None [1, 2, 3]"
+      answer: 1
+      explanation: >-
+        sorted возвращает новый отсортированный список и не меняет исходный. Метод x.sort() сортирует на месте и возвращает None.
+    - id: q4
+      type: single
+      prompt: |
+        Что произойдёт при запуске?
+        items = [1, 2, 3]
+        print(items[3])
+      options:
+        - "Выведется 3"
+        - "Выведется None"
+        - "IndexError: list index out of range"
+        - "Выведется []"
+      answer: 2
+      explanation: >-
+        Допустимые индексы для трёх элементов: 0, 1, 2 и от -1 до -3. Индекс 3 выходит за пределы.
+    - id: q5
+      type: single
+      prompt: |
+        Что выведет программа?
+        total = 0
+        for n in [4, 5, 6]:
+            total = total + n
+        print(total, sum([4, 5, 6]))
+      options:
+        - "15 15"
+        - "15 6"
+        - "6 15"
+        - "4 15"
+      answer: 0
+      explanation: >-
+        Цикл по списку берёт элементы по очереди, суммируя их. Функция sum делает то же самое за один вызов.
+exercise:
+  id: python.fundamentals.lists.exercise-v2
+  title: Четыре операции над списками
+  prompt: |
+    В файле `list_tools.py` реализуйте четыре функции. Тесты вызывают их напрямую и проверяют, что исходные списки не испорчены там, где это требуется.
+
+    1. `average(numbers)` - среднее арифметическое чисел списка. Для пустого списка вернуть `0`. Список не менять.
+    2. `without_duplicates(items)` - **новый** список без повторов с сохранением порядка первых вхождений. Исходный список не менять.
+    3. `top_three(scores)` - список из трёх наибольших значений по убыванию. Если значений меньше трёх, вернуть все. Исходный список не менять.
+    4. `add_unique(items, item)` - добавить `item` в конец списка `items`, если его там нет. Вернуть `True`, если добавили, и `False`, если элемент уже был. Функция должна менять именно переданный список.
+
+    **Примеры.**
+
+    ```python
+    average([2, 4, 6])                   # 4.0
+    without_duplicates([1, 2, 1, 3, 2])  # [1, 2, 3]
+    top_three([5, 9, 1, 7, 3])           # [9, 7, 5]
+    cart = ["хлеб"]
+    add_unique(cart, "молоко")           # True, cart == ['хлеб', 'молоко']
+    ```
+  entryFile: list_tools.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - 'Начните с average и add_unique: достаточно len, sum, in и append. Остальные две функции не должны менять переданный список.'
+    - 'without_duplicates: заведите пустой список result, пройдите по items и добавляйте элемент, только если его ещё нет в result (item not in result). top_three: подумайте, какая функция возвращает отсортированную копию.'
+    - 'Для top_three: sorted(scores, reverse=True) возвращает новый список по убыванию, а срез [:3] берёт первые три (или все, если их меньше). Метод scores.sort() изменил бы исходный список.'
+    - 'average: if len(numbers) == 0: return 0; иначе return sum(numbers) / len(numbers). add_unique: if item in items: return False; items.append(item); return True.'
+  tests:
+    - id: average-basic
+      title: average - обычные списки
+      hint: Среднее равно сумме, делённой на количество; результат может быть дробным.
+    - id: unique-basic
+      title: without_duplicates - обычные списки
+      hint: Порядок первых вхождений сохраняется; исходный список остаётся прежним.
+    - id: top-basic
+      title: top_three - обычные списки
+      hint: Три наибольших значения по убыванию; повторяющиеся значения считаются отдельными элементами.
+    - id: add-basic
+      title: add_unique - добавление и повтор
+      hint: Новый элемент добавляется в конец и возвращается True; повтор не добавляется и возвращается False.
+    - id: average-edges
+      title: average - пустой список и отрицательные (скрытый)
+      hidden: true
+      hint: Для пустого списка деление на ноль даст ошибку - обработайте этот случай заранее.
+    - id: unique-edges
+      title: without_duplicates - пустой, одинаковые, новый объект (скрытый)
+      hidden: true
+      hint: Результат должен быть новым списком, а не тем же объектом; пустой список даёт пустой.
+    - id: top-edges
+      title: top_three - короткие списки и отрицательные (скрытый)
+      hidden: true
+      hint: Если в списке меньше трёх значений, вернуть все по убыванию. Отрицательные числа сортируются как обычно.
+    - id: add-same-object
+      title: add_unique меняет переданный список (скрытый)
+      hidden: true
+      hint: 'Функция не должна создавать копию списка: изменение должно быть видно вызывающему коду.'
+    - id: add-independent
+      title: add_unique - независимые списки (скрытый)
+      hidden: true
+      hint: Список не должен храниться внутри функции или модуля между вызовами.

@@ -1,0 +1,163 @@
+id: "typescript.check.unknown-never"
+title: "Проверка: unknown, never и границы данных"
+goal: "Безопасно обрабатывать данные снаружи: хранить их в unknown, проверять форму вручную, писать предикаты и использовать never."
+difficulty: "hard"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: безопасно обрабатывать данные снаружи: хранить их в unknown, проверять форму вручную, писать предикаты и использовать never"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "unknown"
+assessmentFor:
+  - "typescript.fundamentals.unknown-and-boundaries"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        const value: unknown = "abc";
+        console.log(value.length);
+        ```
+      options:
+        - "Ошибок нет, будет выведено 3"
+        - "Ошибка TS18046: значение имеет тип unknown"
+        - "Ошибка TS2339: у string нет свойства length"
+        - "Ошибка только во время работы"
+      answer: 1
+      explanation: "Значение типа unknown нельзя использовать, пока тип не сужен проверкой (например, typeof value === \"string\"). Именно это отличает его от any, который разрешает всё."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов в строгом режиме?
+
+        ```typescript
+        try {
+          JSON.parse("{");
+        } catch (e) {
+          console.log(e.message);
+        }
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS18046: e имеет тип unknown"
+        - "Ошибка TS2339: у Error нет message"
+        - "Ошибка TS2304: catch нельзя использовать без типа"
+      answer: 1
+      explanation: "В строгом режиме переменная catch имеет тип unknown, потому что в JavaScript можно бросить любое значение. Перед чтением message нужно проверить e instanceof Error."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```typescript
+        const data = JSON.parse('{"n": 1}');
+        console.log(data.m.x);
+        ```
+      options:
+        - "Ошибка типов TS2339: у data нет свойства m"
+        - "Вывод undefined"
+        - "Ошибка TypeError во время работы: data.m не определено"
+        - "Вывод 1"
+      answer: 2
+      explanation: "JSON.parse возвращает any, поэтому проверка типов ничего не замечает. data.m равно undefined, и чтение x у undefined даёт TypeError уже при запуске. Правильнее положить результат в unknown и проверить форму."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function isNum(v: unknown): v is number {
+          return typeof v === "number";
+        }
+        console.log([1, "a", NaN, 2, null].filter(isNum).length);
+        ```
+      options:
+        - "2"
+        - "3"
+        - "4"
+        - "Ошибка типов"
+      answer: 1
+      explanation: "NaN имеет тип number, поэтому typeof NaN === \"number\" и предикат пропускает 1, NaN и 2. Если нужны только конечные числа, добавляют Number.isFinite."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        function f(x: "a" | "b"): number {
+          switch (x) {
+            case "a":
+              return 1;
+            default: {
+              const rest: never = x;
+              return 0;
+            }
+          }
+        }
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2322: \"b\" нельзя присвоить типу never"
+        - "Ошибка TS2366: нет return"
+        - "Ошибка TS2678: case должен быть строкой"
+      answer: 1
+      explanation: "В ветке default для x остаётся вариант \"b\": он не обработан, поэтому присваивание never не проходит. Этот приём делает необработанные варианты ошибкой компиляции, когда объединение расширяют."
+exercise:
+  id: "typescript.check.unknown-never.exercise"
+  title: "Разбор данных снаружи"
+  prompt: |
+    В файле `unknown_check.ts` реализуйте четыре экспортируемые функции. Не используйте `any`: данные сначала проверяйте, а не приводите к нужному типу вслепую.
+
+    1. `isStringArray(value)` - предикат: `true`, если `value` массив из одних строк (пустой массив подходит).
+    2. `parseUser(text)` - разбирает JSON вида `{"name": "Аня", "age": 25}`. Верните `User`, если JSON корректен, это объект (не массив и не `null`), `name` - непустая строка (имя сохраните без пробелов по краям), а `age` - целое число 0 и больше. Иначе верните `undefined`; исключение наружу выбрасывать нельзя.
+    3. `describeUnknown(value)` - `"строка: abc"`, `"число: 5"`, `"логическое: true"`, `"null"`, `"undefined"`, `"массив из 3"` или `"объект"`.
+    4. `sumNumbers(values)` - сумма конечных чисел списка; остальное (включая `NaN` и `Infinity`) пропускается.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "unknown_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "isStringArray: Array.isArray(value) сужает значение до массива; затем every с проверкой typeof item === \"string\"."
+    - "parseUser: оберните JSON.parse в try/catch и результат положите в переменную типа unknown; затем по очереди проверьте, что это объект, не null и не массив."
+    - "parseUser: поля читайте из Record<string, unknown> и проверяйте каждое: name - typeof string и непустая после trim; age - typeof number, Number.isInteger и >= 0."
+    - "describeUnknown: порядок проверок важен - null и undefined проверьте до typeof \"object\", а массив отделите через Array.isArray. sumNumbers: typeof value === \"number\" и Number.isFinite(value)."
+  tests:
+    - id: "string-array-basic"
+      title: "isStringArray - массив строк и не массив"
+      hint: "Предикат истинен только для массива, где каждый элемент - строка; строка не массив."
+    - id: "parse-user-basic"
+      title: "parseUser - верный JSON и мусор"
+      hint: "Верный объект возвращается как User, текст не в формате JSON даёт undefined без исключения."
+    - id: "describe-basic"
+      title: "describeUnknown - простые значения"
+      hint: "Формат: «строка: abc», «число: 5», «логическое: true», «null»."
+    - id: "sum-basic"
+      title: "sumNumbers - числа среди прочих значений"
+      hint: "Строки «3» не считаются числами и пропускаются; пустой список даёт 0."
+    - id: "string-array-edge"
+      title: "isStringArray - пустой, null, вложенный (скрытый)"
+      hidden: true
+      hint: "Пустой массив подходит; null, вложенный массив и объект, похожий на массив, не подходят."
+    - id: "parse-user-edge"
+      title: "parseUser - неверные формы данных (скрытый)"
+      hidden: true
+      hint: "Имя из пробелов, дробный или отрицательный возраст, возраст-строка, отсутствие полей, null, массив и число - всё это undefined; имя сохраняется без пробелов."
+    - id: "describe-edge"
+      title: "describeUnknown - undefined, массивы, объект, нули (скрытый)"
+      hidden: true
+      hint: "Пустой массив - «массив из 0»; 0, false и пустая строка описываются как значения, а не как отсутствие; NaN - «число: NaN»."
+    - id: "sum-edge"
+      title: "sumNumbers - NaN, Infinity, отрицательные (скрытый)"
+      hidden: true
+      hint: "NaN и бесконечности пропускаются; числа в строках, null, объекты и массивы не считаются; отрицательные числа складываются."

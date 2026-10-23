@@ -1,0 +1,176 @@
+id: "javascript.check.objects"
+title: "Проверка: объекты, прототипы и классы"
+goal: "Читать цепочку прототипов, отличать собственные свойства от унаследованных и писать класс с приватным состоянием."
+difficulty: "medium"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: читать цепочку прототипов и писать класс с приватным полем."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "objects"
+  - "prototypes"
+assessmentFor:
+  - "javascript.fundamentals.objects-and-prototypes"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        function A() {}
+        A.prototype.x = 1;
+        const a = new A();
+        a.x = 2;
+        console.log(a.x, A.prototype.x);
+        delete a.x;
+        console.log(a.x);
+        ```
+      options:
+        - "2 1, затем 1"
+        - "2 2, затем undefined"
+        - "2 1, затем undefined"
+        - "1 1, затем 1"
+      answer: 0
+      explanation: "Присваивание a.x = 2 создаёт собственное свойство и не меняет прототип. После delete собственное свойство исчезает, и поиск по цепочке снова находит x у прототипа."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        class C {
+          #v = 1;
+          static has(o) { return #v in o; }
+        }
+        console.log(C.has(new C()), C.has({}));
+        ```
+      options:
+        - "true false"
+        - "true true"
+        - "false false"
+        - "TypeError"
+      answer: 0
+      explanation: "Выражение #v in o проверяет наличие приватного поля у объекта и не бросает ошибку: у экземпляра C оно есть, у обычного объекта нет."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        class A {
+          constructor() { this.name = "a"; }
+          hi() { return "hi " + this.name; }
+        }
+        class B extends A {
+          constructor() { super(); this.name = "b"; }
+        }
+        console.log(new B().hi(), Object.getPrototypeOf(B) === A, B.prototype instanceof A);
+        ```
+      options:
+        - "hi b true true"
+        - "hi a true true"
+        - "hi b false true"
+        - "hi b true false"
+      answer: 0
+      explanation: "Конструктор B вызывает конструктор A и затем перезаписывает name. Метод hi найден у A.prototype, а this - экземпляр B. Класс B наследует статически от A, а B.prototype наследует от A.prototype."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const a = { n: { v: 1 } };
+        const b = { ...a };
+        b.n.v = 2;
+        const c = structuredClone(a);
+        c.n.v = 3;
+        console.log(a.n.v, b.n.v, c.n.v);
+        ```
+      options:
+        - "2 2 3"
+        - "1 2 3"
+        - "1 1 3"
+        - "3 3 3"
+      answer: 0
+      explanation: "Расширение { ...a } копирует только первый уровень: вложенный объект n остаётся общим для a и b. structuredClone делает глубокую копию, и изменение c не затрагивает остальные."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const proto = { greet() { return "hi " + this.name; } };
+        const o = Object.create(proto);
+        o.name = "x";
+        const p = Object.create(o);
+        p.name = "y";
+        console.log(o.greet(), p.greet(), Object.getPrototypeOf(p) === o);
+        ```
+      options:
+        - "hi x hi y true"
+        - "hi x hi x true"
+        - "hi y hi y false"
+        - "hi undefined hi y true"
+      answer: 0
+      explanation: "Метод greet лежит в proto, но this определяется получателем вызова: для o это o, для p это p со своим name. Объект o служит прототипом p."
+exercise:
+  id: "javascript.check.objects.exercise"
+  title: "Stack, цепочка прототипов и тип свойства"
+  prompt: |
+    В файле `objects_check.mjs` реализуйте класс и две функции.
+
+    1. `class Stack` - стек с **приватным** полем (`#items`, синтаксис `#`).
+       * `push(...values)` добавляет значения по порядку и возвращает новый размер;
+       * `pop()` снимает верхний элемент, на пустом стеке возвращает `undefined`;
+       * `peek()` возвращает верхний элемент, не удаляя его (`undefined` для пустого);
+       * геттер `size`;
+       * `toArray()` возвращает **копию** содержимого от дна к вершине (изменение копии не влияет на стек);
+       * `static from(iterable)` создаёт стек из элементов итерируемого объекта и работает для подклассов: `SubStack.from([1])` возвращает экземпляр `SubStack`.
+       Стек не должен иметь собственных перечислимых и неперечислимых свойств: `Object.getOwnPropertyNames(new Stack())` пуст, `JSON.stringify(new Stack())` равно `"{}"`.
+    2. `protoChain(obj)` - массив имён конструкторов вдоль цепочки прототипов, начиная с прототипа `obj`. Имя берётся из **собственного** свойства `constructor` прототипа (`p.constructor.name`), а если такого свойства нет, подставляется строка `"(anonymous)"`. Для `[]` результат `["Array", "Object"]`, для `Object.create(null)` - `[]`.
+    3. `lookupKind(obj, key)` - `"own"`, если свойство собственное, `"inherited"`, если оно найдено в цепочке прототипов, и `"missing"` иначе. Должна работать и для объектов с `null`-прототипом.
+
+    Часть тестов скрыта: в них приватность, подклассы и граничные случаи.
+  entryFile: "objects_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Приватное поле объявляется внутри класса как #items = []; снаружи оно недоступно, и ни Object.keys, ни JSON его не видят."
+    - "toArray возвращайте как [...this.#items]. Для from используйте new this() вместо new Stack(), тогда метод работает для подклассов; наполните стек через push(...iterable)."
+    - "protoChain: цикл for (let p = Object.getPrototypeOf(obj); p !== null; p = Object.getPrototypeOf(p)) и Object.hasOwn(p, \"constructor\"). lookupKind: Object.hasOwn(obj, key), затем оператор in."
+    - "Не вызывайте obj.hasOwnProperty: у объекта с null-прототипом этого метода нет. Используйте статический Object.hasOwn(obj, key)."
+  tests:
+    - id: "stack-basic"
+      title: "Stack - push, pop, peek и size"
+      hint: "push возвращает новый размер, pop снимает с конца, peek только читает."
+    - id: "chain-basic"
+      title: "protoChain - массив и экземпляр класса"
+      hint: "Идите по Object.getPrototypeOf, пока не дойдёте до null, и собирайте constructor.name."
+    - id: "kind-basic"
+      title: "lookupKind - собственное и унаследованное"
+      hint: "Сначала Object.hasOwn, затем оператор in."
+    - id: "stack-private"
+      title: "Stack - приватность, копия и from для подклассов (скрытый)"
+      hidden: true
+      hint: "Поле должно начинаться с # (а не _), toArray возвращает копию, а from создаёт new this()."
+    - id: "stack-edge"
+      title: "Stack - пустой стек и несколько значений (скрытый)"
+      hidden: true
+      hint: "pop и peek на пустом стеке возвращают undefined; push(1, 2, 3) добавляет все значения и возвращает 3."
+    - id: "chain-edge"
+      title: "protoChain - объекты без конструктора (скрытый)"
+      hidden: true
+      hint: "У Object.create(null) цепочка пуста, а у прототипа без собственного constructor имя - \"(anonymous)\"."
+    - id: "kind-edge"
+      title: "lookupKind - null-прототип и отсутствующие свойства (скрытый)"
+      hidden: true
+      hint: "У объекта Object.create(null) нет метода hasOwnProperty: используйте Object.hasOwn."

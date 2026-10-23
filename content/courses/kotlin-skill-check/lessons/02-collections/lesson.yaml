@@ -1,0 +1,223 @@
+id: "kotlin.check.collections"
+title: "Проверка: функции, списки, словари и строки"
+goal: "Разбирать строки, считать данные в словаре и оформлять логику в функциях."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разбирать строки ввода, накапливать значения в словаре по ключу и выводить данные в заданном порядке."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "kotlin"
+  - "check"
+  - "collections"
+  - "functions"
+  - "strings"
+assessmentFor:
+  - "kotlin.from-zero.functions"
+  - "kotlin.from-zero.lists"
+  - "kotlin.from-zero.maps"
+  - "kotlin.from-zero.string-methods"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val xs = mutableListOf(3, 1, 2)
+            val s = xs.sorted()
+            xs.add(0)
+            println("$xs $s")
+        }
+        ```
+      options:
+        - "[3, 1, 2, 0] [1, 2, 3]"
+        - "[0, 1, 2, 3] [1, 2, 3]"
+        - "[1, 2, 3, 0] [1, 2, 3]"
+        - "[3, 1, 2, 0] [3, 1, 2]"
+      answer: 0
+      explanation: "sorted() возвращает новый отсортированный список [1, 2, 3], а исходный xs не меняется: [3, 1, 2]. Затем в xs добавляется 0, а s остаётся прежним."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val m = mutableMapOf<String, Int>()
+            for (w in "a b a c a".split(" ")) {
+                m[w] = (m[w] ?: 0) + 1
+            }
+            println(m)
+        }
+        ```
+      options:
+        - "{a=3, b=1, c=1}"
+        - "{a=1, b=1, c=1}"
+        - "{a=3, b=1, c=1, a=3}"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "m[w] возвращает Int?, оператор ?: подставляет 0, если ключа нет. Затем счётчик увеличивается: a встречается три раза, b и c - по одному. Порядок ключей - порядок первого появления."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun f(x: Int): Int {
+            if (x > 0) {
+                return x * 2
+            }
+            return -1
+        }
+
+        fun g(a: Int, b: Int) = a - b
+
+        fun main() {
+            println("${f(3)} ${f(0)} ${g(5, 1)}")
+        }
+        ```
+      options:
+        - "6 -1 4"
+        - "6 0 4"
+        - "3 -1 4"
+        - "6 -1 -4"
+      answer: 0
+      explanation: "f(3) входит в if и возвращает 6. f(0) пропускает if и доходит до последнего return: -1. g(5, 1) возвращает 5 - 1 = 4."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```kotlin
+        fun main() {
+            val s = "  Hello, World  ".trim()
+            println("${s.length} ${s.substring(7)} ${s.indexOf("o")} ${s.startsWith("Hell")}")
+        }
+        ```
+      options:
+        - "12 World 4 true"
+        - "16 World 4 true"
+        - "12 World 8 true"
+        - "12 orld 4 true"
+      answer: 0
+      explanation: "trim() убирает пробелы по краям, остаётся Hello, World длиной 12. substring(7) берёт символы с индекса 7 до конца: World. indexOf(\"o\") находит первую o на индексе 4. Строка начинается с Hell."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске?
+
+        ```kotlin
+        fun main() {
+            val xs = listOf(10, 20, 30)
+            println(xs[3])
+        }
+        ```
+      options:
+        - "Выведет 30"
+        - "Выведет 0"
+        - "Бросит исключение выхода за границы списка (IndexOutOfBoundsException)"
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "Допустимые индексы списка из трёх элементов - 0, 1 и 2. Обращение к индексу 3 бросает исключение выхода за границы; компилятор этого не проверяет."
+exercise:
+  id: "kotlin.check.collections.exercise"
+  title: "Складская ведомость"
+  prompt: |-
+    Первая строка ввода - число `n`, затем `n` строк вида `товар количество` (название и целое число через пробел). Один товар может встречаться несколько раз. `main` уже написан; реализуйте две функции.
+
+    * `addLine(totals: MutableMap<String, Int>, line: String)` - разбирает строку и прибавляет количество к итогу этого товара в `totals`;
+    * `report(totals: Map<String, Int>): List<String>` - возвращает строки отчёта: по строке `товар: итог` для каждого товара **по алфавиту названий**, а затем последнюю строку `Всего: <сумма всех количеств>`.
+
+    **Пример.** Ввод:
+
+    ```
+    4
+    pear 3
+    apple 5
+    pear 2
+    fig 1
+    ```
+
+    Вывод:
+
+    ```
+    apple: 5
+    fig: 1
+    pear: 5
+    Всего: 11
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заготовки функций уже есть, `main` менять не нужно. В addLine: `val parts = line.split(\" \")`, название - parts[0], количество - parts[1].toInt()."
+    - "Прибавляйте к итогу так: totals[name] = totals.getOrDefault(name, 0) + qty. Обращение totals[name] без значения по умолчанию вернёт null."
+    - "В report: для ключей по алфавиту обходите totals.keys.sorted(), складывайте строки в mutableListOf<String>() и копите общую сумму; последней добавьте строку с суммой."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: |
+        4
+        pear 3
+        apple 5
+        pear 2
+        fig 1
+      expected: |
+        apple: 5
+        fig: 1
+        pear: 5
+        Всего: 11
+      hint: "pear встречается дважды: 3 + 2 = 5. Товары выводятся по алфавиту: apple, fig, pear; всего 11."
+    - id: "single"
+      title: "Один товар"
+      stdin: |
+        2
+        tea 4
+        tea 6
+      expected: |
+        tea: 10
+        Всего: 10
+      hint: "Оба заказа tea складываются: tea: 10, всего 10."
+    - id: "empty"
+      title: "Нет строк (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Всего: 0
+      hidden: true
+      hint: "Без товаров печатается одна строка: Всего: 0."
+    - id: "order"
+      title: "Порядок по алфавиту (скрытый)"
+      stdin: |
+        5
+        zebra 1
+        ant 2
+        moth 3
+        ant 4
+        zebra 5
+      expected: |
+        ant: 6
+        moth: 3
+        zebra: 6
+        Всего: 15
+      hidden: true
+      hint: "Сортируйте названия, а не порядок появления: ant: 6, moth: 3, zebra: 6, всего 15."
+    - id: "negative"
+      title: "Отрицательное количество (скрытый)"
+      stdin: |
+        3
+        box 10
+        box -3
+        cup 0
+      expected: |
+        box: 7
+        cup: 0
+        Всего: 7
+      hidden: true
+      hint: "Количество может быть отрицательным или нулём: box: 7, cup: 0, всего 7."

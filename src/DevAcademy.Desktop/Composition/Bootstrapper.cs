@@ -84,6 +84,8 @@ public static class Bootstrapper
         services.AddSingleton(sp => new ExerciseEvaluationService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<INodeEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>(), sp.GetRequiredService<IMavenEnvironmentResolver>()));
         services.AddSingleton(sp => new RunService(sp.GetRequiredService<ICodeRunner>(), sp.GetRequiredService<IExerciseEnvironmentResolver>(), sp.GetRequiredService<IGoEnvironmentResolver>(), sp.GetRequiredService<INuGetEnvironmentResolver>(), sp.GetRequiredService<IMavenEnvironmentResolver>()));
         services.AddSingleton<ProgressService>();
+        services.AddSingleton<ProgressMigrationService>();
+        services.AddSingleton<DiagnosticService>();
         services.AddSingleton<HintService>();
         services.AddSingleton<ProblemService>();
         services.AddSingleton<DraftService>();

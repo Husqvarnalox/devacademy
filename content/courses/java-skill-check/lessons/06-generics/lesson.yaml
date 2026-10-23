@@ -1,0 +1,206 @@
+id: "java.check.generics"
+title: "Проверка: обобщения и коллекции"
+goal: "Писать обобщённые методы с ограничениями и понимать, почему List<Integer> не является List<Number>."
+difficulty: "medium"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: написать обобщённые методы с extends, super и Comparable и объяснить инвариантность и стирание типов."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "java"
+  - "check"
+  - "generics"
+  - "generics"
+  - "collections"
+assessmentFor:
+  - "java.fundamentals.generics-collections"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Скомпилируется ли этот код?
+
+        ```java
+        List<Integer> ints = new ArrayList<>();
+        List<Number> nums = ints;
+        ```
+      options:
+        - "Да, Integer является Number"
+        - "Нет: List<Integer> нельзя присвоить List<Number>"
+        - "Да, но с предупреждением"
+        - "Нет, потому что ArrayList не обобщённый"
+      answer: 1
+      explanation: "Обобщённые типы инвариантны: хотя Integer - подтип Number, List<Integer> не является подтипом List<Number>. Иначе через nums можно было бы добавить Double в список целых."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Скомпилируется ли строка с add?
+
+        ```java
+        List<? extends Number> xs = new ArrayList<Integer>();
+        xs.add(1);
+        ```
+      options:
+        - "Да"
+        - "Нет: в список с шаблоном ? extends нельзя добавлять элементы"
+        - "Нет, потому что 1 - не Number"
+        - "Да, но выбросит исключение при запуске"
+      answer: 1
+      explanation: "Шаблон ? extends Number означает список какого-то неизвестного подтипа Number (здесь Integer, но компилятор этого не использует). Добавить безопасно ничего нельзя, кроме null; читать можно как Number."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        Map<String, Integer> m = new TreeMap<>();
+        for (String s : "b a b b b a b".split(" ")) {
+            m.merge(s, 1, Integer::sum);
+        }
+        System.out.println(m);
+        ```
+      options:
+        - "{b=5, a=2}"
+        - "{a=2, b=5}"
+        - "{a=1, b=1}"
+        - "{a=2, b=3}"
+      answer: 1
+      explanation: "merge увеличивает счётчик для каждого слова: a встречается 2 раза, b - 5. TreeMap обходит ключи по возрастанию, поэтому печатается {a=2, b=5}."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        List<String> a = new ArrayList<String>();
+        List<Integer> b = new ArrayList<Integer>();
+        System.out.println(a.getClass() == b.getClass());
+        ```
+      options:
+        - "true"
+        - "false"
+        - "Ошибка компиляции"
+        - "ClassCastException"
+      answer: 0
+      explanation: "После компиляции параметры типа стираются: оба объекта - просто ArrayList. Поэтому getClass() возвращает один и тот же класс."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        static <T> List<T> everyOther(List<T> xs) {
+            List<T> out = new ArrayList<>();
+            for (int i = 0; i < xs.size(); i += 2) {
+                out.add(xs.get(i));
+            }
+            return out;
+        }
+
+        System.out.println(everyOther(List.of(1, 2, 3, 4, 5)));
+        ```
+      options:
+        - "[2, 4]"
+        - "[1, 3, 5]"
+        - "[1, 2, 3, 4, 5]"
+        - "[1, 3]"
+      answer: 1
+      explanation: "Индекс i принимает значения 0, 2 и 4, то есть берутся первый, третий и пятый элементы: [1, 3, 5]. Тип T здесь выводится как Integer."
+exercise:
+  id: "java.check.generics.exercise"
+  title: "Обобщённые утилиты"
+  prompt: |-
+    Реализуйте четыре обобщённых метода с заданными сигнатурами; `main` уже написан.
+
+    * `maxOf(List<T>)` - наибольший элемент (при равенстве - первый); список непустой.
+    * `sum(List<? extends Number>)` - сумма как `double`.
+    * `copyInto(List<? super T> dst, List<? extends T> src)` - добавляет все элементы `src` в конец `dst`.
+    * `keyOfMax(Map<K, V>)` - ключ с наибольшим значением; при равенстве - первый в порядке обхода (используйте строгое сравнение `>`); для непустого словаря.
+
+    Ввод - две строки: целые числа и слова через пробел. Любая из строк может быть пустой или отсутствовать.
+
+    **Пример.** Ввод:
+
+    ```
+    3 9 4
+    fig apple kiwi
+    ```
+
+    Вывод:
+
+    ```
+    Сумма: 16.0
+    Максимум чисел: 9
+    Максимум слов: kiwi
+    Всё вместе: [3, 9, 4, fig, apple, kiwi]
+    Самое длинное: apple
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Заготовки возвращают заглушки. Начните с sum: цикл for (Number n : xs) и n.doubleValue()."
+    - "maxOf: возьмите первый элемент как лучший и заменяйте его, если x.compareTo(best) > 0. keyOfMax устроен так же, но обходит map.entrySet() и сравнивает e.getValue().compareTo(...)."
+    - "copyInto: for (T x : src) dst.add(x). Типы шаблонов в сигнатуре не меняйте - именно они позволяют передать List<Object> как приёмник."
+  tests:
+    - id: "basic"
+      title: "Числа и слова"
+      stdin: |
+        3 9 4
+        fig apple kiwi
+      expected: |
+        Сумма: 16.0
+        Максимум чисел: 9
+        Максимум слов: kiwi
+        Всё вместе: [3, 9, 4, fig, apple, kiwi]
+        Самое длинное: apple
+      hint: "Сумма 16.0, максимум чисел 9, максимум слов kiwi (лексикографически), самое длинное слово apple (5 букв)."
+    - id: "negative"
+      title: "Отрицательные числа"
+      stdin: |
+        -5 -2 -9
+        b a
+      expected: |
+        Сумма: -16.0
+        Максимум чисел: -2
+        Максимум слов: b
+        Всё вместе: [-5, -2, -9, b, a]
+        Самое длинное: a
+      hint: "Максимум из отрицательных чисел равен -2, а не 0; из слов b больше a."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Сумма: 0.0
+        Всё вместе: []
+        Самое длинное: нет
+      hidden: true
+      hint: "При отсутствии данных maxOf не вызывается, сумма равна 0.0, составной список пуст, а самое длинное слово - нет."
+    - id: "ties"
+      title: "Равные длины (скрытый)"
+      stdin: |
+        7 8
+        bb aa cc
+      expected: |
+        Сумма: 15.0
+        Максимум чисел: 8
+        Максимум слов: cc
+        Всё вместе: [7, 8, bb, aa, cc]
+        Самое длинное: aa
+      hidden: true
+      hint: "У всех слов длина 2. TreeMap обходит ключи по порядку, а при равенстве побеждает первый: aa."
+    - id: "numbers"
+      title: "Только числа (скрытый)"
+      stdin: |
+        1 2 3 4
+      expected: |
+        Сумма: 10.0
+        Максимум чисел: 4
+        Всё вместе: [1, 2, 3, 4]
+        Самое длинное: нет
+      hidden: true
+      hint: "Второй строки нет: слов нет, но числа обработаны, сумма 10.0."

@@ -25,7 +25,7 @@ int main() {
 }
 ```
 
-`#include` подставляет текст заголовочного файла, `main` - точка входа. Вывод - `std::cout <<`, ввод - `std::cin >>`.
+`#include` подставляет текст заголовочного файла, `main` - точка входа. Вывод - `std::cout <<`, ввод - `std::cin >>`. Всё это вы уже писали в курсе «C++ с нуля»; здесь мы смотрим на то, что происходит между строкой с `clang++` и запуском программы, а чтение чисел и форматирование вывода повторяем на практике.
 
 <!-- section: precise -->
 ## Подробнее
@@ -162,4 +162,4 @@ int main() {
 * `long long` для сумм, `static_cast<double>` до деления, `std::fixed` и `setprecision` для вывода.
 * Включайте `-Wall -Wextra` и читайте предупреждения.
 
-Дальше: [значения, ссылки и RAII](lesson:cpp.first-steps.value-semantics-references-and-raii). Сравните: [как запускается Go](lesson:go.first-steps.how-go-runs) и [как запускается Python](lesson:python.fundamentals.how-python-runs).
+Дальше: [значения, ссылки и RAII](lesson:cpp.first-steps.value-semantics-references-and-raii). Сравните: [как запускается Go](lesson:go.first-steps.first-program) и [как запускается Python](lesson:python.fundamentals.how-python-runs).

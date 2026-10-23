@@ -1,0 +1,165 @@
+id: "javascript.programmers.collections-and-functions"
+title: "Массивы, объекты, Map и функции: ссылки, сортировка, this"
+goal: "Работать с массивами и словарями так, чтобы ссылки, сортировка по строкам и мутирующие методы не давали неожиданных результатов."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "javascript.programmers.syntax-and-control-flow"
+next:
+  - "javascript.programmers.errors-and-input"
+objectives:
+  - "Объяснять, почему массивы и объекты сравниваются по ссылке, и отличать поверхностную копию от глубокой."
+  - "Сортировать числа с компаратором и различать методы, которые мутируют массив, и методы, возвращающие новый."
+  - "Выбирать между объектом и Map для словарей с пользовательскими ключами."
+  - "Различать function и стрелочную функцию: this, arguments, new, поднятие."
+  - "Предсказывать результат arr.map(parseInt) и reduce без начального значения."
+masteryCriteria:
+  - "sortedNumbers не меняет исходный массив и сортирует по значению, countWords корректно считает слова constructor и __proto__, sameItems сравнивает по ===, но считает NaN равным NaN, average возвращает null для пустого массива."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "javascript"
+  - "programmers"
+  - "collections"
+  - "functions"
+assessmentFor:
+  - "javascript.from-zero.arrays"
+  - "javascript.from-zero.iterating-arrays"
+  - "javascript.from-zero.arrow-functions"
+  - "javascript.from-zero.array-methods"
+  - "javascript.from-zero.string-methods"
+  - "javascript.from-zero.objects"
+  - "javascript.from-zero.arrays-of-objects"
+  - "javascript.from-zero.scope"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([1, 2, 3] === "1,2,3", [1, 2, 3] == "1,2,3", [1, 2] === [1, 2]);
+        ```
+      options:
+        - "false false false"
+        - "false true false"
+        - "true true true"
+        - "false true true"
+      answer: 1
+      explanation: "=== не приводит типы, а массив и строка - разные типы, поэтому первое сравнение ложно. == приводит массив к строке \"1,2,3\" и находит равенство. Два литерала [1, 2] - разные объекты, и === сравнивает ссылки, поэтому третье сравнение ложно."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([5, 25, 100, 1].sort());
+        ```
+      options:
+        - "[ 1, 5, 25, 100 ]"
+        - "[ 100, 25, 5, 1 ]"
+        - "[ 1, 100, 25, 5 ]"
+        - "[ 5, 25, 100, 1 ]"
+      answer: 2
+      explanation: "Без компаратора sort сравнивает элементы как строки: \"1\" < \"100\" < \"25\" < \"5\". Числовой порядок получается только с компаратором (a, b) => a - b."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(["1", "2", "3"].map(parseInt));
+        ```
+      options:
+        - "[ 1, 2, 3 ]"
+        - "[ 1, NaN, NaN ]"
+        - "[ NaN, NaN, NaN ]"
+        - "[ 0, 1, 2 ]"
+      answer: 1
+      explanation: "map передаёт колбэку три аргумента: элемент, индекс и массив. parseInt принимает вторым аргументом основание системы счисления, поэтому вызовы такие: parseInt(\"1\", 0) даёт 1, parseInt(\"2\", 1) даёт NaN (основания 1 не бывает), parseInt(\"3\", 2) даёт NaN (в двоичной системе цифры 3 нет)."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const make = () => { a: 1 };
+        console.log(make());
+        ```
+      options:
+        - "{ a: 1 }"
+        - "undefined"
+        - "SyntaxError"
+        - "1"
+      answer: 1
+      explanation: "Фигурные скобки после стрелки - тело функции, а не литерал объекта. Внутри a: 1 - это метка с выражением, а return нет, поэтому функция возвращает undefined. Чтобы вернуть объект, литерал берут в скобки: () => ({ a: 1 })."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Сколько ключей получится?
+
+        ```javascript
+        const m = {};
+        m[1] = "a";
+        m["1"] = "b";
+        const map = new Map([[1, "a"], ["1", "b"]]);
+        console.log(Object.keys(m).length, map.size);
+        ```
+      options:
+        - "2 2"
+        - "1 1"
+        - "1 2"
+        - "2 1"
+      answer: 2
+      explanation: "Ключи объекта - строки: число 1 превращается в \"1\", и вторая запись перезаписывает первую. Map различает ключи по типу, поэтому 1 и \"1\" - два разных ключа."
+exercise:
+  id: "javascript.programmers.collections-and-functions.exercise"
+  title: "Сортировка, подсчёт слов и сравнение массивов"
+  prompt: |
+    В файле `collections_task.mjs` реализуйте четыре экспортируемые функции.
+
+    1. `sortedNumbers(values)` - **новый** массив чисел по возрастанию. Исходный массив менять нельзя.
+    2. `countWords(words)` - возвращает `Map`: слово -> сколько раз оно встретилось, ключи в порядке первого появления. Слова приходят из данных пользователя, поэтому `"constructor"`, `"toString"` и `"__proto__"` - обычные слова, как любые другие.
+    3. `sameItems(a, b)` - `true`, если оба аргумента массивы одной длины и элементы на одинаковых местах равны по `===`. `NaN` считается равным `NaN`; `0` равен `-0`. Вложенные массивы и объекты сравниваются по ссылке. Если аргумент не массив, результат `false`.
+    4. `average(values)` - среднее арифметическое чисел. Для пустого массива вернуть `null`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "collections_task.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Для sortedNumbers вспомните два факта: sort без компаратора сравнивает строки, а sort меняет массив на месте."
+    - "Скопируйте массив перед сортировкой ([...values]) и передайте компаратор (x, y) => x - y. Для countWords создайте new Map() и пользуйтесь get/set вместо квадратных скобок."
+    - "countWords: counts.set(w, (counts.get(w) ?? 0) + 1). Для sameItems сначала проверьте Array.isArray и длину, затем сравните элементы в цикле: a[i] === b[i] или оба Number.isNaN."
+    - "average: ранняя проверка values.length === 0 с возвратом null; reduce вызывайте с начальным значением 0."
+  tests:
+    - id: "sort-basic"
+      title: "sortedNumbers - числовой порядок"
+      hint: "[10, 9, 1, 100] после сортировки без компаратора превращается в [1, 10, 100, 9]. Нужен компаратор (x, y) => x - y."
+    - id: "count-basic"
+      title: "countWords - обычные слова"
+      hint: "Верните Map и увеличивайте счётчик через counts.set(w, (counts.get(w) ?? 0) + 1)."
+    - id: "same-basic"
+      title: "sameItems - одинаковые и разные массивы"
+      hint: "Сравнивайте длину и элементы по местам; [1, 2] и [2, 1] не равны."
+    - id: "avg-basic"
+      title: "average - обычные массивы"
+      hint: "Сумма элементов, делённая на их количество."
+    - id: "sort-edge"
+      title: "sortedNumbers - исходный массив и повторы (скрытый)"
+      hidden: true
+      hint: "Проверяется, что входной массив не изменился и что возвращён новый массив; отрицательные числа и повторы должны сортироваться верно."
+    - id: "count-edge"
+      title: "countWords - constructor, toString и __proto__ (скрытый)"
+      hidden: true
+      hint: "В обычном объекте эти ключи ведут себя особо. Map хранит их как любые другие ключи; порядок ключей - порядок первого появления."
+    - id: "same-edge"
+      title: "sameItems - NaN, ссылки и не массивы (скрытый)"
+      hidden: true
+      hint: "NaN равен NaN, 0 равен -0, [[1]] и [[1]] различны (разные ссылки), а аргумент, не являющийся массивом, даёт false."
+    - id: "avg-edge"
+      title: "average - пустой массив и отрицательные числа (скрытый)"
+      hidden: true
+      hint: "Для пустого массива верните null до деления: 0 / 0 даёт NaN."

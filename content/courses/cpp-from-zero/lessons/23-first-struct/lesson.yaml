@@ -1,0 +1,238 @@
+id: "cpp.from-zero.first-struct"
+title: "Первая структура: struct"
+goal: "Объединить связанные данные в один тип и добавить к нему функцию, которая работает с этими данными."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "cpp.from-zero.exceptions"
+objectives:
+  - "Объявить struct с полями и создавать объекты с начальными значениями."
+  - "Обратиться к полям через точку и добавить функцию-член, работающую с полями объекта."
+  - "Хранить объекты в std::vector и передавать их в функции по const-ссылке."
+masteryCriteria:
+  - "Вы пишете struct Student { std::string name; int score = 0; }; и не забываете точку с запятой после закрывающей скобки."
+  - "Вы объясняете, чем объект отличается от типа и почему поле без начального значения опасно."
+  - "Вы помечаете функцию-член const, если она только читает поля, и понимаете, зачем это нужно при передаче по const-ссылке."
+concepts:
+  introduces:
+    - "cpp.struct"
+    - "cpp.field"
+    - "cpp.member-function"
+    - "cpp.object"
+  uses:
+    - "cpp.string"
+    - "cpp.int"
+    - "cpp.bool"
+    - "cpp.initialization"
+    - "cpp.function"
+    - "cpp.return"
+    - "cpp.const-reference"
+    - "cpp.vector"
+    - "cpp.push-back"
+    - "cpp.range-for"
+    - "cpp.cin"
+    - "cpp.while"
+    - "cpp.if"
+    - "cpp.undefined-behavior"
+next:
+  - "cpp.from-zero.mini-project"
+tags:
+  - "cpp"
+  - "struct"
+facts:
+  - kind: "misconception"
+    text: "«Поля структуры сами получают ноль» - нет. Поле типа int в объекте, созданном без начальных значений, содержит случайный мусор; поле std::string - пустую строку. Для чисел задавайте значение по умолчанию в самом объявлении поля (int score = 0;)."
+    sources: []
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        struct Point {
+            int x = 0;
+            int y = 0;
+        };
+
+        int main() {
+            Point a = {3, 4};
+            Point b = a;
+            b.x = 10;
+            std::cout << a.x << " " << b.x << " " << b.y << "\n";
+        }
+        ```
+      options:
+        - "3 10 4"
+        - "10 10 4"
+        - "3 3 4"
+        - "10 3 4"
+      answer: 0
+      explanation: "Присваивание Point b = a копирует объект целиком. Изменение b.x не затрагивает a. Поэтому a.x остаётся 3, b.x становится 10, b.y остаётся 4."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        struct Counter {
+            int value = 0;
+            void add(int n) { value += n; }
+        };
+
+        int main() {
+            Counter c;
+            c.add(2);
+            c.add(5);
+            std::cout << c.value << "\n";
+        }
+        ```
+      options:
+        - "7"
+        - "5"
+        - "0"
+        - "Не компилируется."
+      answer: 0
+      explanation: "Функция-член изменяет поля того объекта, у которого вызвана. Первый вызов делает value равным 2, второй увеличивает до 7."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Почему этот код не компилируется?
+
+        ```cpp
+        struct Student {
+            std::string name;
+            int score;
+            bool passed() { return score >= 60; }
+        };
+
+        void show(const Student& s) {
+            std::cout << s.passed() << "\n";
+        }
+        ```
+      options:
+        - "Функция passed не помечена const, а s - константная ссылка."
+        - "У структуры не может быть функций."
+        - "Поле score не может сравниваться с числом."
+        - "Ссылка на структуру должна быть без const."
+      answer: 0
+      explanation: "Через const-ссылку можно вызывать только функции-члены, помеченные const (bool passed() const). Так компилятор гарантирует, что объект не будет изменён."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что содержит `s.score` после этого кода?
+
+        ```cpp
+        struct Student {
+            std::string name;
+            int score;
+        };
+
+        Student s;
+        s.name = "Анна";
+        ```
+      options:
+        - "Неопределённое значение: поле не инициализировано, чтение приведёт к неопределённому поведению."
+        - "0"
+        - "-1"
+        - "Пустую строку."
+      answer: 0
+      explanation: "Числовые поля не получают значения автоматически. Чтобы score по умолчанию был нулём, объявите int score = 0;."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        struct Item {
+            std::string name;
+            int price;
+        };
+
+        std::vector<Item> items = {{"Хлеб", 40}, {"Сыр", 300}};
+        int sum = 0;
+        for (const Item& it : items) {
+            sum += it.price;
+        }
+        std::cout << items[1].name << " " << sum << "\n";
+        ```
+      options:
+        - "Сыр 340"
+        - "Хлеб 340"
+        - "Сыр 300"
+        - "Хлеб 40"
+      answer: 0
+      explanation: "items[1] - второй элемент (счёт с нуля), у него имя «Сыр». Цикл складывает цены обоих товаров: 40 + 300 = 340."
+exercise:
+  id: "cpp.from-zero.first-struct.exercise"
+  title: "Оценки студента"
+  prompt: |
+    В заготовке есть структура `Student` с полями `name` и `score` и готовый `main`: он читает пары `имя балл` до конца ввода (имя - одно слово), складывает студентов в вектор и печатает результат.
+
+    Допишите две функции-члена:
+
+    * `std::string grade() const` возвращает оценку словом: от 90 включительно - `отлично`, от 75 - `хорошо`, от 60 - `зачёт`, иначе - `незачёт`;
+    * `bool passed() const` возвращает `true`, если балл не меньше 60.
+
+    Пример для ввода `Анна 92` и `Олег 55`:
+    ```
+    Анна: 92 - отлично
+    Олег: 55 - незачёт
+    Сдали: 1 из 2
+    ```
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Функции-члены пишутся внутри struct и видят поля по имени: score >= 60 без точки и без параметров."
+    - "grade(): проверяйте от большего порога к меньшему: if (score >= 90) { return \"отлично\"; } потом 75 и 60, последним - return \"незачёт\";"
+    - "passed(): return score >= 60;"
+    - "Слово const после скобок оставьте: оно нужно, потому что main вызывает функции через const Student&."
+  tests:
+    - id: "basic"
+      title: "Две оценки"
+      stdin: |
+        Анна 92
+        Олег 55
+      expected: |
+        Анна: 92 - отлично
+        Олег: 55 - незачёт
+        Сдали: 1 из 2
+      hint: "92 - отлично, 55 - незачёт, зачёт сдал один студент из двух."
+    - id: "all"
+      title: "Все четыре оценки"
+      stdin: |
+        Ира 90
+        Борис 89
+        Света 75
+        Макс 74
+        Лена 60
+        Витя 59
+      expected: |
+        Ира: 90 - отлично
+        Борис: 89 - хорошо
+        Света: 75 - хорошо
+        Макс: 74 - зачёт
+        Лена: 60 - зачёт
+        Витя: 59 - незачёт
+        Сдали: 5 из 6
+      hint: "Пороги включительные: 90 - отлично, 75 - хорошо, 60 - зачёт."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Сдали: 0 из 0
+      hidden: true
+      hint: "Без студентов печатается только итоговая строка."
+    - id: "extremes"
+      title: "Границы (скрытый)"
+      stdin: |
+        Ян 100
+        Зоя 0
+      expected: |
+        Ян: 100 - отлично
+        Зоя: 0 - незачёт
+        Сдали: 1 из 2
+      hidden: true
+      hint: "100 - отлично, 0 - незачёт."

@@ -1,0 +1,187 @@
+id: "typescript.from-zero.loop-control"
+title: "Остановка, пропуск и вложенные циклы"
+goal: "Прерывать цикл командой break, пропускать итерацию командой continue и вкладывать один цикл в другой."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "typescript.from-zero.for-loop"
+objectives:
+  - "Объяснить, что делают break и continue и к какому циклу они относятся."
+  - "Остановить поиск, как только значение найдено."
+  - "Написать вложенные циклы для обхода таблицы и посчитать число их итераций."
+  - "Использовать \"\\n\" для сборки многострочного текста."
+masteryCriteria:
+  - "Функции с break, continue и вложенными циклами верны для обычных и пограничных значений: 0, отрицательные числа, простые числа."
+  - "Накопитель объявлен там, где нужно начинать с нуля: на строку таблицы внутри внешнего цикла, на общий итог снаружи."
+concepts:
+  introduces:
+    - "ts.break-continue"
+    - "ts.nested-loops"
+  uses:
+    - "ts.for"
+    - "ts.while"
+    - "ts.let"
+    - "ts.if"
+    - "ts.arithmetic"
+    - "ts.comparison"
+    - "ts.concatenation"
+    - "ts.function"
+    - "ts.return"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.arrays"
+tags:
+  - "typescript"
+  - "break"
+  - "continue"
+  - "nested-loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        for (let i: number = 1; i <= 5; i++) {
+          if (i === 3) {
+            break;
+          }
+          console.log(i);
+        }
+        ```
+      options:
+        - "1 2, каждое с новой строки"
+        - "1 2 3, каждое с новой строки"
+        - "1 2 4 5, каждое с новой строки"
+        - "1 2 3 4 5, каждое с новой строки"
+      answer: 0
+      explanation: "При i равном 3 срабатывает break, и весь цикл завершается. Значения 1 и 2 успевают напечататься, 3 уже нет."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        for (let i: number = 1; i <= 5; i++) {
+          if (i === 3) {
+            continue;
+          }
+          console.log(i);
+        }
+        ```
+      options:
+        - "1 2 4 5, каждое с новой строки"
+        - "1 2, каждое с новой строки"
+        - "1 2 3 4 5, каждое с новой строки"
+        - "3, с новой строки"
+      answer: 0
+      explanation: "continue пропускает остаток итерации только для i равного 3; цикл идёт дальше. Поэтому напечатаются 1, 2, 4 и 5."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        let count: number = 0;
+        for (let a: number = 1; a <= 3; a++) {
+          for (let b: number = 1; b <= 4; b++) {
+            count = count + 1;
+          }
+        }
+        console.log(count);
+        ```
+      options:
+        - "12"
+        - "7"
+        - "3"
+        - "4"
+      answer: 0
+      explanation: "Внутренний цикл выполняется четыре раза на каждую из трёх итераций внешнего: 3 * 4 = 12."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов для этой функции?
+
+        ```typescript
+        function find(): number {
+          for (let i: number = 1; i <= 10; i++) {
+            if (i * i > 20) {
+              break;
+            }
+          }
+          return i;
+        }
+        ```
+      options:
+        - "Проверка сообщит TS2304: имя i не найдено, потому что счётчик виден только внутри for"
+        - "Функция вернёт 5"
+        - "Функция вернёт 10"
+        - "Проверка сообщит TS1105: break вне цикла"
+      answer: 0
+      explanation: "Счётчик, объявленный в шапке for, существует только внутри цикла, а return стоит после него. Нужную величину запоминают в переменной, объявленной до цикла."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        let text: string = "";
+        for (let r: number = 1; r <= 2; r++) {
+          for (let c: number = 1; c <= r; c++) {
+            text = text + "*";
+          }
+          text = text + "-";
+        }
+        console.log(text);
+        ```
+      options:
+        - "*-**-"
+        - "**-*-"
+        - "*-*-"
+        - "***-"
+      answer: 0
+      explanation: "При r равном 1 добавляется одна звёздочка и дефис, при r равном 2 - две звёздочки и дефис. Итог: *-**-."
+exercise:
+  id: "typescript.from-zero.loop-control.exercise"
+  title: "Делитель, пропуски, лесенка"
+  prompt: |
+    В файле `control_task.ts` три функции:
+
+    * `firstDivisor(n)` - наименьший делитель числа `n`, который больше 1; если таких нет (число простое), результат само `n`. Считайте, что `n` не меньше 2. Например, `firstDivisor(15)` равно `3`, `firstDivisor(13)` равно `13`. Поиск прерывайте командой `break`.
+    * `sumSkipping(n, skip)` - сумма чисел от 1 до `n` включительно, кроме кратных `skip` (считайте, что `skip` больше нуля). Например, `sumSkipping(10, 3)` равно `37`. Кратные пропускайте командой `continue`.
+    * `triangle(rows)` - строка-лесенка: в строке с номером `k` стоит `k` звёздочек, строки разделены символом `"\n"`, после последней перевода нет. `triangle(3)` равно `"*\n**\n***"`. Для `rows` меньше 1 результат пустая строка.
+
+    Функции должны **возвращать** значение, а не печатать его.
+  entryFile: "control_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В firstDivisor заведите found = n и перебирайте d от 2 до n - 1. Если n % d === 0, запомните found = d и прервите цикл через break."
+    - "В sumSkipping в цикле от 1 до n: if (i % skip === 0) { continue; } и затем sum = sum + i. Накопитель sum объявите до цикла."
+    - "В triangle внешний цикл идёт по номерам строк r от 1 до rows, внутренний добавляет r звёздочек. Перед каждой строкой, кроме первой (r > 1), добавляйте \"\\n\"."
+    - "Накопители (found, sum, text) объявляйте через let до циклов. Строку text собирайте одну на всю лесенку: её не нужно создавать заново в каждой строке."
+  tests:
+    - id: "divisor-basic"
+      title: "firstDivisor: обычные значения"
+      hint: "15 делится на 3, 49 на 7, а 13 простое: ответ 13."
+    - id: "skip-basic"
+      title: "sumSkipping: обычные значения"
+      hint: "До 10 без кратных 3 сумма 37; до 5 без чётных 1 + 3 + 5 = 9."
+    - id: "triangle-basic"
+      title: "triangle: обычные значения"
+      hint: "triangle(3) состоит из трёх строк: звёздочка, две, три; между ними \"\\n\", в конце его нет."
+    - id: "divisor-edge"
+      title: "firstDivisor: 2, квадраты, простые (скрытый)"
+      hidden: true
+      hint: "Для 2 цикл не выполняется, ответ 2; 9 даёт 3; 97 простое; 91 = 7 * 13, наименьший делитель 7."
+    - id: "skip-edge"
+      title: "sumSkipping: ноль, отрицательные, skip равное 1 (скрытый)"
+      hidden: true
+      hint: "Для n меньше 1 цикл не выполняется, результат 0; при skip равном 1 пропускаются все числа, результат 0."
+    - id: "triangle-edge"
+      title: "triangle: ноль и отрицательные (скрытый)"
+      hidden: true
+      hint: "При rows меньше 1 результат пустая строка; triangle(2) равно \"*\\n**\" без перевода строки на конце."

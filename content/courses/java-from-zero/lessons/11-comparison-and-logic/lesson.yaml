@@ -1,0 +1,200 @@
+id: "java.from-zero.comparison-and-logic"
+title: "Сравнение и логические выражения"
+goal: "Строить выражения со сравнением и операторами && || ! и вычислять их значение true или false."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "java.from-zero.formatted-output"
+objectives:
+  - "Сравнивать числа операторами == != < > <= >= и получать значение типа boolean."
+  - "Объединять условия операторами && (и), || (или) и ! (не)."
+  - "Предсказывать значение выражения с учётом приоритета и скобок."
+  - "Объяснить, почему 1 < x < 10 не компилируется, и записать то же правильно."
+masteryCriteria:
+  - "Программа печатает true или false для каждой из четырёх проверок числа, в том числе для нуля и отрицательных значений."
+  - "Вы записываете проверку «x между 10 и 99 включительно» как x >= 10 && x <= 99."
+  - "Вы различаете = (присваивание) и == (сравнение)."
+concepts:
+  introduces:
+    - "java.comparison"
+    - "java.logical-operators"
+    - "java.boolean-expression"
+    - "java.short-circuit"
+  uses:
+    - "java.boolean"
+    - "java.int"
+    - "java.remainder"
+    - "java.arithmetic"
+    - "java.concatenation"
+    - "java.scanner"
+    - "java.println"
+    - "java.compile-error"
+    - "java.assignment"
+next:
+  - "java.from-zero.if-else"
+tags:
+  - "java"
+  - "comparison"
+  - "boolean"
+  - "logic"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        int age = 20;
+        System.out.println(age > 18 && age < 65);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "20"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Оба сравнения верны: 20 > 18 и 20 < 65. Оператор && даёт true, когда истинны обе части."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        System.out.println(true || false && false);
+        ```
+      options:
+        - "true"
+        - "false"
+        - "Ошибка компиляции"
+        - "Зависит от компьютера"
+      answer: 0
+      explanation: "Оператор && сильнее ||, поэтому сначала вычисляется false && false (false), затем true || false (true). Для другого порядка нужны скобки: (true || false) && false даёт false."
+    - id: "q3"
+      type: "single"
+      prompt: "Компилятор сообщает: bad operand types for binary operator '<', first type: boolean, second type: int. Какая запись это вызвала?"
+      options:
+        - "1 < x < 10"
+        - "x < 10"
+        - "x <= 10"
+        - "x < 10 && x > 1"
+      answer: 0
+      explanation: "Выражение вычисляется слева направо: 1 < x даёт boolean, а затем boolean сравнивается с 10. Нужно записать два сравнения и соединить их: 1 < x && x < 10."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        int n = 0;
+        System.out.println(n != 0 && 10 / n > 1);
+        ```
+      options:
+        - "false"
+        - "true"
+        - "ArithmeticException: / by zero"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Если левая часть && уже false, правая не вычисляется. Деление на ноль не происходит, и результат false. Такая запись защищает от деления на ноль."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        int n = -3;
+        System.out.println("Нечётное: " + (n % 2 == 1));
+        ```
+      options:
+        - "Нечётное: false"
+        - "Нечётное: true"
+        - "Нечётное: -1"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "У отрицательного делимого остаток отрицательный: -3 % 2 равно -1, а не 1, поэтому сравнение с 1 даёт false. Надёжнее проверять n % 2 != 0."
+exercise:
+  id: "java.from-zero.comparison-and-logic.exercise"
+  title: "Проверки числа"
+  prompt: |
+    На вход подаётся одно целое число `n`. Напечатайте четыре строки со значениями `true` или `false`:
+
+    ```
+    Чётное: <n чётное>
+    Двузначное: <n от 10 до 99 включительно>
+    Делится на 3 или на 5: <n делится на 3 или на 5>
+    Не положительное: <n не больше нуля>
+    ```
+
+    **Пример.** Ввод:
+
+    ```
+    30
+    ```
+
+    Вывод:
+
+    ```
+    Чётное: true
+    Двузначное: true
+    Делится на 3 или на 5: true
+    Не положительное: false
+    ```
+
+    Число 0 считается чётным и делится на 3 и на 5. Отрицательные числа тоже возможны.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Каждая строка - склейка текста и логического выражения. Выражение берите в скобки: \"Чётное: \" + (n % 2 == 0)."
+    - "«От 10 до 99 включительно» - два сравнения, соединённых &&: n >= 10 && n <= 99."
+    - "«На 3 или на 5» - n % 3 == 0 || n % 5 == 0. Для отрицательных n остаток тоже 0, когда число делится нацело."
+    - "«Не положительное» - !(n > 0) или n <= 0."
+  tests:
+    - id: "basic"
+      title: "Нечётное однозначное"
+      stdin: "7\n"
+      expected: |
+        Чётное: false
+        Двузначное: false
+        Делится на 3 или на 5: false
+        Не положительное: false
+      hint: "7 нечётное, не двузначное, не делится ни на 3, ни на 5 и положительное - все четыре проверки дают false."
+    - id: "thirty"
+      title: "Число 30"
+      stdin: "30\n"
+      expected: |
+        Чётное: true
+        Двузначное: true
+        Делится на 3 или на 5: true
+        Не положительное: false
+      hint: "30 чётное, двузначное, делится на 3 и на 5, положительное."
+    - id: "zero"
+      title: "Ноль (скрытый)"
+      stdin: "0\n"
+      expected: |
+        Чётное: true
+        Двузначное: false
+        Делится на 3 или на 5: true
+        Не положительное: true
+      hidden: true
+      hint: "0 % 2 == 0, 0 % 3 == 0; ноль не двузначный и не положительный."
+    - id: "negative"
+      title: "Отрицательное число (скрытый)"
+      stdin: "-15\n"
+      expected: |
+        Чётное: false
+        Двузначное: false
+        Делится на 3 или на 5: true
+        Не положительное: true
+      hidden: true
+      hint: "У -15 остаток от деления на 2 равен -1, поэтому чётность проверяйте как n % 2 == 0 (а не n % 2 == 1). Делимость на 3 и на 5 работает и для отрицательных."
+    - id: "upper-bound"
+      title: "Граница 99 (скрытый)"
+      stdin: "99\n"
+      expected: |
+        Чётное: false
+        Двузначное: true
+        Делится на 3 или на 5: true
+        Не положительное: false
+      hidden: true
+      hint: "99 входит в диапазон: сравнение n <= 99 должно быть нестрогим."

@@ -1,0 +1,249 @@
+id: "java.programmers.exceptions-and-classes"
+title: "Исключения и классы: ловушки Java"
+goal: "Писать классы с полями, конструктором и методами и обрабатывать неверные данные через try/catch и throw, различая проверяемые и непроверяемые исключения, порядок catch и поведение finally."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "java.first-steps.how-java-runs"
+objectives:
+  - "Выбирать между проверяемыми и непроверяемыми исключениями, упорядочивать catch и предсказывать порядок finally."
+  - "Превращать ошибку разбора в понятное исключение с сообщением и перехватывать его на нужном уровне."
+  - "Писать класс с закрытыми полями, конструктором и toString и объяснять значения полей по умолчанию, ссылочную семантику и поведение equals."
+  - "Отличать вложенный static-класс от внутреннего и находить ошибки доступа и инициализации final-полей."
+masteryCriteria:
+  - "parseAmount и класс Account работают на неверных строках, нулевых и отрицательных суммах, недостатке средств и лишних строках ввода."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "java"
+  - "programmers"
+  - "exceptions"
+  - "classes"
+assessmentFor:
+  - "java.from-zero.exceptions"
+  - "java.from-zero.first-class"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        static int f() {
+            try {
+                return 1;
+            } finally {
+                System.out.print("F");
+            }
+        }
+
+        public static void main(String[] args) {
+            System.out.println(f());
+        }
+        ```
+      options:
+        - "1"
+        - "F1"
+        - "1F"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Блок finally выполняется всегда, в том числе после return, и до того, как значение вернётся вызывающему коду. Поэтому сначала печатается F, а затем main печатает 1: результат F1."
+    - id: "q2"
+      type: "single"
+      prompt: "Что сделает вызов `Integer.parseInt(\" 42\")`?"
+      options:
+        - "вернёт 42"
+        - "вернёт 0"
+        - "бросит NumberFormatException"
+        - "вернёт null"
+      answer: 2
+      explanation: "parseInt не обрезает пробелы: пробел в строке - недопустимый символ, и бросается NumberFormatException. Строку из ввода сначала нужно привести к виду без пробелов вызовом trim(). Знак \"+\" в начале при этом допустим."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что сообщит компилятор?
+
+        ```java
+        try {
+            Integer.parseInt(text);
+        } catch (Exception e) {
+            System.out.println("ошибка");
+        } catch (NumberFormatException e) {
+            System.out.println("не число");
+        }
+        ```
+      options:
+        - "Ничего: программа скомпилируется"
+        - "exception NumberFormatException has already been caught"
+        - "incompatible types: Exception cannot be converted to NumberFormatException"
+        - "unreachable statement"
+      answer: 1
+      explanation: "NumberFormatException - подкласс Exception, поэтому первый catch уже перехватывает все такие исключения, и второй недостижим. Компилятор отвергает такой порядок: сначала нужно ставить более частные типы, потом общие."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        class Box {
+            int n;
+        }
+
+        public class Main {
+            public static void main(String[] args) {
+                Box a = new Box();
+                Box b = a;
+                b.n = 5;
+                System.out.println(a.n + " " + (a == b) + " " + a.equals(new Box()));
+            }
+        }
+        ```
+      options:
+        - "0 false false"
+        - "5 true false"
+        - "5 true true"
+        - "5 false false"
+      answer: 1
+      explanation: "b и a - две ссылки на один объект, поэтому изменение через b видно через a, а == даёт true. Метод equals по умолчанию сравнивает ссылки, как ==, поэтому новый объект Box не равен a, хотя поля у них могли бы совпасть. Чтобы изменить это, класс должен переопределить equals (или быть записью)."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        class Counter {
+            int count;
+            String label;
+        }
+
+        public class Main {
+            public static void main(String[] args) {
+                Counter c = new Counter();
+                System.out.println(c.count + " " + c.label);
+            }
+        }
+        ```
+      options:
+        - "0 null"
+        - "0 (пустая строка)"
+        - "null null"
+        - "Ошибка компиляции: поля не инициализированы"
+      answer: 0
+      explanation: "Поля объекта получают значения по умолчанию: 0 для чисел, false для boolean, null для ссылок. Это отличается от локальных переменных, которые нужно присвоить до чтения. Вызов метода у такого null-поля (c.label.length()) бросил бы NullPointerException."
+exercise:
+  id: "java.programmers.exceptions-and-classes.exercise"
+  title: "Банковский счёт и команды"
+  prompt: |-
+    Напишите класс `Account` и метод `parseAmount`; `main` уже написан. Первая строка ввода - имя владельца, далее строки-команды `deposit <сумма>` и `withdraw <сумма>`. Неверные команды не должны останавливать программу: `main` перехватывает исключения, печатает `Ошибка: <сообщение>` и считает их.
+
+    Что нужно реализовать:
+
+    * `parseAmount(String text)` - возвращает целое положительное число из строки. Если строка не число или число не положительное, бросает `IllegalArgumentException` с сообщением `Некорректная сумма: <text>`;
+    * `Account(String owner)` - счёт с нулевым балансом; поля закрытые (`private`), владелец не меняется (`final`);
+    * `deposit(int amount)` - пополнение;
+    * `withdraw(int amount)` - снятие; если денег недостаточно, бросает `IllegalStateException` с сообщением `Недостаточно средств: нужно <amount>, есть <баланс>` и ничего не меняет;
+    * `getBalance()` - текущий баланс;
+    * `toString()` - строка `<владелец>: <баланс>`.
+
+    **Пример.** Ввод:
+
+    ```
+    Борис
+    deposit 50
+    withdraw 80
+    deposit abc
+    bonus 5
+    withdraw 20
+    ```
+
+    Вывод:
+
+    ```
+    Ошибка: Недостаточно средств: нужно 80, есть 50
+    Ошибка: Некорректная сумма: abc
+    Ошибка: Неизвестная команда: bonus
+    Борис: 30
+    Ошибок: 3
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "В заготовке уже есть метод parseAmount и класс Account с пустыми телами; main менять не нужно. Его catch перехватывает IllegalArgumentException и IllegalStateException."
+    - "parseAmount: вызовите Integer.parseInt(text) внутри try; NumberFormatException перехватите и бросьте IllegalArgumentException с нужным сообщением. Не забудьте тот же результат для чисел не больше нуля."
+    - "Account: два поля (private final String owner; private int balance), конструктор присваивает owner через this.owner = owner. toString возвращает owner + \": \" + balance."
+    - "withdraw: если amount > balance, бросьте new IllegalStateException(\"Недостаточно средств: нужно \" + amount + \", есть \" + balance) до изменения баланса."
+  tests:
+    - id: "basic"
+      title: "Пополнение и снятие без ошибок"
+      stdin: |
+        Анна
+        deposit 100
+        withdraw 30
+      expected: |
+        Анна: 70
+        Ошибок: 0
+      hint: "Баланс после deposit 100 и withdraw 30 равен 70; ошибок нет, поэтому печатаются только две строки: счёт и счётчик."
+    - id: "errors"
+      title: "Недостаток средств, неверная сумма и команда"
+      stdin: |
+        Борис
+        deposit 50
+        withdraw 80
+        deposit abc
+        bonus 5
+        withdraw 20
+      expected: |
+        Ошибка: Недостаточно средств: нужно 80, есть 50
+        Ошибка: Некорректная сумма: abc
+        Ошибка: Неизвестная команда: bonus
+        Борис: 30
+        Ошибок: 3
+      hint: "Три ошибки в порядке появления; неудачное снятие не меняет баланс, итоговый баланс 30."
+    - id: "non-positive"
+      title: "Ноль, отрицательные и дробные суммы (скрытый)"
+      stdin: |
+        Вика
+        deposit 0
+        deposit -5
+        deposit 10
+        deposit 5.5
+        withdraw 10
+      expected: |
+        Ошибка: Некорректная сумма: 0
+        Ошибка: Некорректная сумма: -5
+        Ошибка: Некорректная сумма: 5.5
+        Вика: 0
+        Ошибок: 3
+      hidden: true
+      hint: "Суммы 0, -5 и 5.5 неверны: parseAmount бросает IllegalArgumentException с текстом Некорректная сумма: <text>. Проверяйте и ноль с минусом, и запись с точкой."
+    - id: "big"
+      title: "Большие суммы и знак плюс (скрытый)"
+      stdin: |
+        Глеб
+        deposit +7
+        deposit 1000000
+        withdraw 1000007
+        withdraw 1
+      expected: |
+        Ошибка: Недостаточно средств: нужно 1, есть 0
+        Глеб: 0
+        Ошибок: 1
+      hidden: true
+      hint: "\"+7\" допустимая запись числа; после снятия всех денег баланс 0, а следующее снятие 1 должно дать Недостаточно средств: нужно 1, есть 0."
+    - id: "odd-lines"
+      title: "Пустые строки и лишние слова (скрытый)"
+      stdin: |
+        Дима
+
+        deposit 10 20
+        withdraw 10
+          deposit   15  
+      expected: |
+        Ошибка: Неверная команда: deposit 10 20
+        Ошибка: Недостаточно средств: нужно 10, есть 0
+        Дима: 15
+        Ошибок: 2
+      hidden: true
+      hint: "Пустые строки main пропускает сам; строка deposit 10 20 даёт ошибку main, но сумма не меняется; deposit с пробелами разбирается как обычно."

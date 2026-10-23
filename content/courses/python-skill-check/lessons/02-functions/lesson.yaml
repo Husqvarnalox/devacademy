@@ -1,0 +1,149 @@
+id: "python.check.functions"
+title: "Проверка: функции и строки"
+goal: "Писать функции с параметрами и значениями по умолчанию и обрабатывать строки срезами, методами и форматированием."
+difficulty: "easy"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: писать функции с параметрами и значениями по умолчанию и обрабатывать строки срезами, методами и форматированием."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "python"
+  - "check"
+  - "functions"
+assessmentFor:
+  - "python.fundamentals.functions"
+  - "python.fundamentals.strings"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def f(a, b=[]):
+            b.append(a)
+            return b
+
+        f(1)
+        print(f(2))
+        ```
+      options:
+        - "[2]"
+        - "[1, 2]"
+        - "[1]"
+        - "Ошибка TypeError"
+      answer: 1
+      explanation: "Список по умолчанию создаётся один раз при определении функции, поэтому второй вызов дополняет тот же список."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print("python"[::-1][:3])
+        ```
+      options:
+        - "pyt"
+        - "noh"
+        - "hon"
+        - "nohtyp"
+      answer: 1
+      explanation: "Срез [::-1] разворачивает строку (nohtyp), а [:3] берёт первые три символа: noh."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        s = "a,b,,c"
+        print(s.split(","), len(s.split(",")))
+        ```
+      options:
+        - "['a', 'b', 'c'] 3"
+        - "['a', 'b', '', 'c'] 4"
+        - "['a', 'b', ' ', 'c'] 4"
+        - "['a,b,,c'] 1"
+      answer: 1
+      explanation: "split(',') не склеивает подряд идущие разделители: между двумя запятыми остаётся пустая строка."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        x = 1
+
+        def f():
+            x = 2
+            return x
+
+        f()
+        print(x, f())
+        ```
+      options:
+        - "2 2"
+        - "1 2"
+        - "1 1"
+        - "UnboundLocalError"
+      answer: 1
+      explanation: "Присваивание внутри функции создаёт локальную переменную x; глобальная остаётся равной 1, а вызов f() возвращает 2."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        name = "Ада"
+        print(f"{name!r:*>7}|{name.upper():_<5}|{len(name)}")
+        ```
+      options:
+        - "'Ада'|АДА|3"
+        - "**'Ада'|АДА__|3"
+        - "'Ада'**|АДА|3"
+        - "Ада|АДА|3"
+      answer: 1
+      explanation: "!r даёт repr строки с кавычками ('Ада', 5 символов), затем выравнивание вправо по ширине 7 с символом-заполнителем * добавляет две звёздочки слева. Второе поле выровнено влево по ширине 5 с заполнителем _: АДА и два подчёркивания."
+exercise:
+  id: "python.check.functions.exercise"
+  title: "Три функции для обработки текста"
+  prompt: |
+    В файле `functions_check.py` реализуйте три функции для обработки текста. Тесты вызывают их напрямую; ничего не печатайте.
+
+    1. `is_palindrome(text)` - `True`, если текст читается одинаково в обе стороны, если учитывать только буквы и цифры и не различать регистр. `is_palindrome("А роза упала на лапу Азора")` равно `True`.
+    2. `caesar(text, shift)` - сдвинуть каждую **латинскую** букву на `shift` позиций по алфавиту по кругу, сохраняя регистр; остальные символы не менять. `shift` может быть отрицательным или больше 26. `caesar("Abc, xyz!", 3)` равно `"Def, abc!"`.
+    3. `truncate(text, width, ellipsis="...")` - если текст длиннее `width`, обрезать так, чтобы вместе с многоточием длина стала ровно `width`; иначе вернуть текст без изменений. Если `width` меньше длины `ellipsis`, вызвать `ValueError`.
+  entryFile: "functions_check.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Заглушка pass возвращает None; каждая функция должна вернуть значение."
+    - "is_palindrome: соберите список символов, для которых ch.isalnum(), приведённых к нижнему регистру, и сравните его с его же копией [::-1]. caesar: порядковые номера букв дают ord и chr."
+    - "caesar: для буквы c с базой base (ord('a') или ord('A')) новый символ chr((ord(c) - base + shift) % 26 + base). truncate: сначала проверьте width, затем len(text) <= width, затем text[:width - len(ellipsis)] + ellipsis."
+  tests:
+    - id: "pal-basic"
+      title: "is_palindrome - обычные фразы"
+      hint: "Оставьте только буквы и цифры (isalnum), приведите к нижнему регистру и сравните с обратным порядком."
+    - id: "caesar-basic"
+      title: "caesar - сдвиг вперёд"
+      hint: "Сдвиг считается внутри алфавита из 26 букв; регистр и не-буквы сохраняются."
+    - id: "trunc-basic"
+      title: "truncate - обрезка с многоточием"
+      hint: "Итоговая длина вместе с многоточием равна width."
+    - id: "pal-edges"
+      title: "is_palindrome - пустая строка и цифры (скрытый)"
+      hidden: true
+      hint: "Пустой текст и текст без букв читаются одинаково; результат должен быть bool."
+    - id: "caesar-edges"
+      title: "caesar - отрицательный сдвиг, большой сдвиг, кириллица (скрытый)"
+      hidden: true
+      hint: "Оператор % приводит отрицательные и большие сдвиги в диапазон 0..25; нелатинские символы не меняются."
+    - id: "trunc-edges"
+      title: "truncate - граница и ошибка (скрытый)"
+      hidden: true
+      hint: "Текст длиной ровно width не обрезается; слишком малый width вызывает ValueError."

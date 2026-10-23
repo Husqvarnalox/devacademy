@@ -1,0 +1,236 @@
+id: "java.from-zero.arraylist"
+title: "ArrayList: список переменной длины"
+goal: "Хранить растущий набор значений в ArrayList и обрабатывать его методами add, get, size, contains и remove."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "java.from-zero.arrays"
+objectives:
+  - "Создавать ArrayList с типом элементов в угловых скобках и добавлять элементы."
+  - "Использовать get, set, size, contains, remove и isEmpty, помня, что индексы идут с нуля."
+  - "Писать метод, который принимает список и возвращает новый список из подходящих элементов."
+  - "Читать список целиком из ввода циклом while (in.hasNextInt()) и избегать изменения списка во время for-each."
+masteryCriteria:
+  - "Методы упражнения верно обрабатывают случаи, когда подходят все оценки, ни одна оценка и ровно одна."
+  - "Вы объясняете, почему в ArrayList<int> нужно писать Integer."
+  - "Вы различаете remove(индекс) и удаление по значению."
+concepts:
+  introduces:
+    - "java.arraylist"
+    - "java.type-argument"
+  uses:
+    - "java.array"
+    - "java.array-length"
+    - "java.for-each"
+    - "java.method"
+    - "java.parameter"
+    - "java.return"
+    - "java.static"
+    - "java.while"
+    - "java.for"
+    - "java.if"
+    - "java.int"
+    - "java.import"
+    - "java.new"
+    - "java.scanner"
+    - "java.println"
+    - "java.compile-error"
+    - "java.string"
+next:
+  - "java.from-zero.hashmap"
+tags:
+  - "java"
+  - "arraylist"
+  - "list"
+  - "collection"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        ArrayList<Integer> list = new ArrayList<>();
+        list.add(10);
+        list.add(20);
+        list.add(30);
+        list.remove(1);
+        System.out.println(list);
+        ```
+      options:
+        - "[10, 30]"
+        - "[10, 20]"
+        - "[20, 30]"
+        - "[10, 20, 30]"
+      answer: 0
+      explanation: "remove(1) удаляет элемент с индексом 1, то есть 20. Остальные элементы сохраняют порядок."
+    - id: "q2"
+      type: "single"
+      prompt: "Компилятор сообщает: unexpected type, required: reference, found: int. Какая запись это вызвала?"
+      options:
+        - "ArrayList<int> numbers = new ArrayList<>();"
+        - "ArrayList<Integer> numbers = new ArrayList<>();"
+        - "ArrayList<String> numbers = new ArrayList<>();"
+        - "int[] numbers = new int[5];"
+      answer: 0
+      explanation: "В угловых скобках нужен ссылочный тип. Для целых чисел пишут Integer; Java сама превращает int в Integer и обратно."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт?
+
+        ```java
+        ArrayList<String> names = new ArrayList<>();
+        names.add("Анна");
+        names.add("Олег");
+        System.out.println(names.get(2));
+        ```
+      options:
+        - "IndexOutOfBoundsException: Index 2 out of bounds for length 2"
+        - "Напечатает Олег"
+        - "Напечатает null"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "В списке два элемента, индексы 0 и 1. Индекс 2 выходит за границы, и программа падает с исключением во время работы."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        ArrayList<Integer> a = new ArrayList<>();
+        a.add(3);
+        ArrayList<Integer> b = a;
+        b.add(4);
+        System.out.println(a.size());
+        ```
+      options:
+        - "2"
+        - "1"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "b - не копия, а вторая ссылка на тот же список. Добавление через b видно через a, поэтому в списке два элемента."
+    - id: "q5"
+      type: "single"
+      prompt: "Как узнать число элементов списка list?"
+      options:
+        - "list.size()"
+        - "list.length"
+        - "list.length()"
+        - "list.count"
+      answer: 0
+      explanation: "У списка размер возвращает метод size(). Поле length есть у массива, метод length() - у строки."
+exercise:
+  id: "java.from-zero.arraylist.exercise"
+  title: "Оценки студентов"
+  prompt: |
+    Преподаватель вводит проходной балл и затем оценки студентов. На вход подаётся целое число `min` (проходной балл), а за ним все оценки - целые числа до конца ввода. Хотя бы одна оценка есть. `main` уже написан: он собирает оценки в `ArrayList<Integer>` и печатает четыре строки:
+
+    ```
+    Всего оценок: <сколько оценок>
+    Не ниже <min>: <список оценок, не меньших min, в исходном порядке>
+    Лучшая: <наибольшая оценка>
+    Пятёрка есть: <true или false>
+    ```
+
+    Методы, которые нужно написать:
+
+    * `passing(ArrayList<Integer> grades, int min)` возвращает **новый** список из оценок, не меньших `min`, в исходном порядке;
+    * `best(ArrayList<Integer> grades)` возвращает наибольшую оценку (список не пуст);
+    * `hasFive(ArrayList<Integer> grades)` возвращает `true`, если в списке есть оценка 5.
+
+    **Пример.** Ввод:
+
+    ```
+    4
+    5 3 4 2 5
+    ```
+
+    Вывод:
+
+    ```
+    Всего оценок: 5
+    Не ниже 4: [5, 4, 5]
+    Лучшая: 5
+    Пятёрка есть: true
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Все три метода получают список. Для обхода подойдёт for-each: for (int g : grades). Методы только читают исходный список."
+    - "passing: создайте новый ArrayList<Integer>, добавьте в него через add только оценки, не меньшие min, и верните его. best: начните с grades.get(0) и ищите большее."
+    - "hasFive не нужно писать цикл: у списка есть метод contains, который возвращает true или false."
+  tests:
+    - id: "example"
+      title: "Пример из условия"
+      stdin: |
+        4
+        5 3 4 2 5
+      expected: |
+        Всего оценок: 5
+        Не ниже 4: [5, 4, 5]
+        Лучшая: 5
+        Пятёрка есть: true
+      hint: "Оценки не ниже 4: 5, 4, 5 в исходном порядке; лучшая 5; пятёрка есть."
+    - id: "no-five"
+      title: "Нет пятёрки"
+      stdin: |
+        3
+        4 3 4
+      expected: |
+        Всего оценок: 3
+        Не ниже 3: [4, 3, 4]
+        Лучшая: 4
+        Пятёрка есть: false
+      hint: "Все оценки не ниже 3, лучшая 4; пятёрки нет, hasFive должен вернуть false."
+    - id: "none-pass"
+      title: "Никто не сдал (скрытый)"
+      stdin: |
+        5
+        2 3 4
+      expected: |
+        Всего оценок: 3
+        Не ниже 5: []
+        Лучшая: 4
+        Пятёрка есть: false
+      hidden: true
+      hint: "Если подходящих оценок нет, печатается пустой список []; лучшая оценка 4."
+    - id: "single"
+      title: "Одна оценка (скрытый)"
+      stdin: |
+        2
+        2
+      expected: |
+        Всего оценок: 1
+        Не ниже 2: [2]
+        Лучшая: 2
+        Пятёрка есть: false
+      hidden: true
+      hint: "Одна оценка равна проходному баллу: сравнение нестрогое (>=), список [2], лучшая 2."
+    - id: "negative"
+      title: "Отрицательные оценки (скрытый)"
+      stdin: |
+        -5
+        -3 -8 -5
+      expected: |
+        Всего оценок: 3
+        Не ниже -5: [-3, -5]
+        Лучшая: -3
+        Пятёрка есть: false
+      hidden: true
+      hint: "Все оценки отрицательные: наибольшая -3, поиск максимума начинается с первого элемента, а не с нуля. Не ниже -5: -3 и -5."
+    - id: "order"
+      title: "Порядок сохраняется (скрытый)"
+      stdin: |
+        1
+        5 1 5 1 3
+      expected: |
+        Всего оценок: 5
+        Не ниже 1: [5, 1, 5, 1, 3]
+        Лучшая: 5
+        Пятёрка есть: true
+      hidden: true
+      hint: "Список подходящих оценок должен сохранять порядок и повторы: [5, 1, 5, 1, 3]."

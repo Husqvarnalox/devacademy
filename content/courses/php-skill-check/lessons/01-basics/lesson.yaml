@@ -1,0 +1,205 @@
+id: "php.check.basics"
+title: "Проверка: основы - значения, условия, циклы, функции"
+goal: "Читать и писать небольшие функции с условиями и циклами, не путая обычное и целочисленное деление."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: писать функции с условиями и циклами и предсказывать результат простых выражений."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "php"
+  - "check"
+  - "basics"
+assessmentFor:
+  - "php.from-zero.first-program"
+  - "php.from-zero.reading-errors"
+  - "php.from-zero.output"
+  - "php.from-zero.variables"
+  - "php.from-zero.values-and-types"
+  - "php.from-zero.arithmetic"
+  - "php.from-zero.strings"
+  - "php.from-zero.reading-input"
+  - "php.from-zero.type-conversion"
+  - "php.from-zero.formatted-output"
+  - "php.from-zero.comparison-and-logic"
+  - "php.from-zero.if-else"
+  - "php.from-zero.while-loop"
+  - "php.from-zero.for-loop"
+  - "php.from-zero.loop-control"
+  - "php.from-zero.functions"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $s = 0;
+        for ($i = 1; $i <= 5; $i++) {
+            if ($i % 2 === 0) {
+                continue;
+            }
+            $s += $i;
+        }
+        echo $s;
+        ```
+      options:
+        - "9"
+        - "6"
+        - "15"
+        - "5"
+      answer: 0
+      explanation: "Цикл пропускает чётные $i, поэтому складываются 1, 3 и 5, итого 9. Оператор continue завершает только текущий шаг, а не весь цикл."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo 10 / 4, " ", intdiv(10, 4), " ", 10 % 4;
+        ```
+      options:
+        - "2.5 2 2"
+        - "2 2 2"
+        - "2.5 2.5 2"
+        - "2.5 2 2.5"
+      answer: 0
+      explanation: "Оператор / даёт дробный результат 2.5, intdiv отбрасывает дробную часть и возвращает 2, а остаток от деления 10 на 4 равен 2."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function f(int $a, int $b = 3): int
+        {
+            return $a * $b;
+        }
+        echo f(2) + f(2, 5);
+        ```
+      options:
+        - "16"
+        - "10"
+        - "13"
+        - "12"
+      answer: 0
+      explanation: "f(2) использует значение по умолчанию b = 3 и возвращает 6, f(2, 5) возвращает 10. Сумма 6 + 10 равна 16."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $n = 10;
+        $c = 0;
+        while ($n > 1) {
+            $n = intdiv($n, 2);
+            $c++;
+        }
+        echo "{$c} {$n}";
+        ```
+      options:
+        - "3 1"
+        - "4 0"
+        - "3 2"
+        - "5 1"
+      answer: 0
+      explanation: "Значения $n по шагам: 10, 5, 2, 1. Три итерации, после третьей $n равно 1 и условие $n > 1 ложно. Поэтому печатается «3 1»."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo 1 + 2 . "3";
+        ```
+      options:
+        - "33"
+        - "15"
+        - "123"
+        - "6"
+      answer: 0
+      explanation: "В PHP 8 арифметические операторы старше склейки, поэтому сначала считается 1 + 2 = 3, а затем к числу приписывается строка \"3\". Получается строка \"33\"."
+exercise:
+  id: "php.check.basics.exercise"
+  title: "Небольшие функции с условиями и циклами"
+  prompt: |-
+    Основная часть программы готова: она читает команды (по одной на строку) и печатает результат вызова ваших функций. Допишите четыре функции в `main.php`, основную часть не меняйте.
+
+    1. `fizzBuzz(int $n): string` - `"FizzBuzz"`, если `n` делится на 3 и на 5; `"Fizz"`, если только на 3; `"Buzz"`, если только на 5; иначе число `n`, записанное строкой.
+    2. `isLeapYear(int $year): bool` - `true` для високосного года: делится на 4, но не на 100, кроме годов, которые делятся на 400.
+    3. `nextPrime(int $n): int` - наименьшее простое число, строго большее `n` (`n` целое, может быть отрицательным).
+    4. `gcd(int $a, int $b): int` - наибольший общий делитель двух неотрицательных чисел.
+
+    **Пример.** Для ввода
+
+    ```
+    fizz 15
+    leap 2024
+    prime 10
+    gcd 12 18
+    ```
+
+    программа печатает
+
+    ```
+    FizzBuzz
+    да
+    11
+    6
+    ```
+
+    Часть тестов скрыта: в них граничные значения.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "FizzBuzz: проверка деления на 15 должна идти раньше проверок на 3 и на 5. Число превращайте в строку через (string) $n: в строгом режиме return $n для типа string - ошибка."
+    - "isLeapYear: ($year % 4 === 0 && $year % 100 !== 0) || $year % 400 === 0."
+    - "nextPrime: перебирайте кандидатов $n + 1, $n + 2, ... в цикле while (true); число меньше 2 не простое, остальные проверяйте делителями от 2, пока $d * $d <= $candidate."
+    - "gcd: алгоритм Евклида - пока $b !== 0, замените пару ($a, $b) парой ($b, $a % $b); ответом будет $a."
+  tests:
+    - id: "fizz-leap"
+      title: "FizzBuzz и високосные годы"
+      stdin: "fizz 15\nfizz 9\nfizz 10\nfizz 7\nleap 2024\nleap 2023\n"
+      expected: "FizzBuzz\nFizz\nBuzz\n7\nда\nнет\n"
+      hint: "Для 15 нужен FizzBuzz, для 9 - Fizz, для 10 - Buzz, для 7 - просто 7; 2024 високосный, 2023 нет."
+    - id: "prime-gcd"
+      title: "Простые числа и НОД"
+      stdin: "prime 10\nprime 13\ngcd 12 18\ngcd 17 5\n"
+      expected: "11\n17\n6\n1\n"
+      hint: "После 10 идёт 11, после 13 - 17 (строго больше); НОД(12, 18) равен 6, НОД(17, 5) равен 1."
+    - id: "fizz-edge"
+      title: "FizzBuzz для 0 и отрицательных (скрытый)"
+      stdin: "fizz 0\nfizz 30\nfizz -3\nfizz -5\nfizz -2\nfizz 1\n"
+      expected: "FizzBuzz\nFizzBuzz\nFizz\nBuzz\n-2\n1\n"
+      hidden: true
+      hint: "0 делится и на 3, и на 5. Для отрицательных остаток тоже равен нулю: -3 даёт Fizz, -5 даёт Buzz, а -2 печатается как есть."
+    - id: "leap-edge"
+      title: "Века и високосные годы (скрытый)"
+      stdin: "leap 1900\nleap 2000\nleap 2100\nleap 2400\nleap 4\n"
+      expected: "нет\nда\nнет\nда\nда\n"
+      hidden: true
+      hint: "Годы, кратные 100, не високосные, кроме кратных 400: 1900 нет, 2000 да, 2100 нет, 2400 да."
+    - id: "prime-edge"
+      title: "nextPrime для малых и отрицательных чисел (скрытый)"
+      stdin: "prime -5\nprime 0\nprime 1\nprime 2\nprime 89\n"
+      expected: "2\n2\n2\n3\n97\n"
+      hidden: true
+      hint: "Для любого числа меньше 2 ответ 2; после 2 идёт 3, после 89 - 97 (число 91 составное: 7 * 13)."
+    - id: "gcd-edge"
+      title: "НОД с нулём и равными числами (скрытый)"
+      stdin: "gcd 0 5\ngcd 7 0\ngcd 9 9\ngcd 100 75\n"
+      expected: "5\n7\n9\n25\n"
+      hidden: true
+      hint: "НОД с нулём равен второму числу: gcd(0, 5) равно 5, gcd(7, 0) равно 7; gcd(9, 9) равно 9, gcd(100, 75) равно 25."

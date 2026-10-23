@@ -1,0 +1,164 @@
+id: "go.check.internals"
+title: "Проверка: срезы и карты изнутри"
+goal: "Предсказывать поведение append, copy и срезов с общей памятью."
+difficulty: "hard"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: предсказывать поведение append, copy и срезов с общей памятью."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "internals"
+assessmentFor:
+  - "go.fundamentals.maps-and-slices-deep-dive"
+  - "go.pro.slice-internals"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        a := make([]int, 1, 4)
+        b := append(a, 1)
+        c := append(a, 2)
+        fmt.Println(b[1], c[1])
+        ```
+      options:
+        - "1 2"
+        - "2 2"
+        - "1 1"
+        - "0 0"
+      answer: 1
+      explanation: "У `a` есть запас ёмкости, поэтому оба `append` пишут в один и тот же массив, в позицию 1. Последняя запись (2) видна через оба среза."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        s := []int{1, 2, 3}
+        t := s[:2:2]
+        t = append(t, 9)
+        fmt.Println(s, t)
+        ```
+      options:
+        - "[1 2 9] [1 2 9]"
+        - "[1 2 3] [1 2 9]"
+        - "[1 2 3] [1 2 3 9]"
+        - "Паника"
+      answer: 1
+      explanation: "Трёхиндексный срез `s[:2:2]` ограничивает ёмкость двумя, поэтому `append` выделяет новый массив и не трогает `s[2]`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        src := []int{1, 2, 3}
+        dst := make([]int, 2)
+        n := copy(dst, src)
+        fmt.Println(n, dst)
+        ```
+      options:
+        - "3 [1 2 3]"
+        - "2 [1 2]"
+        - "2 [0 0]"
+        - "0 []"
+      answer: 1
+      explanation: "`copy` копирует `min(len(dst), len(src))` элементов и возвращает их число."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        func grow(s []int) {
+        	s = append(s, 1)
+        }
+
+        func main() {
+        	s := make([]int, 0, 4)
+        	grow(s)
+        	fmt.Println(len(s), len(s[:1]))
+        }
+        ```
+      options:
+        - "1 1"
+        - "0 1"
+        - "0 0"
+        - "Паника"
+      answer: 1
+      explanation: "Заголовок среза передан по значению: длина `s` в `main` не изменилась. Но элемент записан в общий массив, и `s[:1]` в пределах ёмкости его видит."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        m := map[string][]int{}
+        m["a"] = append(m["a"], 1)
+        fmt.Println(len(m["a"]), len(m["b"]))
+        ```
+      options:
+        - "1 0"
+        - "1 1"
+        - "Паника: nil-срез"
+        - "0 0"
+      answer: 0
+      explanation: "Чтение отсутствующего ключа даёт нулевое значение (nil-срез), а `append` к nil-срезу допустим. Чтение `m[\"b\"]` ключ не создаёт."
+exercise:
+  id: "go.check.internals.exercise"
+  title: "withAppended и firstN"
+  prompt: |
+    Две функции о том, как срезы делят память. Допишите их в `main.go`.
+
+    * **`withAppended(s []int, v int) []int`** - возвращает **новый** срез: элементы `s` и `v` в конце. Запас ёмкости `s` менять нельзя: после вызова исходный срез и его «хвост» за длиной должны остаться прежними. Результаты двух вызовов не должны влиять друг на друга.
+    * **`firstN(s []int, n int) []int`** - первые `n` элементов (`n` ограничивается диапазоном `0..len(s)`). Результат **делит память** с `s` (запись по индексу видна в `s`), но `append` к нему не перезаписывает `s[n]`: ёмкость результата равна его длине.
+
+    **Как проверяется.** Тесты смотрят на запас ёмкости, независимость результатов и `cap` результата, то есть именно на поведение, о котором идёт речь в теории.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Для `withAppended` выделите `out := make([]int, len(s), len(s)+1)`, затем `copy(out, s)` и `append(out, v)`."
+    - "Наивный `append(s, v)` может записать в спарную ёмкость исходного среза: это и проверяют тесты."
+    - "Для `firstN` сначала ограничьте `n` значениями `0..len(s)`."
+    - "Трёхиндексный срез `s[:n:n]` задаёт длину и ёмкость, равные `n`."
+  tests:
+    - id: "with-basic"
+      title: "withAppended: значения"
+      match: "TestWithAppended/values"
+      hint: "Результат: элементы s и затем v."
+    - id: "first-basic"
+      title: "firstN: срез и ёмкость"
+      match: "TestFirstN/capacity_limited"
+      hint: "Ограничьте ёмкость: s[:n:n]."
+    - id: "with-all"
+      title: "withAppended: запас и независимость (скрытый)"
+      match: "TestWithAppended/*"
+      hidden: true
+      hint: "Исходный срез и его хвост не меняются; два результата не связаны."
+    - id: "first-all"
+      title: "firstN: границы и общая память (скрытый)"
+      match: "TestFirstN/*"
+      hidden: true
+      hint: "n ограничивается 0..len(s); запись по индексу видна в исходном срезе."

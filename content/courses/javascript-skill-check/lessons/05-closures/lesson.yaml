@@ -1,0 +1,158 @@
+id: "javascript.check.closures"
+title: "Проверка: замыкания и this"
+goal: "Строить замыкания с собственным состоянием и предсказывать, чему равен this при вызове функции и метода."
+difficulty: "hard"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: строить замыкания с собственным состоянием и предсказывать значение this."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "closures"
+  - "this"
+assessmentFor:
+  - "javascript.fundamentals.scope-and-closures"
+  - "javascript.fundamentals.this-and-functions"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        for (var i = 0; i < 3; i++) setTimeout(() => console.log("var", i), 0);
+        for (let j = 0; j < 3; j++) setTimeout(() => console.log("let", j), 0);
+        ```
+      options:
+        - "var 3, var 3, var 3, let 0, let 1, let 2"
+        - "var 0, var 1, var 2, let 0, let 1, let 2"
+        - "var 3, var 3, var 3, let 3, let 3, let 3"
+        - "var 0, var 1, var 2, let 3, let 3, let 3"
+      answer: 0
+      explanation: "var создаёт одну переменную на весь цикл, и к моменту срабатывания таймеров она равна 3. let в цикле создаёт новую привязку на каждой итерации, и каждое замыкание видит свою."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const o = { n: 1, get() { return this?.n; } };
+        const g = o.get;
+        console.log(o.get(), g());
+        ```
+      options:
+        - "1 undefined"
+        - "1 1"
+        - "undefined undefined"
+        - "TypeError"
+      answer: 0
+      explanation: "this определяется местом вызова, а не местом объявления. В o.get() this - объект o. В g() получатель потерян, this равен undefined (или globalThis в нестрогом режиме), поэтому свойства n нет."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        function f() { return this.v; }
+        const b = f.bind({ v: 1 });
+        console.log(b(), b.call({ v: 2 }), f.call({ v: 3 }));
+        ```
+      options:
+        - "1 1 3"
+        - "1 2 3"
+        - "1 2 undefined"
+        - "undefined 2 3"
+      answer: 0
+      explanation: "bind создаёт новую функцию с жёстко зафиксированным this. Последующие call и apply его уже не меняют, а исходная функция f остаётся прежней."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        function make() {
+          let n = 0;
+          return [() => ++n, () => n];
+        }
+        const [a, b] = make();
+        const [c, d] = make();
+        a(); a(); c();
+        console.log(b(), d());
+        ```
+      options:
+        - "2 1"
+        - "3 3"
+        - "2 3"
+        - "1 1"
+      answer: 0
+      explanation: "Каждый вызов make() создаёт собственную переменную n. Функции a и b разделяют одну, c и d - другую. Поэтому b() видит два увеличения, а d() одно."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        try {
+          console.log(typeof a);
+          console.log(typeof b);
+        } catch (e) {
+          console.log(e.name);
+        }
+        var a = 1;
+        let b = 2;
+        ```
+      options:
+        - "undefined, затем ReferenceError"
+        - "undefined, затем undefined"
+        - "number, затем number"
+        - "ReferenceError сразу"
+      answer: 0
+      explanation: "var поднимается и получает значение undefined, поэтому typeof a даёт \"undefined\". let существует с начала блока, но до объявления находится во временной мёртвой зоне, и даже typeof b бросает ReferenceError."
+exercise:
+  id: "javascript.check.closures.exercise"
+  title: "Счётчик, once и привязка метода"
+  prompt: |
+    В файле `closures_check.mjs` реализуйте три экспортируемые функции.
+
+    1. `makeCounter(start = 0, step = 1)` - фабрика счётчика. Возвращает объект с методами `inc()` (прибавляет `step` и возвращает новое значение), `dec()` (вычитает `step`, возвращает новое значение), `value()` (текущее значение) и `reset()` (возвращает к `start` и возвращает `start`). Состояние у каждого счётчика своё. Методы не должны зависеть от `this`: `const { inc } = makeCounter(); inc();` работает.
+    2. `once(fn)` - возвращает функцию, которая вызывает `fn` только при первом вызове (с его `this` и аргументами) и при каждом следующем возвращает тот же результат, не вызывая `fn` снова. Это верно и для результата `undefined`.
+    3. `bindMethod(obj, name)` - возвращает функцию, которая вызывает `obj[name](...args)` с `this === obj` и передаёт аргументы. Метод ищется **в момент вызова**: если `obj[name]` позже заменили, вызывается новая версия. Если там не функция, вызов бросает `TypeError`.
+
+    Не используйте классы. Часть тестов скрыта: в них независимость счётчиков, `this` и повторные вызовы.
+  entryFile: "closures_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Состояние должно жить в локальных переменных фабрики, а не в this и не в модуле: тогда у каждого вызова фабрики будет свой набор."
+    - "makeCounter: объявите let current = start и верните объект из стрелочных функций или методов, которые читают и меняют current. once: переменные called и result в замыкании, функция-обёртка должна быть обычной function, чтобы получить this."
+    - "once: function (...args) { if (!called) { called = true; result = fn.apply(this, args); } return result; }. bindMethod: return (...args) => obj[name](...args); чтение obj[name] происходит внутри возвращаемой функции."
+    - "Если once вызывает fn через fn(...args), this потеряется; используйте fn.apply(this, args). Если bindMethod сохраняет метод заранее (const f = obj[name]), замена метода не будет замечена."
+  tests:
+    - id: "counter-basic"
+      title: "makeCounter - inc, dec и value"
+      hint: "inc прибавляет step и возвращает новое значение; value возвращает текущее."
+    - id: "once-basic"
+      title: "once - повторный вызов не вызывает функцию"
+      hint: "Запомните в замыкании, был ли вызов, и значение результата."
+    - id: "bind-basic"
+      title: "bindMethod - отдельная функция сохраняет this"
+      hint: "Функция должна вызывать obj[name](...args), а не получать метод заранее без объекта."
+    - id: "counter-independent"
+      title: "makeCounter - независимость, reset и отрыв методов (скрытый)"
+      hidden: true
+      hint: "Не храните счёт в общей переменной модуля и не используйте this: методы вызываются отдельно, как const { inc } = counter."
+    - id: "once-edge"
+      title: "once - this, аргументы и undefined (скрытый)"
+      hidden: true
+      hint: "Обёртка once должна быть function с apply(this, args); флаг called отделён от result, иначе результат undefined вызывает fn снова."
+    - id: "bind-late"
+      title: "bindMethod - поздний поиск метода и TypeError (скрытый)"
+      hidden: true
+      hint: "Читайте obj[name] при каждом вызове; для отсутствующего метода вызов obj[name](...) сам бросает TypeError."

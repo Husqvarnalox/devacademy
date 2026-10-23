@@ -3,10 +3,11 @@ title: "Как выполняется Kotlin: kotlinc, JVM и ввод-выво�
 goal: "Понять, как Kotlin превращается в байткод JVM, и написать программу, читающую числа из stdin."
 difficulty: "intro"
 estimatedMinutes: 30
-prerequisites: []
+prerequisites:
+  - "kotlin.from-zero.first-class"
 objectives:
   - "Описать, что делает kotlinc и как jar запускается на JVM."
-  - "Различать val и var, Int и Long, явные числовые преобразования."
+  - "Объяснять переполнение Int, разницу между Int и Long и явные числовые преобразования."
   - "Читать stdin через readln и bufferedReader().readText()."
   - "Форматировать дробные числа через Locale.ROOT."
 masteryCriteria:

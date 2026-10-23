@@ -1,0 +1,244 @@
+id: "rust.from-zero.string-methods"
+title: "Методы строк: разрезаем и ищем"
+goal: "Разбирать текст на части методами строк: split_whitespace, split, split_once, contains, starts_with, replace, chars и join - и не путать байты с символами."
+difficulty: "easy"
+estimatedMinutes: 55
+prerequisites:
+  - "rust.from-zero.hash-maps"
+objectives:
+  - "Разбить строку на слова через split_whitespace и на части по разделителю через split, складывая части в Vec<&str>."
+  - "Разделить строку «ключ;значение» один раз через split_once и разобрать Option<(&str, &str)>."
+  - "Искать и менять текст через contains, starts_with, ends_with и replace, помня, что replace возвращает новую строку."
+  - "Перебирать символы через chars(), считать их через chars().count() и объяснить, почему len() считает байты."
+  - "Склеивать части через join."
+masteryCriteria:
+  - "Вы разбираете строки формата «имя;балл» и «слово слово слово» без индексации по байтам."
+  - "Вы различаете len() (байты) и chars().count() (символы) для кириллицы."
+  - "Вы обрабатываете отсутствие разделителя через Option, а не unwrap."
+concepts:
+  introduces:
+    - "rust.string-methods"
+    - "rust.split"
+    - "rust.chars"
+  uses:
+    - "rust.string"
+    - "rust.str"
+    - "rust.trim"
+    - "rust.string-case"
+    - "rust.string-length"
+    - "rust.char"
+    - "rust.option"
+    - "rust.if-let"
+    - "rust.match"
+    - "rust.match-arm"
+    - "rust.vec"
+    - "rust.vec-iteration"
+    - "rust.debug-format"
+    - "rust.function"
+    - "rust.parameter"
+    - "rust.return"
+    - "rust.reference"
+    - "rust.for"
+    - "rust.if"
+    - "rust.lines"
+    - "rust.stdin"
+    - "rust.read-to-string"
+    - "rust.unwrap"
+    - "rust.unwrap-or"
+    - "rust.i32"
+    - "rust.mut"
+    - "rust.compound-assignment"
+    - "rust.inline-format"
+    - "rust.comparison"
+    - "rust.method-call"
+    - "rust.push-str"
+    - "rust.hash-map"
+    - "rust.map-iteration"
+next:
+  - "rust.from-zero.errors"
+tags:
+  - "rust"
+  - "string"
+  - "split"
+  - "chars"
+  - "text"
+  - "parsing"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn main() {
+            let mut count = 0;
+            for w in "  а  бв   где ".split_whitespace() {
+                count += w.chars().count();
+            }
+            println!("{count}");
+        }
+        ```
+      options:
+        - "6"
+        - "3"
+        - "14"
+        - "12"
+      answer: 0
+      explanation: "split_whitespace отдаёт слова «а», «бв» и «где» (лишние пробелы пропущены). В них 1 + 2 + 3 = 6 символов."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn main() {
+            match "ключ=значение=ещё".split_once('=') {
+                Some((a, b)) => println!("[{a}] [{b}]"),
+                None => println!("нет"),
+            }
+        }
+        ```
+      options:
+        - "[ключ] [значение=ещё]"
+        - "[ключ=значение] [ещё]"
+        - "[ключ] [значение]"
+        - "нет"
+      answer: 0
+      explanation: "split_once режет по первому разделителю. Остаток после него, включая второй знак =, попадает во вторую часть."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn main() {
+            let s = "привет";
+            println!("{} {}", s.len(), s.chars().count());
+        }
+        ```
+      options:
+        - "12 6"
+        - "6 6"
+        - "6 12"
+        - "12 12"
+      answer: 0
+      explanation: "Каждая русская буква занимает 2 байта в UTF-8: len() считает байты (12), chars().count() считает символы (6)."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Почему этот код не компилируется?
+
+        ```rust
+        fn main() {
+            let word = String::from("привет");
+            println!("{}", word[0]);
+        }
+        ```
+      options:
+        - "Потому что word нужно объявить с mut."
+        - "Потому что строку нельзя индексировать числом: символ может занимать несколько байтов."
+        - "Потому что индекс должен быть 1, а не 0."
+        - "Потому что String::from принимает только латиницу."
+      answer: 1
+      explanation: "Rust не позволяет брать символ строки по номеру. Используйте word.chars().next() для первого символа или chars() для перебора."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```rust
+        fn main() {
+            let s = String::from("кот");
+            s.replace("к", "т");
+            let t = s.replace("о", "а");
+            println!("{s} {t}");
+        }
+        ```
+      options:
+        - "кот кат"
+        - "тот кат"
+        - "тот тат"
+        - "кот кот"
+      answer: 0
+      explanation: "replace не изменяет строку s, а возвращает новую. Первый вызов выброшен (компилятор предупредит), поэтому s остаётся «кот». Результат второго вызова сохранён в t, и там «о» заменено на «а»."
+exercise:
+  id: "rust.from-zero.string-methods.exercise"
+  title: "Анализ фразы"
+  prompt: |
+    В упражнении `main` уже написан. Он читает первую строку ввода как фразу и печатает результат трёх ваших функций. Слова разделены пробелами, знаки препинания считаются частью слова.
+
+    1. `count_words(text: &str) -> i32` - сколько слов во фразе (лишние пробелы не создают слов).
+    2. `acronym(text: &str) -> String` - первые буквы всех слов, склеенные и переведённые в верхний регистр.
+    3. `longest_word(text: &str) -> Option<String>` - самое длинное слово (по числу **символов**); при равной длине - то, что встретилось раньше; `None`, если слов нет.
+
+    Пример. Ввод:
+
+    ```
+    вечерняя школа программирования
+    ```
+
+    Вывод:
+
+    ```
+    Слов: 3
+    Аббревиатура: ВШП
+    Самое длинное: программирования
+    ```
+
+    В заготовке функции возвращают `0`, пустую строку и `None`. Замените их, `main` не меняйте.
+  entryFile: "main.rs"
+  evaluation: "io"
+  hints:
+    - "count_words: заведите счётчик и пройдите циклом for _w in text.split_whitespace(), увеличивая его. split_whitespace сам пропускает лишние пробелы."
+    - "acronym: заведите let mut result = String::new(); для каждого слова возьмите word.chars().next() - это Option<char>. В if let Some(c) = ... добавьте символ: result.push(c). В конце верните result.to_uppercase()."
+    - "longest_word: храните лучшее слово в let mut best = \"\"; и заменяйте его на word, когда word.chars().count() > best.chars().count(). Строгое «больше» оставляет первое из равных."
+    - "Не используйте len(): для кириллицы он считает байты, и самое длинное слово по байтам может отличаться. В конце верните None, если best пуст, иначе Some(String::from(best))."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "вечерняя школа программирования\n"
+      expected: "Слов: 3\nАббревиатура: ВШП\nСамое длинное: программирования\n"
+      hint: "3 слова, ВШП, самое длинное - программирования."
+    - id: "short"
+      title: "Короткая фраза"
+      stdin: "красный дом\n"
+      expected: "Слов: 2\nАббревиатура: КД\nСамое длинное: красный\n"
+      hint: "Два слова: КД; длиннее «красный» (7 против 3)."
+    - id: "spaces"
+      title: "Лишние пробелы (скрытый)"
+      stdin: "   один    два   три  \n"
+      expected: "Слов: 3\nАббревиатура: ОДТ\nСамое длинное: один\n"
+      hidden: true
+      hint: "Лишние пробелы не создают слов: слов 3, аббревиатура ОДТ; самое длинное - «один» (4 символа)."
+    - id: "tie"
+      title: "Равная длина (скрытый)"
+      stdin: "кот пёс рак\n"
+      expected: "Слов: 3\nАббревиатура: КПР\nСамое длинное: кот\n"
+      hidden: true
+      hint: "Все слова по 3 символа: побеждает первое, «кот»; ё считается одним символом."
+    - id: "chars-not-bytes"
+      title: "Символы, а не байты (скрытый)"
+      stdin: "ёж ab abcd\n"
+      expected: "Слов: 3\nАббревиатура: ЁAA\nСамое длинное: abcd\n"
+      hidden: true
+      hint: "«ёж» - 2 символа, но 4 байта; «abcd» - 4 символа. Самое длинное - «abcd»: сравнивать нужно символы."
+    - id: "punct"
+      title: "Знаки препинания (скрытый)"
+      stdin: "Привет, мир! Как дела?\n"
+      expected: "Слов: 4\nАббревиатура: ПМКД\nСамое длинное: Привет,\n"
+      hidden: true
+      hint: "Знаки препинания - часть слова: «Привет,» (7 символов) длиннее остальных; аббревиатура ПМКД."
+    - id: "empty-line"
+      title: "Пустая строка (скрытый)"
+      stdin: "\n"
+      expected: "Слов: 0\nАббревиатура: \nСамое длинное: нет\n"
+      hidden: true
+      hint: "Слов нет: 0, пустая аббревиатура и «нет» вместо самого длинного слова."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "Слов: 0\nАббревиатура: \nСамое длинное: нет\n"
+      hidden: true
+      hint: "Нет даже строки: поведение такое же, как для пустой фразы."

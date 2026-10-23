@@ -1,0 +1,219 @@
+id: "cpp.check.values-raii"
+title: "Проверка: значения, ссылки и RAII"
+goal: "Понимать, когда копируется значение, когда передаётся ссылка, и использовать деструктор для освобождения ресурса."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: выбирать между T, T& и const T& и написать RAII-метку с конструктором и деструктором."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "values-raii"
+assessmentFor:
+  - "cpp.first-steps.value-semantics-references-and-raii"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        void add(std::vector<int> v) {
+            v.push_back(1);
+        }
+
+        int main() {
+            std::vector<int> a{1, 2};
+            add(a);
+            std::cout << a.size();
+        }
+        ```
+      options:
+        - "3"
+        - "2"
+        - "Ошибка компиляции"
+        - "Зависит от компилятора"
+      answer: 1
+      explanation: "Параметр std::vector<int> v - копия аргумента, поэтому push_back меняет только копию внутри функции. Вектор a у вызывающего остаётся из двух элементов: выводится 2."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        struct T {
+            std::string n;
+            T(std::string s) : n(s) { std::cout << "+" << n; }
+            ~T() { std::cout << "-" << n; }
+        };
+
+        int main() {
+            T a("a");
+            {
+                T b("b");
+                T c("c");
+            }
+            std::cout << "|";
+        }
+        ```
+      options:
+        - "+a+b+c-c-b|-a"
+        - "+a+b+c-b-c|-a"
+        - "+a+b+c|-a-b-c"
+        - "+a+b+c-c-b-a|"
+      answer: 0
+      explanation: "Конструкторы вызываются в порядке объявления: a, b, c. При выходе из внутреннего блока уничтожаются c, затем b (порядок обратный созданию). Затем печатается «|», а a уничтожается в конце main."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```cpp
+        void f(const std::vector<int>& v) {
+            v.push_back(1);
+        }
+
+        int main() {
+            std::vector<int> a{1, 2};
+            f(a);
+        }
+        ```
+      options:
+        - "Вектор a у вызывающего получит лишний элемент"
+        - "Изменится только локальная копия вектора"
+        - "Ошибка компиляции: через const-ссылку нельзя вызывать изменяющие методы"
+        - "Бросится исключение при вызове push_back"
+      answer: 2
+      explanation: "Параметр const std::vector<int>& - ссылка только для чтения. push_back не помечен как const, поэтому его вызов через такую ссылку - ошибка компиляции, а не ошибка времени выполнения."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Какая из функций возвращает висячую ссылку, то есть обращение к её результату после возврата - неопределённое поведение? Функции a и d вызываются с обычными переменными, вектор для d не пустой.
+
+        ```cpp
+        const std::string& a(const std::string& s) { return s; }
+
+        const std::string& b() {
+            std::string t = "x";
+            return t;
+        }
+
+        const std::string& c() {
+            static const std::string t = "x";
+            return t;
+        }
+
+        int& d(std::vector<int>& v) { return v.front(); }
+        ```
+      options:
+        - "Функция a"
+        - "Функция c"
+        - "Функция d"
+        - "Функция b"
+      answer: 3
+      explanation: "Функция b возвращает ссылку на локальную переменную t, которая уничтожается при выходе из функции. a возвращает ссылку на аргумент вызывающего, c - на объект со статическим временем жизни, d - на элемент вектора вызывающего: все три остаются валидными."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        int main() {
+            std::string a = "abc";
+            std::string b = a;
+            b[0] = 'X';
+            std::string& c = a;
+            c[1] = 'Y';
+            const std::string d = a;
+            std::cout << a << b << d;
+        }
+        ```
+      options:
+        - "abcXbcabc"
+        - "aYcXbcaYc"
+        - "XYcXYcXYc"
+        - "aYcabcaYc"
+      answer: 1
+      explanation: "b - независимая копия строки a, поэтому b[0] = 'X' не затрагивает a. c - ссылка на a, поэтому c[1] = 'Y' меняет саму a. Константная d - копия уже изменённой a. Получается a = aYc, b = Xbc, d = aYc."
+exercise:
+  id: "cpp.check.values-raii.exercise"
+  title: "Ссылки, копии и RAII-метка"
+  prompt: |
+    В заготовке уже есть `main`: он читает команды (по одной на строку) и вызывает ваши функции. Допишите тела трёх функций и деструктор класса `Tracer`. Основную часть (после комментария «Дальше основная часть») менять не нужно.
+
+    1. `void incrementAll(std::vector<int>& v)` - увеличивает каждый элемент на единицу в векторе вызывающего.
+    2. `int sumOf(const std::vector<int>& v)` - сумма элементов; вектор не копируется.
+    3. `std::vector<int> doubled(std::vector<int> v)` - параметр уже копия: удвойте её элементы и верните. Оригинал у вызывающего не должен измениться.
+    4. Класс `Tracer` - RAII-метка. Конструктор пишет в журнал `log` строку `+имя`, деструктор - строку `-имя`. Копировать метку запрещено (это уже сделано).
+
+    Команда `scope a b c` создаёт вложенные метки с этими именами, внутри пишет `body`, а затем выводит журнал.
+
+    **Пример.** Для ввода
+
+    ```
+    inc 1 2 3
+    sum 4 5 6
+    double 1 2 3
+    scope a b
+    ```
+
+    программа печатает
+
+    ```
+    2 3 4
+    15
+    1 2 3 -> 2 4 6
+    +a +b body -b -a
+    ```
+
+    Часть тестов скрыта: в них отрицательные числа, пустой список и длинная цепочка меток.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "incrementAll: цикл for (int& x : v) { x += 1; } - с ссылкой int& меняются сами элементы вектора, без & менялись бы копии."
+    - "sumOf: заведите int total = 0; и в цикле for (int x : v) прибавляйте x. Заголовок с const std::vector<int>& менять не нужно."
+    - "doubled: параметр v уже копия, поэтому можно менять её на месте: for (int& x : v) { x *= 2; } и return v;"
+    - "Tracer: в конструкторе вызовите log_.push_back(\"+\" + name_);, а в деструкторе ~Tracer() { log_.push_back(\"-\" + name_); }."
+  tests:
+    - id: "basic"
+      title: "Все четыре команды"
+      stdin: "inc 1 2 3\nsum 4 5 6\ndouble 1 2 3\nscope a b\n"
+      expected: |
+        2 3 4
+        15
+        1 2 3 -> 2 4 6
+        +a +b body -b -a
+      hint: "inc увеличивает каждый элемент на 1; сумма 4+5+6 равна 15; double возвращает копию, а оригинал остаётся 1 2 3; метки закрываются в обратном порядке."
+    - id: "scope-order"
+      title: "Порядок меток"
+      stdin: "scope x\nscope one two three\n"
+      expected: |
+        +x body -x
+        +one +two +three body -three -two -one
+      hint: "Деструкторы вызываются в порядке, обратном созданию: последняя созданная метка закрывается первой."
+    - id: "negatives"
+      title: "Отрицательные числа и ноль (скрытый)"
+      stdin: "inc -1 0 -5\nsum -3 3 -7\ndouble -2 0 4\nsum 100\n"
+      expected: |
+        0 1 -4
+        -7
+        -2 0 4 -> -4 0 8
+        100
+      hidden: true
+      hint: "Увеличение работает и для отрицательных чисел: -1 становится 0, а -5 становится -4. Оригинал в double не меняется."
+    - id: "empty-and-deep"
+      title: "Пустая сумма и глубокая цепочка (скрытый)"
+      stdin: "sum\nscope a b c d e\ninc 9\ndouble 7\n"
+      expected: |
+        0
+        +a +b +c +d +e body -e -d -c -b -a
+        10
+        7 -> 14
+      hidden: true
+      hint: "Сумма пустого списка равна 0. Каждая метка записывает свой «+» при создании и «-» при уничтожении, поэтому журнал выглядит как зеркало вокруг body."

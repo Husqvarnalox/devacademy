@@ -1,0 +1,152 @@
+id: "java.from-zero.strings"
+title: "Строки: длина, буквы и регистр"
+goal: "Узнавать длину текста, брать отдельные символы по номеру и менять регистр, понимая, что String не изменяется."
+difficulty: "intro"
+estimatedMinutes: 30
+prerequisites:
+  - "java.from-zero.arithmetic"
+objectives:
+  - "Вызывать у строки методы length(), charAt(i), toUpperCase() и toLowerCase()."
+  - "Объяснять, что номера символов начинаются с нуля, и находить последний символ через length() - 1."
+  - "Объяснять, почему методы строки не меняют саму строку, а возвращают новую."
+  - "Отличать char от String и знать, чем 'a' + 1 отличается от \"a\" + 1."
+masteryCriteria:
+  - "Программа верно печатает длину, первую и последнюю букву и слово заглавными буквами."
+  - "Вы предсказываете результат charAt для первого, последнего и несуществующего номера."
+  - "Вы объясняете, почему name.toUpperCase(); без присваивания ничего не меняет."
+concepts:
+  introduces:
+    - "java.string-length"
+    - "java.char-at"
+    - "java.index"
+    - "java.string-case"
+  uses:
+    - "java.string"
+    - "java.char"
+    - "java.int"
+    - "java.variable"
+    - "java.assignment"
+    - "java.arithmetic"
+    - "java.concatenation"
+    - "java.println"
+    - "java.compile-error"
+next:
+  - "java.from-zero.reading-input"
+tags:
+  - "java"
+  - "string"
+  - "charAt"
+  - "length"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        public class Main {
+            public static void main(String[] args) {
+                String s = "Привет";
+                System.out.println(s.charAt(1));
+            }
+        }
+        ```
+      options:
+        - "р"
+        - "П"
+        - "и"
+        - "Ошибка выполнения"
+      answer: 0
+      explanation: "Номера символов начинаются с нуля: charAt(0) - это «П», charAt(1) - «р». Ошибка выполнения была бы при номере 6 и больше."
+    - id: "q2"
+      type: "single"
+      prompt: "Какое выражение даёт последний символ строки s?"
+      options:
+        - "s.charAt(s.length() - 1)"
+        - "s.charAt(s.length())"
+        - "s.charAt(-1)"
+        - "s.last()"
+      answer: 0
+      explanation: "В строке длиной n допустимые номера - от 0 до n - 1. charAt(s.length()) и charAt(-1) приводят к StringIndexOutOfBoundsException, а метода last() у String нет."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        public class Main {
+            public static void main(String[] args) {
+                String s = "abc";
+                s.toUpperCase();
+                System.out.println(s);
+            }
+        }
+        ```
+      options:
+        - "abc"
+        - "ABC"
+        - "Ошибка компиляции"
+        - "Ничего"
+      answer: 0
+      explanation: "Строки в Java неизменяемы: toUpperCase() возвращает новую строку, а исходная остаётся прежней. Результат нужно сохранить или напечатать: String big = s.toUpperCase();"
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```java
+        char c = 'a';
+        System.out.println(c + 1);
+        ```
+      options:
+        - "98"
+        - "a1"
+        - "b"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "С char можно выполнять арифметику: сложение берёт числовой код символа ('a' - это 97). Чтобы получить текст a1, нужно начать со строки: \"\" + c + 1."
+exercise:
+  id: "java.from-zero.strings.exercise"
+  title: "Разбор слова"
+  prompt: |
+    В программе есть слово `word`. Допишите вывод так, чтобы получилось:
+
+    ```
+    Слово: программирование
+    Длина: 16
+    Первая буква: п
+    Последняя буква: е
+    Заглавными: ПРОГРАММИРОВАНИЕ
+    ```
+
+    Длину, буквы и заглавный вариант получите методами строки, а не записывайте вручную. Номер последней буквы вычислите через длину.
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Метод длины называется length() и вызывается через точку: word.length(). Скобки обязательны."
+    - "Номера букв начинаются с нуля. Первая буква - word.charAt(0), последняя - буква с номером на единицу меньше длины."
+    - "Последняя буква: word.charAt(word.length() - 1). Заглавные буквы: word.toUpperCase()."
+  tests:
+    - id: "basic"
+      title: "Слово «программирование»"
+      stdin: ""
+      expected: |
+        Слово: программирование
+        Длина: 16
+        Первая буква: п
+        Последняя буква: е
+        Заглавными: ПРОГРАММИРОВАНИЕ
+      hint: "Пять строк: слово, длина (16), первая буква, последняя буква и слово заглавными буквами."
+    - id: "exact"
+      title: "Последняя буква и регистр (скрытый)"
+      stdin: ""
+      expected: |
+        Слово: программирование
+        Длина: 16
+        Первая буква: п
+        Последняя буква: е
+        Заглавными: ПРОГРАММИРОВАНИЕ
+      hidden: true
+      hint: "Проверяется точный вывод. Последняя буква - символ с номером length() - 1, а не length(); слово заглавными - результат toUpperCase()."

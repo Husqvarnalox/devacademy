@@ -1,0 +1,11 @@
+id: "php-for-programmers"
+version: "1.0.0"
+title: "PHP для программистов"
+description: "Быстрый путь для тех, кто программирует на другом языке: отличия PHP и его ловушки. Пройденные уроки зачитывают соответствующие уроки курса «PHP с нуля»."
+languageId: "php"
+level: 1
+track: "php"
+lessons:
+  - "01-syntax-and-control-flow"
+  - "02-functions-and-collections"
+  - "03-input-errors-and-classes"

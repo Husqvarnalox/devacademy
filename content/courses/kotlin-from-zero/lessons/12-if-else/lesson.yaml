@@ -1,0 +1,200 @@
+id: "kotlin.from-zero.if-else"
+title: "Условия: if и else"
+goal: "Заставить программу выбирать, какие команды выполнить, в зависимости от условия."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.comparison-and-logic"
+objectives:
+  - "Записывать условный оператор if с веткой else и цепочку else if."
+  - "Использовать условие типа Boolean и блок в фигурных скобках."
+  - "Выбирать порядок условий в цепочке от узкого к широкому."
+  - "Использовать if как выражение, дающее значение."
+masteryCriteria:
+  - "Ваша программа печатает разные сообщения в зависимости от введённого числа."
+  - "Вы объясняете, почему в цепочке условий порядок веток важен."
+  - "Вы записываете val x = if (...) ... else ... и объясняете, зачем нужен else."
+concepts:
+  introduces:
+    - "kotlin.if"
+    - "kotlin.else"
+    - "kotlin.block"
+    - "kotlin.if-expression"
+  uses:
+    - "kotlin.boolean"
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.comparison"
+    - "kotlin.logical-operators"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.arithmetic"
+    - "kotlin.compound-assignment"
+next:
+  - "kotlin.from-zero.when"
+tags:
+  - "kotlin"
+  - "if"
+  - "else"
+  - "conditions"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val t = 20
+            if (t < 0) {
+                println("A")
+            } else if (t < 25) {
+                println("B")
+            } else {
+                println("C")
+            }
+        }
+        ```
+      options:
+        - "B"
+        - "A"
+        - "C"
+        - "B и C"
+      answer: 0
+      explanation: "Первое условие ложно, второе (20 < 25) истинно: выполняется блок B, а ветка else пропускается."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val score = 95
+            if (score >= 60) {
+                println("Зачёт")
+            } else if (score >= 90) {
+                println("Отлично")
+            }
+        }
+        ```
+      options:
+        - "Отлично"
+        - "Зачёт и Отлично"
+        - "Ничего"
+        - "Зачёт"
+      answer: 3
+      explanation: "Цепочка проверяется сверху вниз до первого истинного условия. Условие score >= 60 истинно для 95, поэтому до score >= 90 дело не доходит."
+    - id: "q3"
+      type: "single"
+      prompt: "Какая из записей не скомпилируется?"
+      options:
+        - "val m = if (a > b) a else b"
+        - "val m = if (a > b) a"
+        - "if (a > b) { println(a) }"
+        - "if (a > b) println(a) else println(b)"
+      answer: 1
+      explanation: "Если if используется как выражение (его значение сохраняется в m), ветка else обязательна. Остальные записи - обычные команды, где else можно опустить."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val n = 7
+            val label = if (n % 2 == 0) "чётное" else "нечётное"
+            println(label)
+        }
+        ```
+      options:
+        - "чётное"
+        - "7"
+        - "Ошибку компиляции."
+        - "нечётное"
+      answer: 3
+      explanation: "7 % 2 равно 1, условие n % 2 == 0 ложно, и значением if становится строка после else."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val x = 3
+            if (x > 5)
+                println("A")
+                println("B")
+        }
+        ```
+      options:
+        - "Ничего"
+        - "A"
+        - "B"
+        - "A и B"
+      answer: 2
+      explanation: "Без фигурных скобок к if относится только println(\"A\"). Вторая команда стоит вне условия и выполняется всегда, отступы Kotlin не учитывает."
+exercise:
+  id: "kotlin.from-zero.if-else.exercise"
+  title: "Стоимость доставки"
+  prompt: |
+    На вход подаётся одна строка: сумма заказа в рублях (целое число).
+
+    Стоимость доставки зависит от суммы:
+
+    * от 3000 рублей включительно - доставка бесплатна (0);
+    * от 1000 до 2999 рублей - 300;
+    * меньше 1000 рублей - 500.
+
+    Напечатайте одну строку: `Доставка: ` и стоимость.
+
+    **Пример.** Для ввода `1500` вывод: `Доставка: 300`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Условий три, поэтому нужна цепочка if / else if / else. Проверяйте сначала самую большую границу: сумма >= 3000."
+    - "Порядок: сначала sum >= 3000, затем sum >= 1000, а в else остаётся случай «меньше 1000»."
+    - "Можно записать значение прямо в переменную: val delivery = if (sum >= 3000) 0 else if (sum >= 1000) 300 else 500."
+  tests:
+    - id: "big"
+      title: "Большой заказ"
+      stdin: |
+        3500
+      expected: |
+        Доставка: 0
+      hint: "3500 не меньше 3000, поэтому доставка бесплатна."
+    - id: "small"
+      title: "Маленький заказ"
+      stdin: |
+        800
+      expected: |
+        Доставка: 500
+      hint: "800 меньше 1000: доставка стоит 500."
+    - id: "middle"
+      title: "Ровно 1000 (скрытый)"
+      stdin: |
+        1000
+      expected: |
+        Доставка: 300
+      hidden: true
+      hint: "Граница 1000 входит в средний тариф: нужен оператор >=, а не >."
+    - id: "upper"
+      title: "Почти бесплатно (скрытый)"
+      stdin: |
+        2999
+      expected: |
+        Доставка: 300
+      hidden: true
+      hint: "2999 меньше 3000, поэтому тариф ещё средний."
+    - id: "free"
+      title: "Ровно 3000 (скрытый)"
+      stdin: |
+        3000
+      expected: |
+        Доставка: 0
+      hidden: true
+      hint: "Граница 3000 входит в бесплатную доставку: нужен оператор >=."

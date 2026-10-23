@@ -1,0 +1,188 @@
+id: "kotlin.from-zero.comparison-and-logic"
+title: "Сравнение и логика"
+goal: "Сравнивать значения и объединять результаты сравнений в логические выражения."
+difficulty: "easy"
+estimatedMinutes: 30
+prerequisites:
+  - "kotlin.from-zero.formatted-output"
+objectives:
+  - "Использовать операторы сравнения ==, !=, <, >, <=, >= и понимать, что результат имеет тип Boolean."
+  - "Объединять условия операторами && (и), || (или) и отрицанием !."
+  - "Объяснять, как работает ленивое вычисление && и ||."
+  - "Различать = (присваивание) и == (сравнение) и понимать, что == сравнивает содержимое строк."
+masteryCriteria:
+  - "Ваша программа печатает результат составного условия вроде age >= 18 && answer == \"да\"."
+  - "Вы предсказываете значение выражения со смешанными && и || и скобками."
+  - "Вы объясняете, почему divisor != 0 && 10 / divisor > 2 не падает при нуле."
+concepts:
+  introduces:
+    - "kotlin.comparison"
+    - "kotlin.equality"
+    - "kotlin.logical-operators"
+    - "kotlin.short-circuit"
+  uses:
+    - "kotlin.boolean"
+    - "kotlin.int"
+    - "kotlin.double"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.assignment"
+    - "kotlin.string-template"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.arithmetic"
+    - "kotlin.integer-division"
+    - "kotlin.string-case"
+next:
+  - "kotlin.from-zero.if-else"
+tags:
+  - "kotlin"
+  - "boolean"
+  - "comparison"
+  - "logic"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val x = 10
+            println(x > 5 && x < 8)
+        }
+        ```
+      options:
+        - "false"
+        - "true"
+        - "10"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "x > 5 истинно, а x < 8 ложно. Оператор && даёт true, только если истинны оба условия, поэтому результат false."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val a = false
+            val b = true
+            println(a || !b)
+        }
+        ```
+      options:
+        - "false"
+        - "true"
+        - "!b"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "!b - это не true, то есть false. Выражение false || false даёт false."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val n = 0
+            println(n != 0 && 10 / n > 2)
+        }
+        ```
+      options:
+        - "false"
+        - "true"
+        - "ArithmeticException: / by zero"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "Левая часть n != 0 ложна, а && при ложной левой части не вычисляет правую. Деление на ноль не выполняется, результат false."
+    - id: "q4"
+      type: "single"
+      prompt: "Какая запись из этих не скомпилируется?"
+      options:
+        - "1 == 1.0"
+        - "1 < 1.5"
+        - "\"кот\" == \"кот\""
+        - "2 + 3 == 5"
+      answer: 0
+      explanation: "Оператор == не сравнивает Int и Double: компилятор сообщает operator '==' cannot be applied to 'Int' and 'Double'. Сравнение < работает между числами разных типов."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val a = "кот"
+            val b = "ко" + "т"
+            println(a == b)
+        }
+        ```
+      options:
+        - "true"
+        - "false"
+        - "кот"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "В Kotlin оператор == сравнивает содержимое строк, поэтому одинаковый текст даёт true, даже если строки получены по-разному."
+exercise:
+  id: "kotlin.from-zero.comparison-and-logic.exercise"
+  title: "Допуск на мероприятие"
+  prompt: |
+    На вход подаются две строки: возраст посетителя (целое число) и ответ на вопрос «Есть ли билет?» (слово `да` или `нет`).
+
+    Посетитель допускается, только если ему **не меньше 18 лет** и ответ - `да`.
+
+    Напечатайте одну строку: `Допущен: true` или `Допущен: false`.
+
+    **Пример.** Для ввода
+
+    ```
+    20
+    да
+    ```
+
+    вывод: `Допущен: true`.
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Нужны два условия: возраст не меньше 18 и ответ равен \"да\". Соедините их оператором &&."
+    - "Возраст проверяет age >= 18, ответ проверяет answer == \"да\"."
+    - "Запишите val allowed = age >= 18 && answer == \"да\" и напечатайте allowed в шаблоне."
+  tests:
+    - id: "basic"
+      title: "Взрослый с билетом"
+      stdin: |
+        20
+        да
+      expected: |
+        Допущен: true
+      hint: "20 >= 18 и ответ «да», поэтому оба условия истинны."
+    - id: "child"
+      title: "Ребёнок с билетом"
+      stdin: |
+        15
+        да
+      expected: |
+        Допущен: false
+      hint: "Возраст 15 меньше 18, поэтому && даёт false."
+    - id: "noticket"
+      title: "Взрослый без билета (скрытый)"
+      stdin: |
+        30
+        нет
+      expected: |
+        Допущен: false
+      hidden: true
+      hint: "Ответ «нет» не равен «да». Условие по ответу тоже должно участвовать в проверке."
+    - id: "boundary"
+      title: "Ровно 18 лет (скрытый)"
+      stdin: |
+        18
+        да
+      expected: |
+        Допущен: true
+      hidden: true
+      hint: "Ровно 18 лет допускается, значит нужен оператор >=, а не >."

@@ -1,0 +1,212 @@
+id: "typescript.from-zero.errors-and-exceptions"
+title: "Ошибки и исключения"
+goal: "Проверять входные данные, выбрасывать ошибку командой throw и перехватывать её блоком try/catch."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "typescript.from-zero.arrays-of-objects"
+objectives:
+  - "Выбросить Error с понятным сообщением, когда функция не может дать осмысленный результат."
+  - "Перехватить ошибку блоком try/catch и безопасно прочитать её сообщение через instanceof Error."
+  - "Объяснить, почему в catch значение имеет тип unknown и что делает finally."
+  - "Обработать список данных, пропуская испорченные элементы и не останавливая программу."
+masteryCriteria:
+  - "Функция проверяет входные данные в начале и выбрасывает Error с точным сообщением."
+  - "В catch значение сужается проверкой instanceof Error до чтения message."
+  - "Цикл с try/catch внутри не прерывается на плохом элементе."
+concepts:
+  introduces:
+    - "ts.throw"
+    - "ts.try-catch"
+  uses:
+    - "ts.function"
+    - "ts.parameter"
+    - "ts.return"
+    - "ts.return-type"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.logical-operators"
+    - "ts.array"
+    - "ts.for-of"
+    - "ts.push"
+    - "ts.narrowing"
+    - "ts.concatenation"
+    - "ts.math"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.reading-input"
+tags:
+  - "typescript"
+  - "errors"
+  - "exceptions"
+  - "try-catch"
+  - "throw"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        function check(n: number): number {
+          if (n < 0) {
+            throw new Error("отрицательное");
+          }
+          return n;
+        }
+        try {
+          console.log(check(5));
+          console.log(check(-1));
+          console.log(check(7));
+        } catch (error) {
+          console.log("ошибка");
+        }
+        ```
+      options:
+        - "5, затем ошибка"
+        - "5, ошибка, 7"
+        - "ошибка"
+        - "5, -1, 7"
+      answer: 0
+      explanation: "check(5) вернёт 5. На check(-1) выполнение функции и остаток try прекращаются, управление уходит в catch и печатается «ошибка». Третья строка try не выполняется."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        try {
+          throw new Error("сбой");
+        } catch (e) {
+          console.log(e.message);
+        }
+        ```
+      options:
+        - "TS18046: 'e' is of type 'unknown'"
+        - "TS2339: у Error нет свойства message"
+        - "TS2322: неверный тип"
+        - "Ничего, будет напечатано «сбой»"
+      answer: 0
+      explanation: "Под режимом strict значение в catch имеет тип unknown. Читать message можно только после проверки e instanceof Error."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        function f(): string {
+          try {
+            return "try";
+          } finally {
+            console.log("finally");
+          }
+        }
+        console.log(f());
+        ```
+      options:
+        - "finally, затем try"
+        - "try, затем finally"
+        - "только try"
+        - "только finally"
+      answer: 0
+      explanation: "Блок finally выполняется всегда, даже после return внутри try, поэтому «finally» печатается раньше, чем внешний console.log выводит возвращённое значение."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что изменится, если написать new Error("плохо") без throw?
+
+        ```typescript
+        function check(n: number): number {
+          if (n < 0) {
+            new Error("плохо");
+          }
+          return n;
+        }
+        console.log(check(-1));
+        ```
+      options:
+        - "Ничего не выбросится, напечатается -1"
+        - "Программа остановится с ошибкой"
+        - "Проверка типов сообщит об ошибке"
+        - "Напечатается undefined"
+      answer: 0
+      explanation: "new Error создаёт объект, но ничего не выбрасывает. Нужна запись throw new Error(...). Здесь функция просто вернёт -1."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const data: number[] = [4, -1, 9];
+        let sum: number = 0;
+        for (const n of data) {
+          try {
+            if (n < 0) {
+              throw new Error("минус");
+            }
+            sum = sum + n;
+          } catch (error) {
+            sum = sum + 100;
+          }
+        }
+        console.log(sum);
+        ```
+      options:
+        - "113"
+        - "13"
+        - "100"
+        - "213"
+      answer: 0
+      explanation: "4 прибавляется; на -1 выбрасывается ошибка, и catch добавляет 100; 9 прибавляется. Итого 4 + 100 + 9 = 113."
+exercise:
+  id: "typescript.from-zero.errors-and-exceptions.exercise"
+  title: "Проверка возраста и деления"
+  prompt: |
+    В файле `errors_task.ts` четыре функции:
+
+    * `safeDivide(a, b)` - частное `a / b`. Если `b` равно 0, выбросьте `Error` с сообщением `"деление на ноль"`.
+    * `checkAge(age)` - допустимый возраст - целое число от 0 до 150 включительно. Если число не целое, выбросьте `Error("возраст должен быть целым числом")`; если оно вне диапазона - `Error("возраст вне диапазона 0-150")`. Иначе верните возраст. Проверку на целое выполняйте раньше проверки диапазона.
+    * `divideText(a, b)` - строка `"результат: "` и частное; если деление невозможно, строка `"ошибка: "` и сообщение исключения. Например, `divideText(10, 4)` равно `"результат: 2.5"`, `divideText(1, 0)` - `"ошибка: деление на ноль"`. Используйте `safeDivide` и `try ... catch`.
+    * `validAges(ages)` - массив только допустимых возрастов (по правилам `checkAge`), порядок сохраняется.
+
+    Функции должны **возвращать** значение (а `safeDivide` и `checkAge` - ещё и выбрасывать ошибки).
+  entryFile: "errors_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "safeDivide: в начале if (b === 0) { throw new Error(\"деление на ноль\"); }, затем return a / b;. Сообщение должно совпасть буква в букву."
+    - "checkAge: целое ли число, проверяет Math.floor(age) !== age. Затем if (age < 0 || age > 150). Сначала выбросите ошибку про целое, потом про диапазон."
+    - "divideText: try { return \"результат: \" + safeDivide(a, b); } catch (error) { ... }. Внутри catch проверьте error instanceof Error и верните \"ошибка: \" + error.message."
+    - "validAges: заведите пустой массив result, в цикле for...of вызывайте result.push(checkAge(age)) внутри try; в catch ничего делать не нужно - плохие значения просто не попадут в result."
+  tests:
+    - id: "divide-basic"
+      title: "safeDivide: обычные случаи и деление на ноль"
+      hint: "Обычное деление работает, а safeDivide(1, 0) выбрасывает Error с сообщением \"деление на ноль\"."
+    - id: "age-basic"
+      title: "checkAge: допустимые и недопустимые возрасты"
+      hint: "30, 0 и 150 допустимы и возвращаются; -5 и 200 дают ошибку про диапазон, 2.5 - про целое число."
+    - id: "text-basic"
+      title: "divideText: результат и ошибка"
+      hint: "divideText(10, 4) равно \"результат: 2.5\", а divideText(1, 0) - \"ошибка: деление на ноль\"."
+    - id: "valid-basic"
+      title: "validAges: фильтрация"
+      hint: "Из [20, -1, 40, 200, 7] остаются 20, 40, 7; для пустого массива результат пустой массив."
+    - id: "divide-edge"
+      title: "safeDivide: ноль в числителе и 0/0 (скрытый)"
+      hidden: true
+      hint: "0 / 5 равно 0 без ошибки; делитель 0 даёт ошибку при любом числителе, в том числе 0 и отрицательном."
+    - id: "age-edge"
+      title: "checkAge: границы и NaN (скрытый)"
+      hidden: true
+      hint: "150 допустимо, 151 - нет; -1 вне диапазона; 0.5 и NaN не целые - сообщение про целое число проверяется раньше диапазона."
+    - id: "text-edge"
+      title: "divideText: нули и отрицательные (скрытый)"
+      hidden: true
+      hint: "0 / 4 даёт \"результат: 0\"; 0 / 0 даёт ошибку; -9 / 3 даёт \"результат: -3\"."
+    - id: "valid-edge"
+      title: "validAges: дроби, границы, повторы (скрытый)"
+      hidden: true
+      hint: "Дробные значения отбрасываются; 0 и 150 остаются, 151 и -1 нет; повторы сохраняются; NaN отбрасывается."

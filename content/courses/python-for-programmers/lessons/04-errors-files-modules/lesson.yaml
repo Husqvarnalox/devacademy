@@ -1,0 +1,191 @@
+id: "python.programmers.errors-files-modules"
+title: "Исключения, файлы и модули: EAFP, with, __main__"
+goal: "Обрабатывать ошибки в стиле Python, безопасно работать с файлами через with и оформлять код как импортируемый модуль с точкой входа."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites:
+  - "python.programmers.collections"
+next:
+  - "python.advanced.functions-as-objects"
+objectives:
+  - "Применять EAFP: перехватывать конкретные исключения и использовать else и finally по назначению."
+  - "Понимать иерархию исключений, порядок except и цепочку причин raise from."
+  - "Читать и писать текстовые файлы через with с явной кодировкой."
+  - "Объяснять, когда выполняется код модуля, и оформлять точку входа через if __name__ == \"__main__\"."
+masteryCriteria:
+  - "parse_int, read_config, total_valid и write_lines проходят все проверки, включая отсутствующий файл, ошибку в строке и перезапись."
+  - "Модуль можно импортировать без побочных эффектов."
+  - "Вы без запуска предсказываете порядок вывода try / except / else / finally."
+tags:
+  - "python"
+  - "programmers"
+  - "exceptions"
+  - "files"
+  - "modules"
+assessmentFor:
+  - "python.fundamentals.errors-and-files"
+  - "python.fundamentals.modules"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def f():
+            try:
+                return "try"
+            finally:
+                print("finally")
+
+        print(f())
+        ```
+      options:
+        - "try"
+        - "finally, затем try (две строки)"
+        - "try, затем finally (две строки)"
+        - "Ошибка: return внутри try запрещён"
+      answer: 1
+      explanation: "Блок finally выполняется перед тем, как функция вернёт значение, поэтому сначала печатается finally, а затем print выводит возвращённое try."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        try:
+            int("x")
+        except (TypeError, ValueError) as e:
+            print(type(e).__name__)
+        else:
+            print("ok")
+        finally:
+            print("end")
+        ```
+      options:
+        - "ValueError, затем end"
+        - "ok, затем end"
+        - "TypeError, затем end"
+        - "Только end: исключение не перехвачено"
+      answer: 0
+      explanation: "int('x') выбрасывает ValueError, ветка except срабатывает, else пропускается, а finally выполняется всегда."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        try:
+            {}["a"]
+        except LookupError:
+            print("lookup")
+        except KeyError:
+            print("key")
+        ```
+      options:
+        - "key"
+        - "lookup"
+        - "lookup и key"
+        - "Ничего: исключение не перехвачено"
+      answer: 1
+      explanation: "KeyError - подкласс LookupError. Выполняется первая подходящая ветка, то есть lookup; ветка для KeyError недостижима. Частные типы нужно ставить выше общих."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print(int("4_2"), int(" 7\n"))
+        ```
+      options:
+        - "42 7"
+        - "ValueError на первом значении"
+        - "4 7"
+        - "42 ValueError"
+      answer: 0
+      explanation: "int принимает разделитель разрядов _ между цифрами и игнорирует пробельные символы по краям, включая перевод строки. Поэтому ручная проверка isdigit для таких строк даёт другой результат, чем int."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Файл demo.py:
+
+        ```python
+        print("A")
+        if __name__ == "__main__":
+            print("B")
+        ```
+
+        Что напечатают запуск `python demo.py` и затем `import demo` из другого файла?
+      options:
+        - "Первый A и B; второй A и B"
+        - "Первый A и B; второй только A"
+        - "Оба раза только A"
+        - "Первый B; второй ничего"
+      answer: 1
+      explanation: "При запуске как программы __name__ равен '__main__', и печатаются A и B. При импорте __name__ равен 'demo', тело модуля выполняется (печатается A), а ветка под защитой пропускается."
+exercise:
+  id: "python.programmers.errors-files-modules.exercise"
+  title: "Утилита чтения конфигурации"
+  prompt: |
+    В файле `errors_task.py` реализуйте четыре функции небольшой утилиты обработки данных и оформите запуск как модуль. Тесты импортируют модуль и вызывают функции напрямую.
+
+    1. `parse_int(text, default=None)` - вернуть `int(text)`; если текст не число или это `None`, вернуть `default`. Не проверяйте формат вручную.
+    2. `read_config(path)` - прочитать файл (UTF-8) со строками `ключ = значение` и вернуть словарь строк. Пустые строки и строки, начинающиеся с `#`, пропускаются; пробелы вокруг ключа и значения убираются; значение может содержать `=`; при повторе ключа побеждает последний. Если файла нет - вернуть `{}`. Строка без `=` вызывает `ValueError` с текстом, содержащим `строка N` (N - номер строки в файле с 1).
+    3. `total_valid(lines)` - просуммировать целые из строк `lines`, пропуская нечисловые; вернуть пару `(сумма, сколько_пропущено)`.
+    4. `write_lines(path, lines)` - записать строки в файл (UTF-8), каждую с переводом строки в конце, старое содержимое заменить; вернуть число записанных строк.
+
+    Кроме того, `main()` не должна вызываться при импорте модуля: используйте защиту `if __name__ == "__main__":`.
+
+    **Примеры.**
+
+    ```python
+    parse_int(" 7 ")                 # 7
+    parse_int("abc", -1)             # -1
+    total_valid(["1", "x", "3"])     # (4, 1)
+    # файл: "# настройки\nhost = a=b\n\nport=80\n"
+    read_config(path)                # {'host': 'a=b', 'port': '80'}
+    ```
+  entryFile: "errors_task.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Функции возвращают значения через return; заглушка pass возвращает None. Не забудьте, что main() не должна запускаться при импорте."
+    - "parse_int: try / except с типами (ValueError, TypeError). read_config: откройте файл через with и обработайте FileNotFoundError; пройдите строки через enumerate(f, start=1), чтобы знать номер."
+    - "read_config: line.strip(), пропуск пустых и начинающихся с '#', затем line.split('=', 1). total_valid: используйте parse_int и сравнение с None (ноль - допустимое число). Последняя строка файла: if __name__ == '__main__': main()."
+    - "Каркас parse_int: try: return int(text) / except (ValueError, TypeError): return default. Каркас write_lines: with open(path, 'w', encoding='utf-8') as f: ... f.write(line + '\\n')."
+  tests:
+    - id: "parse-basic"
+      title: "parse_int - число и не число"
+      hint: "Преобразуйте через int() и перехватите ValueError."
+    - id: "config-basic"
+      title: "read_config - простой файл"
+      hint: "Каждая строка 'ключ=значение' даёт запись словаря; пробелы вокруг убираются."
+    - id: "total-basic"
+      title: "total_valid - сумма и пропуски"
+      hint: "Нечисловые строки не должны прерывать сумму, но должны быть посчитаны."
+    - id: "write-basic"
+      title: "write_lines - запись файла"
+      hint: "Каждая строка заканчивается переводом строки; функция возвращает число строк."
+    - id: "parse-edges"
+      title: "parse_int - пробелы, пустая строка, None, дробь (скрытый)"
+      hidden: true
+      hint: "int() принимает пробелы по краям; для пустой строки, дроби и None нужно вернуть default (None даёт TypeError, а не ValueError)."
+    - id: "config-edges"
+      title: "read_config - комментарии, '=', повтор, нет файла, ошибка (скрытый)"
+      hidden: true
+      hint: "Делите строку по первому '='; нет файла - пустой словарь; ошибка в строке содержит её номер, считая с 1 и включая пустые строки."
+    - id: "total-edges"
+      title: "total_valid - пустой ввод и особые строки (скрытый)"
+      hidden: true
+      hint: "Пустая строка и дробь пропускаются, отрицательные и числа с '_' считаются; принимайте любой итерируемый объект."
+    - id: "write-roundtrip"
+      title: "write_lines - перезапись и UTF-8 (скрытый)"
+      hidden: true
+      hint: "Открывайте файл в режиме 'w' с encoding='utf-8'; старое содержимое должно исчезнуть."
+    - id: "import-clean"
+      title: "Импорт модуля ничего не выполняет (скрытый)"
+      hidden: true
+      hint: "Вызов main() поместите под if __name__ == '__main__':, чтобы при импорте ничего не печаталось."

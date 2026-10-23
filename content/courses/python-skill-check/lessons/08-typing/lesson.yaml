@@ -1,0 +1,162 @@
+id: "python.check.typing"
+title: "Проверка: аннотации типов"
+goal: "Аннотировать функции современным синтаксисом, включая обобщённые, и понимать, что аннотации не проверяются при выполнении."
+difficulty: "hard"
+estimatedMinutes: 20
+prerequisites: []
+objectives:
+  - "Показать на практике умение: аннотировать функции современным синтаксисом, включая обобщённые, и понимать, что аннотации не проверяются при выполнении."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "python"
+  - "check"
+  - "typing"
+assessmentFor:
+  - "python.advanced.typing-fundamentals"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def f(x: int) -> str:
+            return x
+
+        print(f(5))
+        ```
+      options:
+        - "5"
+        - "'5'"
+        - "TypeError при вызове"
+        - "Ошибка при определении функции"
+      answer: 0
+      explanation: "Аннотации не проверяются во время выполнения: интерпретатор просто вернёт 5. Несоответствие обнаружит внешний анализатор типов, например mypy или pyright."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def f(a: int, b: "str" = "x") -> None:
+            pass
+
+        print(f.__annotations__)
+        ```
+      options:
+        - "{'a': <class 'int'>, 'b': 'str', 'return': None}"
+        - "{'a': <class 'int'>, 'b': <class 'str'>, 'return': <class 'NoneType'>}"
+        - "{}"
+        - "{'a': int, 'b': str}"
+      answer: 0
+      explanation: "Аннотации хранятся в __annotations__ как есть: строка 'str' остаётся строкой (её разворачивает typing.get_type_hints), а -> None превращается в None."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        x: list[int] = [1, 2]
+        x.append("a")
+        print(x)
+        ```
+      options:
+        - "[1, 2, 'a']"
+        - "TypeError"
+        - "[1, 2]"
+        - "Ошибка при присваивании x"
+      answer: 0
+      explanation: "Аннотация list[int] ничего не ограничивает во время выполнения. Нарушение типа найдёт только статическая проверка."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        print(int | None, isinstance(3, int | str))
+        ```
+      options:
+        - "int | None True"
+        - "typing.Optional[int] True"
+        - "int | None False"
+        - "TypeError"
+      answer: 0
+      explanation: "Оператор | для типов (Python 3.10+) создаёт объединение; isinstance принимает его напрямую: 3 является int."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```python
+        def size(x: int | str | list) -> int:
+            if isinstance(x, str):
+                return len(x)
+            if isinstance(x, list):
+                return len(x) * 10
+            return x
+
+        print(size("ab"), size([1]), size(7))
+        ```
+      options:
+        - "2 10 7"
+        - "2 1 7"
+        - "2 10 70"
+        - "TypeError"
+      answer: 0
+      explanation: "isinstance сужает тип: для строки возвращается длина, для списка длина, умноженная на 10, для остальных (то есть int) - само число."
+exercise:
+  id: "python.check.typing.exercise"
+  title: "Три аннотированные функции"
+  prompt: |
+    В файле `typing_check.py` реализуйте три функции **и снабдите их аннотациями типов**. Тесты проверяют поведение и читают аннотации через `typing.get_type_hints`; сами типы интерпретатор не проверяет, но аннотации должны быть точными.
+
+    1. `first_or(items, default)` - первый элемент последовательности или `default`, если она пуста. Обобщённая функция: тип результата совпадает с типом элементов и значения по умолчанию. Аннотируйте: `items: Sequence[T]`, `default: T`, результат `T` (параметр типа `[T]`).
+    2. `group_by(items, key)` - словарь «ключ -> список элементов с этим ключом», порядок ключей и элементов - порядок появления. Аннотируйте: `items: Iterable[T]`, `key: Callable[[T], K]`, результат `dict[K, list[T]]`.
+    3. `parse_pair(text)` - из строки `"имя=число"` вернуть кортеж `(имя, число)`, где число - `int`; пробелы вокруг имени и числа игнорируются. Если нет `=`, имя пусто или число не целое, вернуть `None`. Результат: `tuple[str, int] | None`, параметр `text: str`.
+
+    Типы `Sequence`, `Iterable`, `Callable` импортируйте из `collections.abc`. Параметры типа можно объявить синтаксисом `def f[T](...)` (Python 3.12+) или через `TypeVar`.
+  entryFile: "typing_check.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Заглушка pass возвращает None, а у функций нет аннотаций. Нужны и реализация, и аннотации."
+    - "first_or: def first_or[T](items: Sequence[T], default: T) -> T. group_by: два параметра типа, [T, K]. parse_pair: аннотируйте text: str и результат tuple[str, int] | None."
+    - "Импорт: from collections.abc import Callable, Iterable, Sequence. group_by: groups = {}; for item in items: groups.setdefault(key(item), []).append(item). parse_pair: name, sep, raw = text.partition('='), затем try: int(raw)."
+  tests:
+    - id: "first-basic"
+      title: "first_or - обычные случаи"
+      hint: "Пустая последовательность даёт default, иначе первый элемент."
+    - id: "group-basic"
+      title: "group_by - группировка слов"
+      hint: "Вызывайте key(item) один раз на элемент и накапливайте списки по ключам."
+    - id: "pair-basic"
+      title: "parse_pair - корректные пары"
+      hint: "partition('=') делит строку на три части; значение преобразуется в int."
+    - id: "hints-first"
+      title: "Аннотации first_or"
+      hint: "Объявите def first_or[T](items: Sequence[T], default: T) -> T: один и тот же T связывает элементы, default и результат."
+    - id: "first-edges"
+      title: "first_or - ложные значения (скрытый)"
+      hidden: true
+      hint: "Проверяйте пустоту последовательности, а не истинность первого элемента (items[0] может быть 0 или [])."
+    - id: "group-edges"
+      title: "group_by - пустой ввод, range, генератор (скрытый)"
+      hidden: true
+      hint: "Функция должна работать с любым итерируемым объектом, не только со списком."
+    - id: "pair-edges"
+      title: "parse_pair - некорректные строки (скрытый)"
+      hidden: true
+      hint: "Нет '=', пустое имя, пустое значение, не целое число - все дают None (int() выбрасывает ValueError)."
+    - id: "hints-group"
+      title: "Аннотации group_by (скрытый)"
+      hidden: true
+      hint: "Нужны два параметра типа: def group_by[T, K](items: Iterable[T], key: Callable[[T], K]) -> dict[K, list[T]]."
+    - id: "hints-pair"
+      title: "Аннотации parse_pair (скрытый)"
+      hidden: true
+      hint: "Результат - объединение через |: tuple[str, int] | None."

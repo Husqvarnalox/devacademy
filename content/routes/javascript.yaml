@@ -1,0 +1,50 @@
+track: javascript
+entry:
+  beginner: javascript.from-zero.first-program
+  programmer: javascript.programmers.syntax-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, условия, циклы, функции
+    description: Типы значений, переменные, арифметика, строки, if и else, циклы while и for, функции с параметрами и return.
+    check: javascript.check.basics
+    after: []
+  - id: collections
+    title: Массивы, объекты и методы массивов
+    description: Массивы и объекты, обход, map, filter, find, sort с компаратором, копирование и ссылки, область видимости.
+    check: javascript.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ошибки и разбор ввода
+    description: throw и try/catch, собственные классы ошибок, чтение текста ввода, строгий разбор чисел, сбор ошибок данных.
+    check: javascript.check.errors-input
+    after: [collections]
+  - id: coercion
+    title: Типы, приведение и равенство
+    description: Приведение при +, == и ===, NaN и -0, parseInt и Number, строгий разбор значений.
+    check: javascript.check.coercion
+    after: [basics]
+  - id: closures
+    title: Замыкания и this
+    description: Области видимости, замыкания, счётчики и фабрики функций, this и привязка контекста, стрелочные функции.
+    check: javascript.check.closures
+    after: [collections]
+  - id: objects
+    title: Объекты, прототипы и классы
+    description: Прототипная цепочка, классы и наследование, геттеры и сеттеры, копирование и сравнение объектов.
+    check: javascript.check.objects
+    after: [closures]
+  - id: iteration
+    title: Итерация и генераторы
+    description: Итерируемые объекты, for...of, итераторы и генераторы, Map и Set, ленивые последовательности.
+    check: javascript.check.iteration
+    after: [collections]
+  - id: async
+    title: Промисы и async/await
+    description: Цикл событий, промисы и их цепочки, async и await, порядок выполнения, обработка ошибок и параллельные запросы.
+    check: javascript.check.async
+    after: [closures]
+  - id: modules
+    title: Модули и тесты
+    description: ES-модули, export и import, структура проекта, тестирование функций через node:test.
+    check: javascript.check.modules
+    after: [errors-input]

@@ -1,0 +1,155 @@
+id: "go.first-steps.comparison-and-logic"
+title: "Сравнения и логика"
+goal: "Составлять логические выражения из сравнений и операторов && || ! и предсказывать их значение."
+difficulty: "easy"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.constants-and-comments"
+objectives:
+  - "Сравнивать значения операторами == != < <= > >= и получать результат типа bool."
+  - "Объединять условия через && (и), || (или), ! (не)."
+  - "Записывать условие «число в диапазоне» и предсказывать приоритет операторов."
+masteryCriteria:
+  - "Программа определяет по возрасту, сумме и цене, можно ли совершить покупку, и печатает три логических значения."
+  - "Вы вычисляете значение выражений вроде age >= 18 && !blocked без запуска программы."
+concepts:
+  introduces:
+    - "go.comparison"
+    - "go.logical-operators"
+  uses:
+    - "go.bool"
+    - "go.int"
+    - "go.float64"
+    - "go.string"
+    - "go.type"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.scan"
+    - "go.arithmetic"
+    - "go.remainder"
+    - "go.println"
+    - "go.print-values"
+next:
+  - "go.first-steps.if-else"
+tags:
+  - "go"
+  - "comparison"
+  - "bool"
+  - "logic"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно выражение 5 >= 5 && 3 != 3?"
+      options:
+        - "true"
+        - "false"
+        - "Ошибка компиляции"
+        - "5"
+      answer: 1
+      explanation: "5 >= 5 истинно, 3 != 3 ложно. && даёт true только если истинны оба условия, поэтому результат false."
+    - id: "q2"
+      type: "single"
+      prompt: "Что напечатает fmt.Println(false && false || true)?"
+      options:
+        - "true"
+        - "false"
+        - "Ошибка компиляции"
+        - "Зависит от компьютера"
+      answer: 0
+      explanation: "&& выполняется раньше ||: (false && false) || true = false || true = true."
+    - id: "q3"
+      type: "single"
+      prompt: "Чему равно !(7 > 3)?"
+      options:
+        - "true"
+        - "false"
+        - "7"
+        - "Ошибка"
+      answer: 1
+      explanation: "7 > 3 истинно, а ! меняет значение на противоположное."
+    - id: "q4"
+      type: "single"
+      prompt: "Что не так с выражением 1 < x < 10?"
+      options:
+        - "Ничего, это запись «x от 1 до 10»."
+        - "Сравнение нельзя связывать цепочкой: нужно 1 < x && x < 10."
+        - "Знак < нельзя использовать с числами."
+        - "Нужно написать 1 <= x <= 10."
+      answer: 1
+      explanation: "Результат первого сравнения - bool, и сравнивать его с числом 10 нельзя. Диапазон записывают двумя сравнениями через &&."
+    - id: "q5"
+      type: "single"
+      prompt: "Чему равно значение переменной ok после ok := 10 % 2 == 0?"
+      options:
+        - "true"
+        - "false"
+        - "0"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Сначала вычисляется 10 % 2, это 0; затем 0 == 0, результат true. Сравнение выполняется после арифметики."
+exercise:
+  id: "go.first-steps.comparison-and-logic.exercise"
+  title: "Проверки покупки"
+  prompt: |
+    Программа получает три целых числа: возраст `age`, сумму на счёте `balance` и цену товара `price`. Определите три логических значения и напечатайте их:
+
+    * `adult` - возраст не меньше 18;
+    * `enough` - денег хватает (сумма на счёте не меньше цены);
+    * `canBuy` - совершеннолетний **и** денег хватает.
+
+    **Пример.** Ввод `20 500 700` даёт
+
+    ```
+    Совершеннолетний: true
+    Хватает денег: false
+    Можно купить: false
+    ```
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Результат сравнения - значение bool, его можно сохранить в переменную: adult := age >= 18."
+    - "enough - это balance >= price. Обратите внимание на «не меньше»: равенство допустимо."
+    - "canBuy получают объединением двух готовых переменных оператором &&."
+    - "adult := age >= 18; enough := balance >= price; canBuy := adult && enough."
+  tests:
+    - id: "basic"
+      title: "Взрослый, денег не хватает"
+      stdin: |
+        20 500 700
+      expected: |
+        Совершеннолетний: true
+        Хватает денег: false
+        Можно купить: false
+      hint: "20 лет, баланс 500 меньше цены 700."
+    - id: "minor"
+      title: "Несовершеннолетний (скрытый)"
+      stdin: |
+        17 1000 300
+      expected: |
+        Совершеннолетний: false
+        Хватает денег: true
+        Можно купить: false
+      hidden: true
+      hint: "Денег хватает, но возраст меньше 18: купить нельзя."
+    - id: "edge"
+      title: "Граничные значения (скрытый)"
+      stdin: |
+        18 300 300
+      expected: |
+        Совершеннолетний: true
+        Хватает денег: true
+        Можно купить: true
+      hidden: true
+      hint: "18 лет уже совершеннолетие, и цена равна балансу: оба сравнения должны быть нестрогими (>=)."
+    - id: "none"
+      title: "Ничего не выполнено (скрытый)"
+      stdin: |
+        10 0 5
+      expected: |
+        Совершеннолетний: false
+        Хватает денег: false
+        Можно купить: false
+      hidden: true
+      hint: "Если оба условия ложны, результат && тоже ложь."

@@ -12,8 +12,9 @@ public sealed class ContentSet
 
     public ContentSet(IEnumerable<Track> tracks, IEnumerable<Course> courses, IEnumerable<Lesson> lessons,
         IEnumerable<LearningPathDefinition>? paths = null, IEnumerable<ProjectTemplate>? templates = null,
-        IEnumerable<Comparison>? comparisons = null)
+        IEnumerable<Comparison>? comparisons = null, IEnumerable<TrackRoute>? routes = null)
     {
+        Routes = (routes ?? []).ToList();
         Comparisons = (comparisons ?? []).ToList();
         Templates = (templates ?? []).ToList();
         Paths = (paths ?? []).ToList();
@@ -37,11 +38,16 @@ public sealed class ContentSet
     public IReadOnlyList<LearningPathDefinition> Paths { get; }
     public IReadOnlyList<ProjectTemplate> Templates { get; }
     public IReadOnlyList<Comparison> Comparisons { get; }
+    public IReadOnlyList<TrackRoute> Routes { get; }
 
     public Track? FindTrack(string id) => _tracks.GetValueOrDefault(id);
     public Course? FindCourse(string id) => _courses.GetValueOrDefault(id);
     public LearningPathDefinition? FindPath(string id) => Paths.FirstOrDefault(p => p.Id == id);
     public Comparison? FindComparison(string id) => Comparisons.FirstOrDefault(c => c.Id == id);
+    public TrackRoute? FindRoute(string trackId) => Routes.FirstOrDefault(r => r.TrackId == trackId);
+
+    /// <summary>The track a course belongs to (the first track listing it).</summary>
+    public Track? TrackOfCourse(string courseId) => Tracks.FirstOrDefault(t => t.CourseIds.Contains(courseId));
     public Lesson? FindLesson(string id) => _lessons.GetValueOrDefault(id);
 
     /// <summary>Finds an exercise or challenge by id, with its owning lesson.</summary>

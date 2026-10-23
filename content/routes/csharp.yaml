@@ -1,0 +1,45 @@
+track: csharp
+entry:
+  beginner: csharp.from-zero.first-program
+  programmer: csharp.programmers.syntax-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, условия, циклы, методы
+    description: Типы значений, переменные, арифметика, строки, if и switch, циклы while и for, методы с параметрами и возвращаемым значением.
+    check: csharp.check.basics
+    after: []
+  - id: collections
+    title: Массивы, списки, словари и строки
+    description: Массивы и List<T>, словари, обход коллекций, методы строк, разбор и сборка текста.
+    check: csharp.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ввод и ошибки
+    description: Чтение ввода через Console.ReadLine, строгий разбор чисел через TryParse, обработка неверных строк, сбор ошибок данных.
+    check: csharp.check.errors-input
+    after: [collections]
+  - id: value-types
+    title: Значимые и ссылочные типы, nullable
+    description: Копирование значения и ссылки, структуры и классы, int? и операторы ?? и ?., упаковка и сравнение объектов.
+    check: csharp.check.value-types
+    after: [basics]
+  - id: classes
+    title: Классы, интерфейсы и наследование
+    description: Конструкторы и свойства, интерфейсы, наследование, virtual и override, абстрактные классы, record.
+    check: csharp.check.classes
+    after: [value-types, collections]
+  - id: collections-linq
+    title: Обобщённые коллекции и LINQ
+    description: List<T> и Dictionary<TKey, TValue>, Where, Select, GroupBy, OrderBy, отложенное выполнение, сравнение строк через StringComparer.
+    check: csharp.check.collections-linq
+    after: [collections]
+  - id: exceptions
+    title: Исключения и ресурсы
+    description: try, catch и finally, собственные исключения, throw и throw;, IDisposable и using.
+    check: csharp.check.exceptions
+    after: [errors-input]
+  - id: delegates-async
+    title: Делегаты, события и async/await
+    description: Func и Action, лямбды и замыкания, события, Task, async и await, Task.WhenAll.
+    check: csharp.check.delegates-async
+    after: [classes, collections-linq]

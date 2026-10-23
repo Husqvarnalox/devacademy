@@ -1,0 +1,147 @@
+id: "go.first-steps.formatted-output"
+title: "Форматированный вывод"
+goal: "Печатать значения по шаблону с помощью Printf и Sprintf, включая число знаков после запятой."
+difficulty: "easy"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.type-conversion"
+objectives:
+  - "Составлять шаблон из текста и глаголов %d, %s, %.2f, %v и подставлять значения."
+  - "Объяснять, чем Printf отличается от Println и чем Sprintf отличается от Printf."
+  - "Распознавать результат неверного шаблона: %!d(...), %!d(MISSING), %!(EXTRA ...)."
+masteryCriteria:
+  - "Программа печатает строку чека с ценой и суммой ровно с двумя знаками после точки."
+  - "Вы называете, какой глагол нужен для int, float64 и string."
+concepts:
+  introduces:
+    - "go.printf"
+  uses:
+    - "go.type"
+    - "go.int"
+    - "go.float64"
+    - "go.string"
+    - "go.bool"
+    - "go.scan"
+    - "go.type-conversion"
+    - "go.arithmetic"
+    - "go.variable"
+    - "go.println"
+    - "go.newline"
+next:
+  - "go.first-steps.constants-and-comments"
+tags:
+  - "go"
+  - "printf"
+  - "sprintf"
+  - "format"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Что напечатает fmt.Printf(\"%.2f\\n\", 3.14159)?"
+      options:
+        - "3.14159"
+        - "3.14"
+        - "3.1"
+        - "3"
+      answer: 1
+      explanation: "%.2f означает: дробное число с двумя знаками после точки. Результат округляется: 3.14."
+    - id: "q2"
+      type: "single"
+      prompt: "Что напечатает fmt.Printf(\"%d шт.\\n\", 2.5)?"
+      options:
+        - "2 шт."
+        - "2.5 шт."
+        - "%!d(float64=2.5) шт."
+        - "Ошибка компиляции"
+      answer: 2
+      explanation: "Программа соберётся, но глагол %d ждёт int. Printf выводит в тексте пометку %!d(float64=2.5) вместо значения."
+    - id: "q3"
+      type: "single"
+      prompt: "Что напечатает fmt.Println(\"%d\", 5)?"
+      options:
+        - "5"
+        - "%d 5"
+        - "%d5"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Println не разбирает глаголы: он просто печатает оба значения через пробел. Шаблоны понимает только Printf."
+    - id: "q4"
+      type: "single"
+      prompt: "Что напечатает fmt.Printf(\"%d%%\\n\", 15)?"
+      options:
+        - "15%"
+        - "15%%"
+        - "15"
+        - "%!d(MISSING)"
+      answer: 0
+      explanation: "Чтобы напечатать знак процента, его удваивают: %%. Первый %d подставляет число."
+    - id: "q5"
+      type: "multiple"
+      prompt: "Что верно о Sprintf?"
+      options:
+        - "Печатает результат на экран."
+        - "Возвращает строку, которую можно сохранить в переменную."
+        - "Принимает такой же шаблон, как Printf."
+        - "Не нужен, если есть Println."
+      answer:
+        - 1
+        - 2
+      explanation: "Sprintf работает как Printf, но вместо печати возвращает строку. Её можно сохранить, склеить или напечатать позже."
+exercise:
+  id: "go.first-steps.formatted-output.exercise"
+  title: "Строка чека"
+  prompt: |
+    Программа получает название товара (одно слово), количество (целое) и цену за штуку (дробное число через точку). Напечатайте одну строку чека в формате
+
+    ```
+    название: количество x цена = сумма
+    ```
+
+    Цена и сумма - ровно с двумя знаками после точки. Сумма равна количеству, умноженному на цену.
+
+    **Пример.** Ввод `Хлеб 3 45.5` даёт
+
+    ```
+    Хлеб: 3 x 45.50 = 136.50
+    ```
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Читайте три значения тремя переменными: string, int и float64."
+    - "Сумма: float64(quantity) * price. Количество нужно привести к float64."
+    - "Шаблон: \"%s: %d x %.2f = %.2f\\n\" и четыре значения по порядку."
+    - "fmt.Printf(\"%s: %d x %.2f = %.2f\\n\", name, quantity, price, total)."
+  tests:
+    - id: "basic"
+      title: "Хлеб 3 по 45.5"
+      stdin: |
+        Хлеб 3 45.5
+      expected: |
+        Хлеб: 3 x 45.50 = 136.50
+      hint: "Цена и сумма печатаются с двумя знаками: 45.50 и 136.50."
+    - id: "one"
+      title: "Одна штука (скрытый)"
+      stdin: |
+        Молоко 1 89.9
+      expected: |
+        Молоко: 1 x 89.90 = 89.90
+      hidden: true
+      hint: "Ноль в конце дробной части сохраняется: 89.90."
+    - id: "zero"
+      title: "Ноль штук (скрытый)"
+      stdin: |
+        Чай 0 120
+      expected: |
+        Чай: 0 x 120.00 = 0.00
+      hidden: true
+      hint: "Целая цена 120 печатается как 120.00, сумма - 0.00."
+    - id: "rounding"
+      title: "Округление (скрытый)"
+      stdin: |
+        Сок 3 33.333
+      expected: |
+        Сок: 3 x 33.33 = 100.00
+      hidden: true
+      hint: "99.999 округляется до 100.00 при %.2f."

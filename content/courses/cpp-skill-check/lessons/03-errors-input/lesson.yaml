@@ -1,0 +1,202 @@
+id: "cpp.check.errors-input"
+title: "Проверка: ввод и ошибки"
+goal: "Строго разбирать вводимые строки, перехватывать исключения разбора и считать некорректные строки."
+difficulty: "medium"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разбирать число из строки через std::stoi и std::stod с проверкой, что разобрана вся строка, и перехватывать invalid_argument и out_of_range."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "cpp"
+  - "check"
+  - "errors-input"
+assessmentFor:
+  - "cpp.from-zero.reading-input"
+  - "cpp.from-zero.type-conversion"
+  - "cpp.from-zero.exceptions"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            int n = static_cast<int>(-2.9);
+            double r = static_cast<double>(7 / 2);
+            std::cout << n << " " << r << "\n";
+        }
+        ```
+      options:
+        - "-3 3.5"
+        - "-2 3"
+        - "-2 3.5"
+        - "-3 3"
+      answer: 1
+      explanation: "static_cast<int> отбрасывает дробную часть к нулю: -2.9 даёт -2, а не -3. В выражении static_cast<double>(7 / 2) сначала выполняется целочисленное деление 7 / 2 = 3, и только результат превращается в double: 3, а не 3.5."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <stdexcept>
+        #include <string>
+
+        int main() {
+            try {
+                std::cout << std::stoi("") << "\n";
+            } catch (const std::out_of_range&) {
+                std::cout << "range\n";
+            } catch (const std::invalid_argument&) {
+                std::cout << "invalid\n";
+            }
+        }
+        ```
+      options:
+        - "0"
+        - "range"
+        - "invalid"
+        - "Программа завершится аварийно"
+      answer: 2
+      explanation: "В пустой строке нет ни одной цифры, поэтому std::stoi бросает std::invalid_argument. Исключение out_of_range означает, что число найдено, но не помещается в тип. Исключение перехвачено, поэтому аварийного завершения нет."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        На вход подаётся строка `abc`. Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+
+        int main() {
+            int x = 5;
+            if (!(std::cin >> x)) {
+                std::cout << "fail " << x << "\n";
+            }
+        }
+        ```
+      options:
+        - "fail 5"
+        - "fail 0"
+        - "Ничего не выведет"
+        - "Не скомпилируется"
+      answer: 1
+      explanation: "Чтение целого числа из abc не удаётся, поток переходит в состояние ошибки, и условие !(std::cin >> x) истинно. Начиная с C++11 при неудачном разборе в переменную записывается 0, поэтому выводится fail 0, а не прежнее значение."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <stdexcept>
+
+        int main() {
+            try {
+                std::cout << "a";
+                throw std::invalid_argument("x");
+                std::cout << "b";
+            } catch (const std::exception&) {
+                std::cout << "c";
+            }
+            std::cout << "d\n";
+        }
+        ```
+      options:
+        - "abcd"
+        - "acd"
+        - "ac"
+        - "abd"
+      answer: 1
+      explanation: "Печатается a, затем бросается исключение: строка с b пропускается, управление переходит в catch и печатается c. После блока catch программа продолжается обычным образом, и печатается d."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Какое исключение бросит `std::stoi("99999999999")` для 32-битного `int`?
+
+        ```cpp
+        int n = std::stoi("99999999999");
+        ```
+      options:
+        - "std::invalid_argument: строка не похожа на число"
+        - "std::out_of_range: число не помещается в int"
+        - "Исключения не будет, вернётся наибольшее значение int"
+        - "Исключения не будет, число обернётся по модулю"
+      answer: 1
+      explanation: "Строка состоит из цифр, поэтому это корректное число, но оно больше наибольшего int. std::stoi сообщает об этом исключением std::out_of_range. Исключение invalid_argument бросается, когда числа в начале строки нет вообще."
+exercise:
+  id: "cpp.check.errors-input.exercise"
+  title: "Строки заказа с проверкой ввода"
+  prompt: |
+    Готовая функция `main` читает строки вида `товар количество цена`, считает сумму каждой строки и итог. Допишите две функции разбора над `main` в `main.cpp`. Функцию `main` не меняйте.
+
+    1. `bool parsePositiveInt(const std::string& text, int& out)` - разбирает **всю** строку как целое число больше нуля. Если строка не число, число разобрано не целиком (`12abc`, `2.5`), не помещается в `int` или не больше нуля, возвращает `false` и ничего не записывает в `out`. Исключения наружу выходить не должны.
+    2. `bool parsePositiveDouble(const std::string& text, double& out)` - то же для числа с плавающей точкой: вся строка должна быть числом, значение больше нуля.
+
+    `main` пропускает и считает строки, в которых не три слова либо любое из чисел не прошло разбор.
+
+    **Пример.** Для ввода
+
+    ```
+    tea 2 3.50
+    cake 4 0.25
+    milk 1 12abc
+    bread x 2.0
+    ```
+
+    программа печатает
+
+    ```
+    tea: 7.00
+    cake: 1.00
+    total=8.00 bad=2
+    ```
+
+    Часть тестов скрыта: в них нулевые и отрицательные числа, слишком большие значения и лишние слова.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "В заготовке разбор не проверяет вход и пропускает исключения. Начните с обёртки try/catch: stoi и stod бросают std::invalid_argument для не-числа и std::out_of_range для слишком большого значения."
+    - "Передайте вторым аргументом std::size_t used: std::stoi(text, &used). Строка разобрана целиком, если used равно text.size()."
+    - "Положительность проверяйте после разбора: value <= 0 для int. Для double пишите !(value > 0): так отвергаются и ноль, и отрицательные числа, и nan."
+    - "Присваивайте out только когда все проверки пройдены, и обязательно перехватите оба исключения по const&."
+  tests:
+    - id: "basic"
+      title: "Обычные строки, хвост после числа и не число"
+      stdin: "tea 2 3.50\ncake 4 0.25\nmilk 1 12abc\nbread x 2.0\n"
+      expected: |
+        tea: 7.00
+        cake: 1.00
+        total=8.00 bad=2
+      hint: "12abc разобрана не целиком (хвост abc), x вообще не число: обе строки считаются плохими. Итог 7.00 + 1.00 = 8.00."
+    - id: "non-positive-and-wrong-count"
+      title: "Ноль, отрицательное и неверное число слов"
+      stdin: "pen 10 0.5\nink 0 4.0\ncap 3 -1.5\nbag 2\nbox 1 2 3\n"
+      expected: |
+        pen: 5.00
+        total=5.00 bad=4
+      hint: "Количество 0 и цена -1.5 не больше нуля; в строках bag 2 и box 1 2 3 не три слова. Остаётся только pen: 10 * 0.5 = 5.00."
+    - id: "range"
+      title: "Слишком большие числа и экспонента (скрытый)"
+      stdin: "a 99999999999 1\nb 1 1e999\nc 3 nan\nd 5 1e2\n"
+      expected: |
+        d: 500.00
+        total=500.00 bad=3
+      hidden: true
+      hint: "99999999999 не помещается в int, 1e999 не помещается в double - в обоих случаях исключение out_of_range надо перехватить. nan не больше нуля. Запись 1e2 - допустимое число 100."
+    - id: "fractions"
+      title: "Дробное количество и нулевая цена (скрытый)"
+      stdin: "x 7 2.5\ny 1.5 3\nz 2 0\n"
+      expected: |
+        x: 17.50
+        total=17.50 bad=2
+      hidden: true
+      hint: "Количество 1.5 разобрано не целиком (stoi вернёт 1 и оставит .5), цена 0 не больше нуля. Подходит только x: 7 * 2.5 = 17.50."

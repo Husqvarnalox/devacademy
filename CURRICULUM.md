@@ -6,20 +6,19 @@
 
 ## 1. Что есть сейчас
 
-Источник истины - `content/catalog.yaml` и `content/courses/`. На момент написания:
+Источник истины - `content/catalog.yaml` и `content/courses/`. Стандарт уроков - [docs/curriculum-standards.md](docs/curriculum-standards.md),
+уровни подготовки и диагностика - [docs/learning-levels.md](docs/learning-levels.md), аудит и статус курсов -
+[docs/curriculum-audit.md](docs/curriculum-audit.md), источники и лицензии - [docs/curriculum-research.md](docs/curriculum-research.md).
 
-| Курс | Уроков | Уровень | Зависит от |
-|---|---|---|---|
-| `python-fundamentals` (Основы Python) | 10 | 0 | - |
-| `javascript-first-steps` | 2 | 0 | - |
-| `typescript-first-steps` | 2 | 1 | `javascript-first-steps` |
-| `nodejs-first-steps` | 2 | 1 | `javascript-first-steps` |
-| `csharp-first-steps` | 2 | 0 | - |
-| `php-first-steps` | 2 | 0 | - |
-
-Путь `python-from-zero` ведёт через `python-fundamentals`. Остальные треки каталога (Java, Kotlin, Go, C++, Rust, алгоритмы,
-ОС, сети, базы данных, ML, фреймворки) имеют статус `planned`: курсов-заглушек нет, в интерфейсе они помечены как «Запланировано».
-Контент пополняется параллельно с этим документом - сверяйтесь с каталогом.
+| Трек | Переработан по стандарту | Состав |
+|---|---|---|
+| Go | да (эталон) | `go-first-steps` «Go с нуля» (29 уроков, уровень 0), `go-for-programmers` (4, зачитывают базовые), `go-skill-check` (11 проверок), `go-fundamentals` (9), `go-professional` (8); маршрут `content/routes/go.yaml` |
+| Python | ядро | `python-fundamentals` (15 уроков, уровень 0), `python-for-programmers`, `python-skill-check`; маршрут `content/routes/python.yaml`; `python-advanced`, `python-stdlib`, `python-concurrency` и др. - прежние |
+| JavaScript | да | `javascript-from-zero` «JavaScript с нуля» (23 урока, уровень 0), `javascript-for-programmers` (3, зачитывают базовые), `javascript-skill-check` (9 проверок), `javascript-first-steps` и `javascript-fundamentals` - прежние, теперь связаны `requires`; маршрут `content/routes/javascript.yaml` |
+| TypeScript | да | `typescript-from-zero` «TypeScript с нуля» (24 урока, уровень 0, знание JavaScript не требуется), `typescript-for-programmers` (3), `typescript-skill-check` (8 проверок); `typescript-first-steps` теперь требует `typescript-from-zero`; маршрут `content/routes/typescript.yaml` |
+| C#, Java, Kotlin, C++, Rust, PHP | да | в каждом треке `<язык>-from-zero` (24 урока, уровень 0), `<язык>-for-programmers` (3, зачитывают базовые), `<язык>-skill-check` (8 проверок) и маршрут `content/routes/<язык>.yaml`; `*-first-steps` требуют курс с нуля и начинаются с того, как язык выполняет программу; `*-fundamentals` - прежние. Планы треков - `docs/curriculum/<язык>.md` |
+| Node.js | нет | `nodejs-first-steps` - курс для программистов (уровень 1), курса «с нуля» нет |
+| Фреймворки, алгоритмы, SQL, сети, ОС, ML | нет | прежние курсы; `requires` выровнены с prerequisites уроков там, где аудит нашёл расхождения |
 
 ## 2. Уровни 0-6: ориентир, а не квалификация
 
@@ -51,8 +50,9 @@
 Алгоритмы, SQL, сети, статистика, линейная алгебра, архитектура ПО преподаются в отдельных курсах. Языковые специализации
 не повторяют теорию, а добавляют упражнения на своём языке через **варианты упражнения** (`variants:` - один набор тестов,
 несколько языков). Усвоенные темы переиспользуются во всех путях; пропустить тему можно после проверки уровня
-(**assessment credit**: `assessmentFor` в тесте урока засчитывает перечисленные уроки). Пока реализован только кредит за
-квиз; автоматическая входная проверка при выборе пути - запланирована.
+(**assessment credit**: урок-проверка с `assessmentFor` засчитывает перечисленные уроки, когда выполнено его правило
+завершения - упражнение и квиз). Проверки трека собраны в маршрут (`content/routes/<track>.yaml`) с компетенциями; страница
+«Проверка знаний» показывает их состояние (подтверждено / есть пробел / не проверено) и предлагает уроки для пробелов.
 
 ## 4. Формат урока
 

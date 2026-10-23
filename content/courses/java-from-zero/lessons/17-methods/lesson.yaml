@@ -1,0 +1,246 @@
+id: "java.from-zero.methods"
+title: "Методы: static, параметры и return"
+goal: "Писать собственные static-методы с параметрами и результатом и вызывать их из main."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "java.from-zero.loop-control"
+objectives:
+  - "Записывать заголовок static-метода: тип результата, имя, параметры."
+  - "Возвращать значение командой return и использовать вызов метода в выражениях и условиях."
+  - "Писать void-методы, которые выполняют действие и ничего не возвращают."
+  - "Объяснять область видимости переменных и то, что параметры - копии аргументов."
+masteryCriteria:
+  - "Три метода упражнения дают верный результат на границах: скидка 0% и 100%, сумма ровно 3000 и на единицу меньше."
+  - "Вы объясняете, почему изменение параметра внутри метода не меняет переменную в main."
+  - "Вы читаете сообщения missing return statement и non-static method ... cannot be referenced from a static context."
+concepts:
+  introduces:
+    - "java.method"
+    - "java.parameter"
+    - "java.return"
+    - "java.void"
+    - "java.static"
+    - "java.scope"
+  uses:
+    - "java.main-wrapper"
+    - "java.int"
+    - "java.boolean"
+    - "java.string"
+    - "java.if"
+    - "java.else"
+    - "java.comparison"
+    - "java.arithmetic"
+    - "java.integer-division"
+    - "java.scanner"
+    - "java.println"
+    - "java.concatenation"
+    - "java.compile-error"
+    - "java.block"
+    - "java.variable"
+next:
+  - "java.from-zero.arrays"
+tags:
+  - "java"
+  - "method"
+  - "static"
+  - "return"
+  - "parameter"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        static int twice(int x) {
+            return x * 2;
+        }
+
+        public static void main(String[] args) {
+            int n = 4;
+            twice(n);
+            System.out.println(n);
+        }
+        ```
+      options:
+        - "4"
+        - "8"
+        - "Ошибка компиляции"
+        - "0"
+      answer: 0
+      explanation: "Результат вызова twice(n) не сохранён, а сам n метод не меняет: ему передана копия. Чтобы получить 8, нужно записать n = twice(n);."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Компилятор сообщает: missing return statement. Что нужно исправить?
+
+        ```java
+        static int sign(int x) {
+            if (x > 0) {
+                return 1;
+            } else if (x < 0) {
+                return -1;
+            }
+        }
+        ```
+      options:
+        - "Добавить return 0; для случая x == 0"
+        - "Заменить int на void"
+        - "Убрать else"
+        - "Добавить static перед int"
+      answer: 0
+      explanation: "При x == 0 ни одно условие не сработало, и метод доходит до конца без return. Метод с типом результата обязан вернуть значение на каждом пути."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        static int f(int a, int b) {
+            return a - b;
+        }
+
+        public static void main(String[] args) {
+            System.out.println(f(10, 3));
+        }
+        ```
+      options:
+        - "7"
+        - "-7"
+        - "13"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "Аргументы подставляются в параметры по порядку: a = 10, b = 3. Результат 10 - 3 равен 7."
+    - id: "q4"
+      type: "single"
+      prompt: "Метод объявлен как int square(int x) без слова static и вызывается из main. Что сообщит компилятор?"
+      options:
+        - "non-static method square(int) cannot be referenced from a static context"
+        - "missing return statement"
+        - "incompatible types: int cannot be converted to void"
+        - "cannot find symbol: variable x"
+      answer: 0
+      explanation: "main - static-метод и может вызывать напрямую только static-методы. Исправление: добавить static в заголовок square."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что напечатает программа?
+
+        ```java
+        static void show(int x) {
+            int y = x + 1;
+            System.out.println(y);
+        }
+
+        public static void main(String[] args) {
+            int y = 100;
+            show(5);
+            System.out.println(y);
+        }
+        ```
+      options:
+        - "6, затем 100"
+        - "6, затем 6"
+        - "100, затем 100"
+        - "Ошибка компиляции: y объявлена дважды"
+      answer: 0
+      explanation: "Переменные y в show и в main - разные: у каждого метода своя область видимости. show напечатает 6, а y в main по-прежнему 100."
+exercise:
+  id: "java.from-zero.methods.exercise"
+  title: "Скидка и бесплатная доставка"
+  prompt: |
+    Напишите три метода, `main` уже написан и вызывает их. На вход подаются два целых числа: цена товара `price` и процент скидки `percent` (от 0 до 100). Программа печатает три строки:
+
+    ```
+    Цена: <price>
+    К оплате: <цена после скидки>
+    Бесплатная доставка: <true или false>
+    ```
+
+    Методы:
+
+    * `priceWithDiscount(int price, int percent)` возвращает цену после скидки: `price - price * percent / 100` (деление целое);
+    * `freeDelivery(int amount)` возвращает `true`, если сумма `amount` не меньше 3000;
+    * `printLine(String label, int value)` печатает строку `<label>: <value>` и ничего не возвращает.
+
+    **Пример.** Ввод:
+
+    ```
+    4000 10
+    ```
+
+    Вывод:
+
+    ```
+    Цена: 4000
+    К оплате: 3600
+    Бесплатная доставка: true
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Заготовки трёх методов уже есть: замените в них `return 0;`, `return false;` и пустое тело. Менять main не нужно."
+    - "priceWithDiscount: вернуть price - price * percent / 100. freeDelivery: вернуть результат сравнения amount >= 3000."
+    - "printLine - void-метод: он сам печатает label, двоеточие с пробелом и значение через System.out.println(label + \": \" + value);"
+  tests:
+    - id: "discount"
+      title: "Скидка 10%"
+      stdin: |
+        4000 10
+      expected: |
+        Цена: 4000
+        К оплате: 3600
+        Бесплатная доставка: true
+      hint: "4000 со скидкой 10% - 3600, это не меньше 3000, поэтому доставка бесплатная."
+    - id: "no-free"
+      title: "Доставка платная"
+      stdin: |
+        1000 20
+      expected: |
+        Цена: 1000
+        К оплате: 800
+        Бесплатная доставка: false
+      hint: "1000 со скидкой 20% - 800; 800 меньше 3000, поэтому false."
+    - id: "threshold"
+      title: "Ровно 3000 (скрытый)"
+      stdin: |
+        3000 0
+      expected: |
+        Цена: 3000
+        К оплате: 3000
+        Бесплатная доставка: true
+      hidden: true
+      hint: "Сумма ровно 3000 тоже даёт бесплатную доставку: сравнение должно быть нестрогим (>=)."
+    - id: "below-threshold"
+      title: "На единицу меньше порога (скрытый)"
+      stdin: |
+        2999 0
+      expected: |
+        Цена: 2999
+        К оплате: 2999
+        Бесплатная доставка: false
+      hidden: true
+      hint: "2999 меньше порога 3000, поэтому доставка платная."
+    - id: "full-discount"
+      title: "Скидка 100% (скрытый)"
+      stdin: |
+        5000 100
+      expected: |
+        Цена: 5000
+        К оплате: 0
+        Бесплатная доставка: false
+      hidden: true
+      hint: "При скидке 100% к оплате 0, а доставка платная, потому что 0 меньше 3000."
+    - id: "integer-division"
+      title: "Целое деление (скрытый)"
+      stdin: |
+        1999 50
+      expected: |
+        Цена: 1999
+        К оплате: 1000
+        Бесплатная доставка: false
+      hidden: true
+      hint: "Деление целое: 1999 * 50 / 100 равно 999, значит к оплате 1000. Проверяется формула из условия без округления до double."

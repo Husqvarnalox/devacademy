@@ -9,7 +9,7 @@ namespace DevAcademy.Content;
 public static partial class TheoryParser
 {
     public static readonly IReadOnlyList<string> RequiredSections = ["simple", "precise", "examples", "mistakes", "summary"];
-    public static readonly IReadOnlyList<string> OptionalSections = ["facts", "deep-dive"];
+    public static readonly IReadOnlyList<string> OptionalSections = ["programmer", "facts", "deep-dive"];
 
     [GeneratedRegex(@"^[ \t]*<!--\s*section:\s*([A-Za-z0-9_-]+)\s*-->[ \t]*$", RegexOptions.Multiline)]
     private static partial Regex SectionMarker();

@@ -10,7 +10,7 @@
 Именно так устроен запуск в этом приложении: сначала `tsc --noEmit --strict` проверяет все `.ts` файлы (`--noEmit` - ничего не создавать,
 только проверить), и при ошибке типов запуска не будет. Затем Node.js выполняет ваш файл, удаляя аннотации типов при загрузке.
 
-Ввод и вывод те же, что в JavaScript: `console.log` пишет в stdout, `readFileSync(0, "utf8")` читает весь stdin. Разница в том, что теперь у переменных есть типы:
+Ввод и вывод устроены так, как в курсе «TypeScript с нуля»: `console.log` пишет в stdout, `readFileSync(0, "utf8")` читает весь stdin. Разница в том, что теперь у переменных есть типы:
 
 ```typescript
 import { readFileSync } from "node:fs";
@@ -114,7 +114,7 @@ double("21");
 * Типы (`interface`, `type`, аннотации) стираются; во время работы их нет и ничего не проверяется само.
 * `strict` включает `strictNullChecks` и `noImplicitAny`; вывод типов позволяет писать аннотации только на границах.
 * Для `enum`, `namespace` и параметров-свойств срезание типов недостаточно; используйте стираемые конструкции.
-* Ввод читается как в JavaScript: `readFileSync(0, "utf8")`, `trim`, `split`, явное преобразование.
+* Ввод читается так же, как в уроке «[Чтение ввода](lesson:typescript.from-zero.reading-input)»: `readFileSync(0, "utf8")`, `trim`, `split`, явное преобразование.
 
 Дальше: [структурная типизация и сужение типов](lesson:typescript.first-steps.structural-typing-and-narrowing).
-Основа языка: [как выполняется JavaScript](lesson:javascript.first-steps.how-javascript-runs).
+Для сравнения, если знаете JavaScript: [как выполняется JavaScript](lesson:javascript.first-steps.how-javascript-runs).

@@ -1,0 +1,177 @@
+id: "go.first-steps.switch"
+title: "switch"
+goal: "Выбирать ветку по значению с помощью switch, case и default."
+difficulty: "easy"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.if-else"
+objectives:
+  - "Записывать switch по значению с несколькими case и default."
+  - "Группировать несколько значений в одном case и использовать switch без выражения."
+  - "Объяснять, почему после выполненной ветки switch завершается сам."
+masteryCriteria:
+  - "Программа превращает номер дня недели в название и сообщает о некорректном номере."
+  - "Вы предсказываете вывод switch для значений, не покрытых ни одним case."
+concepts:
+  introduces:
+    - "go.switch"
+  uses:
+    - "go.if"
+    - "go.comparison"
+    - "go.logical-operators"
+    - "go.int"
+    - "go.string"
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.scan"
+    - "go.println"
+    - "go.string-literal"
+next:
+  - "go.first-steps.for-loop"
+tags:
+  - "go"
+  - "switch"
+  - "case"
+  - "default"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        day := 2
+        switch day {
+        case 1:
+            fmt.Println("пн")
+        case 2:
+            fmt.Println("вт")
+        case 3:
+            fmt.Println("ср")
+        }
+        ```
+      options:
+        - "вт"
+        - "вт и ср"
+        - "пн, вт и ср"
+        - "Ничего"
+      answer: 0
+      explanation: "В Go после выполненной ветки switch завершается. Следующие case не выполняются, как это было бы в некоторых других языках."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа при day := 6?
+
+        ```go
+        switch day {
+        case 6, 7:
+            fmt.Println("выходной")
+        default:
+            fmt.Println("будний")
+        }
+        ```
+      options:
+        - "будний"
+        - "выходной"
+        - "выходной и будний"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Через запятую в одном case перечисляют несколько значений: ветка подходит, если совпало любое."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа при day := 9?
+
+        ```go
+        switch day {
+        case 1:
+            fmt.Println("пн")
+        case 2:
+            fmt.Println("вт")
+        }
+        ```
+      options:
+        - "Ничего"
+        - "пн"
+        - "Ошибку времени выполнения"
+        - "9"
+      answer: 0
+      explanation: "Ни один case не подошёл и ветки default нет, поэтому switch просто ничего не делает."
+    - id: "q4"
+      type: "single"
+      prompt: "Что значит switch без выражения (switch { case x > 5: ... })?"
+      options:
+        - "Ошибку компиляции."
+        - "Каждый case содержит условие bool; выполняется первое истинное."
+        - "Сравнение всех case с нулём."
+        - "Бесконечный цикл."
+      answer: 1
+      explanation: "Это замена цепочки if / else if: ветки проверяются сверху вниз, выполняется первая, у которой условие истинно."
+exercise:
+  id: "go.first-steps.switch.exercise"
+  title: "Название дня недели"
+  prompt: |
+    Программа получает целое число от 1 до 7 - номер дня недели. Напечатайте его название строчными буквами:
+
+    1 - `понедельник`, 2 - `вторник`, 3 - `среда`, 4 - `четверг`, 5 - `пятница`, 6 - `суббота`, 7 - `воскресенье`.
+
+    Для любого другого числа напечатайте `Нет такого дня`.
+
+    **Пример.** Ввод `3` даёт `среда`.
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Одно значение сравнивается с набором вариантов - это задача для switch."
+    - "switch day { case 1: ... } - для каждого номера отдельная ветка."
+    - "Для всех остальных значений используйте default."
+    - "case 1: fmt.Println(\"понедельник\"); ... default: fmt.Println(\"Нет такого дня\")."
+  tests:
+    - id: "basic"
+      title: "Среда"
+      stdin: |
+        3
+      expected: |
+        среда
+      hint: "Номер 3 - среда."
+    - id: "first"
+      title: "Первый день (скрытый)"
+      stdin: |
+        1
+      expected: |
+        понедельник
+      hidden: true
+      hint: "1 - понедельник."
+    - id: "last"
+      title: "Последний день (скрытый)"
+      stdin: |
+        7
+      expected: |
+        воскресенье
+      hidden: true
+      hint: "7 - воскресенье."
+    - id: "zero"
+      title: "Ноль (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Нет такого дня
+      hidden: true
+      hint: "0 не входит в диапазон 1-7."
+    - id: "big"
+      title: "Больше семи (скрытый)"
+      stdin: |
+        8
+      expected: |
+        Нет такого дня
+      hidden: true
+      hint: "8 выходит за диапазон; нужна ветка default."
+    - id: "negative"
+      title: "Отрицательное (скрытый)"
+      stdin: |
+        -1
+      expected: |
+        Нет такого дня
+      hidden: true
+      hint: "Отрицательные номера тоже обрабатывает default."

@@ -1,0 +1,175 @@
+id: "typescript.programmers.errors-and-input"
+title: "Исключения и ввод: что тип не проверяет на границе программы"
+goal: "Разбирать текстовый ввод и JSON строго, различать ошибки данных и ошибки программиста и работать с unknown в catch без потери проверки типов."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites:
+  - "typescript.programmers.collections-and-functions"
+next:
+  - "typescript.first-steps.how-typescript-runs"
+objectives:
+  - "Писать собственный класс ошибки, задавать ему name и различать ошибки через instanceof."
+  - "Объяснять, почему значение в catch имеет тип unknown, и сужать его до чтения message."
+  - "Предсказывать порядок выполнения try, catch и finally, включая return внутри try."
+  - "Проверять результат JSON.parse (тип any) как unknown и сужать его предикатом типа."
+  - "Читать стандартный ввод целиком и делить его с учётом \\r\\n, пустых строк и пустого хвоста."
+masteryCriteria:
+  - "parseLine бросает ParseError с нужным сообщением и номером строки на всех видах неверных записей и принимает верные, включая границы количества 1 и 100."
+  - "parseOrder собирает ошибки в список problems, нумерует строки с учётом пустых и понимает \\r\\n."
+  - "parseStringList возвращает null для неверного JSON, не массива и массива не из строк; errorMessage не принимает объект с полем message за Error."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "typescript"
+  - "programmers"
+  - "errors"
+  - "input"
+assessmentFor:
+  - "typescript.from-zero.errors-and-exceptions"
+  - "typescript.from-zero.reading-input"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function g(): string {
+          try {
+            throw new Error("x");
+          } catch {
+            return "c";
+          } finally {
+            console.log("f");
+          }
+        }
+        console.log(g());
+        ```
+      options:
+        - "c, затем f"
+        - "f, затем c"
+        - "Только c"
+        - "Только f"
+      answer: 1
+      explanation: "Значение return сначала вычисляется, но функция завершается только после блока finally. Поэтому finally печатает f раньше, чем вызывающий код получит c и напечатает его."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        try {
+          throw "boom";
+        } catch (e) {
+          console.log(e instanceof Error ? e.message : "не Error: " + e);
+        }
+        ```
+      options:
+        - "boom"
+        - "не Error: boom"
+        - "undefined"
+        - "Программа не запустится: throw принимает только Error"
+      answer: 1
+      explanation: "Бросить можно любое значение, в том числе строку. Это не Error, поэтому срабатывает вторая ветка. Именно поэтому в catch значение имеет тип unknown и его нужно сужать."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        const data = JSON.parse('{"count":"5"}');
+        const count: number = data.count;
+        console.log(count + 1);
+        ```
+      options:
+        - "6"
+        - "51"
+        - "NaN"
+        - "Программа не запустится: тип string не присвоить number"
+      answer: 1
+      explanation: "JSON.parse возвращает any, поэтому data.count тоже any и присваивание проходит проверку. Во время работы count - строка \"5\", а сложение строки с числом склеивает: \"51\". Тип number здесь не гарантия, а обещание."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log(Number("1e3"), Number(" "), Number("0x10"), Number("5px"));
+        ```
+      options:
+        - "1000 0 16 NaN"
+        - "NaN NaN NaN NaN"
+        - "1000 NaN 16 5"
+        - "1 0 0 5"
+      answer: 0
+      explanation: "Number принимает экспоненциальную запись (1000) и шестнадцатеричную (16), а строку из одних пробелов считает пустой и даёт 0. Строка 5px целиком числом не является, поэтому NaN (в отличие от parseInt, который вернул бы 5)."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        console.log("a\r\nb\n".split("\n").length, "a\r\nb\n".trim().split(/\r?\n/).length);
+        ```
+      options:
+        - "2 2"
+        - "3 2"
+        - "3 3"
+        - "2 3"
+      answer: 1
+      explanation: "split(\"\\n\") даёт три элемента: \"a\\r\", \"b\" и пустой хвост после последнего перевода строки. trim убирает хвостовой перевод строки, а регулярное выражение /\\r?\\n/ понимает и \\r\\n, поэтому остаётся два элемента."
+exercise:
+  id: "typescript.programmers.errors-and-input.exercise"
+  title: "Разбор заказа: ошибки данных, JSON и сообщение об ошибке"
+  prompt: |
+    В файле `input_task.ts` реализуйте четыре экспортируемые функции (класс `ParseError` с полем `line` и интерфейсы уже есть).
+
+    1. `parseLine(line, lineNo)` - разбирает строку `название,количество` и возвращает `{ name, quantity }` (оба поля после `trim`, количество - число). Бросает `new ParseError(сообщение, lineNo)`; проверки идут в таком порядке:
+       * полей не два (после `split(",")`) - `"ожидалось два поля"`;
+       * название после `trim` пусто - `"пустое название"`;
+       * количество после `trim` не состоит из одних цифр - `"количество должно быть целым числом"`;
+       * количество меньше 1 или больше 100 - `"количество вне диапазона 1-100"`.
+    2. `parseOrder(text)` - разбирает многострочный текст (разделители `\n` и `\r\n`). Пустые строки и строки из одних пробелов пропускаются, но номера строк идут с 1 по **всем** строкам. Возвращает `{ items, problems }`: верные записи и список `{ line, message }` для неверных, в порядке строк.
+    3. `parseStringList(text)` - массив строк из JSON-текста. Если JSON неверный, это не массив или в массиве есть не строки, результат `null`. Пустой массив `"[]"` - верный результат `[]`.
+    4. `errorMessage(error)` - текст ошибки из пойманного значения: у `Error` это `message`, строка возвращается как есть, всё остальное (в том числе объект `{ message: "..." }`, не являющийся `Error`) даёт `"неизвестная ошибка"`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "input_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Разделите работу: parseLine проверяет одну строку и бросает ParseError, а parseOrder вызывает её в цикле и решает, что делать с исключением."
+    - "В parseOrder делите текст по /\\r?\\n/, идите по индексу i (номер строки i + 1), пропускайте строки с trim() === \"\" и оборачивайте вызов parseLine в try/catch."
+    - "В catch проверьте error instanceof ParseError: тогда добавьте { line: error.line, message: error.message } в problems, иначе перебросьте throw error. Для количества используйте регулярное выражение /^\\d+$/ на обрезанном тексте, а не Number: Number(\"\") равно 0."
+    - "parseStringList: присвойте JSON.parse(text) переменной типа unknown внутри try, в catch верните null; затем Array.isArray и проверка typeof element === \"string\" для каждого элемента. errorMessage: error instanceof Error, затем typeof error === \"string\"."
+  tests:
+    - id: "line-basic"
+      title: "parseLine - верные и неполные строки"
+      hint: "Название и количество нужно обрезать по краям; строка без запятой даёт ParseError «ожидалось два поля» с номером строки."
+    - id: "order-basic"
+      title: "parseOrder - записи и одна ошибка"
+      hint: "Верные строки идут в items, неверная - в problems вместе с номером строки (с 1)."
+    - id: "list-basic"
+      title: "parseStringList - верный и неверный JSON"
+      hint: "'[\"a\",\"b\"]' даёт ['a', 'b'], '[]' даёт [], а неверный JSON даёт null."
+    - id: "message-basic"
+      title: "errorMessage - Error, строка и число"
+      hint: "У Error берите message, строку возвращайте как есть, число - «неизвестная ошибка»."
+    - id: "line-edge"
+      title: "parseLine - все виды ошибок и границы (скрытый)"
+      hidden: true
+      hint: "Проверки идут в заданном порядке; количество «2.5», «-1», «1e1» и пустое - не целое число, 0 и 101 - вне диапазона, 1 и 100 допустимы, 007 равно 7."
+    - id: "order-edge"
+      title: "parseOrder - пустые строки, \\r\\n и нумерация (скрытый)"
+      hidden: true
+      hint: "Пустые строки и строки из пробелов пропускаются, но номера считают и их; хвостовой перевод строки не создаёт ошибку; пустой текст даёт пустые списки."
+    - id: "list-edge"
+      title: "parseStringList - не массив и смешанные элементы (скрытый)"
+      hidden: true
+      hint: "Объект, строка, null, пустой текст и массив с числом или вложенным массивом дают null; массив с пустой строкой допустим."
+    - id: "message-edge"
+      title: "errorMessage - свои ошибки, null и поддельные объекты (скрытый)"
+      hidden: true
+      hint: "Наследники Error (ParseError, TypeError) имеют message; null, undefined и объект { message } не Error, поэтому результат «неизвестная ошибка»; пустая строка возвращается как есть."

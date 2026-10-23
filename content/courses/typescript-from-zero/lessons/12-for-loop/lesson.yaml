@@ -1,0 +1,161 @@
+id: "typescript.from-zero.for-loop"
+title: "Цикл for"
+goal: "Записывать счётчик, условие и обновление цикла в одной строке и повторять действие заданное число раз."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "typescript.from-zero.while-loop"
+objectives:
+  - "Записать цикл for с началом, условием и обновлением и назвать порядок их выполнения."
+  - "Выбрать границы: повторить ровно n раз или перебрать числа от 1 до n включительно."
+  - "Использовать сокращения i++, i-- и i += k."
+  - "Объяснить, где виден счётчик цикла, и объявить накопитель до цикла."
+masteryCriteria:
+  - "Функции с циклом for верны для обычных и пограничных значений: 0, отрицательные числа, одно повторение."
+  - "Граница цикла (< или <=) выбрана так, что последнее нужное значение входит в результат, а лишнего нет."
+concepts:
+  introduces:
+    - "ts.for"
+  uses:
+    - "ts.let"
+    - "ts.while"
+    - "ts.assignment"
+    - "ts.arithmetic"
+    - "ts.comparison"
+    - "ts.concatenation"
+    - "ts.if"
+    - "ts.function"
+    - "ts.return"
+    - "ts.type-annotation"
+next:
+  - "typescript.from-zero.loop-control"
+tags:
+  - "typescript"
+  - "for"
+  - "loops"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        for (let i: number = 0; i < 3; i++) {
+          console.log(i);
+        }
+        ```
+      options:
+        - "0 1 2, каждое с новой строки"
+        - "1 2 3, каждое с новой строки"
+        - "0 1 2 3, каждое с новой строки"
+        - "Ничего: цикл не выполнится"
+      answer: 0
+      explanation: "Счётчик начинается с 0, условие i < 3 истинно при 0, 1 и 2; при 3 оно ложно и цикл заканчивается. Тело выполняется три раза."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Чему равна переменная total после цикла?
+
+        ```typescript
+        let total: number = 0;
+        for (let i: number = 1; i <= 5; i += 2) {
+          total = total + i;
+        }
+        ```
+      options:
+        - "9"
+        - "15"
+        - "6"
+        - "5"
+      answer: 0
+      explanation: "Счётчик принимает значения 1, 3 и 5 (шаг 2), их сумма 9. Значение 7 уже не проходит условие i <= 5."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Как часто выполнится тело цикла?
+
+        ```typescript
+        for (let i: number = 1; i <= 4; i++) {
+          console.log("Привет");
+        }
+        ```
+      options:
+        - "4 раза"
+        - "3 раза"
+        - "5 раз"
+        - "Бесконечно"
+      answer: 0
+      explanation: "Значения счётчика: 1, 2, 3 и 4. При i равном 5 условие i <= 4 ложно. Всего четыре итерации."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов для этого кода?
+
+        ```typescript
+        for (let i: number = 0; i < 3; i++) {
+          console.log(i);
+        }
+        console.log(i);
+        ```
+      options:
+        - "TS2304: имя i не найдено, потому что счётчик виден только внутри цикла"
+        - "TS2588: нельзя присвоить i, потому что это константа"
+        - "TS2322: нельзя присвоить число переменной другого типа"
+        - "Ничего, напечатается 3"
+      answer: 0
+      explanation: "Переменная, объявленная в начале for, существует только внутри цикла. Последняя строка стоит за его пределами, поэтому имя не найдено."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Нужно просуммировать числа от 1 до n включительно. Какой цикл верен?
+      options:
+        - "for (let i: number = 1; i <= n; i++)"
+        - "for (let i: number = 1; i < n; i++)"
+        - "for (let i: number = 0; i < n; i++)"
+        - "for (let i: number = 1; i > n; i++)"
+      answer: 0
+      explanation: "Значения от 1 до n включительно получаются при условии i <= n. Условие i < n пропускает n, а условие i > n ложно сразу, и цикл не выполнится ни разу. Вариант с началом 0 прибавляет лишний ноль и недобирает n."
+exercise:
+  id: "typescript.from-zero.for-loop.exercise"
+  title: "Факториал, повтор и кратные"
+  prompt: |
+    В файле `for_task.ts` три функции. Реализуйте их циклом `for`:
+
+    * `factorial(n)` - произведение целых чисел от 1 до `n`; для `n` меньше 1 результат `1`. Например, `factorial(4)` равно `24`.
+    * `repeatText(text, times)` - строка, в которой `text` повторён `times` раз подряд; для `times` меньше 1 результат пустая строка. Например, `repeatText("ab", 3)` равно `"ababab"`.
+    * `countMultiples(limit, divisor)` - сколько чисел от 1 до `limit` включительно делятся на `divisor` без остатка; считайте, что `divisor` больше нуля. Например, `countMultiples(10, 3)` равно `3` (числа 3, 6, 9).
+
+    Функции должны **возвращать** значение, а не печатать его. Скрытые тесты проверяют ноль, отрицательные числа и ровно одно повторение.
+  entryFile: "for_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В factorial накопитель result начинается с 1 (не с 0: любое произведение с нулём станет нулём). Счётчик i идёт от 2 до n включительно: result = result * i."
+    - "В repeatText заведите строку out = \"\" и цикл for (let i = 0; i < times; i++). Внутри добавляйте text к out. Для times меньше 1 цикл не выполнится, и вернётся пустая строка."
+    - "В countMultiples перебирайте i от 1 до limit включительно. Число делится на divisor, если i % divisor === 0: тогда увеличивайте счётчик count."
+    - "Накопители (result, out, count) объявляйте через let до цикла, а не внутри него. Тогда значение сохраняется между итерациями."
+  tests:
+    - id: "factorial-basic"
+      title: "factorial: обычные значения"
+      hint: "factorial(4) = 24, factorial(5) = 120, factorial(1) = 1."
+    - id: "repeat-basic"
+      title: "repeatText: обычные значения"
+      hint: "repeatText(\"ab\", 3) = \"ababab\"; repeatText(\"-\", 5) = \"-----\"."
+    - id: "multiples-basic"
+      title: "countMultiples: обычные значения"
+      hint: "До 10 на 3 делятся 3, 6, 9, всего 3 числа; до 20 на 5 - 5, 10, 15, 20, всего 4."
+    - id: "factorial-edge"
+      title: "factorial: 0, отрицательные, большие (скрытый)"
+      hidden: true
+      hint: "Для 0 и отрицательных n цикл не выполняется, остаётся начальное значение 1; factorial(10) = 3628800."
+    - id: "repeat-edge"
+      title: "repeatText: ноль повторов, пустой текст (скрытый)"
+      hidden: true
+      hint: "При times равном 0 или меньше результат пустая строка; один повтор возвращает сам текст; пробелы внутри text сохраняются."
+    - id: "multiples-edge"
+      title: "countMultiples: границы (скрытый)"
+      hidden: true
+      hint: "Если limit меньше divisor, подходящих чисел нет; число limit входит в перебор (countMultiples(3, 3) = 1); при divisor равном 1 делятся все числа."

@@ -66,7 +66,11 @@ public sealed record PlacementOffer(Lesson Assessment, IReadOnlyList<Lesson> Cre
     public double PassThreshold => Assessment.Quiz?.PassThreshold ?? 1;
 }
 
-public enum RecommendationKind { Review, Continue, Start, Next }
+/// <remarks>
+/// Diagnose: the next competency check of a track. Remediate: a lesson covered by a check that was not passed.
+/// Challenge: the optional harder task of the last completed lesson (Deep depth only).
+/// </remarks>
+public enum RecommendationKind { Review, Continue, Start, Next, Diagnose, Remediate, Challenge }
 
 public sealed record Recommendation(RecommendationKind Kind, string LessonId, string Title, string Reason);
 
@@ -351,21 +355,28 @@ public sealed class LearningPathService(IContentRepository content, IProgressRep
     }
 
     /// <summary>
-    /// Deterministic order: (1) due reviews, oldest first; (2) lessons in progress, by start time;
-    /// (3) first Available lesson of each enrolled course; (4) `next` links of the last completed lesson.
-    /// A lesson appears at most once.
+    /// Deterministic order: (1) due reviews, oldest first; (2) lessons in progress, by start time; (3) per enrolled track
+    /// with a route: lessons covered by a failed check (evidence first), then the entry chosen by prior knowledge and the
+    /// next competency check; (4) first Available lesson of each enrolled course; (5) `next` links of the last completed
+    /// lesson; (6) with depth Deep, the unsolved challenge of the last completed lesson. A lesson appears at most once.
+    /// <para>Prior knowledge (<see cref="LearnerProfile.Level"/>) only picks where to start: an absolute beginner starts at
+    /// the route's beginner entry, a language beginner at its programmer entry, intermediate and advanced learners at the
+    /// next competency check. What counts as known is decided by completions and passed checks alone. Check lessons are
+    /// never suggested as an ordinary "next lesson".</para>
     /// </summary>
     public async Task<IReadOnlyList<Recommendation>> GetRecommendationsAsync(LearnerProfile? profile, CancellationToken ct = default)
     {
         var set = content.Current;
         var map = await LoadProgressAsync(ct);
         var now = clock.UtcNow;
+        var level = PriorKnowledge.Clamp(profile?.Level ?? PriorKnowledge.AbsoluteBeginner);
         var result = new List<Recommendation>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         void Add(RecommendationKind kind, Lesson l, string reason)
         {
             if (seen.Add(l.Id)) result.Add(new Recommendation(kind, l.Id, l.Title, reason));
         }
+        bool Touched(string lessonId) => map.TryGetValue(lessonId, out var p) && (p.IsCompleted || p.StartedAt is not null);
 
         foreach (var p in map.Values.Where(p => p.IsCompleted && p.NextReviewAt <= now).OrderBy(p => p.NextReviewAt).ThenBy(p => p.LessonId, StringComparer.Ordinal))
             if (set.FindLesson(p.LessonId) is { } l) Add(RecommendationKind.Review, l, $"Review due since {p.NextReviewAt:yyyy-MM-dd}");
@@ -373,18 +384,50 @@ public sealed class LearningPathService(IContentRepository content, IProgressRep
         foreach (var p in map.Values.Where(p => !p.IsCompleted && p.StartedAt is not null).OrderBy(p => p.StartedAt).ThenBy(p => p.LessonId, StringComparer.Ordinal))
             if (set.FindLesson(p.LessonId) is { } l) Add(RecommendationKind.Continue, l, "In progress: pick up where you left off");
 
-        foreach (var courseId in profile?.EnrolledCourseIds ?? [])
+        var enrolled = profile?.EnrolledCourseIds ?? [];
+        var routedTracks = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var track in enrolled.Select(set.TrackOfCourse).OfType<Track>().DistinctBy(t => t.Id))
+        {
+            if (set.FindRoute(track.Id) is not { } route) continue;
+            routedTracks.Add(track.Id);
+            var report = DiagnosticEvaluator.Evaluate(set, track.Id, map);
+            foreach (var gap in report?.Competencies.Where(c => c.State == CompetencyState.NeedsWork) ?? [])
+                if ((gap.Gaps.FirstOrDefault(x => LessonStateCalculator.Compute(x, map) != LessonState.Locked) ?? gap.Gaps.FirstOrDefault()) is { } g)
+                    Add(RecommendationKind.Remediate, g, $"Check \"{gap.Competency.Title}\" was not passed");
+
+            var started = set.Lessons.Any(l => track.CourseIds.Contains(l.CourseId) && Touched(l.Id));
+            var checkStarted = route.Competencies.Any(c => Touched(c.CheckLessonId));
+            var next = report?.NextCheck;
+            if (next is not null && (level >= PriorKnowledge.Intermediate || checkStarted))
+                Add(RecommendationKind.Diagnose, next.Check, $"Next check in {track.Title}: {next.Competency.Title}");
+            if (started) continue;
+            var entry = level == PriorKnowledge.AbsoluteBeginner ? route.BeginnerEntry : route.ProgrammerEntry ?? route.BeginnerEntry;
+            if (entry is not null && set.FindLesson(entry) is { } e && !Touched(e.Id))
+                Add(RecommendationKind.Start, e, $"Start of {track.Title} for your level");
+        }
+
+        foreach (var courseId in enrolled)
         {
             if (set.FindCourse(courseId) is not { } course) continue;
-            var first = set.LessonsOf(courseId).FirstOrDefault(l => LessonStateCalculator.Compute(l, map) == LessonState.Available);
+            // The route chose the entry of an untouched beginner course for a learner who already programs.
+            if (course.Level == 0 && level > PriorKnowledge.AbsoluteBeginner && set.TrackOfCourse(courseId) is { } t && routedTracks.Contains(t.Id)
+                && !set.LessonsOf(courseId).Any(l => Touched(l.Id))) continue;
+            var first = set.LessonsOf(courseId).FirstOrDefault(l => l.AssessmentFor.Count == 0 && LessonStateCalculator.Compute(l, map) == LessonState.Available);
             if (first is not null) Add(RecommendationKind.Start, first, $"Next lesson in {course.Title}");
         }
 
         var last = map.Values.Where(p => p.IsCompleted).OrderByDescending(p => p.CompletedAt).ThenBy(p => p.LessonId, StringComparer.Ordinal).FirstOrDefault();
         if (last is not null && set.FindLesson(last.LessonId) is { } lastLesson)
+        {
             foreach (var nextId in lastLesson.Next)
-                if (set.FindLesson(nextId) is { } n && !(map.TryGetValue(nextId, out var np) && np.IsCompleted))
+                if (set.FindLesson(nextId) is { } n && n.AssessmentFor.Count == 0 && !(map.TryGetValue(nextId, out var np) && np.IsCompleted))
                     Add(RecommendationKind.Next, n, $"Suggested after \"{lastLesson.Title}\"");
+            if (profile?.Depth == LearningDepth.Deep && lastLesson.Challenge is not null && !last.ChallengePassed)
+            {
+                // The challenge lives in the same lesson: suggest it only when the lesson is not already listed.
+                if (!seen.Contains(lastLesson.Id)) Add(RecommendationKind.Challenge, lastLesson, $"Challenge of \"{lastLesson.Title}\"");
+            }
+        }
 
         return result;
     }

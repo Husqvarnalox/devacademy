@@ -1,0 +1,205 @@
+id: "java.check.concurrency"
+title: "Проверка: потоки, ExecutorService и синхронизация"
+goal: "Запускать работу в нескольких потоках, собирать результаты и не допускать гонок данных."
+difficulty: "medium"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разделить сумму между задачами ExecutorService, дождаться результатов и безопасно увеличивать общий счётчик из нескольких потоков."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "java"
+  - "check"
+  - "concurrency"
+  - "concurrency"
+  - "threads"
+assessmentFor:
+  - "java.fundamentals.threads-executors-virtual"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что можно сказать о результате?
+
+        ```java
+        static volatile int count = 0;
+
+        Runnable r = () -> { for (int i = 0; i < 1000; i++) count++; };
+        Thread a = new Thread(r), b = new Thread(r);
+        a.start(); b.start();
+        a.join(); b.join();
+        System.out.println(count);
+        ```
+      options:
+        - "Всегда 2000, потому что volatile делает операцию атомарной"
+        - "Результат может оказаться меньше 2000: count++ состоит из чтения, сложения и записи"
+        - "Всегда 1000"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "volatile гарантирует видимость записи, но count++ - три шага (прочитать, увеличить, записать). Потоки могут прочитать одно значение и записать одинаковый результат, из-за чего часть увеличений теряется."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```java
+        public static void main(String[] args) {
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            pool.submit(() -> System.out.println("hi"));
+        }
+        ```
+      options:
+        - "Выведет hi и завершится"
+        - "Выведет hi, но программа не завершится, пока не будет вызван shutdown"
+        - "Ничего не выведет"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Потоки пула не являются демонами, и пока пул не остановлен, виртуальная машина продолжает работу. Нужен pool.shutdown(), например в блоке finally."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        Thread t = new Thread(() -> System.out.println("B"));
+        System.out.println("A");
+        t.start();
+        t.join();
+        System.out.println("C");
+        ```
+      options:
+        - "A B C"
+        - "B A C"
+        - "A C B"
+        - "Порядок не определён"
+      answer: 0
+      explanation: "A печатается до запуска потока. Метод join заставляет main дождаться завершения потока, поэтому B печатается раньше C. Порядок определён."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        class Counter {
+            private int n;
+            synchronized void inc() { n++; }
+            synchronized int get() { return n; }
+        }
+
+        Counter c = new Counter();
+        Runnable r = () -> { for (int i = 0; i < 1000; i++) c.inc(); };
+        Thread a = new Thread(r), b = new Thread(r);
+        a.start(); b.start();
+        a.join(); b.join();
+        System.out.println(c.get());
+        ```
+      options:
+        - "Всегда 2000"
+        - "От 1000 до 2000"
+        - "Всегда 1000"
+        - "Тупик"
+      answer: 0
+      explanation: "synchronized-методы одного объекта выполняются по одному, поэтому обновления не теряются. После join оба потока завершены, и get() видит итог 2000."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```java
+        AtomicInteger done = new AtomicInteger();
+        try (var ex = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (int i = 0; i < 3; i++) {
+                ex.submit(() -> { done.incrementAndGet(); });
+            }
+        }
+        System.out.println(done.get());
+        ```
+      options:
+        - "0"
+        - "3"
+        - "Любое число от 0 до 3"
+        - "Ошибка компиляции: ExecutorService нельзя использовать в try-with-resources"
+      answer: 1
+      explanation: "ExecutorService начиная с Java 19 реализует AutoCloseable. Метод close ждёт завершения всех задач, поэтому после блока try счётчик равен 3."
+exercise:
+  id: "java.check.concurrency.exercise"
+  title: "Параллельная сумма и счётчик"
+  prompt: |-
+    Реализуйте два метода; `main` уже написан. Оба метода объявлены с `throws Exception`.
+
+    * `parallelSum(List<Integer> nums, int parts)` - сумма элементов как `long`. Список делится на `parts` частей (последняя может быть короче или частей может быть больше, чем элементов), каждая часть суммируется отдельной задачей `ExecutorService`, результаты собираются через `Future.get()`. Пул нужно остановить.
+    * `countWithThreads(int threads, int perThread)` - запускает `threads` потоков, каждый увеличивает общий счётчик `perThread` раз; возвращает итог после завершения всех потоков. Итог должен быть ровно `threads * perThread`.
+
+    Ввод: `parts threads perThread n`, затем `n` целых чисел.
+
+    **Пример.** Ввод:
+
+    ```
+    3 4 1000 6
+    1 2 3 4 5 6
+    ```
+
+    Вывод:
+
+    ```
+    Сумма: 21
+    Счётчик: 4000
+    ```
+  entryFile: "Main.java"
+  evaluation: "io"
+  hints:
+    - "Для счётчика возьмите AtomicInteger: поток вызывает incrementAndGet() в цикле, а после запуска всех потоков вызовите join() у каждого."
+    - "Размер части: chunk = (n + parts - 1) / parts. Цикл for (int from = 0; from < n; from += chunk) работает и при n = 0, и при parts > n; часть берите через nums.subList(from, Math.min(n, from + chunk))."
+    - "Каждой части - pool.submit(() -> сумма части, long). Затем в цикле складывайте f.get() и вызывайте pool.shutdown() в finally. Суммируйте в long: сумма может не поместиться в int."
+  tests:
+    - id: "basic"
+      title: "Шесть чисел"
+      stdin: |
+        3 4 1000 6
+        1 2 3 4 5 6
+      expected: |
+        Сумма: 21
+        Счётчик: 4000
+      hint: "Шесть чисел делятся на три части, сумма 21; четыре потока по 1000 увеличений дают ровно 4000."
+    - id: "more-parts"
+      title: "Частей больше, чем чисел"
+      stdin: |
+        10 2 500 3
+        7 8 9
+      expected: |
+        Сумма: 24
+        Счётчик: 1000
+      hint: "Частей десять, чисел три: лишние части не создаются, сумма 24; счётчик 2 * 500 = 1000."
+    - id: "empty"
+      title: "Нет чисел (скрытый)"
+      stdin: |
+        2 3 100 0
+      expected: |
+        Сумма: 0
+        Счётчик: 300
+      hidden: true
+      hint: "Для n = 0 частей нет, сумма равна 0, а счётчик всё равно 300."
+    - id: "overflow"
+      title: "Сумма больше int (скрытый)"
+      stdin: |
+        4 2 1 4
+        2000000000 2000000000 2000000000 2000000000
+      expected: |
+        Сумма: 8000000000
+        Счётчик: 2
+      hidden: true
+      hint: "Сумма 8 000 000 000 не помещается в int; нужен long. Счётчик 2 * 1 = 2."
+    - id: "many"
+      title: "Много потоков (скрытый)"
+      stdin: |
+        1 8 10000 1
+        5
+      expected: |
+        Сумма: 5
+        Счётчик: 80000
+      hidden: true
+      hint: "Восемь потоков по 10000 увеличений: итог 80000 без потерянных обновлений; одна часть с одним числом даёт 5."

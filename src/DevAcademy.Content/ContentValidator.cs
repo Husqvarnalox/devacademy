@@ -79,6 +79,9 @@ public static class ContentValidator
         }
 
         CheckCycles(set, Error);
+        CheckFormerIds(set, Error);
+        CheckConcepts(set, Error, Warn);
+        CheckProgression(set, Warn);
         SideContentValidator.Validate(set, Error, Warn);
         return d;
     }
@@ -96,10 +99,102 @@ public static class ContentValidator
         if (lesson.Prerequisites.Contains(lesson.Id)) error(lesson.SourcePath, "lesson lists itself as a prerequisite");
     }
 
+    /// <summary>A former id must not name a current lesson (progress would be copied onto the wrong lesson) or be claimed twice.</summary>
+    private static void CheckFormerIds(ContentSet set, Action<string, string> error)
+    {
+        var claimed = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var lesson in set.Lessons)
+            foreach (var former in lesson.PreviousIds)
+            {
+                if (string.IsNullOrWhiteSpace(former)) error(lesson.SourcePath, "formerIds contains an empty id");
+                else if (former == lesson.Id) error(lesson.SourcePath, "formerIds lists the lesson's own id");
+                else if (set.FindLesson(former) is not null) error(lesson.SourcePath, $"formerIds '{former}' is the id of an existing lesson");
+                else if (!claimed.TryAdd(former, lesson.Id)) error(lesson.SourcePath, $"formerIds '{former}' is also claimed by lesson '{claimed[former]}'");
+            }
+    }
+
+    /// <summary>
+    /// Lessons a lesson may rely on: its prerequisites (transitively, across courses) and every lesson of the courses its
+    /// course requires (transitively). The lesson itself is not included.
+    /// </summary>
+    internal static HashSet<string> DependencyClosure(ContentSet set, Lesson lesson)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        var courses = new HashSet<string>(StringComparer.Ordinal);
+        var courseQueue = new Queue<string>(set.FindCourse(lesson.CourseId)?.Requires ?? []);
+        while (courseQueue.Count > 0)
+        {
+            var id = courseQueue.Dequeue();
+            if (set.FindCourse(id) is not { } c || !courses.Add(id)) continue;
+            foreach (var r in c.Requires) courseQueue.Enqueue(r);
+        }
+        var queue = new Queue<string>(lesson.Prerequisites.Concat(set.Lessons.Where(l => courses.Contains(l.CourseId)).Select(l => l.Id)));
+        while (queue.Count > 0)
+        {
+            var id = queue.Dequeue();
+            if (id == lesson.Id || set.FindLesson(id) is not { } l || !result.Add(id)) continue;
+            foreach (var p in l.Prerequisites) queue.Enqueue(p);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// "Never assume what was not taught": every concept a lesson uses must be introduced by the lesson itself or by a
+    /// lesson in its dependency closure. Lessons without concept metadata are not checked.
+    /// </summary>
+    private static void CheckConcepts(ContentSet set, Action<string, string> error, Action<string, string> warn)
+    {
+        foreach (var lesson in set.Lessons)
+        {
+            if (lesson.Concepts is not { } concepts) continue;
+            foreach (var c in concepts.Introduces.Concat(concepts.Uses))
+                if (string.IsNullOrWhiteSpace(c) || c.Any(char.IsWhiteSpace)) error(lesson.SourcePath, $"concept id '{c}' must be non-empty and contain no spaces");
+            foreach (var c in concepts.Uses.Intersect(concepts.Introduces, StringComparer.Ordinal))
+                warn(lesson.SourcePath, $"concept '{c}' is listed both in introduces and uses");
+
+            var deps = DependencyClosure(set, lesson).Select(set.FindLesson).OfType<Lesson>().ToList();
+            var known = new HashSet<string>(deps.SelectMany(l => l.Concepts?.Introduces ?? []), StringComparer.Ordinal);
+            foreach (var c in concepts.Uses.Distinct(StringComparer.Ordinal))
+                if (!known.Contains(c) && !concepts.Introduces.Contains(c))
+                    error(lesson.SourcePath, $"uses concept '{c}' that neither this lesson nor any lesson it depends on introduces");
+            foreach (var c in concepts.Introduces.Distinct(StringComparer.Ordinal).Where(known.Contains))
+            {
+                var by = deps.First(l => l.Concepts?.Introduces.Contains(c) == true);
+                warn(lesson.SourcePath, $"introduces concept '{c}' already introduced by prerequisite '{by.Id}' (list it under uses)");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Heuristics, reported as warnings: they point at likely progression problems, they do not prove them.
+    /// A level-0 course is for people who have never programmed, so its lessons must form a prerequisite chain, stay at
+    /// intro/easy difficulty, and not depend on lessons of more advanced courses.
+    /// </summary>
+    private static void CheckProgression(ContentSet set, Action<string, string> warn)
+    {
+        foreach (var course in set.Courses)
+        {
+            var lessons = set.LessonsOf(course.Id).ToList();
+            foreach (var (lesson, index) in lessons.Select((l, i) => (l, i)))
+            {
+                if (course.Level == 0)
+                {
+                    if (index > 0 && lesson.Prerequisites.Count == 0)
+                        warn(lesson.SourcePath, "lesson of a level-0 course has no prerequisites: a beginner gets no guidance on what to learn first");
+                    if (lesson.Difficulty > Difficulty.Easy && lesson.AssessmentFor.Count == 0)
+                        warn(lesson.SourcePath, $"difficulty '{lesson.Difficulty.ToString().ToLowerInvariant()}' in a level-0 course (expected intro or easy)");
+                }
+                foreach (var pre in lesson.Prerequisites)
+                    if (set.FindLesson(pre) is { } p && set.FindCourse(p.CourseId) is { } pc && pc.Level > course.Level)
+                        warn(lesson.SourcePath, $"prerequisite '{pre}' belongs to course '{pc.Id}' (level {pc.Level}), more advanced than this course (level {course.Level})");
+            }
+        }
+    }
+
     private static void CheckAssessment(Lesson lesson, ContentSet set, Action<string, string> error)
     {
         if (lesson.AssessmentFor.Count == 0) return;
-        if (lesson.Quiz is null) error(lesson.SourcePath, "assessmentFor requires the lesson to have a quiz");
+        if (lesson.Quiz is null && lesson.Exercise is null) error(lesson.SourcePath, "assessmentFor requires the lesson to have a quiz or an exercise");
         foreach (var id in lesson.AssessmentFor)
         {
             if (id == lesson.Id) error(lesson.SourcePath, "lesson cannot be an assessment for itself");

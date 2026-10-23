@@ -1,0 +1,161 @@
+id: "javascript.check.errors-input"
+title: "Проверка: ошибки и разбор ввода"
+goal: "Разбирать текстовый ввод в записи, бросать и перехватывать исключения и собирать ошибки данных."
+difficulty: "medium"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: разбирать текст в записи, бросать исключения и собирать ошибки данных, не пропуская ошибки программиста."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "errors-input"
+assessmentFor:
+  - "javascript.from-zero.errors-and-exceptions"
+  - "javascript.from-zero.reading-input"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        try {
+          console.log(1);
+          throw new Error("x");
+          console.log(2);
+        } catch {
+          console.log(3);
+        } finally {
+          console.log(4);
+        }
+        console.log(5);
+        ```
+      options:
+        - "1 2 3 4 5 (каждое число с новой строки)"
+        - "1 3 4 5 (каждое число с новой строки)"
+        - "1 3 5"
+        - "1 4 3 5 (каждое число с новой строки)"
+      answer: 1
+      explanation: "После броска остаток try пропускается, поэтому 2 не печатается. Дальше выполняется catch (3), потом finally (4), и обычный поток продолжается с 5."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log(Number("3.5"), Number("3,5"), parseFloat("3.5abc"), Number("  "));
+        ```
+      options:
+        - "3.5 3.5 3.5 0"
+        - "3.5 NaN 3.5 0"
+        - "3.5 NaN NaN NaN"
+        - "3.5 NaN 3.5 NaN"
+      answer: 1
+      explanation: "Number разбирает только запись с точкой и игнорирует пробелы по краям, а запятая даёт NaN; пустая или пробельная строка превращается в 0. parseFloat читает число с начала строки и останавливается на первой лишней букве."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const lines = "x\n\ny\n".split("\n");
+        console.log(lines.length, lines[1] === "");
+        ```
+      options:
+        - "3 false"
+        - "3 true"
+        - "4 true"
+        - "4 false"
+      answer: 2
+      explanation: "Разделитель встречается трижды, поэтому элементов четыре: «x», пустая строка, «y» и пустой хвост после последнего перевода строки. Второй элемент действительно пустой."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        try {
+          JSON.parse('{"a": 1}').b.c;
+        } catch (e) {
+          console.log(e.name);
+        }
+        ```
+      options:
+        - "SyntaxError"
+        - "TypeError"
+        - "ReferenceError"
+        - "ничего: ошибки нет"
+      answer: 1
+      explanation: "JSON корректен, поэтому SyntaxError не возникает. Свойства b нет, и результат чтения - undefined; чтение c у undefined бросает TypeError. Чтение отсутствующего свойства само по себе ошибки не даёт, ошибка возникает на следующем шаге цепочки."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        function check(v) {
+          if (!v) throw new RangeError("empty");
+          return v;
+        }
+        try {
+          check("");
+        } catch (e) {
+          console.log(e instanceof RangeError, e instanceof Error, e.message);
+        }
+        ```
+      options:
+        - "true false empty"
+        - "true true empty"
+        - "false true empty"
+        - "true true undefined"
+      answer: 1
+      explanation: "RangeError - подкласс Error, поэтому instanceof истинно для обоих классов. Сообщение, переданное в конструктор, доступно как message."
+exercise:
+  id: "javascript.check.errors-input.exercise"
+  title: "Разбор заказов из текста"
+  prompt: |
+    Ввод - текст, по строке на заказ: `артикул,количество,цена`. В файле `orders_check.mjs` реализуйте экспортируемые функции (класс `ParseError` уже есть: у него поле `field`).
+
+    1. `parseOrderLine(line)` - возвращает `{ sku, qty, priceCents }` или бросает `ParseError` с полем `field`:
+       * полей не три - `field` равно `"fields"`;
+       * `sku` (после `trim`) не подходит под `^[A-Z]{2}-\d{3}$` - `"sku"`;
+       * `qty` (после `trim`) не положительное целое из цифр (`^[1-9]\d*$`) - `"qty"`;
+       * `price` (после `trim`) не вида `12` или `12.5` или `12.50` (`^\d+(\.\d{1,2})?$`) - `"price"`.
+       Цена возвращается в центах целым числом: `"9.99"` даёт `999`, `"5"` даёт `500`, `"0.5"` даёт `50`. Проверки идут в порядке: поля, `sku`, `qty`, `price`.
+    2. `parseOrders(text)` - разбирает текст (строки делятся по `\n` или `\r\n`; пустые строки пропускаются, но нумерация идёт по всем строкам с 1). Возвращает `{ orders, errors, totalCents }`: список заказов, список ошибок `{ line, field }` в порядке строк и сумму `qty * priceCents` по верным заказам. Исключения, не являющиеся `ParseError`, не перехватывайте; если `text` не строка, бросьте `TypeError`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "orders_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Разделите работу: `parseOrderLine` проверяет одну строку и бросает `ParseError`, а `parseOrders` перебирает строки и собирает результаты."
+    - "В `parseOrderLine` разбейте строку по запятой и сначала проверьте число полей; для каждого поля применяйте `trim()` и регулярное выражение до `Number`."
+    - "Цену переводите в центы через `Math.round(Number(price) * 100)`: так `\"9.99\"` не превратится в `998.9999`."
+    - "В `parseOrders` идите по индексу строки, пропускайте `line.trim() === \"\"`, вызывайте `parseOrderLine` в `try`, а в `catch` проверяйте `e instanceof ParseError`; остальные ошибки пробрасывайте через `throw e`."
+  tests:
+    - id: "line-basic"
+      title: "parseOrderLine - верные строки"
+      hint: "Количество и цена приходят строками; верните число и цену в центах."
+    - id: "orders-basic"
+      title: "parseOrders - заказы и ошибка"
+      hint: "Верные строки идут в orders, неверные - в errors с номером строки и названием поля."
+    - id: "line-errors"
+      title: "parseOrderLine - какое поле неверно (скрытый)"
+      hidden: true
+      hint: "Проверки идут по порядку: число полей, sku, qty, price. В ParseError положите название первого неверного поля."
+    - id: "orders-edge"
+      title: "parseOrders - пустые строки, \\r\\n и не строка (скрытый)"
+      hidden: true
+      hint: "Пустые строки пропускайте, но считайте в нумерации. Для не строки бросьте TypeError, он не должен попасть в errors."
+    - id: "total-edge"
+      title: "parseOrders - сумма в центах без дробей (скрытый)"
+      hidden: true
+      hint: "Цены переводите в целые центы сразу при разборе; 0.1 + 0.2 в рублях даст дробь, а в центах - 30."

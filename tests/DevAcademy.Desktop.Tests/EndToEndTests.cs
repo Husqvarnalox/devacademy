@@ -68,8 +68,10 @@ public class EndToEndTests
             area.Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
             await Helpers.WaitUntilAsync(() => practice.ConsoleResult is not null, 15000);
-            Assert.Contains("Hello, DevAcademy!", practice.ConsoleResult!.Stdout);
-            Assert.Contains("6 * 7 = 42", practice.ConsoleResult.Stdout);
+            // The first lesson reads no input: Run prints exactly what its first test expects.
+            var expected = practice.Exercise.Tests.First(t => !t.Hidden).Expected!;
+            foreach (var line in expected.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                Assert.Contains(line, practice.ConsoleResult!.Stdout);
 
             // submit: every test passes, progress is saved, lesson not complete yet because of the quiz
             await practice.SubmitCommand.ExecuteAsync(null);

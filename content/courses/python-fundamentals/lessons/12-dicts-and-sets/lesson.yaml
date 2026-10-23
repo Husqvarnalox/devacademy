@@ -1,0 +1,156 @@
+id: python.fundamentals.dicts-and-sets
+title: Словари и множества
+goal: Хранить данные по ключам в словаре, считать вхождения, убирать повторы и сравнивать наборы значений с помощью множеств.
+difficulty: easy
+estimatedMinutes: 50
+prerequisites: [python.fundamentals.lists]
+objectives:
+  - Создавать словарь, читать и менять значения по ключу, проверять наличие ключа.
+  - Использовать get со значением по умолчанию и обходить словарь через items().
+  - Считать вхождения с помощью словаря.
+  - Создавать множество, убирать повторы и применять объединение, пересечение и разность.
+masteryCriteria:
+  - Вы предсказываете содержимое словаря после последовательности присваиваний.
+  - Вы объясняете, чем KeyError отличается от результата get.
+  - Вы выбираете между списком, словарём и множеством под задачу.
+concepts:
+  introduces: [python.dict, python.set]
+  uses: [python.print, python.variable, python.assignment, python.len, python.f-string, python.if, python.comparison, python.for-range, python.def, python.parameter, python.return, python.list, python.list-methods, python.string-methods, python.traceback]
+related: []
+next: [python.fundamentals.errors-and-files]
+tags: [python, dict, set, counting]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет программа?
+        ages = {"Анна": 30, "Борис": 25}
+        ages["Вера"] = 41
+        ages["Анна"] = 31
+        print(len(ages), ages["Анна"])
+      options:
+        - "3 31"
+        - "3 30"
+        - "4 31"
+        - "2 31"
+      answer: 0
+      explanation: >-
+        Присваивание по новому ключу добавляет пару, а по существующему заменяет значение. Итого три ключа, у Анны 31.
+    - id: q2
+      type: single
+      prompt: |
+        Что выведет программа?
+        d = {"a": 1}
+        print(d.get("b", 0))
+        print(d["b"])
+      options:
+        - "0, затем 0"
+        - "0, затем KeyError"
+        - "None, затем KeyError"
+        - "KeyError сразу"
+      answer: 1
+      explanation: >-
+        get возвращает значение по умолчанию, если ключа нет. Обычный доступ d["b"] для отсутствующего ключа вызывает KeyError.
+    - id: q3
+      type: single
+      prompt: |
+        Что выведет программа?
+        words = ["a", "b", "a"]
+        counts = {}
+        for w in words:
+            counts[w] = counts.get(w, 0) + 1
+        print(counts)
+      options:
+        - "{'a': 2, 'b': 1}"
+        - "{'a': 1, 'b': 1}"
+        - "['a', 'b', 'a']"
+        - "KeyError"
+      answer: 0
+      explanation: >-
+        При первой встрече ключа get возвращает 0, и записывается 1. При второй встрече "a" читается 1 и записывается 2.
+    - id: q4
+      type: single
+      prompt: |
+        Что выведет программа?
+        s = {1, 2, 2, 3, 3, 3}
+        print(len(s), 2 in s)
+      options:
+        - "6 True"
+        - "3 True"
+        - "3 False"
+        - "2 True"
+      answer: 1
+      explanation: >-
+        Множество хранит каждое значение один раз, поэтому в нём 3 элемента. Проверка 2 in s истинна.
+    - id: q5
+      type: single
+      prompt: |
+        Чему равно выражение?
+        sorted({1, 2, 3} & {2, 3, 4})
+      options:
+        - "[1, 2, 3, 4]"
+        - "[2, 3]"
+        - "[1, 4]"
+        - "[1]"
+      answer: 1
+      explanation: >-
+        Оператор & даёт пересечение: элементы, которые есть в обоих множествах. sorted превращает результат в упорядоченный список.
+exercise:
+  id: python.fundamentals.dicts-and-sets.exercise-v2
+  title: Учёт товаров
+  prompt: |
+    В файле `dict_tools.py` реализуйте четыре функции. Тесты вызывают их напрямую; результат возвращайте через `return`.
+
+    1. `count_words(words)` - словарь «слово -> сколько раз оно встретилось в списке». Регистр различается. Для пустого списка вернуть `{}`.
+    2. `unique_sorted(items)` - список значений без повторов, отсортированный по возрастанию.
+    3. `common_items(first, second)` - отсортированный список значений, которые есть в обоих списках (без повторов).
+    4. `cart_total(prices, cart)` - сумма цен товаров из списка `cart`. `prices` - словарь «название -> цена». Товар, которого нет в словаре, стоит 0. Одинаковые товары в корзине считаются отдельно.
+
+    **Примеры.**
+
+    ```python
+    count_words(["a", "b", "a"])                    # {'a': 2, 'b': 1}
+    unique_sorted([3, 1, 3, 2])                     # [1, 2, 3]
+    common_items([1, 2, 3], [2, 3, 4])              # [2, 3]
+    cart_total({"хлеб": 45, "сыр": 300}, ["хлеб", "хлеб"])   # 90
+    ```
+  entryFile: dict_tools.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - Выберите для каждой задачи подходящую структуру. Подсчёт и цены - словарь, повторы и общие элементы - множество.
+    - 'count_words: заведите пустой словарь, пройдите по словам и увеличивайте значение по ключу; get(слово, 0) вернёт ноль для нового ключа.'
+    - 'unique_sorted: set(items) убирает повторы, sorted(...) делает отсортированный список. Для common_items используйте пересечение: set(first) & set(second).'
+    - 'cart_total: total = 0; for name in cart: total = total + prices.get(name, 0); return total.'
+  tests:
+    - id: count-basic
+      title: count_words - обычные списки
+      hint: Ключи - слова, значения - число вхождений; порядок ключей не важен.
+    - id: unique-basic
+      title: unique_sorted - обычные списки
+      hint: Повторы убираются, результат - список (а не множество) по возрастанию.
+    - id: common-basic
+      title: common_items - общие значения
+      hint: Нужны только значения, которые есть в обоих списках; результат отсортирован.
+    - id: cart-basic
+      title: cart_total - обычные корзины
+      hint: Цены берутся из словаря по названию; повторяющиеся товары складываются каждый раз.
+    - id: count-edges
+      title: count_words - пустой список и регистр (скрытый)
+      hidden: true
+      hint: Слова "A" и "a" - разные ключи; исходный список менять нельзя.
+    - id: unique-edges
+      title: unique_sorted - пустой и одинаковые значения (скрытый)
+      hidden: true
+      hint: Для пустого списка результат - пустой список; для одинаковых значений - список из одного элемента.
+    - id: common-edges
+      title: common_items - пустые и повторяющиеся значения (скрытый)
+      hidden: true
+      hint: Повторы в исходных списках в результат не попадают; результат всегда отсортирован.
+    - id: cart-unknown
+      title: cart_total - неизвестный товар (скрытый)
+      hidden: true
+      hint: Обращение prices[name] к отсутствующему ключу вызывает KeyError; используйте get со значением по умолчанию.

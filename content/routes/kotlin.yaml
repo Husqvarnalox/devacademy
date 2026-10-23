@@ -1,0 +1,45 @@
+track: kotlin
+entry:
+  beginner: kotlin.from-zero.first-program
+  programmer: kotlin.programmers.syntax-types-and-control-flow
+competencies:
+  - id: basics
+    title: Основы - значения, ввод, условия, циклы
+    description: val и var, типы и арифметика, чтение ввода через readln, if и when как выражения, циклы while и for, диапазоны.
+    check: kotlin.check.basics
+    after: []
+  - id: collections
+    title: Функции, списки, словари и строки
+    description: Функции с параметрами, List и MutableList, Map, строковые методы, шаблоны строк.
+    check: kotlin.check.collections
+    after: [basics]
+  - id: errors-input
+    title: Ошибки и разбор ввода
+    description: Чтение строк ввода до конца данных, toIntOrNull и NumberFormatException, try/catch, подсчёт неверных строк.
+    check: kotlin.check.errors-input
+    after: [collections]
+  - id: null-safety
+    title: Null-безопасность
+    description: Типы T и T?, операторы ?. и ?:, smart cast, orEmpty, let и опасность !!.
+    check: kotlin.check.null-safety
+    after: [basics]
+  - id: classes
+    title: Классы, data-классы и sealed
+    description: Классы и свойства, data class с copy и equals, object, sealed-иерархии и исчерпывающий when.
+    check: kotlin.check.classes
+    after: [collections, null-safety]
+  - id: functional-collections
+    title: Коллекции, лямбды и последовательности
+    description: filter, map, fold, groupBy, partition, ленивые последовательности и разница между List и Sequence.
+    check: kotlin.check.functional-collections
+    after: [collections]
+  - id: error-handling
+    title: Обработка ошибок
+    description: require, check, try как выражение, finally, Result и runCatching, use для ресурсов.
+    check: kotlin.check.error-handling
+    after: [errors-input, null-safety]
+  - id: coroutines
+    title: Потоки и корутины
+    description: thread и join, атомарные счётчики, suspend, runBlocking, launch и async, структурированная конкурентность.
+    check: kotlin.check.coroutines
+    after: [classes, functional-collections]

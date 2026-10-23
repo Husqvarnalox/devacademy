@@ -1,0 +1,165 @@
+id: python.fundamentals.functions
+title: 'Функции: def, параметры и return'
+goal: Описывать собственные функции с параметрами и возвращаемым значением и понимать, какие переменные видны внутри и снаружи функции.
+difficulty: easy
+estimatedMinutes: 45
+prerequisites: [python.fundamentals.loops]
+objectives:
+  - Определять функцию с def и вызывать её.
+  - Передавать данные через параметры, в том числе со значением по умолчанию.
+  - Различать print и return и объяснять, почему функция без return возвращает None.
+  - Объяснять разницу между локальными переменными функции и переменными вне неё.
+masteryCriteria:
+  - Вы предсказываете вывод программы, в которой функция вызывается несколько раз с разными аргументами.
+  - Вы пишете функции, возвращающие результат, а не печатающие его, и harness-тесты проходят.
+  - Вы объясняете, почему переменная, созданная внутри функции, не видна снаружи.
+concepts:
+  introduces: [python.def, python.parameter, python.return, python.scope]
+  uses: [python.print, python.variable, python.assignment, python.int, python.float, python.arithmetic, python.f-string, python.traceback, python.if, python.comparison, python.for-range]
+related: []
+next: [python.fundamentals.strings]
+tags: [python, functions, def, return, parameters, scope]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: q1
+      type: single
+      prompt: |
+        Что выведет программа?
+        def double(x):
+            x * 2
+        print(double(4))
+      options:
+        - "8"
+        - "None"
+        - "4"
+        - "Ошибка выполнения"
+      answer: 1
+      explanation: >-
+        Выражение x * 2 вычисляется, но результат нигде не возвращается. Функция без return возвращает None. Нужно написать return x * 2.
+    - id: q2
+      type: single
+      prompt: |
+        Что выведет программа?
+        def hello(name):
+            print("Привет,", name)
+        hello("Анна")
+        hello("Ян")
+      options:
+        - "Привет, Анна и Привет, Ян (две строки)"
+        - "Ничего: функция не вызвана"
+        - "Привет, name дважды"
+        - "Привет, Ян"
+      answer: 0
+      explanation: >-
+        Каждый вызов выполняет тело функции заново, подставляя свой аргумент в параметр name.
+    - id: q3
+      type: single
+      prompt: |
+        Что произойдёт при запуске?
+        def make():
+            result = 42
+        make()
+        print(result)
+      options:
+        - "Выведется 42"
+        - "Выведется None"
+        - "NameError: имя result не определено вне функции"
+        - "Ничего не выведется"
+      answer: 2
+      explanation: >-
+        Переменная, созданная внутри функции, локальная: она существует только пока функция работает. Снаружи её имя неизвестно.
+    - id: q4
+      type: single
+      prompt: |
+        Что выведет программа?
+        def add(a, b=10):
+            return a + b
+        print(add(1), add(1, 2))
+      options:
+        - "11 3"
+        - "1 3"
+        - "11 11"
+        - "Ошибка: не хватает аргумента"
+      answer: 0
+      explanation: >-
+        Без второго аргумента b берёт значение по умолчанию 10, поэтому add(1) равно 11. Во втором вызове b равно 2.
+    - id: q5
+      type: single
+      prompt: |
+        Что выведет программа?
+        def check(n):
+            if n > 0:
+                return "плюс"
+            return "не плюс"
+        print(check(5))
+      options:
+        - "плюс не плюс"
+        - "плюс"
+        - "не плюс"
+        - "None"
+      answer: 1
+      explanation: >-
+        return сразу завершает функцию. После return "плюс" строки ниже не выполняются.
+exercise:
+  id: python.fundamentals.functions.exercise-v2
+  title: Четыре функции для магазина
+  prompt: |
+    В файле `functions_task.py` реализуйте четыре функции. Тесты импортируют модуль и вызывают функции напрямую; ничего не читайте с клавиатуры и ничего не печатайте: результат нужно вернуть через `return`.
+
+    1. `square(n)` - вернуть квадрат числа `n`.
+    2. `discount(price, percent=10)` - вернуть цену после скидки: `price` уменьшить на `percent` процентов. Если процент не передан, он равен 10.
+    3. `grade(points)` - вернуть слово по числу баллов: от 85 включительно - `"отлично"`, от 70 - `"хорошо"`, от 50 - `"удовлетворительно"`, меньше 50 - `"неудовлетворительно"`.
+    4. `sum_to(n)` - вернуть сумму целых чисел от 1 до `n` включительно. Для `n < 1` вернуть 0.
+
+    **Примеры.**
+
+    ```python
+    square(3)         # 9
+    discount(200, 10) # 180.0
+    discount(80)      # 72.0
+    grade(72)         # 'хорошо'
+    sum_to(4)         # 10
+    ```
+  entryFile: functions_task.py
+  evaluation: harness
+  harness: exercise/harness
+  harnessEntry: check.py
+  hints:
+    - Каждая функция должна вернуть значение командой return. Заглушка pass ничего не возвращает - Python вернёт None.
+    - 'Скидка: сколько процентов остаётся - 100 - percent. Цена после скидки равна price * (100 - percent) / 100. Для grade используйте цепочку if / elif / else с return в каждой ветке.'
+    - 'sum_to: заведите total = 0 внутри функции, пройдите for i in range(1, n + 1) и прибавляйте i. Для n < 1 диапазон пуст, и total останется нулём.'
+    - 'Пример для square: def square(n): return n * n. Остальные функции строятся так же: строка def уже есть, замените pass.'
+  tests:
+    - id: square
+      title: square - квадрат
+      hint: Результат умножения числа на само себя; проверьте положительные, отрицательные числа и ноль.
+    - id: discount-basic
+      title: discount - явный процент
+      hint: Цена уменьшается на указанный процент. Скидка 10% от 200 даёт 180.
+    - id: grade-basic
+      title: grade - типичные значения
+      hint: Слова и регистр должны совпадать с условием дословно.
+    - id: sum-to-basic
+      title: sum_to - положительные n
+      hint: Сумма от 1 до n включительно; для 4 это 1 + 2 + 3 + 4.
+    - id: discount-default
+      title: discount - значение по умолчанию (скрытый)
+      hidden: true
+      hint: Параметр percent должен иметь значение по умолчанию 10; вызов с одним аргументом должен работать.
+    - id: discount-edges
+      title: discount - скидки 0% и 100% (скрытый)
+      hidden: true
+      hint: Скидка 0 оставляет цену прежней, скидка 100 даёт ноль.
+    - id: grade-borders
+      title: grade - границы оценок (скрытый)
+      hidden: true
+      hint: Баллы на границах (85, 70, 50) относятся к более высокой оценке; 84, 69, 49 - к более низкой.
+    - id: sum-to-edges
+      title: sum_to - ноль и отрицательные (скрытый)
+      hidden: true
+      hint: Для n равного 0 и отрицательных функция возвращает 0, а не падает.
+    - id: no-print
+      title: Функции не печатают (скрытый)
+      hidden: true
+      hint: Результат должен быть возвращён через return, а не выведен через print.

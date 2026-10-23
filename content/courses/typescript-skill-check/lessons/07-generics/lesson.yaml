@@ -1,0 +1,162 @@
+id: "typescript.check.generics"
+title: "Проверка: обобщения"
+goal: "Писать и читать обобщённые функции и классы, ограничивать параметры типа через extends и keyof и помнить, что обобщения стираются при запуске."
+difficulty: "hard"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: писать и читать обобщённые функции и классы, ограничивать параметры типа через extends и keyof и помнить, что обобщения стираются при запуске"
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "typescript"
+  - "check"
+  - "generics"
+assessmentFor:
+  - "typescript.fundamentals.generics"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        function wrap<T>(x: T): T[] {
+          return [x];
+        }
+        const a = wrap(5);
+        const b: string[] = a;
+        ```
+      options:
+        - "Ошибок нет"
+        - "Ошибка TS2322: number[] нельзя присвоить string[]"
+        - "Ошибка TS2345 в вызове wrap(5)"
+        - "Ошибка TS2314: не указан аргумент типа"
+      answer: 1
+      explanation: "T выводится по аргументу: wrap(5) даёт T = number и тип number[]. Присвоить такой массив переменной string[] нельзя; явный аргумент типа указывать не пришлось."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        function longest<T extends { length: number }>(a: T, b: T): T {
+          return a.length >= b.length ? a : b;
+        }
+        console.log(longest(1, 2));
+        ```
+      options:
+        - "Ошибок нет, будет выведено 1"
+        - "Ошибка TS2345: number не подходит под ограничение { length: number }"
+        - "Ошибка TS2339: у T нет свойства length"
+        - "Ошибка TS2314 из-за extends"
+      answer: 1
+      explanation: "Ограничение extends требует, чтобы у аргумента было числовое поле length. У числа его нет, поэтому вызов отвергается; строки и массивы подошли бы."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что сообщит проверка типов?
+
+        ```typescript
+        function get<T, K extends keyof T>(obj: T, key: K): T[K] {
+          return obj[key];
+        }
+        console.log(get({ a: 1 }, "b"));
+        ```
+      options:
+        - "Ошибок нет, будет выведено undefined"
+        - "Ошибка TS2345: \"b\" не входит в keyof { a: number }"
+        - "Ошибка TS2339: у объекта нет поля b"
+        - "Ошибка TS2536: индекс K недопустим"
+      answer: 1
+      explanation: "K ограничен ключами T, то есть только \"a\". Строка \"b\" не подходит, и опечатка в имени поля находится при компиляции, а не превращается в undefined во время работы."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function make<T>(): T {
+          return {} as T;
+        }
+        const n = make<number>();
+        console.log(typeof n);
+        ```
+      options:
+        - "number"
+        - "object"
+        - "undefined"
+        - "Ошибка типов: T нельзя использовать как значение"
+      answer: 1
+      explanation: "Обобщения стираются: во время работы нет никакого T, а приведение as T лишь заставляет компилятор поверить. Значение осталось пустым объектом, хотя по типу это number."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```typescript
+        function firstOr<T>(items: T[], fallback: T): T {
+          return items.length > 0 ? items[0] : fallback;
+        }
+        console.log(firstOr([], "нет"), firstOr([7, 8], 0));
+        ```
+      options:
+        - "нет 7"
+        - "undefined 7"
+        - "нет 0"
+        - "Ошибка типов: T выведен как never"
+      answer: 0
+      explanation: "Для первого вызова T выводится по fallback как string (пустой массив подходит любому типу), для второго - как number. Пустой список даёт запасное значение, непустой - первый элемент."
+exercise:
+  id: "typescript.check.generics.exercise"
+  title: "Обобщённые помощники"
+  prompt: |
+    В файле `generics_check.ts` реализуйте три функции и класс. Типы должны быть обобщёнными: не используйте `any` и `unknown` вместо параметров типа.
+
+    1. `first(items)` - первый элемент списка или `undefined`, если список пуст. Элемент `0`, `""` или `null` - обычное значение.
+    2. `pluck(items, key)` - значения поля `key` у всех элементов. Тип результата - массив типа выбранного поля.
+    3. `groupBy(items, keyOf)` - `Map`, в котором элементы сгруппированы по ключу из `keyOf`. Ключи идут в порядке первого появления, порядок элементов в группе сохраняется.
+    4. `Stack<T>` - стек: `push(item)`, `pop()` (последний элемент или `undefined`), `peek()` (последний без снятия или `undefined`) и свойство `size`.
+
+    Часть тестов скрыта: в них граничные случаи.
+  entryFile: "generics_check.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "first: проверьте длину списка; не используйте проверку на истинность первого элемента - значение 0 или пустая строка подходит."
+    - "pluck: map по элементам, возвращающий item[key]; тип T[K][] получится сам."
+    - "groupBy: заведите Map<K, T[]>; для каждого элемента получите группу через get, если её нет - создайте через set, иначе добавьте в конец. Используйте Map, а не обычный объект."
+    - "Stack: храните элементы в поле #items; pop у массива уже возвращает undefined для пустого списка. Для peek возьмите последний индекс length - 1, но только если стек не пуст."
+  tests:
+    - id: "first-basic"
+      title: "first - обычные списки"
+      hint: "Возвращается первый элемент; для пустого списка - undefined."
+    - id: "pluck-basic"
+      title: "pluck - выбор поля"
+      hint: "Результат содержит значения выбранного поля в исходном порядке."
+    - id: "group-basic"
+      title: "groupBy - чётные и нечётные"
+      hint: "Ключи идут в порядке первого появления, группы - в порядке элементов."
+    - id: "stack-basic"
+      title: "Stack - push, peek, pop, size"
+      hint: "pop и peek работают с последним добавленным; size меняется после push и pop."
+    - id: "first-edge"
+      title: "first - нулевые и пустые значения (скрытый)"
+      hidden: true
+      hint: "Значения 0, пустая строка, null и undefined - обычные элементы, их нельзя путать с отсутствием."
+    - id: "pluck-edge"
+      title: "pluck - пустой список и пустые значения (скрытый)"
+      hidden: true
+      hint: "Пустой список даёт пустой массив; значения 0, null и undefined сохраняются."
+    - id: "group-edge"
+      title: "groupBy - пустой список и ключи constructor и __proto__ (скрытый)"
+      hidden: true
+      hint: "Для пустого списка нужен пустой Map; ключи-строки constructor и __proto__ должны работать как обычные, поэтому обычный объект не подходит."
+    - id: "stack-edge"
+      title: "Stack - пустой стек, нулевые значения, разные экземпляры (скрытый)"
+      hidden: true
+      hint: "Пустой стек даёт undefined и size 0; значения 0, undefined и null хранятся как элементы; у каждого экземпляра своё хранилище."

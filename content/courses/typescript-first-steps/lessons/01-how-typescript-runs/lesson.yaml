@@ -4,7 +4,8 @@ goal: "Понять, что делает компилятор tsc и что ос
 difficulty: "intro"
 estimatedMinutes: 30
 prerequisites:
-  - "javascript.first-steps.how-javascript-runs"
+  - "typescript.from-zero.reading-input"
+  - "typescript.from-zero.objects"
 objectives:
   - "Разделить роли проверки типов (tsc) и выполнения (Node.js)."
   - "Объяснить стирание типов и ограничения срезания типов в Node.js."

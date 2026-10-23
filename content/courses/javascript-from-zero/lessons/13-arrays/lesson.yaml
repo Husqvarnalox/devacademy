@@ -1,0 +1,158 @@
+id: "javascript.from-zero.arrays"
+title: "Массивы"
+goal: "Хранить несколько значений в массиве, читать и менять их по номеру и добавлять новые в конец."
+difficulty: "easy"
+estimatedMinutes: 35
+prerequisites:
+  - "javascript.from-zero.loop-control"
+objectives:
+  - "Записать массив литералом и прочитать элемент по индексу, помня, что нумерация идёт с нуля."
+  - "Узнать длину массива через length и вычислить индекс последнего элемента."
+  - "Добавить элемент в конец командой push и заменить элемент присваиванием по индексу."
+  - "Объяснить, что вернёт обращение за границу массива."
+masteryCriteria:
+  - "Функции работают на пустом массиве, массиве из одного элемента и массиве со строками на кириллице."
+  - "lastItem для пустого массива возвращает undefined, а не падает."
+  - "swapFirstAndLast меняет сам массив и возвращает его же."
+concepts:
+  introduces:
+    - "js.array"
+    - "js.index"
+    - "js.push"
+  uses:
+    - "js.number"
+    - "js.string"
+    - "js.const"
+    - "js.let"
+    - "js.assignment"
+    - "js.for"
+    - "js.arithmetic"
+    - "js.console-log"
+    - "js.string-length"
+    - "js.function"
+    - "js.return"
+    - "js.if"
+next:
+  - "javascript.from-zero.iterating-arrays"
+tags:
+  - "javascript"
+  - "array"
+  - "index"
+  - "push"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const names = ["Анна", "Борис", "Вера"];
+        console.log(names[1]);
+        ```
+      options:
+        - "Анна"
+        - "Борис"
+        - "Вера"
+        - "undefined"
+      answer: 1
+      explanation: "Нумерация элементов начинается с нуля: names[0] - «Анна», names[1] - «Борис», names[2] - «Вера». Единице соответствует второй элемент."
+    - id: "q2"
+      type: "numeric"
+      prompt: |
+        Чему равно значение, которое печатает программа?
+
+        ```javascript
+        const items = [5, 6, 7, 8];
+        items.push(9);
+        console.log(items.length);
+        ```
+      answer: 5
+      tolerance: 0
+      explanation: "В массиве было 4 элемента, push добавил пятый в конец, и length стало 5."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```javascript
+        const letters = ["a", "b", "c"];
+        console.log(letters[3]);
+        ```
+      options:
+        - "c"
+        - "Ошибка: индекс вне массива остановит программу"
+        - "undefined"
+        - "0"
+      answer: 2
+      explanation: "Последний индекс равен length - 1, то есть 2. Обращение к несуществующему элементу не вызывает ошибку, а даёт значение undefined, «значения нет»."
+    - id: "q4"
+      type: "single"
+      prompt: "Каким выражением получить последний элемент массива list, если длина заранее неизвестна?"
+      options:
+        - "list[list.length]"
+        - "list[list.length - 1]"
+        - "list[-1]"
+        - "list[last]"
+      answer: 1
+      explanation: "Индексы идут от 0 до length - 1, поэтому последний элемент - list[list.length - 1]. list[list.length] уже за границей и даёт undefined, а list[-1] в JavaScript тоже даёт undefined."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Будет ли ошибка в этой программе?
+
+        ```javascript
+        const stock = [1, 2];
+        stock.push(3);
+        stock[0] = 10;
+        ```
+      options:
+        - "Нет: const запрещает присвоить переменной новый массив, но содержимое массива менять можно."
+        - "Да: массив в const менять нельзя вообще."
+        - "Да, но только из-за push."
+        - "Да, но только из-за stock[0] = 10."
+      answer: 0
+      explanation: "const закрепляет за именем один и тот же массив, но сам массив остаётся изменяемым. Ошибкой было бы stock = [4, 5]: это присвоение другого массива."
+exercise:
+  id: "javascript.from-zero.arrays.exercise"
+  title: "Последний, квадраты и обмен краёв"
+  prompt: |
+    В файле `arrays.mjs` три функции без тела. Напишите их:
+
+    * `lastItem(items)` - последний элемент массива. Для пустого массива верните `undefined`: `lastItem([4, 5, 6])` даёт `6`, `lastItem([])` - `undefined`.
+    * `squares(n)` - новый массив квадратов чисел от 1 до `n`: `squares(4)` даёт `[1, 4, 9, 16]`. Для `n`, равного 0 или меньше, верните пустой массив `[]`. Собирайте массив командой `push` в цикле.
+    * `swapFirstAndLast(items)` - меняет местами первый и последний элементы **самого массива** и возвращает этот же массив: `swapFirstAndLast([1, 2, 3])` даёт `[3, 2, 1]`. Если в массиве меньше двух элементов, ничего не меняйте и верните его как есть.
+
+    Функции должны возвращать результат, а не печатать. Скрытые тесты проверяют пустой массив, массив из одного элемента и строки на кириллице.
+  entryFile: "arrays.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "lastItem: номер последнего элемента зависит от длины массива. squares: начните с пустого массива и добавляйте по одному числу в цикле. swapFirstAndLast: понадобится временная переменная, чтобы не потерять одно из значений."
+    - "Индексы идут от 0 до items.length - 1. Для пустого массива индекс length - 1 равен -1, и обращение по нему даёт undefined - отдельная проверка для lastItem не нужна. В swapFirstAndLast сначала проверьте items.length < 2."
+    - "squares: const result = []; for (let i = 1; i <= n; i++) { result.push(i * i); } return result;"
+    - "swapFirstAndLast: if (items.length < 2) { return items; } const first = items[0]; items[0] = items[items.length - 1]; items[items.length - 1] = first; return items;"
+  tests:
+    - id: "last-basic"
+      title: "lastItem: числа и строки"
+      hint: "Для [4, 5, 6] ожидается 6, для [\"a\", \"b\"] - \"b\". Последний индекс равен длине минус один."
+    - id: "squares-basic"
+      title: "squares: 1, 4 и 5"
+      hint: "squares(4) - это [1, 4, 9, 16]: массив строится по одному числу, квадрат i равен i * i."
+    - id: "swap-basic"
+      title: "swapFirstAndLast: три и четыре элемента"
+      hint: "Из [1, 2, 3] должно получиться [3, 2, 1], из [1, 2, 3, 4] - [4, 2, 3, 1]: меняются только крайние элементы."
+    - id: "last-edge"
+      title: "lastItem: пустой массив и один элемент (скрытый)"
+      hidden: true
+      hint: "Для [] ожидается undefined (не ошибка и не 0), для массива из одного элемента - сам этот элемент."
+    - id: "squares-edge"
+      title: "squares: ноль, единица, отрицательное (скрытый)"
+      hidden: true
+      hint: "squares(0) и squares(-3) - пустой массив []. squares(1) - [1]. Цикл от 1 до n при n < 1 не выполнится ни разу."
+    - id: "swap-edge"
+      title: "swapFirstAndLast: короткие массивы, кириллица, тот же массив (скрытый)"
+      hidden: true
+      hint: "Пустой массив и массив из одного элемента возвращаются без изменений. Для двух элементов они просто меняются местами. Функция должна изменить исходный массив и вернуть именно его."

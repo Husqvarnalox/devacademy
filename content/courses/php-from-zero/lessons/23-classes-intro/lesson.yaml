@@ -1,0 +1,204 @@
+id: "php.from-zero.classes-intro"
+title: "Первый класс"
+goal: "Описать свой тип данных классом с типизированными свойствами, конструктором и методами и создавать из него объекты."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "php.from-zero.exceptions"
+objectives:
+  - "Объявлять класс с конструктором, использующим продвижение параметров."
+  - "Создавать объекты через new и обращаться к свойствам и методам через ->."
+  - "Писать методы, которые используют данные своего объекта через $this."
+  - "Объяснять, почему присваивание объекта не создаёт копию."
+masteryCriteria:
+  - "Ваш класс Item содержит конструктор с продвижением параметров и методы total() и label()."
+  - "Вы создаёте объекты из строк ввода и подводите итог по массиву покупок."
+  - "Вы пишете $this-> внутри методов и -> при вызове."
+concepts:
+  introduces:
+    - "php.class"
+    - "php.property"
+    - "php.constructor-promotion"
+    - "php.method"
+    - "php.new"
+  uses:
+    - "php.function"
+    - "php.parameter"
+    - "php.return"
+    - "php.type-declaration"
+    - "php.strict-types"
+    - "php.array"
+    - "php.foreach"
+    - "php.interpolation"
+    - "php.read-lines"
+    - "php.string-functions"
+    - "php.cast"
+    - "php.exception"
+    - "php.int"
+    - "php.string"
+next:
+  - "php.from-zero.mini-project"
+tags:
+  - "php"
+  - "classes"
+  - "objects"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        class Box
+        {
+            public function __construct(public int $w, public int $h)
+            {
+            }
+
+            public function area(): int
+            {
+                return $this->w * $this->h;
+            }
+        }
+        $b = new Box(3, 4);
+        echo $b->area();
+        ```
+      options:
+        - "7"
+        - "12"
+        - "34"
+        - "Ошибку"
+      answer: 1
+      explanation: "Продвижение параметров создаёт свойства w и h. Метод area() вычисляет 3 * 4 = 12."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```php
+        <?php
+        class Counter
+        {
+            public function __construct(public int $value)
+            {
+            }
+        }
+        $a = new Counter(1);
+        $b = $a;
+        $b->value = 5;
+        echo $a->value;
+        ```
+      options:
+        - "1"
+        - "5"
+        - "6"
+        - "Ошибку"
+      answer: 1
+      explanation: "Присваивание $b = $a копирует ссылку, а не объект: $a и $b - два имени одного объекта."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        В чём ошибка?
+
+        ```php
+        <?php
+        class Item
+        {
+            public function __construct(public string $name)
+            {
+            }
+
+            public function title(): string
+            {
+                return strtoupper($name);
+            }
+        }
+        ```
+      options:
+        - "Внутри метода нужно писать $this->name"
+        - "Конструктор нельзя писать с public"
+        - "Метод не может возвращать string"
+        - "Ошибки нет"
+      answer: 0
+      explanation: "Внутри метода $name - обычная локальная переменная без значения. Свойство объекта читается через $this->name."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Какая запись создаёт объект?
+      options:
+        - "Item(\"Чай\", 100)"
+        - "new Item(\"Чай\", 100)"
+        - "Item->new(\"Чай\", 100)"
+        - "class Item(\"Чай\", 100)"
+      answer: 1
+      explanation: "Объект создаёт выражение new Имя(аргументы). Без new PHP ищет функцию с таким именем."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Как вызвать метод `total()` у объекта `$item`?
+      options:
+        - "$item.total()"
+        - "$item->total()"
+        - "$item->total"
+        - "total($item)"
+      answer: 1
+      explanation: "Метод вызывается через -> со скобками. Запись $item->total без скобок читает несуществующее свойство."
+exercise:
+  id: "php.from-zero.classes-intro.exercise"
+  title: "Класс Item для списка покупок"
+  prompt: |
+    Допишите класс `Item`. Остальной код (чтение строк вида `название;цена;количество` и печать) уже написан.
+
+    * Конструктор принимает `string $name`, `int $price`, `int $quantity` и использует продвижение параметров (`public`).
+    * Метод `total(): int` возвращает цену, умноженную на количество.
+    * Метод `label(): string` возвращает строку `название x количество`, например `Молоко x 2`.
+
+    Готовый код читает строки до конца ввода, пропускает пустые, создаёт объект и печатает `<label> = <total> руб.`, а в конце - `Итого: <сумма> руб.`.
+
+    **Пример.** Ввод:
+
+    ```
+    Молоко;90;2
+    Хлеб;50;1
+    ```
+
+    Вывод:
+
+    ```
+    Молоко x 2 = 180 руб.
+    Хлеб x 1 = 50 руб.
+    Итого: 230 руб.
+    ```
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Конструктор с продвижением: public function __construct(public string $name, public int $price, public int $quantity) { }. Тело может быть пустым."
+    - "Метод total(): public function total(): int { return $this->price * $this->quantity; }"
+    - "Метод label(): public function label(): string { return \"{$this->name} x {$this->quantity}\"; }"
+    - "Внутри методов всегда пишите $this->, иначе PHP считает имя обычной локальной переменной."
+  tests:
+    - id: "basic"
+      title: "Пример из условия"
+      stdin: "Молоко;90;2\nХлеб;50;1\n"
+      expected: "Молоко x 2 = 180 руб.\nХлеб x 1 = 50 руб.\nИтого: 230 руб.\n"
+      hint: "Сумма позиции - цена, умноженная на количество; итог складывает суммы позиций."
+    - id: "single"
+      title: "Одна позиция"
+      stdin: "Сыр;400;1\n"
+      expected: "Сыр x 1 = 400 руб.\nИтого: 400 руб.\n"
+      hint: "Когда позиция одна, итог равен её сумме."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: "Итого: 0 руб.\n"
+      hidden: true
+      hint: "Если позиций нет, нужно напечатать только строку «Итого: 0 руб.»."
+    - id: "many"
+      title: "Несколько позиций и пустая строка (скрытый)"
+      stdin: "Яблоки;120;3\n\nМорковь;45;10\nЧай;250;2\n"
+      expected: "Яблоки x 3 = 360 руб.\nМорковь x 10 = 450 руб.\nЧай x 2 = 500 руб.\nИтого: 1310 руб.\n"
+      hidden: true
+      hint: "Название идёт в label() без изменений, пустые строки готовый код пропускает; проверьте умножение для каждой позиции."

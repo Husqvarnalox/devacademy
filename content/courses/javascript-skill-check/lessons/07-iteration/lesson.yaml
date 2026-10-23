@@ -1,0 +1,157 @@
+id: "javascript.check.iteration"
+title: "Проверка: итерация и генераторы"
+goal: "Писать собственные итерируемые объекты и ленивые конвейеры на генераторах и читать код с итераторами и методами массивов."
+difficulty: "medium"
+estimatedMinutes: 25
+prerequisites: []
+objectives:
+  - "Показать на практике умение: писать итерируемые объекты и ленивые конвейеры на генераторах."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "javascript"
+  - "check"
+  - "iteration"
+  - "generators"
+assessmentFor:
+  - "javascript.fundamentals.arrays-and-iteration"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа (по одному значению на строку)?
+
+        ```javascript
+        function* g() {
+          console.log("a");
+          yield 1;
+          console.log("b");
+          yield 2;
+        }
+        const it = g();
+        console.log("start");
+        console.log(it.next().value);
+        console.log(it.next().value);
+        ```
+      options:
+        - "start, a, 1, b, 2"
+        - "a, b, start, 1, 2"
+        - "a, start, 1, b, 2"
+        - "start, 1, 2"
+      answer: 0
+      explanation: "Вызов g() только создаёт генератор и ничего не выполняет. Тело работает до ближайшего yield при каждом next(), поэтому a печатается после start, а b - уже при втором вызове."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([..."a😀"].length, "a😀".length);
+        ```
+      options:
+        - "2 3"
+        - "3 3"
+        - "2 2"
+        - "3 2"
+      answer: 0
+      explanation: "Строка итерируется по кодовым точкам, поэтому расширение даёт два элемента. Свойство length считает единицы UTF-16, и эмодзи занимает две из них."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const arr = ["x", "y"];
+        arr.extra = 1;
+        const out = [];
+        for (const k in arr) out.push(k);
+        for (const v of arr) out.push(v);
+        console.log(out.join(" "));
+        ```
+      options:
+        - "0 1 extra x y"
+        - "x y extra x y"
+        - "0 1 x y"
+        - "0 1 extra extra"
+      answer: 0
+      explanation: "for...in перебирает перечислимые ключи, включая индексы и добавленное свойство extra. for...of использует итератор массива и отдаёт только элементы."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        console.log([10, 9, 1].sort().join(), ["1", "2", "3"].map(parseInt).join());
+        ```
+      options:
+        - "1,10,9 1,NaN,NaN"
+        - "1,9,10 1,2,3"
+        - "1,10,9 1,2,3"
+        - "1,9,10 1,NaN,NaN"
+      answer: 0
+      explanation: "sort без функции сравнения сортирует по строковому представлению, поэтому \"10\" идёт перед \"9\". map передаёт parseInt индекс вторым аргументом (основание системы счисления): parseInt(\"2\", 1) и parseInt(\"3\", 2) дают NaN."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```javascript
+        const it = [1, 2, 3][Symbol.iterator]();
+        it.next();
+        console.log(JSON.stringify([...it]), JSON.stringify([...it]));
+        ```
+      options:
+        - "[2,3] []"
+        - "[1,2,3] [1,2,3]"
+        - "[2,3] [2,3]"
+        - "[1,2,3] []"
+      answer: 0
+      explanation: "Итератор массива одноразовый: он хранит позицию. После первого next() расширение забирает оставшиеся 2 и 3, а во второй раз итератор уже исчерпан. Итерируемый объект (сам массив) можно обходить многократно."
+exercise:
+  id: "javascript.check.iteration.exercise"
+  title: "Range и ленивый конвейер"
+  prompt: |
+    В файле `iteration_check.mjs` реализуйте итерируемый класс и ленивые генераторные функции.
+
+    1. `class Range` - `new Range(start, end, step = 1)` перебирает числа от `start` до `end` (не включая `end`) с шагом `step`; шаг может быть отрицательным (`new Range(5, 0, -2)` даёт 5, 3, 1). Объект итерируемый (`[Symbol.iterator]`) и **многоразовый**: его можно обойти несколько раз с одним и тем же результатом. `step === 0` - `RangeError` при создании.
+    2. `naturals(start = 0)` - **бесконечный** генератор `start, start + 1, ...`.
+    3. `map(iterable, fn)` - ленивый генератор значений `fn(item, index)`.
+    4. `filter(iterable, pred)` - ленивый генератор элементов, для которых `pred(item, index)` истинно (индекс - номер в исходной последовательности).
+    5. `take(iterable, n)` - ленивый генератор первых `n` элементов. Он не должен запрашивать лишний элемент у источника (`n + 1`-й) и при завершении должен закрыть источник, а при `n <= 0` не должен даже начинать обход.
+
+    Пример: `[...take(map(filter(naturals(), (x) => x % 2 === 1), (x) => x * x), 3)]` равно `[1, 9, 25]`. Часть тестов скрыта: в них ленивость, закрытие источника и граничные случаи.
+  entryFile: "iteration_check.mjs"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "Все три функции конвейера - генераторы (function*): они отдают значения по одному через yield и не строят массив целиком. Бесконечный источник нельзя превращать в массив."
+    - "Range: метод *[Symbol.iterator]() с циклом и yield внутри; так каждый обход получает новый итератор. Для положительного шага условие i < end, для отрицательного i > end."
+    - "take: if (n <= 0) return; затем for (const x of iterable) { yield x; if (++count >= n) return; }. Выход через return внутри for...of сам вызовет iterator.return() у источника."
+    - "map и filter ведут счётчик index самостоятельно: let index = 0; for (const x of iterable) { yield fn(x, index++); }. Не используйте Array.from и spread внутри конвейера."
+  tests:
+    - id: "range-basic"
+      title: "Range - возрастающий и убывающий"
+      hint: "Конец не включается; при отрицательном шаге идите вниз, пока i > end."
+    - id: "pipeline-basic"
+      title: "Конвейер naturals -> filter -> map -> take"
+      hint: "Каждый этап - генератор, а take останавливается после n элементов."
+    - id: "range-edge"
+      title: "Range - многоразовость и шаг 0 (скрытый)"
+      hidden: true
+      hint: "Реализуйте *[Symbol.iterator]() как генераторный метод, а не храните один итератор в объекте. Шаг 0 проверяйте в конструкторе."
+    - id: "lazy"
+      title: "Ленивость: функции вызываются только для нужных элементов (скрытый)"
+      hidden: true
+      hint: "map не должен вычислять fn заранее, а take - просить у источника элемент, который не будет выдан."
+    - id: "close"
+      title: "take закрывает источник (скрытый)"
+      hidden: true
+      hint: "Выходите из for...of через return после n-го элемента: тогда блок finally источника выполнится."
+    - id: "index"
+      title: "Индексы в map и filter, граничные n (скрытый)"
+      hidden: true
+      hint: "Вторым аргументом колбэка передавайте номер элемента в исходной последовательности; take(…, 0) возвращает пустую последовательность."

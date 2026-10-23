@@ -1,0 +1,221 @@
+id: "kotlin.from-zero.first-class"
+title: "Первый класс"
+goal: "Описывать свой тип данных классом, создавать объекты и вызывать их методы."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "kotlin.from-zero.exceptions"
+objectives:
+  - "Объявлять класс со свойствами в основном конструкторе и создавать объекты без new."
+  - "Различать val- и var-свойства и понимать, что val у переменной не запрещает менять var-свойства объекта."
+  - "Писать методы и использовать this."
+  - "Использовать data class для хранения записей и хранить объекты в списке."
+masteryCriteria:
+  - "Ваш класс Product считает стоимость и описывает позицию, а готовая main использует его для чека."
+  - "Вы объясняете, почему bread.price = 50 не компилируется при val price."
+  - "Вы предсказываете печать и сравнение data class и обычного класса."
+concepts:
+  introduces:
+    - "kotlin.class"
+    - "kotlin.object"
+    - "kotlin.property"
+    - "kotlin.method"
+    - "kotlin.constructor"
+    - "kotlin.this"
+    - "kotlin.data-class"
+  uses:
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.function"
+    - "kotlin.parameter"
+    - "kotlin.return"
+    - "kotlin.list"
+    - "kotlin.mutable-list"
+    - "kotlin.for"
+    - "kotlin.string-template"
+    - "kotlin.equality"
+    - "kotlin.compound-assignment"
+    - "kotlin.split"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+next:
+  - "kotlin.from-zero.mini-project"
+tags:
+  - "kotlin"
+  - "class"
+  - "object"
+  - "data-class"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        class Item(val name: String, val price: Int)
+
+        fun main() {
+            val a = Item("чай", 50)
+            println(a.price + 10)
+        }
+        ```
+      options:
+        - "50"
+        - "60"
+        - "чай60"
+        - "Ошибку компиляции."
+      answer: 1
+      explanation: "a.price - число 50, прибавляем 10 и получаем 60."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        class Item(val name: String, val price: Int)
+
+        fun main() {
+            val a = Item("чай", 50)
+            a.price = 60
+        }
+        ```
+      options:
+        - "Цена станет 60."
+        - "Компилятор сообщит, что val нельзя присвоить повторно."
+        - "Программа упадёт при запуске."
+        - "Создастся второй объект."
+      answer: 1
+      explanation: "Свойство price объявлено через val, поэтому присваивание после создания не разрешено. Для изменяемого свойства нужен var."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        class Counter(val label: String) {
+            var count = 0
+            fun increment() { count += 1 }
+        }
+
+        fun main() {
+            val c = Counter("a")
+            c.increment()
+            c.increment()
+            println(c.count)
+        }
+        ```
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "Ошибку компиляции."
+      answer: 2
+      explanation: "Метод increment() увеличивает count у того объекта, у которого вызван. После двух вызовов count равен 2. Переменная c объявлена через val, но менять var-свойство внутри объекта можно."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        data class P(val x: Int, val y: Int)
+
+        fun main() {
+            println(P(1, 2) == P(1, 2))
+        }
+        ```
+      options:
+        - "true"
+        - "false"
+        - "P(x=1, y=2)"
+        - "Ошибку компиляции."
+      answer: 0
+      explanation: "Для data class оператор == сравнивает значения свойств. Свойства у обоих объектов равны, поэтому результат true."
+    - id: "q5"
+      type: "single"
+      prompt: "Как правильно создать объект класса Item(val name: String, val price: Int)?"
+      options:
+        - "new Item(\"чай\", 50)"
+        - "Item(\"чай\", 50)"
+        - "Item.create(\"чай\", 50)"
+        - "Item = (\"чай\", 50)"
+      answer: 1
+      explanation: "В Kotlin объект создают вызовом класса, как функции, без слова new."
+exercise:
+  id: "kotlin.from-zero.first-class.exercise"
+  title: "Позиции чека"
+  prompt: |
+    Дана готовая функция `main`: она читает `n` строк вида `название цена количество`, создаёт объекты `Product` и печатает позиции чека. Допишите класс `Product(val name: String, val price: Int)` с двумя методами:
+
+    * `cost(count: Int): Int` - стоимость `count` штук (`price * count`);
+    * `describe(count: Int): String` - строка вида `название: количество x цена = стоимость`.
+
+    Функцию `main` менять не нужно. В конце она печатает общую сумму.
+
+    **Пример.** Для ввода
+
+    ```
+    2
+    чай 50 3
+    хлеб 45 2
+    ```
+
+    вывод:
+
+    ```
+    чай: 3 x 50 = 150
+    хлеб: 2 x 45 = 90
+    Итого: 240
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Стоимость - это price * count; метод должен её вернуть через return."
+    - "describe собирается из шаблона: \"$name: $count x $price = ...\"; стоимость внутри шаблона можно получить вызовом cost(count): ${cost(count)}."
+    - "Формат строки должен совпадать до символа: двоеточие после названия, буква x с пробелами вокруг, знак равенства с пробелами."
+  tests:
+    - id: "basic"
+      title: "Пример"
+      stdin: |
+        2
+        чай 50 3
+        хлеб 45 2
+      expected: |
+        чай: 3 x 50 = 150
+        хлеб: 2 x 45 = 90
+        Итого: 240
+      hint: "3 x 50 = 150 и 2 x 45 = 90; сумма 240."
+    - id: "one"
+      title: "Одна позиция"
+      stdin: |
+        1
+        сыр 300 1
+      expected: |
+        сыр: 1 x 300 = 300
+        Итого: 300
+      hint: "Одна позиция: стоимость равна цене."
+    - id: "many"
+      title: "Несколько позиций (скрытый)"
+      stdin: |
+        3
+        яблоко 12 10
+        груша 20 0
+        молоко 80 4
+      expected: |
+        яблоко: 10 x 12 = 120
+        груша: 0 x 20 = 0
+        молоко: 4 x 80 = 320
+        Итого: 440
+      hidden: true
+      hint: "Нулевое количество даёт стоимость 0; общая сумма 120 + 0 + 320."
+    - id: "empty"
+      title: "Нет позиций (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Итого: 0
+      hidden: true
+      hint: "Без позиций остаётся итоговая строка с нулём."

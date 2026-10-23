@@ -137,6 +137,33 @@ internal static class SideContentLoader
         return result;
     }
 
+    /// <summary><c>content/routes/&lt;track&gt;.yaml</c>: entry lessons and competency checks of a track.</summary>
+    public static List<TrackRoute> LoadRoutes(string root, Action<string, string> error)
+    {
+        var result = new List<TrackRoute>();
+        var dir = Path.Combine(root, "routes");
+        if (!Directory.Exists(dir)) return result;
+        foreach (var file in Directory.GetFiles(dir, "*.yaml").Order(StringComparer.Ordinal))
+        {
+            var rel = Path.GetRelativePath(root, file).Replace('\\', '/');
+            if (Read<RouteDto>(file, rel, error) is not { } dto) continue;
+            var ok = Require(dto.Track, rel, "track", error);
+            if (dto.Track is not null && dto.Track != Path.GetFileNameWithoutExtension(file))
+            { error(rel, $"'track' ({dto.Track}) must match the file name '{Path.GetFileNameWithoutExtension(file)}'"); ok = false; }
+            var competencies = new List<Competency>();
+            foreach (var c in dto.Competencies ?? [])
+            {
+                if (Require(c.Id, rel, "competencies[].id", error) & Require(c.Title, rel, $"competencies[{c.Id}].title", error)
+                    & Require(c.Check, rel, $"competencies[{c.Id}].check", error))
+                    competencies.Add(new Competency(c.Id!, c.Title!.Trim(), c.Description?.Trim() ?? "", c.Check!, c.After ?? []));
+                else ok = false;
+            }
+            static string? Blank(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+            if (ok) result.Add(new TrackRoute(dto.Track!, Blank(dto.Entry?.Beginner), Blank(dto.Entry?.Programmer), competencies, rel));
+        }
+        return result;
+    }
+
     private static bool Require(string? value, string path, string field, Action<string, string> error)
     {
         if (!string.IsNullOrWhiteSpace(value)) return true;
@@ -158,6 +185,62 @@ internal static class SideContentValidator
             if (!seen.Add(c.Id)) error(c.SourcePath, $"duplicate comparison id '{c.Id}'");
             ValidateComparison(c, error, warn);
         }
+
+        var routeTracks = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var r in set.Routes)
+        {
+            if (!routeTracks.Add(r.TrackId)) error(r.SourcePath, $"duplicate route for track '{r.TrackId}'");
+            ValidateRoute(set, r, error, warn);
+        }
+    }
+
+    private static void ValidateRoute(ContentSet set, TrackRoute route, Action<string, string> error, Action<string, string> warn)
+    {
+        var p = route.SourcePath;
+        if (set.FindTrack(route.TrackId) is not { } track) { error(p, $"unknown track '{route.TrackId}'"); return; }
+        bool InTrack(Lesson l) => track.CourseIds.Contains(l.CourseId);
+
+        void Entry(string? id, string field)
+        {
+            if (id is null) return;
+            if (set.FindLesson(id) is not { } l) error(p, $"entry.{field} references unknown lesson '{id}'");
+            else if (!InTrack(l)) error(p, $"entry.{field} lesson '{id}' is not in a course of track '{track.Id}'");
+            else if (l.Prerequisites.Count > 0) warn(p, $"entry.{field} lesson '{id}' has prerequisites, so it opens Locked");
+        }
+        Entry(route.BeginnerEntry, "beginner");
+        Entry(route.ProgrammerEntry, "programmer");
+        if (route.BeginnerEntry is { } b && set.FindLesson(b) is { } bl && set.FindCourse(bl.CourseId) is { Level: > 0 } bc)
+            warn(p, $"entry.beginner is in course '{bc.Id}' of level {bc.Level}; an absolute beginner should start in a level-0 course");
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var checks = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var c in route.Competencies)
+        {
+            if (!ids.Add(c.Id)) error(p, $"duplicate competency id '{c.Id}'");
+            if (!checks.Add(c.CheckLessonId)) error(p, $"competency '{c.Id}': check lesson '{c.CheckLessonId}' is used by another competency");
+            if (set.FindLesson(c.CheckLessonId) is not { } check) { error(p, $"competency '{c.Id}': unknown check lesson '{c.CheckLessonId}'"); continue; }
+            if (!InTrack(check)) error(p, $"competency '{c.Id}': check lesson '{check.Id}' is not in a course of track '{track.Id}'");
+            if (check.AssessmentFor.Count == 0) error(p, $"competency '{c.Id}': check lesson '{check.Id}' has no assessmentFor, so passing it confirms nothing");
+            if (check.Exercise is null) warn(p, $"competency '{c.Id}': check lesson '{check.Id}' has no exercise; a quiz alone is weak evidence of a skill");
+        }
+        foreach (var c in route.Competencies)
+            foreach (var a in c.After)
+                if (a == c.Id) error(p, $"competency '{c.Id}' lists itself in after");
+                else if (!ids.Contains(a)) error(p, $"competency '{c.Id}': after references unknown competency '{a}'");
+
+        // after must be acyclic, or a check could never be offered.
+        var state = new Dictionary<string, int>(StringComparer.Ordinal);
+        var byId = route.Competencies.DistinctBy(c => c.Id).ToDictionary(c => c.Id, StringComparer.Ordinal);
+        bool Cyclic(string id)
+        {
+            if (state.TryGetValue(id, out var s)) return s == 1;
+            state[id] = 1;
+            var cyc = byId.TryGetValue(id, out var c) && c.After.Where(byId.ContainsKey).Any(Cyclic);
+            state[id] = 2;
+            return cyc;
+        }
+        foreach (var c in route.Competencies)
+            if (Cyclic(c.Id)) { error(p, $"competency order (after) has a cycle through '{c.Id}'"); break; }
     }
 
     private static HashSet<string> RequiresClosure(ContentSet set, IEnumerable<string> start)

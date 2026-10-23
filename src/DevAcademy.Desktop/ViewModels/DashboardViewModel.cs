@@ -26,6 +26,14 @@ public sealed partial class RecommendationViewModel(Recommendation r, INavigator
     private Task OpenAsync() => nav.OpenLessonAsync(r.LessonId);
 }
 
+public sealed partial class DiagnosticLinkViewModel(Track track, INavigator nav) : ObservableObject
+{
+    public string Text { get; } = Loc.F("Diagnostic_DashboardLink", track.Title);
+
+    [RelayCommand]
+    private Task OpenAsync() => nav.OpenDiagnosticAsync(track.Id);
+}
+
 public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : ObservableObject
 {
     private const double MaxBarHeight = 80;
@@ -49,6 +57,10 @@ public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : 
     public bool HasHeroProgress => HeroProgressText.Length > 0;
     /// <summary>The practice entry is offered only when the practice page has something (problems or a placement check).</summary>
     public bool HasPractice { get; } = ProblemsViewModel.HasContent(s);
+    /// <summary>Knowledge-check entries: one per enrolled track that defines competencies.</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasDiagnostics))] private IReadOnlyList<DiagnosticLinkViewModel> _diagnostics = [];
+    public bool HasDiagnostics => Diagnostics.Count > 0;
+    public string DiagnosticText { get; } = Loc.T("Diagnostic_DashboardText");
     public IAsyncRelayCommand OpenPracticeCommand { get; } = new AsyncRelayCommand(nav.ShowProblemsAsync);
     [ObservableProperty] private IReadOnlyList<RecommendationViewModel> _reviews = [];
     [ObservableProperty] private IReadOnlyList<RecommendationViewModel> _upNext = [];
@@ -140,6 +152,9 @@ public sealed partial class DashboardViewModel(AppServices s, INavigator nav) : 
             HeroProgressText = progress is null || progress.Total == 0 ? "" : Loc.F("Lesson_CourseProgress", progress.Completed, progress.Total);
             HeroProgress = progress is null || progress.Total == 0 ? 0 : (double)progress.Completed / progress.Total;
         }
+        var diagnosticTracks = s.Diagnostics.GetDiagnosableTracks().Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
+        Diagnostics = enrolled.Select(s.Content.Current.TrackOfCourse).OfType<Track>().DistinctBy(t => t.Id)
+            .Where(t => diagnosticTracks.Contains(t.Id)).Select(t => new DiagnosticLinkViewModel(t, nav)).ToList();
         OnPropertyChanged(nameof(HasActivity));
         OnPropertyChanged(nameof(HasSolved));
         OnPropertyChanged(nameof(HasReviews));

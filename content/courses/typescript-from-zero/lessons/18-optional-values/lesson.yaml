@@ -1,0 +1,163 @@
+id: "typescript.from-zero.optional-values"
+title: "Необязательные значения"
+goal: "Описывать типом, что значения может не быть, проверять его перед использованием и подставлять запасное значение."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "typescript.from-zero.array-methods"
+objectives:
+  - "Записать тип number | undefined и объяснить, зачем он нужен."
+  - "Сузить тип проверкой === undefined и использовать значение после неё."
+  - "Подставить запасное значение оператором ?? и объяснить разницу между ?? и ||."
+  - "Читать элемент массива безопасно через at и обрабатывать результат find."
+masteryCriteria:
+  - "Функции с необязательным результатом возвращают undefined только на пути «не найдено» и корректно работают с нулём как с настоящим значением."
+  - "Использование значения типа T | undefined всегда предваряется проверкой или запасным значением."
+concepts:
+  introduces:
+    - "ts.union"
+    - "ts.undefined"
+    - "ts.narrowing"
+    - "ts.nullish-coalescing"
+  uses:
+    - "ts.array"
+    - "ts.array-methods"
+    - "ts.index"
+    - "ts.typeof"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.logical-operators"
+    - "ts.for-of"
+    - "ts.template-literal"
+    - "ts.function"
+    - "ts.return"
+    - "ts.return-type"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.string-methods"
+tags:
+  - "typescript"
+  - "union"
+  - "undefined"
+  - "narrowing"
+  - "optional"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        const nums: number[] = [5, 6];
+        const found = nums.find((n) => n > 5);
+        console.log(found + 1);
+        ```
+      options:
+        - "TS18048: found, возможно, равно undefined"
+        - "TS2322: нельзя присвоить строку числу"
+        - "Ничего, напечатается 7"
+        - "TS2345: аргумент не подходит по типу"
+      answer: 0
+      explanation: "find может не найти элемент и вернуть undefined, поэтому тип found - number | undefined. Использовать его как число можно только после проверки."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const count: number | undefined = 0;
+        console.log(count ?? 10);
+        ```
+      options:
+        - "0"
+        - "10"
+        - "undefined"
+        - "Проверка сообщит об ошибке"
+      answer: 0
+      explanation: "Оператор ?? подставляет запасное значение только для undefined. Ноль - настоящее значение, он сохраняется."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const count: number | undefined = 0;
+        console.log(count || 10);
+        ```
+      options:
+        - "10"
+        - "0"
+        - "undefined"
+        - "true"
+      answer: 0
+      explanation: "Оператор || считает ложью и ноль, поэтому подставляет запасное значение 10. Именно поэтому для необязательных значений используют ??."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        const list: number[] = [4, 5, 6];
+        console.log(list.at(-1), list.at(3));
+        ```
+      options:
+        - "6 undefined"
+        - "6 6"
+        - "4 undefined"
+        - "undefined undefined"
+      answer: 0
+      explanation: "at(-1) отсчитывает с конца и даёт последний элемент 6. Индекса 3 в массиве из трёх элементов нет, at возвращает undefined."
+    - id: "q5"
+      type: "single"
+      prompt: "Как правильно использовать значение value типа number | undefined как число?"
+      options:
+        - "Сначала проверить if (value !== undefined) или подставить value ?? 0"
+        - "Добавить к value восклицательный знак после слова number"
+        - "Объявить value через const"
+        - "Никак: такой тип нельзя использовать"
+      answer: 0
+      explanation: "Объединение нужно сузить: проверкой на undefined или запасным значением. После этого компилятор считает value числом."
+exercise:
+  id: "typescript.from-zero.optional-values.exercise"
+  title: "Поиск и запасное значение"
+  prompt: |
+    В файле `optional_task.ts` три функции:
+
+    * `findFirstNegative(values)` - первое отрицательное число массива. Если отрицательных нет, результат `undefined`. Тип результата - `number | undefined`. Например, `findFirstNegative([4, -2, 7, -9])` равно `-2`, `findFirstNegative([4, 0, 7])` равно `undefined` (ноль не отрицательное).
+    * `describePrice(price)` - подпись к цене: `"нет цены"`, если `price` равно `undefined`, иначе число и ` руб.`, например `"250 руб."`. Цена `0` - настоящая цена: `"0 руб."`.
+    * `itemOrDefault(values, index, fallback)` - элемент массива с номером `index` (отрицательный индекс считается с конца: `-1` последний); если такого нет, результат `fallback`. Например, `itemOrDefault([4, 5, 6], -1, 0)` равно `6`, `itemOrDefault([4, 5, 6], 9, 0)` равно `0`. Используйте `at` и `??`.
+
+    Функции должны **возвращать** значение.
+  entryFile: "optional_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "В findFirstNegative цикл for...of: если v < 0, верните v. После цикла верните undefined. Тип результата уже записан в заготовке."
+    - "В describePrice сначала проверьте if (price === undefined) и верните \"нет цены\"; после проверки price - число, и можно вернуть `${price} руб.` (шаблонная строка)."
+    - "itemOrDefault: values.at(index) ?? fallback. Оператор ?? подставит fallback только когда at вернул undefined; нулевой элемент сохранится."
+    - "Не проверяйте наличие числа через if (price) или ||: ноль считается ложным и будет принят за отсутствие значения."
+  tests:
+    - id: "negative-basic"
+      title: "findFirstNegative: обычные массивы"
+      hint: "В [4, -2, 7, -9] первое отрицательное -2; в [4, 0, 7] отрицательных нет - undefined."
+    - id: "price-basic"
+      title: "describePrice: цена и её отсутствие"
+      hint: "250 даёт \"250 руб.\", undefined даёт \"нет цены\"; дробь печатается как есть: \"99.5 руб.\"."
+    - id: "item-basic"
+      title: "itemOrDefault: обычные индексы"
+      hint: "Индекс 1 - элемент 5; индекс -1 - последний элемент 6; индекс 9 отсутствует - запасное значение 0."
+    - id: "negative-edge"
+      title: "findFirstNegative: пустой, нули, дроби (скрытый)"
+      hidden: true
+      hint: "Для [] и [0, 0] результат undefined; дробное отрицательное число тоже отрицательное; возвращается первое, а не последнее."
+    - id: "price-edge"
+      title: "describePrice: ноль и отрицательные (скрытый)"
+      hidden: true
+      hint: "Цена 0 - не отсутствие значения: \"0 руб.\"; отрицательная печатается как есть: \"-5 руб.\". Проверяйте именно === undefined."
+    - id: "item-edge"
+      title: "itemOrDefault: пустой, нулевые значения, границы (скрытый)"
+      hidden: true
+      hint: "В пустом массиве всегда fallback; элемент, равный 0, возвращается как есть (а не fallback); индекс, равный длине массива, и индекс меньше -длины отсутствуют."

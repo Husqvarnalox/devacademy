@@ -1,0 +1,218 @@
+id: "cpp.programmers.functions-collections-and-strings"
+title: "Функции, ссылки, vector, map и строки"
+goal: "Выбирать способ передачи аргументов (копия, const T&, T&) и безопасно работать с vector, map и std::string, не вызывая копирования без необходимости и выхода за границы."
+difficulty: "medium"
+estimatedMinutes: 45
+prerequisites: []
+next:
+  - "cpp.programmers.exceptions-and-structs"
+objectives:
+  - "Объяснять, что параметр без & - копия, и выбирать между копией, const T& и T&."
+  - "Обходить vector по индексу с std::size_t и range-for, не допуская выхода за границы и вычитания из size()."
+  - "Различать v[i] и v.at(i), m[key], count, contains и at."
+  - "Искать подстроку через find и сравнивать результат с npos, вырезать части через substr."
+  - "Знать, что size() строки считает байты UTF-8."
+masteryCriteria:
+  - "lastIndexOf, removeNegatives, countWords и middle работают на обычных и граничных данных: пустой вектор, пустая строка, повторы, чётная и нечётная длина."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "cpp"
+  - "programmers"
+  - "collections"
+  - "references"
+  - "strings"
+assessmentFor:
+  - "cpp.from-zero.functions"
+  - "cpp.from-zero.references"
+  - "cpp.from-zero.vector"
+  - "cpp.from-zero.map"
+  - "cpp.from-zero.text-lines"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```cpp
+        #include <iostream>
+        #include <vector>
+
+        void addOne(std::vector<int> v) {
+            v.push_back(1);
+        }
+
+        int main() {
+            std::vector<int> data = {5};
+            addOne(data);
+            std::cout << data.size() << "\n";
+        }
+        ```
+      options:
+        - "2: вектор передан как ссылка"
+        - "1: функция получила копию, оригинал не изменился"
+        - "0: вектор очищается при передаче"
+        - "Не скомпилируется: нужно писать &"
+      answer: 1
+      explanation: "Параметр без & - копия всего вектора. push_back меняет копию и теряется при выходе из функции, а data остаётся из одного элемента. Чтобы изменить оригинал, параметр должен быть std::vector<int>&."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что произойдёт при сборке?
+
+        ```cpp
+        #include <string>
+
+        std::size_t countA(const std::string& text) {
+            text += "a";
+            return text.size();
+        }
+        ```
+      options:
+        - "Функция добавит букву в строку вызывающего"
+        - "Функция добавит букву в копию строки"
+        - "Ошибка компиляции: через const& строку менять нельзя"
+        - "Предупреждение, но программа соберётся"
+      answer: 2
+      explanation: "const std::string& - ссылка, через которую значение только читают. Попытка изменить строку - ошибка компиляции (нет подходящего operator+=). Копия появилась бы, только если бы параметр был std::string без &."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что верно про этот код?
+
+        ```cpp
+        std::vector<int> v = {10, 20, 30};
+        int a = v[5];
+        int b = v.at(5);
+        ```
+      options:
+        - "Обе строки бросают std::out_of_range"
+        - "v[5] - неопределённое поведение, v.at(5) бросает std::out_of_range"
+        - "v[5] бросает исключение, v.at(5) возвращает 0"
+        - "Обе строки возвращают 0"
+      answer: 1
+      explanation: "Оператор [] границы не проверяет: обращение за пределы - UB, результат непредсказуем. Метод at проверяет индекс и бросает std::out_of_range. Поэтому at удобен там, где корректность индекса не гарантирована."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Сколько записей будет в словаре после выполнения кода?
+
+        ```cpp
+        std::map<std::string, int> m;
+        m["a"] = 1;
+        if (m["b"] == 0) {
+            m.count("c");
+        }
+        ```
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "0: словарь пуст до первого insert"
+      answer: 1
+      explanation: "m[\"b\"] для отсутствующего ключа вставляет запись со значением 0, поэтому проверка уже изменила словарь. Метод count ничего не вставляет. Итого записи a и b."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа (исходный файл в UTF-8)?
+
+        ```cpp
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string word = "кот";
+            std::cout << word.size() << "\n";
+        }
+        ```
+      options:
+        - "3"
+        - "6"
+        - "4"
+        - "Не определено: зависит от компилятора"
+      answer: 1
+      explanation: "std::string::size() считает байты. Каждая кириллическая буква в UTF-8 занимает два байта, поэтому три буквы дают 6. Число символов эта величина показывает только для ASCII."
+exercise:
+  id: "cpp.programmers.functions-collections-and-strings.exercise"
+  title: "Последний индекс, очистка вектора, частоты слов и середина слова"
+  prompt: |
+    Готовая функция `main` читает команды (по одной на строку) и вызывает ваши функции. Допишите четыре функции над `main` в `main.cpp`. Функцию `main` не меняйте.
+
+    1. `int lastIndexOf(const std::vector<int>& values, int target)` - индекс **последнего** вхождения `target` или `-1`, если числа нет.
+    2. `void removeNegatives(std::vector<int>& values)` - оставляет в векторе только неотрицательные числа в прежнем порядке. Функция меняет вектор вызывающего.
+    3. `std::map<std::string, int> countWords(const std::vector<std::string>& words)` - сколько раз встречается каждое слово.
+    4. `std::string middle(const std::string& text)` - средняя буква для нечётной длины, две средние для чётной, пустая строка для пустой.
+
+    Команды: `last <число> <n> <n чисел>`, `clean <n> <n чисел>` (печатает оставшиеся числа через пробел или `empty`), `words <n> <n слов>` (печатает `слово=число` по алфавиту), `mid <слово>` (`-` означает пустую строку, результат в квадратных скобках).
+
+    **Пример.** Для ввода
+
+    ```
+    last 3 5 1 3 2 3 4
+    clean 5 4 -1 0 -7 9
+    words 3 b a b
+    mid hello
+    ```
+
+    программа печатает
+
+    ```
+    3
+    4 0 9
+    a=1
+    b=2
+    [l]
+    ```
+
+    Часть тестов скрыта: в них пустые вектор и строка, повторяющиеся значения и слова.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "lastIndexOf: идите с конца. Счётчик std::size_t не бывает отрицательным, поэтому начните с i = values.size(), условие i > 0, а элемент берите как values[i - 1]. Верните static_cast<int>(i - 1)."
+    - "removeNegatives: заведите новый вектор kept, добавьте в него push_back числа value >= 0 и в конце присвойте values = kept."
+    - "countWords: counts[word]++ - запись для нового слова создаётся со значением 0 и сразу увеличивается."
+    - "middle: сначала проверьте text.empty(), затем half = text.size() / 2. Для нечётной длины это text.substr(half, 1), для чётной - text.substr(half - 1, 2)."
+  tests:
+    - id: "last-and-clean"
+      title: "Последнее вхождение и очистка вектора"
+      stdin: "last 3 5 1 3 2 3 4\nlast 9 3 1 2 3\nclean 5 4 -1 0 -7 9\nclean 2 -5 -6\n"
+      expected: |
+        3
+        -1
+        4 0 9
+        empty
+      hint: "Число 3 стоит на индексах 1 и 3, нужен последний - 3. Числа 9 нет, поэтому -1. Ноль неотрицателен и остаётся; когда остаться нечему, печатается empty."
+    - id: "words-and-mid"
+      title: "Частоты слов и середина слова"
+      stdin: "words 5 pear apple pear fig apple\nmid hello\nmid abcd\nmid -\n"
+      expected: |
+        apple=2
+        fig=1
+        pear=2
+        [l]
+        [bc]
+        []
+      hint: "Слова печатаются по алфавиту с количеством. У hello середина l, у abcd - bc, у пустой строки - пустая строка в скобках."
+    - id: "empty-and-repeats"
+      title: "Пустой вектор, повторы и нули (скрытый)"
+      stdin: "last 5 0\nlast 7 4 7 7 7 7\nlast 1 1 1\nclean 0\nclean 3 0 0 0\n"
+      expected: |
+        -1
+        3
+        0
+        empty
+        0 0 0
+      hidden: true
+      hint: "В пустом векторе числа нет: -1. При повторах нужен индекс последнего, 3. Пустой вектор после clean печатает empty, а нули сохраняются."
+    - id: "words-edge"
+      title: "Нет слов, одно слово, разные длины (скрытый)"
+      stdin: "words 0\nwords 3 a a a\nmid a\nmid ab\nmid abcdefg\nmid ab12\n"
+      expected: |
+        a=3
+        [a]
+        [ab]
+        [d]
+        [b1]
+      hidden: true
+      hint: "Для пустого списка слов ничего не печатается. У строки из одной буквы середина - она сама, из двух - обе буквы, у abcdefg - d, у ab12 - b1."

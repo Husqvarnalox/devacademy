@@ -1,0 +1,226 @@
+id: "kotlin.from-zero.lists"
+title: "Списки"
+goal: "Хранить много значений в списке, обращаться к элементам по индексу и перебирать их циклом."
+difficulty: "easy"
+estimatedMinutes: 40
+prerequisites:
+  - "kotlin.from-zero.nullable-values"
+objectives:
+  - "Создавать списки listOf и mutableListOf и объяснять разницу между ними."
+  - "Обращаться к элементам по индексу, начиная с нуля, и знать допустимые границы."
+  - "Добавлять элементы, перебирать список циклом for, считать sum() и получать sorted()."
+  - "Объяснять, что val не делает изменяемый список неизменяемым."
+masteryCriteria:
+  - "Ваша программа читает n чисел в список и печатает их по возрастанию с количеством и суммой."
+  - "Вы определяете последний допустимый индекс списка и причину ошибки выхода за границы."
+  - "Вы объясняете, почему list.add() работает у val-списка из mutableListOf."
+concepts:
+  introduces:
+    - "kotlin.list"
+    - "kotlin.mutable-list"
+    - "kotlin.list-index"
+    - "kotlin.for-each-element"
+  uses:
+    - "kotlin.int"
+    - "kotlin.string"
+    - "kotlin.val"
+    - "kotlin.var"
+    - "kotlin.for"
+    - "kotlin.range"
+    - "kotlin.range-check"
+    - "kotlin.boolean"
+    - "kotlin.readln"
+    - "kotlin.to-int"
+    - "kotlin.string-template"
+    - "kotlin.arithmetic"
+    - "kotlin.assignment"
+    - "kotlin.println"
+next:
+  - "kotlin.from-zero.maps"
+tags:
+  - "kotlin"
+  - "list"
+  - "collection"
+  - "index"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val list = listOf(10, 20, 30)
+            println(list[1])
+        }
+        ```
+      options:
+        - "10"
+        - "20"
+        - "30"
+        - "Ошибку компиляции."
+      answer: 1
+      explanation: "Индексы начинаются с нуля: list[0] равен 10, list[1] равен 20."
+    - id: "q2"
+      type: "single"
+      prompt: "В списке пять элементов. Каким индексом заканчивается допустимый диапазон?"
+      options:
+        - "5"
+        - "6"
+        - "4"
+        - "0"
+      answer: 2
+      explanation: "Индексы идут от 0 до size - 1, то есть от 0 до 4. Индекс 5 уже выходит за границы."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val list = mutableListOf(1, 2)
+            list.add(3)
+            println(list)
+        }
+        ```
+      options:
+        - "[1, 2]"
+        - "[1, 2, 3]"
+        - "[3]"
+        - "Ошибку: val нельзя менять."
+      answer: 1
+      explanation: "Переменная list объявлена через val, но это изменяемый список, поэтому add допустим. val запрещает присвоить переменной другой список."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```kotlin
+        fun main() {
+            val list = listOf(1, 2, 3)
+            list.add(4)
+        }
+        ```
+      options:
+        - "Список станет [1, 2, 3, 4]."
+        - "Список не изменится, ошибки нет."
+        - "Программа упадёт при запуске."
+        - "Компилятор сообщит об ошибке: у List нет метода add."
+      answer: 3
+      explanation: "listOf создаёт список только для чтения без метода add. Нужен mutableListOf."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```kotlin
+        fun main() {
+            val list = mutableListOf(3, 1, 2)
+            println(list.sorted())
+            println(list)
+        }
+        ```
+      options:
+        - "[1, 2, 3] и затем [3, 1, 2]"
+        - "[1, 2, 3] и затем [1, 2, 3]"
+        - "[3, 1, 2] и затем [1, 2, 3]"
+        - "[3, 1, 2] и затем [3, 1, 2]"
+      answer: 0
+      explanation: "sorted() возвращает новый список и не меняет исходный, поэтому вторая строка печатает прежний порядок."
+exercise:
+  id: "kotlin.from-zero.lists.exercise"
+  title: "Оценки по возрастанию"
+  prompt: |
+    В первой строке ввода дано число `n` - количество оценок. Затем идут `n` строк с целыми числами (оценками).
+
+    Прочитайте оценки в список и напечатайте:
+
+    1. строку `Оценки по возрастанию:`;
+    2. все оценки по возрастанию, каждую на отдельной строке;
+    3. строку `Всего: ` и количество оценок;
+    4. строку `Сумма: ` и сумму оценок.
+
+    **Пример.** Для ввода
+
+    ```
+    3
+    5
+    3
+    4
+    ```
+
+    вывод:
+
+    ```
+    Оценки по возрастанию:
+    3
+    4
+    5
+    Всего: 3
+    Сумма: 12
+    ```
+  entryFile: "Main.kt"
+  evaluation: "io"
+  hints:
+    - "Заведите изменяемый список (mutableListOf<Int>()) и в цикле for (i in 1..n) добавляйте каждое прочитанное число через add."
+    - "Для вывода по возрастанию используйте цикл for (mark in marks.sorted()) и println(mark)."
+    - "Количество оценок - marks.size, сумма - marks.sum(). Если оценок нет, сумма равна 0."
+  tests:
+    - id: "basic"
+      title: "Три оценки"
+      stdin: |
+        3
+        5
+        3
+        4
+      expected: |
+        Оценки по возрастанию:
+        3
+        4
+        5
+        Всего: 3
+        Сумма: 12
+      hint: "Оценки 5, 3, 4 после сортировки: 3, 4, 5; сумма 12."
+    - id: "single"
+      title: "Одна оценка"
+      stdin: |
+        1
+        4
+      expected: |
+        Оценки по возрастанию:
+        4
+        Всего: 1
+        Сумма: 4
+      hint: "Одна оценка: список из одного элемента."
+    - id: "dups"
+      title: "Повторы (скрытый)"
+      stdin: |
+        5
+        2
+        5
+        2
+        3
+        5
+      expected: |
+        Оценки по возрастанию:
+        2
+        2
+        3
+        5
+        5
+        Всего: 5
+        Сумма: 17
+      hidden: true
+      hint: "Повторяющиеся оценки сохраняются: сортировка не удаляет одинаковые значения."
+    - id: "none"
+      title: "Нет оценок (скрытый)"
+      stdin: |
+        0
+      expected: |
+        Оценки по возрастанию:
+        Всего: 0
+        Сумма: 0
+      hidden: true
+      hint: "Для n = 0 цикл не выполняется: остаются заголовок, количество 0 и сумма 0."

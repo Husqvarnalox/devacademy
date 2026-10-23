@@ -1,0 +1,165 @@
+id: "go.check.errors"
+title: "Проверка: обработка ошибок"
+goal: "Создавать, оборачивать и классифицировать ошибки через errors.Is и errors.As."
+difficulty: "medium"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: создавать, оборачивать и классифицировать ошибки через errors.Is и errors.As."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "errors"
+assessmentFor:
+  - "go.fundamentals.functions-and-errors"
+  - "go.fundamentals.errors-and-table-tests"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var ErrA = errors.New("a")
+
+        e1 := fmt.Errorf("l1: %w", ErrA)
+        e2 := fmt.Errorf("l2: %w", e1)
+        fmt.Println(errors.Is(e2, ErrA), e2)
+        ```
+      options:
+        - "true l2: l1: a"
+        - "false l2: l1: a"
+        - "true a"
+        - "true l1: a"
+      answer: 0
+      explanation: "`errors.Is` проходит по всей цепочке обёрток. Текст итоговой ошибки составлен из всех уровней: `l2: l1: a`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        type MyErr struct{ Code int }
+
+        func (e *MyErr) Error() string { return "my" }
+
+        func main() {
+        	err := fmt.Errorf("ctx: %w", &MyErr{404})
+        	var me *MyErr
+        	if errors.As(err, &me) {
+        		fmt.Println(me.Code)
+        	}
+        }
+        ```
+      options:
+        - "404"
+        - "0"
+        - "Ничего не напечатает"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "`errors.As` ищет в цепочке ошибку типа `*MyErr` и записывает её в `me`. После этого доступно поле `Code`."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        var ErrA = errors.New("a")
+
+        e := fmt.Errorf("x: %v", ErrA)
+        fmt.Println(errors.Is(e, ErrA))
+        ```
+      options:
+        - "true"
+        - "false"
+        - "Ошибка компиляции"
+        - "Паника"
+      answer: 1
+      explanation: "Глагол `%v` только вставляет текст ошибки и не оборачивает её. Для `errors.Is` и `errors.As` нужен `%w`."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        a, b := errors.New("a"), errors.New("b")
+        j := errors.Join(a, b)
+        fmt.Println(errors.Is(j, b))
+        ```
+      options:
+        - "true"
+        - "false"
+        - "Паника"
+        - "Ошибка компиляции"
+      answer: 0
+      explanation: "`errors.Join` объединяет несколько ошибок в одну, и `errors.Is` находит любую из них."
+    - id: "q5"
+      type: "single"
+      prompt: "Как правильно сообщить о неверном вводе пользователя в функции разбора?"
+      options:
+        - "Вызвать panic с текстом"
+        - "Вернуть ошибку вторым значением"
+        - "Вернуть специальное число, например -1"
+        - "Завершить программу через os.Exit(1)"
+      answer: 1
+      explanation: "Ожидаемые ошибки возвращают как значения: вызывающий код решает, что делать. `panic` оставляют для ошибок программиста, `os.Exit` - для верхнего уровня `main`, а «магическое» число легко пропустить."
+exercise:
+  id: "go.check.errors.exercise"
+  title: "lookup, validateAge, classify"
+  prompt: |
+    В заготовке объявлены сторожевая ошибка **`ErrNotFound`** и тип ошибки **`ValidationError`** (поле `Field`, метод `Error`). Допишите три функции в `main.go`.
+
+    * **`lookup(m map[string]int, key string) (int, error)`** - значение по ключу. Если ключа нет, верните `0` и ошибку, которая **оборачивает** `ErrNotFound` и добавляет контекст (`fmt.Errorf` с `%w`). Существующий ключ с нулевым значением ошибкой не является.
+    * **`validateAge(age int) error`** - возраст допустим в диапазоне 0..150. Для неверного значения верните `&ValidationError{Field: "age"}`, для верного - `nil` (именно литерал `nil`).
+    * **`classify(err error) string`** - `"ok"` для `nil`; `"not found"`, если в цепочке есть `ErrNotFound`; `"invalid <поле>"`, если в цепочке есть `*ValidationError`; иначе `"other"`.
+
+    **Как проверяется.** Тесты оборачивают ошибки несколько раз, объединяют через `errors.Join` и проверяют результат через `errors.Is`, `errors.As` и прямое сравнение.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "В `lookup` используйте форму `v, ok := m[key]`: она отличает отсутствующий ключ от нулевого значения."
+    - "Обёртка с контекстом: `fmt.Errorf(\"lookup %q: %w\", key, ErrNotFound)`."
+    - "В `classify` сначала проверьте `err == nil`, затем `errors.Is(err, ErrNotFound)`, затем `var ve *ValidationError; errors.As(err, &ve)`."
+    - "Порядок проверок имеет значение: `errors.Is` и `errors.As` просматривают всю цепочку, а `==` - только верхний уровень."
+  tests:
+    - id: "lookup-basic"
+      title: "lookup: обёрнутая ошибка"
+      match: "TestLookup/missing_wrapped"
+      hint: "Ошибка должна оборачивать ErrNotFound через %w, а не быть равной ей."
+    - id: "classify-basic"
+      title: "classify: простой случай"
+      match: "TestClassify/not_found"
+      hint: "Прямая ErrNotFound классифицируется как not found."
+    - id: "lookup-all"
+      title: "lookup: нулевое значение и nil-карта (скрытый)"
+      match: "TestLookup/*"
+      hidden: true
+      hint: "Существующий ключ с нулём - не ошибка; чтение из nil-карты безопасно."
+    - id: "validate-all"
+      title: "validateAge: границы и тип ошибки (скрытый)"
+      match: "TestValidateAge/*"
+      hidden: true
+      hint: "0 и 150 допустимы; для неверных значений errors.As находит *ValidationError с полем age."
+    - id: "classify-all"
+      title: "classify: вложенные и объединённые ошибки (скрытый)"
+      match: "TestClassify/*"
+      hidden: true
+      hint: "errors.Is и errors.As проходят всю цепочку, в том числе созданную errors.Join."

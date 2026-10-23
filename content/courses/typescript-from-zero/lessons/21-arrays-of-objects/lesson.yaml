@@ -1,0 +1,209 @@
+id: "typescript.from-zero.arrays-of-objects"
+title: "Массивы объектов"
+goal: "Искать, отбирать, суммировать и сортировать записи в массиве объектов, в том числе с необязательными свойствами."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "typescript.from-zero.objects"
+objectives:
+  - "Найти объект методом find и безопасно прочитать его свойства после проверки на undefined."
+  - "Отобрать записи через filter, собрать значения через map и посчитать итог по группе циклом."
+  - "Описать необязательное свойство знаком ? и подставить запасное значение через ??."
+  - "Упорядочить записи по свойству, не меняя исходный массив."
+masteryCriteria:
+  - "Результат find проверяется до чтения свойств."
+  - "Необязательное свойство читается только с проверкой или запасным значением."
+  - "Сортируется копия массива, а не исходный."
+concepts:
+  introduces:
+    - "ts.object-iteration"
+    - "ts.optional-property"
+  uses:
+    - "ts.object"
+    - "ts.property"
+    - "ts.interface"
+    - "ts.array"
+    - "ts.array-type"
+    - "ts.for-of"
+    - "ts.array-methods"
+    - "ts.arrow-function"
+    - "ts.callback"
+    - "ts.union"
+    - "ts.undefined"
+    - "ts.narrowing"
+    - "ts.nullish-coalescing"
+    - "ts.function"
+    - "ts.return"
+    - "ts.if"
+    - "ts.comparison"
+    - "ts.type-error"
+next:
+  - "typescript.from-zero.errors-and-exceptions"
+tags:
+  - "typescript"
+  - "objects"
+  - "arrays"
+  - "find"
+  - "filter"
+  - "optional-property"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        interface Product { name: string; price: number; discount?: number; }
+        const items: Product[] = [
+          { name: "хлеб", price: 40 },
+          { name: "сыр", price: 300, discount: 50 },
+        ];
+        console.log(items[0].discount);
+        ```
+      options:
+        - "undefined"
+        - "0"
+        - "Ошибку проверки типов"
+        - "null"
+      answer: 0
+      explanation: "Свойство discount необязательное: у хлеба оно не указано, и чтение даёт undefined. Ошибки проверки нет, ведь тип свойства number | undefined."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что сообщит проверка типов?
+
+        ```typescript
+        interface Product { name: string; price: number; discount?: number; }
+        const items: Product[] = [
+          { name: "хлеб", price: 40 },
+          { name: "сыр", price: 300, discount: 50 },
+        ];
+        const found = items.find((p) => p.name === "сыр");
+        console.log(found.price);
+        ```
+      options:
+        - "TS18048: 'found' is possibly 'undefined'"
+        - "TS2339: у Product нет свойства price"
+        - "TS2322: неверный тип"
+        - "Ничего, будет напечатано 300"
+      answer: 0
+      explanation: "find возвращает Product | undefined. До проверки found !== undefined читать свойства нельзя."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        interface Product { name: string; price: number; discount?: number; }
+        const items: Product[] = [
+          { name: "хлеб", price: 40 },
+          { name: "сыр", price: 300, discount: 50 },
+        ];
+        let sum: number = 0;
+        for (const item of items) {
+          sum = sum + item.price - (item.discount ?? 0);
+        }
+        console.log(sum);
+        ```
+      options:
+        - "290"
+        - "340"
+        - "NaN"
+        - "250"
+      answer: 0
+      explanation: "Хлеб: 40 - 0 = 40, сыр: 300 - 50 = 250, всего 290. Запасное значение ?? 0 защищает от undefined."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```typescript
+        interface Item { name: string; price: number; }
+        const items: Item[] = [
+          { name: "b", price: 3 },
+          { name: "a", price: 1 },
+          { name: "c", price: 2 },
+        ];
+        const sorted = [...items].sort((x, y) => x.price - y.price);
+        console.log(sorted[0].name, items[0].name);
+        ```
+      options:
+        - "a b"
+        - "b b"
+        - "a a"
+        - "b a"
+      answer: 0
+      explanation: "Сортируется копия: в ней первым стоит самый дешёвый (a), а в исходном массиве первым остался b."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Сколько элементов в результате?
+
+        ```typescript
+        interface Product { name: string; price: number; discount?: number; }
+        const items: Product[] = [
+          { name: "хлеб", price: 40 },
+          { name: "сыр", price: 300, discount: 50 },
+        ];
+        const cheap = items.filter((p) => p.price > 1000);
+        console.log(cheap.length);
+        ```
+      options:
+        - "0"
+        - "undefined"
+        - "Ошибка во время работы"
+        - "1"
+      answer: 0
+      explanation: "filter всегда возвращает массив. Если подходящих нет, он пустой, и длина равна 0. В отличие от find, undefined здесь не появляется."
+exercise:
+  id: "typescript.from-zero.arrays-of-objects.exercise"
+  title: "Каталог товаров"
+  prompt: |
+    В файле `inventory_task.ts` описан интерфейс `Product`: название, цена, категория и необязательная скидка в рублях `discount`. Допишите четыре функции:
+
+    * `findByName(items, name)` - первый товар с таким названием; если товара нет, верните `undefined`. Регистр важен.
+    * `finalPrice(p)` - цена с учётом скидки; если скидки нет, цена не меняется.
+    * `totalInCategory(items, category)` - сумма **цен со скидкой** всех товаров категории; для пустой категории 0.
+    * `namesByPrice(items)` - названия всех товаров по возрастанию цены со скидкой; при равных ценах порядок остаётся исходным. Исходный массив менять нельзя.
+
+    Функции должны **возвращать** значение.
+  entryFile: "inventory_task.ts"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.mjs"
+  hints:
+    - "findByName: пройдите по items циклом for...of; если item.name === name, сразу верните item. После цикла верните undefined."
+    - "finalPrice: p.price - (p.discount ?? 0). Скобки обязательны: без них оператор ?? применится к другому выражению."
+    - "totalInCategory: заведите total: number = 0; внутри цикла проверьте item.category === category и прибавляйте finalPrice(item)."
+    - "namesByPrice: const sorted = [...items].sort((a, b) => finalPrice(a) - finalPrice(b)); затем верните sorted.map((p) => p.name). Копия [...items] защищает исходный массив."
+  tests:
+    - id: "find-basic"
+      title: "findByName: поиск"
+      hint: "Для \"сыр\" должен вернуться сам объект сыра, для отсутствующего \"кофе\" - undefined."
+    - id: "final-price-basic"
+      title: "finalPrice: со скидкой и без"
+      hint: "У хлеба скидки нет и цена 40; у сыра 300 - 50 = 250."
+    - id: "total-basic"
+      title: "totalInCategory: обычная категория"
+      hint: "Для категории \"еда\" складываются цены со скидкой: 40 + 250 = 290; товары другой категории не учитываются."
+    - id: "names-basic"
+      title: "namesByPrice: порядок"
+      hint: "Названия по возрастанию цены со скидкой: ручка (25), хлеб (40), сыр (250)."
+    - id: "find-edge"
+      title: "findByName: пустой массив, повторы, регистр (скрытый)"
+      hidden: true
+      hint: "В пустом массиве результат undefined; при двух одинаковых названиях побеждает первый; \"Хлеб\" и \"хлеб\" - разные названия."
+    - id: "final-price-edge"
+      title: "finalPrice: нулевая и полная скидка, дроби (скрытый)"
+      hidden: true
+      hint: "Скидка 0 цену не меняет; скидка, равная цене, даёт 0; дробные значения вычитаются без округления."
+    - id: "total-edge"
+      title: "totalInCategory: пустые данные (скрытый)"
+      hidden: true
+      hint: "Для пустого массива и для категории без товаров результат 0; скидки учитываются во всех товарах категории."
+    - id: "names-edge"
+      title: "namesByPrice: ничья и исходный массив (скрытый)"
+      hidden: true
+      hint: "Для [] результат []; при равных ценах порядок исходный; после вызова исходный массив остаётся прежним."

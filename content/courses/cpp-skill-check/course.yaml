@@ -1,0 +1,16 @@
+id: "cpp-skill-check"
+version: "1.0.0"
+title: "Проверка знаний C++"
+description: "Короткие проверки по компетенциям: задача с запуском кода и вопросы на чтение кода. Пройденная проверка засчитывает уроки темы, непройденная ничего не меняет и показывает, какие уроки закрывают пробел. Проверку можно пройти повторно."
+languageId: "cpp"
+level: 1
+track: "cpp"
+lessons:
+  - 01-basics
+  - 02-collections
+  - 03-errors-input
+  - 04-values-raii
+  - 05-smart-pointers
+  - 06-classes
+  - 07-stl
+  - 08-errors-ub

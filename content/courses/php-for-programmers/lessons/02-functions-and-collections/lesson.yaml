@@ -1,0 +1,206 @@
+id: "php.programmers.functions-and-collections"
+title: "Функции и массивы: типы, копии, ключи и порядок"
+goal: "Писать типизированные функции и работать с массивами так, чтобы копирование, нормализация ключей, сортировка и нестрогий поиск не давали неожиданных результатов."
+difficulty: "medium"
+estimatedMinutes: 50
+prerequisites:
+  - "php.programmers.syntax-and-control-flow"
+next:
+  - "php.programmers.input-errors-and-classes"
+objectives:
+  - "Объяснить, что declare(strict_types=1) проверяет только вызовы из своего файла, и предсказывать поведение функций, вызываемых из array_map."
+  - "Использовать nullable, объединённые типы, именованные аргументы, остаточные параметры и распаковку."
+  - "Объяснять передачу массивов по значению (копирование при записи) и отличать её от ссылки &."
+  - "Предсказывать нормализацию ключей, поведение unset, sort, array_unique, array_filter и разницу между списком и ассоциативным массивом в json_encode."
+  - "Находить элемент строго: in_array и array_search с третьим аргументом true и проверка результата === false."
+  - "Распознавать остаточную ссылку после foreach по ссылке."
+masteryCriteria:
+  - "uniqueSorted, findIndex, countWords и raisePrices дают верные результаты для пустого ввода, повторов, индекса 0, числовых слов и кириллицы."
+  - "Квиз пройден с результатом не ниже 70%."
+tags:
+  - "php"
+  - "programmers"
+  - "functions"
+  - "arrays"
+assessmentFor:
+  - "php.from-zero.functions"
+  - "php.from-zero.arrays"
+  - "php.from-zero.array-functions"
+  - "php.from-zero.associative-arrays"
+  - "php.from-zero.string-functions"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function push(array $items): array
+        {
+            $items[] = 99;
+            return $items;
+        }
+        $a = [1, 2];
+        $b = push($a);
+        echo count($a), count($b);
+        ```
+      options:
+        - "23"
+        - "33"
+        - "22"
+        - "24"
+      answer: 0
+      explanation: "Аргумент-массив передаётся по значению: внутри функции изменяется копия, поэтому в $a остаются два элемента, а возвращённый массив содержит три."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $a = ["1" => "a", 1 => "b", "01" => "c", true => "d"];
+        echo count($a), json_encode($a);
+        ```
+      options:
+        - "4{\"1\":\"a\",\"1\":\"b\",\"01\":\"c\",\"1\":\"d\"}"
+        - "2{\"1\":\"d\",\"01\":\"c\"}"
+        - "3{\"1\":\"d\",\"01\":\"c\",\"true\":\"d\"}"
+        - "2{\"1\":\"a\",\"01\":\"c\"}"
+      answer: 1
+      explanation: "Ключи \"1\", 1 и true нормализуются к целому 1, поэтому все три записи пишут в один элемент и остаётся последнее значение \"d\". Строка \"01\" не считается записью целого числа и остаётся отдельным ключом."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        $list = [1, 2, 3];
+        foreach ($list as &$x) {
+        }
+        foreach ($list as $x) {
+        }
+        echo implode(",", $list);
+        ```
+      options:
+        - "1,2,2"
+        - "1,2,3"
+        - "3,2,1"
+        - "1,2,null"
+      answer: 0
+      explanation: "После первого цикла $x остаётся ссылкой на последний элемент. Второй цикл записывает в $x значения 1, 2, 2 по очереди, то есть в последний элемент. Последним читается уже записанное 2, и массив становится [1, 2, 2]. Помогает unset($x) после первого цикла."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo json_encode(array_unique([3, 1, 3, 2]));
+        ```
+      options:
+        - "[3,1,2]"
+        - "[1,2,3]"
+        - "{\"0\":3,\"1\":1,\"2\":2}"
+        - "{\"0\":3,\"1\":1,\"3\":2}"
+      answer: 3
+      explanation: "array_unique сохраняет ключи оставшихся элементов (0, 1 и 3), а ключ 2 пропадает. Ключи не идут подряд с нуля, поэтому json_encode печатает объект. Для списка нужен array_values(array_unique(...))."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+        function double(int $n): int
+        {
+            return $n * 2;
+        }
+        echo implode(",", array_map('double', ["4", "5"]));
+        ```
+      options:
+        - "TypeError: double(): Argument #1 ($n) must be of type int, string given"
+        - "44,55"
+        - "8,10"
+        - "4,5"
+      answer: 2
+      explanation: "Режим strict_types определяется файлом, из которого сделан вызов. Функцию double вызывает встроенная array_map, а не ваш код, поэтому действуют нестрогие правила и строки \"4\" и \"5\" превращаются в числа. Прямой вызов double(\"4\") в этом файле дал бы TypeError."
+exercise:
+  id: "php.programmers.functions-and-collections.exercise"
+  title: "Уникальные числа, поиск, частоты слов и цены"
+  prompt: |-
+    Основная часть программы готова: она читает команды (по одной на строку) и печатает результат вызова ваших функций. Допишите четыре функции в `main.php`, основную часть не меняйте.
+
+    1. `uniqueSorted(array $numbers): array` - различные числа по возрастанию. Результат должен быть **списком** с ключами `0, 1, 2, ...`: программа печатает его через `json_encode`.
+    2. `findIndex(array $items, string $needle): ?int` - индекс первого элемента, который строго равен `needle`, или `null`. Строки `"10"` и `"1e1"` различны.
+    3. `countWords(string $text): array` - сколько раз встретилось каждое слово. Слова разделены пробелами, регистр не важен (в том числе у кириллицы). Ключ - слово в нижнем регистре, порядок - по первому появлению.
+    4. `raisePrices(array $prices, int $percent): array` - цены, увеличенные на процент; надбавка считается как `intdiv($price * $percent, 100)`. Ключи сохраняются.
+
+    **Пример.** Для ввода
+
+    ```
+    uniq 3 1 3 2
+    find b a b c
+    words Чай чай Кофе
+    raise 10 bread=45 milk=80
+    ```
+
+    программа печатает
+
+    ```
+    [1,2,3]
+    1
+    чай: 2
+    кофе: 1
+    ---
+    {"bread":45,"milk":80} -> {"bread":49,"milk":88}
+    ```
+
+    Часть тестов скрыта: в них пустые списки, повторы, индекс `0`, числовые слова и разный регистр кириллицы.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "Команды: uniq вызывает uniqueSorted, find - findIndex, words - countWords, raise - raisePrices. Начните с функции, чей результат вы можете проверить на примере из условия."
+    - "uniqueSorted: $unique = array_unique($numbers); sort($unique); return $unique; - sort меняет переменную на месте и перенумеровывает ключи, array_unique ключи сохраняет."
+    - "findIndex: array_search($needle, $items, true) возвращает ключ или false. Сравнивайте с false строго: индекс 0 тоже ложен."
+    - "countWords: переведите текст в нижний регистр через mb_strtolower, разбейте explode(\" \", ...) и увеличивайте $counts[$word] = ($counts[$word] ?? 0) + 1. raisePrices: в цикле foreach ($prices as $name => $price) запишите новую цену по тому же ключу."
+  tests:
+    - id: "uniq-find"
+      title: "Уникальные числа и поиск"
+      stdin: "uniq 3 1 3 2\nuniq 5 5 5\nfind b a b c\nfind z a b c\n"
+      expected: "[1,2,3]\n[5]\n1\nнет\n"
+      hint: "Из 3 1 3 2 остаются 1,2,3 как список; b стоит на позиции 1; z нет, поэтому «нет»."
+    - id: "words-raise"
+      title: "Частоты слов и новые цены"
+      stdin: "words Чай чай Кофе\nwords a b a\nraise 10 bread=45 milk=80\nraise 50 tea=3\n"
+      expected: "чай: 2\nкофе: 1\n---\na: 2\nb: 1\n---\n{\"bread\":45,\"milk\":80} -> {\"bread\":49,\"milk\":88}\n{\"tea\":3} -> {\"tea\":4}\n"
+      hint: "Чай и чай - одно слово «чай» (2 раза). Надбавка: 45 * 10 / 100 = 4, 80 * 10 / 100 = 8; для цены 3 при 50% надбавка 1."
+    - id: "uniq-edge"
+      title: "Пустой список, отрицательные числа, порядок (скрытый)"
+      stdin: "uniq\nuniq 10 -5 10 2 -5\nuniq 0 0\nuniq 9 8 7 8\n"
+      expected: "[]\n[-5,2,10]\n[0]\n[7,8,9]\n"
+      hidden: true
+      hint: "Пустой ввод даёт []; результат всегда отсортирован и без пропусков в ключах: [-5,2,10], [0], [7,8,9]. Если вы видите {\"0\":...}, вызовите sort на результате array_unique."
+    - id: "find-edge"
+      title: "Поиск: индекс 0, 1e1 и 10, пустой список (скрытый)"
+      stdin: "find a a b\nfind 10 1e1 10\nfind 0 00 0\nfind x\nfind 1e1 10 1e1\n"
+      expected: "0\n1\n1\nнет\n1\n"
+      hidden: true
+      hint: "Сравнение строгое: 10 не равно 1e1 (индекс 1), 0 не равно 00 (индекс 1); индекс 0 - тоже найденный результат, а в пустом списке ответ «нет»."
+    - id: "words-edge"
+      title: "Слова: числовые, регистр, кириллица (скрытый)"
+      stdin: "words Привет привет ПРИВЕТ мир\nwords 7 07 7 a A\nwords Ёж ёж\n"
+      expected: "привет: 3\nмир: 1\n---\n7: 2\n07: 1\na: 2\n---\nёж: 2\n---\n"
+      hidden: true
+      hint: "Числовые слова 7 и 07 - разные ключи; нужна mb_strtolower, потому что strtolower не меняет регистр кириллицы."
+    - id: "raise-edge"
+      title: "Цены: ноль процентов, отбрасывание дроби, числовые ключи (скрытый)"
+      stdin: "raise 0 a=5\nraise 33 a=10 b=99\nraise 100 x=1 0=7\n"
+      expected: "{\"a\":5} -> {\"a\":5}\n{\"a\":10,\"b\":99} -> {\"a\":13,\"b\":131}\n{\"x\":1,\"0\":7} -> {\"x\":2,\"0\":14}\n"
+      hidden: true
+      hint: "Надбавка округляется вниз: 10 * 33 / 100 = 3, 99 * 33 / 100 = 32; при 0% цены не меняются; ключи (в том числе числовые) сохраняются."

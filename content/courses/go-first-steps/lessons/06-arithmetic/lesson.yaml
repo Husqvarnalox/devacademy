@@ -1,0 +1,116 @@
+id: "go.first-steps.arithmetic"
+title: "Арифметика"
+goal: "Вычислять значения с помощью + - * / % и объяснять результат целочисленного деления."
+difficulty: "intro"
+estimatedMinutes: 25
+prerequisites:
+  - "go.first-steps.basic-types"
+objectives:
+  - "Записывать арифметические выражения с учётом приоритета и скобок."
+  - "Объяснять, почему 7 / 2 равно 3 для целых чисел, и получать остаток через %."
+  - "Различать деление int и деление float64."
+masteryCriteria:
+  - "Программа переводит число минут в часы и минуты, используя / и %."
+  - "Вы предсказываете результат выражений вроде -7 / 2 и 17 % 5."
+concepts:
+  introduces:
+    - "go.arithmetic"
+    - "go.integer-division"
+    - "go.remainder"
+  uses:
+    - "go.variable"
+    - "go.short-declaration"
+    - "go.assignment"
+    - "go.int"
+    - "go.float64"
+    - "go.type"
+    - "go.println"
+    - "go.print-values"
+next:
+  - "go.first-steps.reading-input"
+tags:
+  - "go"
+  - "arithmetic"
+  - "integer-division"
+  - "remainder"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чему равно 17 / 5 для int?"
+      options:
+        - "3.4"
+        - "3"
+        - "4"
+        - "2"
+      answer: 1
+      explanation: "Деление двух целых даёт целое: дробная часть отбрасывается. 17 / 5 равно 3, а остаток 17 % 5 равен 2."
+    - id: "q2"
+      type: "single"
+      prompt: "Что напечатает fmt.Println(17 % 5)?"
+      options:
+        - "3"
+        - "2"
+        - "0"
+        - "3.4"
+      answer: 1
+      explanation: "Оператор % даёт остаток от деления: 17 = 3·5 + 2."
+    - id: "q3"
+      type: "single"
+      prompt: "Чему равно 2 + 3 * 4?"
+      options:
+        - "20"
+        - "14"
+        - "24"
+        - "10"
+      answer: 1
+      explanation: "Умножение выполняется раньше сложения: 3 * 4 = 12, затем 2 + 12 = 14. Чтобы сложить первыми, нужны скобки: (2 + 3) * 4 = 20."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему не компилируется a * b при a := 3 и b := 2.5?"
+      options:
+        - "Нельзя умножать на дробное число."
+        - "a имеет тип int, b - float64, а типы нужно сочетать явно."
+        - "Нужно писать a x b."
+        - "Переменная b не используется."
+      answer: 1
+      explanation: "Go не смешивает int и float64 в одном выражении: invalid operation: a * b (mismatched types int and float64). Преобразования разберём в одном из следующих уроков."
+    - id: "q5"
+      type: "short"
+      prompt: "Чему равно значение -7 / 2 в Go? Запишите число."
+      answer:
+        - "-3"
+      explanation: "Целочисленное деление в Go отбрасывает дробную часть в сторону нуля: -3,5 превращается в -3, а не в -4."
+exercise:
+  id: "go.first-steps.arithmetic.exercise"
+  title: "Минуты в часы и минуты"
+  prompt: |
+    В программе задано число `total` - длительность в минутах (пока 135). Допишите программу, которая находит, сколько в нём полных часов и сколько минут остаётся, и печатает результат в виде
+
+    ```
+    2 ч 15 мин
+    ```
+
+    Формулу пишите через переменные `hours` и `minutes`, а не готовыми числами: программа должна давать правильный ответ и при другом значении `total` (например, 200 даст `3 ч 20 мин`).
+  entryFile: "main.go"
+  evaluation: "io"
+  hints:
+    - "Полных часов - это результат целочисленного деления на 60."
+    - "Оставшиеся минуты - остаток от деления на 60."
+    - "hours := total / 60 и minutes := total % 60."
+    - "Строка вывода: fmt.Println(hours, \"ч\", minutes, \"мин\")."
+  tests:
+    - id: "basic"
+      title: "135 минут"
+      stdin: ""
+      expected: |
+        2 ч 15 мин
+      hint: "135 минут - это 2 часа и 15 минут."
+    - id: "exact"
+      title: "Формат вывода (скрытый)"
+      stdin: ""
+      expected: |
+        2 ч 15 мин
+      hidden: true
+      hint: "Проверяется формат: число, пробел, «ч», пробел, число, пробел, «мин». Значения считаются через / и %."

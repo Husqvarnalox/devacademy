@@ -1,0 +1,206 @@
+id: "cpp.from-zero.for-loop"
+title: "Цикл for"
+goal: "Писать цикл с известным числом оборотов и обходить строку по индексам."
+difficulty: "easy"
+estimatedMinutes: 45
+prerequisites:
+  - "cpp.from-zero.while-loop"
+objectives:
+  - "Прочитать и написать заголовок for (начало; условие; шаг) и объяснить порядок его частей."
+  - "Перебрать символы строки по индексу и обойти её в обратном порядке."
+  - "Объяснить, почему счётчик по строке пишут как std::size_t и в чём ловушка обратного отсчёта."
+masteryCriteria:
+  - "Вы выбираете for, когда число оборотов известно, и while, когда оно зависит от данных."
+  - "Вы пишете цикл по строке как for (std::size_t i = 0; i < s.size(); i++) и не получаете предупреждение о знаковости."
+  - "Вы не пишете условие i >= 0 для беззнакового счётчика."
+concepts:
+  introduces:
+    - "cpp.for"
+    - "cpp.loop-variable"
+  uses:
+    - "cpp.while"
+    - "cpp.loop-condition"
+    - "cpp.if"
+    - "cpp.block"
+    - "cpp.string"
+    - "cpp.string-size"
+    - "cpp.string-index"
+    - "cpp.string-concat"
+    - "cpp.char"
+    - "cpp.int"
+    - "cpp.compound-assignment"
+    - "cpp.comparison"
+    - "cpp.logical-operators"
+    - "cpp.sign-compare"
+    - "cpp.cin"
+    - "cpp.warning"
+next:
+  - "cpp.from-zero.loop-control"
+tags:
+  - "cpp"
+  - "loop"
+  - "for"
+  - "string"
+facts:
+  - kind: "misconception"
+    text: "«Счётчик for нужно объявлять как int» - не всегда. Размер строки и вектора имеет беззнаковый тип std::size_t, поэтому для обхода по индексу его используют же как тип счётчика, иначе сравнение i < s.size() даёт предупреждение -Wsign-compare."
+    sources: []
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        for (int i = 2; i < 10; i += 3) {
+            std::cout << i << " ";
+        }
+        std::cout << "\n";
+        ```
+      options:
+        - "2 5 8"
+        - "2 5 8 11"
+        - "2 3 4 5 6 7 8 9"
+        - "5 8"
+      answer: 0
+      explanation: "Начало i = 2, шаг +3, пока i < 10: 2, 5, 8. Следующее значение 11 условие уже не пропускает."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Сколько раз выполнится тело цикла?
+
+        ```cpp
+        for (int i = 0; i <= 5; i++) {
+            std::cout << i;
+        }
+        ```
+      options:
+        - "6"
+        - "5"
+        - "4"
+        - "7"
+      answer: 0
+      explanation: "Значения i: 0, 1, 2, 3, 4, 5 - всего шесть. Так как условие нестрогое (<=), пятёрка тоже входит. При i < 5 оборотов было бы пять."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        std::string s = "abc";
+        for (std::size_t i = s.size(); i > 0; i--) {
+            std::cout << s[i - 1];
+        }
+        std::cout << "\n";
+        ```
+      options:
+        - "cba"
+        - "abc"
+        - "cb"
+        - "Программа выходит за границы строки."
+      answer: 0
+      explanation: "i принимает значения 3, 2, 1, и s[i - 1] даёт s[2], s[1], s[0]: c, b, a. Условие i > 0 останавливает цикл до значения 0, поэтому беззнаковый счётчик не «уходит» ниже нуля."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что не так с этим циклом?
+
+        ```cpp
+        for (std::size_t i = 4; i >= 0; i--) {
+            std::cout << i << "\n";
+        }
+        ```
+      options:
+        - "Условие i >= 0 всегда истинно для беззнакового числа: после 0 значение i становится огромным числом, и цикл не заканчивается."
+        - "Цикл напечатает 4, 3, 2, 1, 0 и остановится."
+        - "Цикл не выполнится ни разу."
+        - "Не хватает фигурных скобок."
+      answer: 0
+      explanation: "Беззнаковое число не бывает меньше нуля: после 0 уменьшение даёт самое большое значение типа. Компилятор предупреждает: result of comparison of unsigned expression >= 0 is always true."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```cpp
+        for (int i = 0; i < 3; i++) {
+        }
+        std::cout << i;
+        ```
+      options:
+        - "Ошибка: переменная i объявлена в заголовке for и после цикла не существует."
+        - "Напечатается 3."
+        - "Напечатается 2."
+        - "Предупреждение, но программа соберётся."
+      answer: 0
+      explanation: "Переменная, объявленная в заголовке for, видна только внутри цикла. Компилятор сообщает: use of undeclared identifier 'i'."
+exercise:
+  id: "cpp.from-zero.for-loop.exercise"
+  title: "Гласные и слово наоборот"
+  prompt: |
+    Программа читает одно слово из латинских строчных букв. Допишите два цикла `for`:
+
+    * посчитайте количество гласных букв (`a`, `e`, `i`, `o`, `u`);
+    * соберите слово, записанное в обратном порядке.
+
+    Например, для слова `banana`:
+
+    ```
+    Гласных: 3
+    Наоборот: ananab
+    ```
+
+    Чтение и вывод в заготовке написаны. Цикл по буквам пишите с индексом типа `std::size_t`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Заголовок цикла по индексам: for (std::size_t i = 0; i < word.size(); i++) { ... }. Букву номер i получают как word[i]."
+    - "Гласная - одна из пяти букв: char c = word[i]; if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') { vowels++; }"
+    - "Для обратного порядка пройдите индексы от конца: for (std::size_t i = word.size(); i > 0; i--) { reversed += word[i - 1]; }"
+    - "Не пишите условие i >= 0 для std::size_t - оно всегда истинно. Считайте от word.size() вниз до 1 и берите букву с номером i - 1."
+  tests:
+    - id: "basic"
+      title: "banana"
+      stdin: |
+        banana
+      expected: |
+        Гласных: 3
+        Наоборот: ananab
+      hint: "В banana три буквы a и ни одной другой гласной; слово наоборот - ananab."
+    - id: "program"
+      title: "programming"
+      stdin: |
+        programming
+      expected: |
+        Гласных: 3
+        Наоборот: gnimmargorp
+      hint: "В programming гласные o, a, i: три."
+    - id: "no-vowels"
+      title: "Нет гласных (скрытый)"
+      stdin: |
+        rhythm
+      expected: |
+        Гласных: 0
+        Наоборот: mhtyhr
+      hidden: true
+      hint: "Если гласных нет, счётчик остаётся нулём; слово всё равно разворачивается."
+    - id: "single"
+      title: "Одна буква (скрытый)"
+      stdin: |
+        a
+      expected: |
+        Гласных: 1
+        Наоборот: a
+      hidden: true
+      hint: "Слово из одной буквы: цикл выполняется один раз, результат совпадает с исходным словом."
+    - id: "all-vowels"
+      title: "Только гласные (скрытый)"
+      stdin: |
+        aeiou
+      expected: |
+        Гласных: 5
+        Наоборот: uoiea
+      hidden: true
+      hint: "Все пять гласных должны быть учтены, в том числе первая и последняя буква."

@@ -1,0 +1,188 @@
+id: "php.check.types"
+title: "Проверка: типы, strict_types и равенство"
+goal: "Предсказывать поведение типов, строгого режима, приведения и сравнения в PHP 8 и разбирать ввод в типизированные значения."
+difficulty: "easy"
+estimatedMinutes: 15
+prerequisites: []
+objectives:
+  - "Показать на практике умение: предсказывать приведение и сравнение типов и разбирать текст в типизированное значение."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "php"
+  - "check"
+  - "types"
+assessmentFor:
+  - "php.first-steps.arrays-and-strict-types"
+  - "php.fundamentals.types-and-juggling"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |-
+        Что произойдёт при запуске программы?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+
+        function f(int $n)
+        {
+            return $n * 2;
+        }
+
+        echo f("5");
+        ```
+      options:
+        - "10"
+        - "TypeError"
+        - "5"
+        - "Warning и 10"
+      answer: 1
+      explanation: "В файле с strict_types=1 строка \"5\" не приводится к int при вызове функции, поэтому выбрасывается TypeError. Без этого режима PHP молча преобразовал бы \"5\" в 5 и напечатал 10."
+    - id: "q2"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo json_encode([0 == "a", "1" == "01", "10" == "1e1", 100 == "1e2"]);
+        ```
+      options:
+        - "[true,true,true,true]"
+        - "[false,false,false,true]"
+        - "[false,true,true,true]"
+        - "[false,true,false,false]"
+      answer: 2
+      explanation: "В PHP 8 число и нечисловая строка сравниваются как строки, поэтому 0 == \"a\" ложно. Две числовые строки сравниваются как числа: \"1\" и \"01\" равны, \"10\" и \"1e1\" тоже, а 100 равно \"1e2\"."
+    - id: "q3"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        echo json_encode([(int) "12abc", (int) 12.9, (int) "abc", (bool) "0", (bool) "0.0"]);
+        ```
+      options:
+        - "[0,13,0,false,true]"
+        - "[12,12,0,false,false]"
+        - "[12,12,0,true,true]"
+        - "[12,12,0,false,true]"
+      answer: 3
+      explanation: "Приведение (int) читает ведущие цифры строки и отбрасывает дробную часть числа. Из строк ложной считается только \"0\" и пустая строка, поэтому \"0.0\" истинно."
+    - id: "q4"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        function kind(int|float $n): string
+        {
+            return get_debug_type($n);
+        }
+
+        echo kind(5), " ", kind(5.0), " ", kind("5");
+        ```
+      options:
+        - "int float string"
+        - "int float int"
+        - "int int int"
+        - "int float float"
+      answer: 1
+      explanation: "В нестрогом режиме числовая строка \"5\" приводится к типу из объединения: целое значение даёт int, поэтому и результат int. В строгом режиме вызов kind(\"5\") завершился бы TypeError."
+    - id: "q5"
+      type: "single"
+      prompt: |-
+        Что выведет программа?
+
+        ```php
+        <?php
+        declare(strict_types=1);
+
+        echo "5" + 3, " ", "5" . 3, " ", 7 <=> 3;
+        ```
+      options:
+        - "TypeError"
+        - "8 8 1"
+        - "8 53 1"
+        - "53 53 1"
+      answer: 2
+      explanation: "strict_types не влияет на операторы: \"5\" + 3 даёт число 8, точка склеивает строки, а оператор <=> возвращает 1, потому что 7 больше 3."
+exercise:
+  id: "php.check.types.exercise"
+  title: "Токены, типы и сравнение"
+  prompt: |-
+    Основная часть программы готова: она читает команды `parse <токен>` и `cmp <токен1> <токен2>` и вызывает ваши функции. Допишите три функции в `main.php`, основную часть не меняйте.
+
+    1. `parseToken(string $token)` превращает токен в значение: `null` -> `null`; `true` / `false` -> `bool`; целое число (по `filter_var` с `FILTER_VALIDATE_INT`) -> `int`; иначе число (по `FILTER_VALIDATE_FLOAT`) -> `float`; всё остальное -> строка как есть. Проверки идут в этом порядке.
+    2. `typeName(mixed $value): string` - `null`, `bool`, `int`, `float` или `string`.
+    3. `compareValues(mixed $a, mixed $b): string` - `same`, если значения идентичны (`===`); `equal`, если они равны нестрого (`==`), но не идентичны; иначе `different`.
+
+    **Пример.** Для ввода
+
+    ```
+    parse 42
+    parse 4.5
+    parse abc
+    cmp 10 1e1
+    ```
+
+    программа печатает
+
+    ```
+    int 42
+    float 4.5
+    string 'abc'
+    equal
+    ```
+
+    Число `10` разбирается как `int`, а `1e1` - как `float`: это разные типы, но значения равны.
+
+    Часть тестов скрыта: в них `null`, `true`, числа с нулями впереди и сравнения разных типов.
+  entryFile: "main.php"
+  evaluation: "io"
+  hints:
+    - "parseToken: сначала проверяйте точные слова через ===, затем $int = filter_var($token, FILTER_VALIDATE_INT) и сравнивайте с false строго, потом то же для FILTER_VALIDATE_FLOAT. Число 0 не равно false при строгой проверке."
+    - "typeName: подойдёт get_debug_type($value) - она возвращает ровно нужные названия."
+    - "compareValues: сначала $a === $b -> \"same\"; затем $a == $b -> \"equal\"; иначе \"different\"."
+    - "Токен \"007\" не проходит FILTER_VALIDATE_INT (ведущие нули запрещены), но проходит FILTER_VALIDATE_FLOAT, поэтому это float 7.0."
+  tests:
+    - id: "parse"
+      title: "Разбор токенов"
+      stdin: "parse 42\nparse 4.5\nparse abc\nparse -7\n"
+      expected: "int 42\nfloat 4.5\nstring 'abc'\nint -7\n"
+      hint: "42 -> int, 4.5 -> float, abc -> string (var_export печатает строку в кавычках), -7 -> int."
+    - id: "cmp"
+      title: "Сравнение значений"
+      stdin: "cmp 10 1e1\ncmp 5 5\ncmp 5 6\ncmp abc ABC\n"
+      expected: "equal\nsame\ndifferent\ndifferent\n"
+      hint: "10 и 1e1 равны нестрого (int и float), 5 и 5 идентичны, 5 и 6 различны, abc и ABC - разные строки."
+    - id: "parse-special"
+      title: "Специальные слова и ноль (скрытый)"
+      stdin: "parse null\nparse true\nparse false\nparse 0\nparse 0.0\n"
+      expected: "null NULL\nbool true\nbool false\nint 0\nfloat 0.0\n"
+      hidden: true
+      hint: "null, true и false - слова; 0 - int, а не false (filter_var вернул 0); 0.0 - float."
+    - id: "parse-edge"
+      title: "Нули впереди, плюс и экспонента (скрытый)"
+      stdin: "parse 007\nparse +5\nparse 1e3\nparse 1,5\nparse TRUE\n"
+      expected: "float 7.0\nint 5\nfloat 1000.0\nstring '1,5'\nstring 'TRUE'\n"
+      hidden: true
+      hint: "007 не целое (ведущие нули), но корректное float 7.0; +5 - int 5; 1e3 - float 1000.0; 1,5 и TRUE - строки (слова сравниваются точно)."
+    - id: "cmp-bool-null"
+      title: "Сравнение bool, null и строк (скрытый)"
+      stdin: "cmp true 1\ncmp null false\ncmp null 0\ncmp true true\ncmp 0 abc\n"
+      expected: "equal\nequal\nequal\nsame\ndifferent\n"
+      hidden: true
+      hint: "true и 1 нестрого равны (разные типы), null и false - тоже; null и 0 - тоже; true и true идентичны; 0 и строка abc в PHP 8 не равны."
+    - id: "cmp-numeric-strings"
+      title: "Сравнение числовых форм (скрытый)"
+      stdin: "cmp 1.0 1\ncmp 007 7\ncmp 0.1 0.10\ncmp 100 1e2\n"
+      expected: "equal\nequal\nsame\nequal\n"
+      hidden: true
+      hint: "1.0 (float) и 1 (int) равны нестрого; 007 разбирается как float 7.0 и равно int 7; 0.1 и 0.10 оба float и идентичны."

@@ -1,0 +1,184 @@
+id: "go.check.structs"
+title: "Проверка: структуры, методы и указатели"
+goal: "Описывать типы структурами, писать методы с нужным получателем и использовать указатели."
+difficulty: "medium"
+estimatedMinutes: 25
+objectives:
+  - "Показать на практике умение: описывать типы структурами, писать методы с нужным получателем и использовать указатели."
+masteryCriteria:
+  - "Решение упражнения проходит все тесты, включая скрытые."
+  - "Квиз пройден с результатом не ниже 75%."
+tags:
+  - "go"
+  - "check"
+  - "structs"
+  - "methods"
+assessmentFor:
+  - "go.fundamentals.types-values-zero-values"
+  - "go.fundamentals.structs-methods-embedding"
+quiz:
+  passThreshold: 0.75
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        type C struct{ n int }
+
+        func (c C) Inc()   { c.n++ }
+        func (c *C) IncP() { c.n++ }
+
+        func main() {
+        	c := C{}
+        	c.Inc()
+        	c.IncP()
+        	fmt.Println(c.n)
+        }
+        ```
+      options:
+        - "0"
+        - "1"
+        - "2"
+        - "Ошибка компиляции"
+      answer: 1
+      explanation: "Метод со значимым получателем `Inc` работает с копией и ничего не меняет. `IncP` получает указатель и увеличивает поле. `c.IncP()` допустимо: Go сам берёт адрес переменной `c`."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        type P struct{ X, Y int }
+
+        a := P{1, 2}
+        b := a
+        b.X = 9
+        fmt.Println(a.X, b.X)
+        ```
+      options:
+        - "9 9"
+        - "1 9"
+        - "1 1"
+        - "9 1"
+      answer: 1
+      explanation: "Присваивание структуры копирует все поля, `a` и `b` независимы."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Что произойдёт при компиляции?
+
+        ```go
+        type P struct{ X, Y int }
+
+        m := map[string]P{"a": {1, 2}}
+        m["a"].X = 5
+        ```
+      options:
+        - "Поле X станет равным 5"
+        - "Ошибка: нельзя присвоить полю структуры в карте"
+        - "Паника во время выполнения"
+        - "Создастся новый ключ"
+      answer: 1
+      explanation: "Значения в карте не адресуемы. Нужно прочитать структуру, изменить копию и записать обратно: `p := m[\"a\"]; p.X = 5; m[\"a\"] = p`, либо хранить указатели `map[string]*P`."
+    - id: "q4"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```go
+        type Animal struct{ Name string }
+
+        func (a Animal) Hello() string { return "I am " + a.Name }
+
+        type Dog struct{ Animal }
+
+        func main() {
+        	d := Dog{Animal{"Rex"}}
+        	fmt.Println(d.Hello())
+        }
+        ```
+      options:
+        - "I am Rex"
+        - "I am "
+        - "Ошибка компиляции: у Dog нет метода Hello"
+        - "I am Dog"
+      answer: 0
+      explanation: "Встраивание продвигает поля и методы вложенной структуры: `d.Hello()` вызывает `d.Animal.Hello()`. Наследования нет, это композиция."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        Что произойдёт при выполнении?
+
+        ```go
+        type P struct{ X int }
+
+        var p *P
+        fmt.Println(p.X)
+        ```
+      options:
+        - "Напечатает 0"
+        - "Паника: nil pointer dereference"
+        - "Ошибка компиляции"
+        - "Напечатает <nil>"
+      answer: 1
+      explanation: "Нулевое значение указателя - `nil`; обращение к полю через nil-указатель вызывает панику. Перед использованием указатель создают через `&P{}` или `new(P)`."
+exercise:
+  id: "go.check.structs.exercise"
+  title: "Account: методы и указатели"
+  prompt: |
+    В заготовке объявлены тип **`Account`** (поле `balance` скрыто) и ошибки `ErrInvalidAmount`, `ErrInsufficient`. Допишите методы и функции в `main.go`.
+
+    * **`NewAccount(owner string, initial int) *Account`** - создаёт счёт и возвращает указатель.
+    * **`(a *Account) Balance() int`** - текущий остаток.
+    * **`(a *Account) Deposit(n int) error`** - зачисляет `n`; при `n <= 0` возвращает `ErrInvalidAmount` и ничего не меняет.
+    * **`(a *Account) Withdraw(n int) error`** - списывает `n`; `n <= 0` даёт `ErrInvalidAmount`, `n` больше остатка - `ErrInsufficient`; при ошибке остаток не меняется.
+    * **`transfer(from, to *Account, n int) error`** - переводит `n` со счёта на счёт; при ошибке оба остатка прежние.
+
+    **Как проверяется.** Тесты создают счета, переводят деньги между ними и проверяют остатки (поэтому методам нужны указатели) и ошибки через `errors.Is`.
+  entryFile: "main.go"
+  evaluation: "command"
+  languageId: "go"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  command:
+    run:
+      - "go"
+      - "test"
+      - "-json"
+      - "-count=1"
+      - "./..."
+    report: "go-test-json"
+    testsTarget: "."
+    timeoutSeconds: 45
+  hints:
+    - "Методы, которые меняют счёт, должны иметь получатель-указатель `(a *Account)`, иначе изменения теряются вместе с копией."
+    - "`NewAccount` возвращает `&Account{Owner: owner, balance: initial}`."
+    - "В `Withdraw` сначала проверьте допустимость суммы и остаток, и только потом уменьшайте `balance`."
+    - "В `transfer` сначала спишите с `from`, и только если ошибки нет, зачислите на `to`; ошибку первой операции возвращайте сразу."
+  tests:
+    - id: "account-basic"
+      title: "Account: зачисление"
+      match: "TestAccountBasics/deposit"
+      hint: "Deposit меняет остаток существующего счёта."
+    - id: "transfer-basic"
+      title: "transfer: успешный перевод"
+      match: "TestTransfer/success"
+      hint: "Счета передаются по указателю, поэтому остатки меняются у вызывающего кода."
+    - id: "account-all"
+      title: "Account: создание, списание, точное списание (скрытый)"
+      match: "TestAccountBasics/*"
+      hidden: true
+      hint: "Списание всего остатка допустимо; NewAccount сохраняет владельца и начальный остаток."
+    - id: "account-errors"
+      title: "Account: ошибки и неизменность остатка (скрытый)"
+      match: "TestAccountErrors/*"
+      hidden: true
+      hint: "При ошибке остаток не меняется; ошибки сравниваются через errors.Is."
+    - id: "transfer-errors"
+      title: "transfer: ошибки и перевод самому себе (скрытый)"
+      match: "TestTransfer/*"
+      hidden: true
+      hint: "При ошибке оба остатка прежние; перевод на тот же счёт не меняет баланс."

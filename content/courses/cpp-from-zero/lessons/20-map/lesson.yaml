@@ -1,0 +1,213 @@
+id: "cpp.from-zero.map"
+title: "Словарь: std::map"
+goal: "Хранить значения по ключу и считать, сколько раз встретилось каждое слово."
+difficulty: "easy"
+estimatedMinutes: 50
+prerequisites:
+  - "cpp.from-zero.vector"
+objectives:
+  - "Создать std::map<K, V>, записывать и читать значения по ключу."
+  - "Проверить наличие ключа через count() и безопасно прочитать значение через at()."
+  - "Объяснить ловушку m[key]: чтение отсутствующего ключа добавляет его в словарь."
+masteryCriteria:
+  - "Вы считаете частоты записью counts[word]++ и понимаете, почему она работает с первого раза."
+  - "Вы обходите словарь через for (const auto& [key, value] : m) и знаете, что порядок обхода - по возрастанию ключей."
+  - "Вы используете count() или at(), когда нужно не создавать ключ."
+concepts:
+  introduces:
+    - "cpp.map"
+    - "cpp.key-value"
+    - "cpp.auto"
+    - "cpp.map-index"
+  uses:
+    - "cpp.vector"
+    - "cpp.range-for"
+    - "cpp.string"
+    - "cpp.int"
+    - "cpp.at"
+    - "cpp.while"
+    - "cpp.read-until-eof"
+    - "cpp.if"
+    - "cpp.cin"
+    - "cpp.const-reference"
+    - "cpp.function"
+    - "cpp.undefined-behavior"
+    - "cpp.compile-error"
+next:
+  - "cpp.from-zero.text-lines"
+tags:
+  - "cpp"
+  - "map"
+  - "collections"
+facts:
+  - kind: "misconception"
+    text: "«Чтение m[key] только смотрит значение» - нет. Если ключа в словаре нет, оператор [] создаёт его со значением по умолчанию (для int это 0) и возвращает это значение. Чтобы только проверить наличие, используйте count(key) или find(key)."
+    sources: []
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        std::map<std::string, int> stock;
+        stock["apple"] = 5;
+        stock["pear"] = 2;
+        stock["apple"] = 7;
+        std::cout << stock.size() << " " << stock["apple"] << "\n";
+        ```
+      options:
+        - "2 7"
+        - "3 7"
+        - "2 5"
+        - "3 5"
+      answer: 0
+      explanation: "Ключ apple записан дважды: второе присваивание заменило значение, новой записи не появилось. В словаре два ключа, apple хранит 7."
+    - id: "q2"
+      type: "single"
+      prompt: |
+        Что напечатает программа?
+
+        ```cpp
+        std::map<std::string, int> counts;
+        counts["a"]++;
+        counts["b"]++;
+        counts["a"]++;
+        std::cout << counts["a"] << counts["b"] << counts["c"] << "\n";
+        ```
+      options:
+        - "210"
+        - "211"
+        - "21"
+        - "Ошибка: ключа c нет."
+      answer: 0
+      explanation: "counts[\"a\"]++ при первом обращении создаёт ключ со значением 0 и увеличивает его. a встретился дважды, b один раз. counts[\"c\"] создаёт новый ключ со значением 0 и печатает 0."
+    - id: "q3"
+      type: "single"
+      prompt: |
+        Сколько записей в словаре после этого кода?
+
+        ```cpp
+        std::map<std::string, int> m = {{"x", 1}};
+        if (m["y"] == 0) {
+            std::cout << "нет\n";
+        }
+        std::cout << m.size() << "\n";
+        ```
+      options:
+        - "2"
+        - "1"
+        - "0"
+        - "Это неопределённое поведение."
+      answer: 0
+      explanation: "Проверка m[\"y\"] == 0 создала ключ y со значением 0. Теперь записей две. Чтобы проверить наличие без добавления, используйте m.count(\"y\") == 0."
+    - id: "q4"
+      type: "single"
+      prompt: "Что делает `m.at(\"zzz\")`, если такого ключа нет?"
+      options:
+        - "Бросает исключение std::out_of_range, и необработанное исключение останавливает программу."
+        - "Возвращает 0 и добавляет ключ."
+        - "Возвращает случайное значение."
+        - "Не компилируется."
+      answer: 0
+      explanation: "at() не создаёт ключ: при отсутствии он бросает std::out_of_range. Ловить исключения вы научитесь в уроке 22."
+    - id: "q5"
+      type: "single"
+      prompt: |
+        В каком порядке напечатаются слова?
+
+        ```cpp
+        std::map<std::string, int> m = {{"pear", 1}, {"apple", 2}, {"fig", 3}};
+        for (const auto& [word, n] : m) {
+            std::cout << word << " ";
+        }
+        ```
+      options:
+        - "apple fig pear"
+        - "pear apple fig"
+        - "fig pear apple"
+        - "В порядке добавления, порядок не определён."
+      answer: 0
+      explanation: "std::map хранит ключи упорядоченными по возрастанию (для строк - по алфавиту) и обходится в этом порядке независимо от порядка добавления."
+exercise:
+  id: "cpp.from-zero.map.exercise"
+  title: "Частота слов"
+  prompt: |
+    На вход приходят слова, разделённые пробелами и переводами строк; их количество неизвестно. Прочитайте слова до конца ввода и посчитайте, сколько раз встретилось каждое. Слова различаются по регистру: `Hi` и `hi` - разные слова.
+
+    Напечатайте каждое слово и его количество по одному в строке, в алфавитном порядке слов (порядок `std::map`), а затем два итога:
+
+    ```
+    be: 2
+    not: 1
+    or: 1
+    to: 2
+    Всего слов: 6
+    Разных слов: 4
+    ```
+
+    (это ответ для ввода `to be or not to be`). Если слов нет, напечатайте одну строку `Слов нет`.
+  entryFile: "main.cpp"
+  evaluation: "io"
+  hints:
+    - "Нужен словарь: std::map<std::string, int> counts; Ключ - слово, значение - сколько раз оно встретилось."
+    - "Читайте слова в цикле: while (std::cin >> word) { counts[word]++; total++; } Запись counts[word]++ сама создаёт ключ со значением 0, если слова ещё не было."
+    - "Обход: for (const auto& [word, n] : counts) { std::cout << word << \": \" << n << \"\\n\"; } Порядок будет алфавитным."
+    - "Разных слов - counts.size(). Если total равен нулю, напечатайте только «Слов нет»."
+  tests:
+    - id: "basic"
+      title: "to be or not to be"
+      stdin: |
+        to be or not to be
+      expected: |
+        be: 2
+        not: 1
+        or: 1
+        to: 2
+        Всего слов: 6
+        Разных слов: 4
+      hint: "Слова be и to встретились по два раза; обход идёт по алфавиту: be, not, or, to."
+    - id: "lines"
+      title: "Слова на разных строках"
+      stdin: |
+        apple pear
+        apple
+
+        fig apple
+      expected: |
+        apple: 3
+        fig: 1
+        pear: 1
+        Всего слов: 5
+        Разных слов: 3
+      hint: "Строки и пустые строки читаются так же, как пробелы."
+    - id: "empty"
+      title: "Пустой ввод (скрытый)"
+      stdin: ""
+      expected: |
+        Слов нет
+      hidden: true
+      hint: "Без слов печатается одна строка «Слов нет»."
+    - id: "case"
+      title: "Регистр различается (скрытый)"
+      stdin: |
+        Hi hi Hi
+      expected: |
+        Hi: 2
+        hi: 1
+        Всего слов: 3
+        Разных слов: 2
+      hidden: true
+      hint: "Заглавные буквы идут раньше строчных, а Hi и hi - разные ключи."
+    - id: "one"
+      title: "Одно слово много раз (скрытый)"
+      stdin: |
+        go go go go
+      expected: |
+        go: 4
+        Всего слов: 4
+        Разных слов: 1
+      hidden: true
+      hint: "Один ключ с значением 4; разных слов одно."
