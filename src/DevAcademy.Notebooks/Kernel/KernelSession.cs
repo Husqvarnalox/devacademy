@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json.Nodes;
 using DevAcademy.Domain;
@@ -396,7 +397,7 @@ public sealed class KernelSession(IKernelHost host, KernelSessionOptions? option
                     await i.Hb.ReceiveAsync(timeout.Token).ConfigureAwait(false);
                     misses = 0;
                 }
-                catch (Exception ex) when (ex is OperationCanceledException or ZmtpException or IOException)
+                catch (Exception ex) when (ex is OperationCanceledException or ZmtpException or IOException or SocketException)
                 {
                     if (i.Cts.IsCancellationRequested) return;
                     misses++;
