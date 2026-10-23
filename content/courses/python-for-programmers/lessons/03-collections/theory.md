@@ -100,12 +100,12 @@ print({1, 2, 3} & {2, 3, 4}, {1, 2} | {5}, {1, 2, 3} - {2}, {1, 2} ^ {2, 3})
 try:
     {[1]: "список"}
 except TypeError as exc:
-    print(exc)
+    print(type(exc).__name__, "- список нельзя сделать ключом")
 print({(1, 2): "кортеж"}, 1 == 1.0, {1, 1.0, True})
 ```
 ```output
 {2, 3} {1, 2, 5} {1, 3} {1, 3}
-cannot use 'list' as a dict key (unhashable type: 'list')
+TypeError - список нельзя сделать ключом
 {(1, 2): 'кортеж'} True {1}
 ```
 
