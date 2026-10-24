@@ -47,13 +47,13 @@ Third-party licenses: `THIRD-PARTY-NOTICES.md` (generated, CI checks it is fresh
 | macOS `.app` + `.dmg` (osx-x64) | same | built here, `file` = x86_64, codesign verifies, launched under Rosetta (process alive, DB created). Real Intel hardware: not tested |
 | Developer ID signing + notarization + stapling | same, env-gated (`MACOS_SIGN_IDENTITY`, `MACOS_NOTARY_PROFILE` or `APPLE_ID`/`APPLE_TEAM_ID`/`APPLE_APP_PASSWORD`) | **not run-verified** (no certificate available). Hardened runtime + entitlements (`allow-jit`, `allow-unsigned-executable-memory`; no `disable-library-validation`) untested with a real identity: hardened runtime with an *ad-hoc* signature does fail to load libSkiaSharp, so it is only enabled together with a real identity. If the first notarized build fails to load a dylib, add `disable-library-validation` |
 | Linux AppImage, `.deb` (x64, arm64) | `packaging/linux/build-appimage.sh`, `build-deb.sh` | **CI-built, not run-verified** (appimagetool 1.9.1 downloaded with pinned SHA-256) |
-| Windows Inno Setup installer + zip (x64, arm64) | `packaging/windows/build-windows.sh`, `devacademy.iss` | **CI-built, not run-verified**. Per-user install; installer is unsigned (SmartScreen will warn) |
+| Windows Inno Setup installer + zip (x64, arm64) | `packaging/windows/build-windows.sh`, `devacademy.iss` | **CI-built, not run-verified**. Per-user install; exe and installer are signed through SignPath when `SIGNPATH_*` is configured, otherwise unsigned (SmartScreen will warn) |
 | Release | `.github/workflows/release.yml` | **CI-only, never run**: draft release with `SHA256SUMS` |
 
 macOS minimum is 14.0 (`LSMinimumSystemVersion`, following .NET 10's supported list); the Mach-O says 12.0, which is looser than what is supported.
 A Homebrew-built `dotnet` SDK uses a locally built runtime pack whose host links `/opt/homebrew/.../libbrotli*`; such a build
 crashes on other Macs. `packaging/publish.sh` refuses it and prints the workaround (`-p:RuntimeFrameworkVersion=<official patch>`);
-CI uses the official SDK and is unaffected. Not done: Windows code signing, Linux package signing, auto-update, Flatpak/Snap/winget/Homebrew cask.
+CI uses the official SDK and is unaffected. Release signing (Developer ID + notarization on macOS, SignPath Authenticode on Windows, GPG-signed `SHA256SUMS`) is wired into `release.yml` and gated on repository secrets ([docs/release-signing.md](docs/release-signing.md)); not run-verified yet, because no certificates are configured. Not done: auto-update, Flatpak/Snap/winget/Homebrew cask.
 
 ## 2. Toolchains the app does not ship
 

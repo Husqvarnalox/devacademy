@@ -23,14 +23,32 @@ Roadmap with per-item status: [ROADMAP.md](ROADMAP.md). Platform matrix: [PLATFO
 
 ## Install
 
-Download from the GitHub Releases page (builds are produced by CI on version tags; verify against `SHA256SUMS`):
+Download from the GitHub Releases page (builds are produced by CI on version tags; verify against `SHA256SUMS`, and against
+`SHA256SUMS.asc` when the release has it, see [docs/release-signing.md](docs/release-signing.md)):
 
-* **macOS**: `DevAcademy-<v>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg`; drag DevAcademy to Applications. Builds are ad-hoc
-  signed unless the release was notarized; if Gatekeeper blocks it: right-click → Open.
-* **Windows**: `DevAcademy-<v>-win-x64-setup.exe` (per-user, no admin rights) or the `.zip`; SmartScreen warns because the installer is unsigned.
+* **macOS**: `DevAcademy-<v>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg`; drag DevAcademy to Applications. A release
+  signed with a Developer ID and notarized opens normally; an ad-hoc signed one (the workflow summary says which) is
+  quarantined by Gatekeeper: right-click → Open, or `xattr -dr com.apple.quarantine /Applications/DevAcademy.app`.
+* **Windows**: `DevAcademy-<v>-win-x64-setup.exe` (per-user, no admin rights) or the `.zip`. Signed releases carry an
+  Authenticode signature from SignPath Foundation; SmartScreen may still warn until the signature builds reputation.
 * **Linux**: `.AppImage` (`chmod +x`, run) or `devacademy_<v>_amd64.deb` (`sudo apt install ./devacademy_*.deb`).
 
 Packaging status per platform (only macOS arm64 is run-verified): [PLATFORM_SUPPORT.md](PLATFORM_SUPPORT.md). Build installers yourself: `make package`.
+
+## Code signing policy
+
+Free code signing for Windows is provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org). macOS builds are signed with the project's Apple Developer ID when the
+release workflow has it; Linux checksums are signed with the project's GPG key. Details: [docs/release-signing.md](docs/release-signing.md).
+
+* Committers and reviewers: [members of this repository](https://github.com/Husqvarnalox/devacademy/graphs/contributors)
+* Approvers (approve each signing request): [@Husqvarnalox](https://github.com/Husqvarnalox)
+
+Only binaries built by the release workflow from this repository's source are signed.
+
+**Privacy.** DevAcademy does not transfer any information to other networked systems unless the user asks for it: an
+AI provider receives requests only after the user configures it ([AI_PROVIDERS.md](AI_PROVIDERS.md)), and language
+packages are downloaded only when the user installs a package set. There is no telemetry.
 
 ## Quick start
 

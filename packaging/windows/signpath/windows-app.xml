@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration "windows-app": the single-file executable uploaded by the release workflow.
+     Only DevAcademy's own executable is signed; bundled third-party native DLLs keep their original signatures (or none). -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="DevAcademy.Desktop.exe">
+      <authenticode-sign/>
+    </pe-file>
+  </zip-file>
+</artifact-configuration>
