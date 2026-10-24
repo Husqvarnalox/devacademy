@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Builds DevAcademy-<version>-<rid>.zip and, when Inno Setup (iscc) is available, DevAcademy-<version>-<rid>-setup.exe.
 # Usage: packaging/windows/build-windows.sh <win-x64|win-arm64> [outdir]   (run in Git Bash on Windows; CI-built, not run-verified)
+#   DEVACADEMY_PREPUBLISHED=1   package the existing artifacts/publish/<rid> instead of publishing again (the release
+#                               workflow signs DevAcademy.Desktop.exe between publishing and packaging).
 set -euo pipefail
 rid="${1:?usage: build-windows.sh <win-x64|win-arm64> [outdir]}"
 case "$rid" in win-x64|win-arm64) ;; *) echo "unsupported RID $rid" >&2; exit 2;; esac
@@ -9,7 +11,11 @@ root="$(cd "$here/../.." && pwd)"
 out="${2:-$root/artifacts/package}"
 version="$("$root/packaging/version.sh")"
 pub="$root/artifacts/publish/$rid"
-"$root/packaging/publish.sh" "$rid" "$pub"
+if [ "${DEVACADEMY_PREPUBLISHED:-}" = 1 ]; then
+  [ -f "$pub/DevAcademy.Desktop.exe" ] || { echo "no publish output in $pub" >&2; exit 1; }
+else
+  "$root/packaging/publish.sh" "$rid" "$pub"
+fi
 mkdir -p "$out"
 zip="$out/DevAcademy-$version-$rid.zip"
 rm -f "$zip"

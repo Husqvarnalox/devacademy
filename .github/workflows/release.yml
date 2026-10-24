@@ -1,6 +1,8 @@
 name: Release
 
 # Tag vX.Y.Z (must equal <Version> in Directory.Build.props) -> builds installers for 6 RIDs and creates a DRAFT GitHub release.
+# Signing is configured with repository secrets and variables (docs/release-signing.md); every part is optional and a
+# missing part produces an unsigned build plus a workflow warning, never a silent "signed" claim.
 on:
   push:
     tags: ["v*"]
@@ -30,6 +32,9 @@ jobs:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      # Optional Windows signing through SignPath (free for open source via SignPath Foundation). When absent: unsigned.
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
@@ -41,19 +46,98 @@ jobs:
           v="$(packaging/version.sh)"
           [ "${GITHUB_REF_NAME}" = "v$v" ] || { echo "tag ${GITHUB_REF_NAME} != Directory.Build.props Version v$v" >&2; exit 1; }
 
+      # ---------- Windows: publish -> sign the exe -> zip + installer -> sign the installer ----------
+      - name: Publish (Windows)
+        if: matrix.kind == 'windows'
+        shell: bash
+        run: packaging/publish.sh ${{ matrix.rid }}
+
+      - name: Upload the executable for signing
+        id: unsigned-app
+        if: matrix.kind == 'windows' && env.SIGNPATH_API_TOKEN != '' && env.SIGNPATH_ORGANIZATION_ID != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-app-${{ matrix.rid }}
+          path: artifacts/publish/${{ matrix.rid }}/DevAcademy.Desktop.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign the executable (SignPath; waits for release approval)
+        if: steps.unsigned-app.outcome == 'success'
+        uses: SignPath/github-action-submit-signing-request@c92b958760219087e01f8d67a1669ed57afe2627 # v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'devacademy' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: windows-app
+          github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: artifacts/signed-app
+
+      - name: Use the signed executable
+        if: steps.unsigned-app.outcome == 'success'
+        shell: bash
+        run: cp artifacts/signed-app/DevAcademy.Desktop.exe artifacts/publish/${{ matrix.rid }}/DevAcademy.Desktop.exe
+
       - name: Package (Windows zip + Inno Setup installer)
         if: matrix.kind == 'windows'
         shell: bash
         run: |
           command -v iscc >/dev/null || [ -x "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" ] || choco install innosetup --no-progress -y
-          packaging/windows/build-windows.sh ${{ matrix.rid }}
+          DEVACADEMY_PREPUBLISHED=1 packaging/windows/build-windows.sh ${{ matrix.rid }}
 
+      - name: Upload the installer for signing
+        id: unsigned-installer
+        if: steps.unsigned-app.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-installer-${{ matrix.rid }}
+          path: artifacts/package/*-setup.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign the installer (SignPath; waits for release approval)
+        if: steps.unsigned-installer.outcome == 'success'
+        uses: SignPath/github-action-submit-signing-request@c92b958760219087e01f8d67a1669ed57afe2627 # v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'devacademy' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: windows-installer
+          github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: artifacts/signed-installer
+
+      - name: Use the signed installer and verify both signatures
+        if: steps.unsigned-installer.outcome == 'success'
+        shell: pwsh
+        run: |
+          Copy-Item artifacts/signed-installer/*-setup.exe artifacts/package/ -Force
+          $files = @("artifacts/publish/${{ matrix.rid }}/DevAcademy.Desktop.exe") + (Get-ChildItem artifacts/package/*-setup.exe).FullName
+          foreach ($f in $files) {
+            $sig = Get-AuthenticodeSignature $f
+            Write-Host "$f : $($sig.Status) $($sig.SignerCertificate.Subject)"
+            if ($sig.Status -ne 'Valid') { throw "invalid Authenticode signature on $f" }
+          }
+
+      - name: Warn about unsigned Windows binaries
+        if: matrix.kind == 'windows' && steps.unsigned-app.outcome != 'success'
+        shell: bash
+        run: |
+          echo "::warning::${{ matrix.rid }}: SIGNPATH_API_TOKEN / SIGNPATH_ORGANIZATION_ID not set - the exe and installer are NOT signed (SmartScreen will warn)."
+
+      # ---------- Linux ----------
       - name: Package (Linux AppImage + .deb)
         if: matrix.kind == 'linux'
         run: |
           packaging/linux/build-appimage.sh ${{ matrix.rid }}
           packaging/linux/build-deb.sh ${{ matrix.rid }}
 
+      # ---------- macOS ----------
       - name: Import Developer ID certificate (only when secrets are present)
         if: matrix.kind == 'macos' && env.MACOS_CERT_P12 != '' && env.MACOS_SIGN_IDENTITY != ''
         run: |
@@ -76,6 +160,22 @@ jobs:
           [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_APP_PASSWORD" ] || unset APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD
           packaging/macos/build-app.sh ${{ matrix.rid }}
 
+      - name: Verify Gatekeeper acceptance (notarized builds) or warn
+        if: matrix.kind == 'macos'
+        run: |
+          app="artifacts/package/${{ matrix.rid }}/DevAcademy.app"
+          dmg="$(ls artifacts/package/*.dmg)"
+          if [ -n "$MACOS_CERT_P12" ] && [ -n "$MACOS_SIGN_IDENTITY" ] && [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$APPLE_APP_PASSWORD" ]; then
+            xcrun stapler validate "$app"
+            xcrun stapler validate "$dmg"
+            spctl --assess --type execute --verbose=2 "$app"
+            spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+          elif [ -n "$MACOS_CERT_P12" ] && [ -n "$MACOS_SIGN_IDENTITY" ]; then
+            echo "::warning::${{ matrix.rid }}: signed with Developer ID but NOT notarized (APPLE_ID / APPLE_TEAM_ID / APPLE_APP_PASSWORD missing) - Gatekeeper will still block the download."
+          else
+            echo "::warning::${{ matrix.rid }}: ad-hoc signed only (no Developer ID secrets) - macOS quarantines the download; see docs/release-signing.md."
+          fi
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: package-${{ matrix.rid }}
@@ -92,6 +192,10 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      # Optional: armored private key (gpg --armor --export-secret-keys) and its passphrase. When absent SHA256SUMS is unsigned.
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -101,6 +205,13 @@ jobs:
           merge-multiple: true
       - name: SHA-256 checksums
         run: packaging/checksums.sh release
+      - name: Sign SHA256SUMS with GPG (only when the key secret is present)
+        if: env.GPG_PRIVATE_KEY != ''
+        run: packaging/sign-checksums.sh release
+      - name: Warn about unsigned checksums
+        if: env.GPG_PRIVATE_KEY == ''
+        run: |
+          echo "::warning::GPG_PRIVATE_KEY not set - SHA256SUMS is not signed."
       - name: Draft GitHub release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
