@@ -92,7 +92,8 @@ public class DebugFlowTests : IDisposable
         Assert.Equal("body", ws.Debug.SelectedFrame!.Name);
         Assert.Equal("main.py", ws.Debug.SelectedFrame.HostKey);
         Assert.Equal(2, ws.Debug.Frames.Count);
-        Assert.Equal(3, tab.Debug.ExecutionLine);
+        // The execution marker follows the selected frame; on a loaded runner it can land just after it.
+        await Util.UntilAsync(() => tab.Debug.ExecutionLine == 3, "the execution line");
 
         // Variables: the Locals scope loads, "items" loads its children only when expanded.
         var locals = await Util.UntilAsync(() => ws.Debug.Variables.FirstOrDefault(v => v.Name == "Locals" && v.Children.Any(c => c.Name == "i")), "locals");
@@ -280,8 +281,8 @@ public class DebugFlowTests : IDisposable
 
         await session.Debug.StartAsync();
         await Util.UntilAsync(() => session.Debug.State == DebugState.Stopped && session.Debug.Frames.Count > 0, "lldb stop", 60000);
-        Assert.Equal(6, session.Debug.SelectedFrame!.Frame.Line);
-        Assert.Equal(6, file.Debug.ExecutionLine);
+        // The frame is selected and the execution marker set just after the frames arrive; wait for both.
+        await Util.UntilAsync(() => session.Debug.SelectedFrame?.Frame.Line == 6 && file.Debug.ExecutionLine == 6, "the selected frame and the execution line", 30000);
         var locals = await Util.UntilAsync(() => session.Debug.Variables.FirstOrDefault(v => v.Children.Any(c => c.Name == "total")), "locals", 30000);
         Assert.Equal("0", locals.Children.Single(c => c.Name == "total").Value);
 
