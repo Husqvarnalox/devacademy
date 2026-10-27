@@ -23,15 +23,20 @@ public class OutputPanelResizeTests
         {
             Dispatcher.UIThread.RunJobs();
             var tabs = window.GetVisualDescendants().OfType<TabControl>().Single(t => Grid.GetRow(t) == 5);
-            var sections = window.GetVisualDescendants().OfType<DebugPanelView>().Single().GetVisualDescendants().OfType<Grid>().Single(g => g.Name == "Sections");
-            var before = sections.Bounds.Height;
+            var panel = window.GetVisualDescendants().OfType<DebugPanelView>().Single();
+            var scroll = panel.GetVisualDescendants().OfType<ScrollViewer>().Single(s => s.Name == "SectionsScroll");
+            var sections = panel.GetVisualDescendants().OfType<Grid>().Single(g => g.Name == "Sections");
+            var before = scroll.Bounds.Height;
 
             // What GridSplitter does on a drag: the output row gets a new pixel height.
             ((Grid)tabs.Parent!).RowDefinitions[5].Height = new GridLength(500);
             Dispatcher.UIThread.RunJobs();
 
+            // Measured on the scroll area, not the sections: without a debugger installed an install notice takes room,
+            // and the sections then sit at their minimum height until the area outgrows it.
             Assert.Equal(500, tabs.Bounds.Height, 1);
-            Assert.True(sections.Bounds.Height >= before + 200, $"debug sections stayed at {sections.Bounds.Height}px (were {before}px)");
+            Assert.True(scroll.Bounds.Height >= before + 200, $"debug area stayed at {scroll.Bounds.Height}px (was {before}px)");
+            Assert.True(sections.Bounds.Height >= scroll.Bounds.Height - 0.5, $"debug sections {sections.Bounds.Height}px do not fill the {scroll.Bounds.Height}px area");
         }
         finally { window.Close(); }
     }
