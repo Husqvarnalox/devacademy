@@ -65,7 +65,7 @@ public class NodeEnvironmentViewModelTests
         {
             var vm = new NodeEnvironmentViewModel(host.Services);
             await vm.LoadAsync();
-            Assert.Equal(3, vm.Sets.Count);
+            Assert.Equal(4, vm.Sets.Count);
             Assert.All(vm.Sets, x => Assert.False(x.IsInstalled));
             Assert.Empty(tools.Streaming);
         }
