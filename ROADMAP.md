@@ -78,7 +78,7 @@ documents linked from [CURRICULUM.md](CURRICULUM.md).
 | E. Machine Learning | Math for ML, classical ML (from scratch, then library) | Planned |
 | F. Deep Learning | PyTorch/TensorFlow/JAX fundamentals | Planned (ML Runtime Manager) |
 | G. LLM engineering | Inference, fine-tuning, RAG, agents, LLM security | Planned |
-| H. MLOps | Tracking, serving, containers, monitoring | Planned |
+| H. MLOps | Tracking, serving, containers, monitoring | Partial: `mlops-fundamentals` (8 lessons, stdlib only, offline): reproducibility, hand-made experiment tracking, content-hash data versioning, cached step pipeline, model registry with stages, serving with validation and batching, drift (PSI/KS), quality monitoring and alert rules. Real MLflow/DVC/BentoML installs, Docker images, Kubernetes, feature stores: Planned (theory only) |
 | I. Advanced Python | Internals, memory, performance, C extensions, advanced concurrency | Planned |
 | J. Additional | CV, NLP, RL, data engineering, desktop GUI, security | Planned |
 | Enabler: Python Environment Manager | venv/uv, explicit installs, run in env | In progress |

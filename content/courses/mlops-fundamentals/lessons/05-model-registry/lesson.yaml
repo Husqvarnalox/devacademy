@@ -1,0 +1,154 @@
+id: "mlops.fundamentals.model-registry"
+title: "Реестр моделей: безопасная сериализация, версии и стадии"
+goal: "Сохранять модель в переносимом формате с контрольной суммой, регистрировать версии с метриками и ссылкой на запуск, вести стадии (Staging, Production, Archived) и повышать модель до Production по правилу улучшения метрики."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites: ["mlops.fundamentals.pipelines-and-caching"]
+related: ["ml.foundations.linear-regression", "ml.foundations.classification-metrics"]
+next: ["mlops.fundamentals.model-serving"]
+seeAlso:
+  - "MLflow Model Registry: зарегистрированные модели, версии, стадии и псевдонимы"
+  - "Форматы переноса моделей: ONNX, safetensors, собственные форматы фреймворков"
+  - "Карточки моделей (model cards) и документирование происхождения модели"
+objectives:
+  - "Объяснить, почему загрузка pickle из ненадёжного источника опасна, и назвать переносимые альтернативы."
+  - "Сериализовать модель в каноническую JSON-запись с полем format и прочитать её обратно с проверкой SHA-256, формата и согласованности размеров."
+  - "Зарегистрировать версии модели с метриками и run_id и вести их стадии, соблюдая правило «одна Production-версия на имя»."
+  - "Реализовать откат из Archived в Production и повышение по правилу улучшения метрики с порогом min_delta в режимах max и min."
+masteryCriteria:
+  - "Ваш serialize_model даёт одни и те же байты независимо от порядка ключей, а deserialize_model отвергает чужую сумму, неизвестный format и несогласованные размеры."
+  - "Ваш ModelRegistry нумерует версии отдельно для каждого имени и возвращает копии данных, а не внутреннее состояние."
+  - "Ваш transition отправляет прежнюю Production-версию в Archived и допускает откат."
+  - "Ваш promote_if_better повышает кандидата только при улучшении строго больше min_delta и не меняет стадии при отказе."
+  - "Ваш load проверяет контрольную сумму и бросает LookupError, если в стадии нет версий."
+tags: ["mlops", "model-registry", "serialization", "pickle", "mlflow", "versioning"]
+facts:
+  - kind: "security"
+    text: "Документация Python прямо предупреждает: модуль pickle небезопасен, и распаковывать можно только данные из доверенных источников. Специально собранный pickle способен выполнить произвольный код в момент загрузки. Для моделей из внешних источников (скачанные веса, файлы от подрядчика) используйте форматы, которые хранят только данные."
+    sources: ["https://docs.python.org/3/library/pickle.html"]
+  - kind: "internals"
+    text: "Формат safetensors создан как безопасная замена pickle для хранения тензоров: файл содержит заголовок с описанием тензоров и сырые байты, а загрузка не исполняет код. ONNX описывает граф вычислений независимо от фреймворка, и обученную модель можно запускать в другом окружении. Оба формата показывают общую идею: хранить данные и описание, а не исполняемый объект."
+    sources: ["https://huggingface.co/docs/safetensors", "https://onnx.ai/"]
+  - kind: "real-world"
+    text: "MLflow Model Registry хранит зарегистрированные модели с версиями, описаниями и тегами и связывает версию с запуском, который её породил. В прежних версиях MLflow жизненным циклом управляли стадиями (Staging, Production, Archived); в новых версиях вместо стадий рекомендуют псевдонимы (aliases). Сверяйтесь с документацией вашей версии."
+    sources: ["https://mlflow.org/docs/latest/model-registry/"]
+  - kind: "misconception"
+    text: "«Если метрика новой модели чуть выше, её надо сразу выкатывать». На конечной валидационной выборке разница в доли процента часто укладывается в шум, а замена модели в продакшене сама по себе несёт риск. Порог min_delta и сравнение на достаточно большой выборке защищают от смен модели по случайным колебаниям."
+  - kind: "performance"
+    text: "Хеш SHA-256 считается за время, пропорциональное размеру файла, и для весов в десятки мегабайт занимает доли секунды, а для гигабайтных чекпойнтов - заметное время. Поэтому сумму считают один раз при регистрации и хранят рядом с версией, а при загрузке только сверяют."
+    sources: ["https://docs.python.org/3/library/hashlib.html"]
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему нельзя загружать через pickle.loads файл модели, полученный из ненадёжного источника?"
+      options:
+        - "pickle не умеет читать числа с плавающей точкой"
+        - "При распаковке pickle может выполнить произвольный код, поэтому вредоносный файл способен запустить его на вашей машине"
+        - "pickle всегда медленнее JSON"
+        - "pickle нельзя использовать с Python 3"
+      answer: 1
+      explanation: "Формат pickle описывает, как собрать объект, и может содержать вызов произвольной функции, который выполняется при распаковке. Остальные ответы неверны: числа pickle читает, а скорость не имеет отношения к безопасности."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие из мер снижают риск загрузки подменённой или несовместимой модели? Выберите все верные варианты."
+      options:
+        - "Сохранять SHA-256 при регистрации и сверять его при загрузке"
+        - "Хранить модель в формате, который содержит только данные (например, JSON), а не исполняемые объекты"
+        - "Проверять поле format и согласованность размеров (число весов и признаков) после чтения"
+        - "Оборачивать pickle.loads в try/except"
+      answer: [0, 1, 2]
+      explanation: "Сумма ловит подмену и повреждение, формат только с данными лишает файл возможности запускать код, проверки format и размеров ловят несовместимую версию. try/except не мешает коду выполниться во время распаковки."
+    - id: "q3"
+      type: "single"
+      prompt: "Версия 1 модели находится в Production. Вы вызываете transition(name, 2, \"Production\"). В какой стадии окажется версия 1?"
+      options:
+        - "Останется в Production: их может быть несколько"
+        - "Archived: на одно имя приходится одна Production-версия, прежняя отправляется в архив"
+        - "None: стадия сбрасывается"
+        - "Версия 1 будет удалена из реестра"
+      answer: 1
+      explanation: "Реестр хранит одну рабочую версию каждой модели. Прежняя Production-версия не удаляется, а получает стадию Archived, поэтому к ней можно вернуться (откат) повторным переводом в Production."
+    - id: "q4"
+      type: "single"
+      prompt: "Production-версия имеет loss 0.5, кандидат - 0.25. Вызов promote_if_better(..., mode=\"min\", min_delta=0.25). Что вернёт функция?"
+      options:
+        - "True, так как кандидат лучше"
+        - "False: улучшение равно 0.25, а повышение требует улучшения строго больше min_delta"
+        - "False, потому что в режиме min кандидат должен иметь большее значение"
+        - "Функция выбросит ValueError"
+      answer: 1
+      explanation: "В режиме min улучшение считается как production - candidate = 0.25. Условие повышения - строго больше порога, поэтому равенство даёт False. Ответ «True» забывает про порог, а третий вариант путает направление: в min лучше меньшее значение."
+    - id: "q5"
+      type: "numeric"
+      prompt: "В пустой реестр зарегистрировали: a, b, a, a, b (пять вызовов register с именами по порядку). Какой номер версии вернёт следующий вызов register для имени \"a\"?"
+      answer: 4
+      tolerance: 0
+      explanation: "Нумерация идёт отдельно для каждого имени. Имя a уже встречалось три раза (версии 1, 2, 3), поэтому следующая версия - четвёртая. Версии b на это не влияют."
+exercise:
+  id: "mlops.fundamentals.model-registry.exercise"
+  title: "Сериализация модели и реестр со стадиями"
+  prompt: |
+    В файле `registry.py` реализуйте сериализацию модели и реестр. Тесты импортируют модуль и вызывают функции и методы напрямую; ничего не печатайте и не читайте ввод. Функция `canonical_json` уже готова.
+
+    **Модель** - словарь `{"name": str, "features": [str], "weights": [float], "bias": float, "threshold": float, "metadata": dict}`.
+
+    1. `serialize_model(model)` возвращает `bytes`: `canonical_json({"format": "linear-v1", **model})`, закодированный в UTF-8.
+    2. `deserialize_model(blob, expected_sha256=None)`. Если `expected_sha256` задан и не равен `hashlib.sha256(blob).hexdigest()`, выбросьте `ValueError` с сообщением, начинающимся с `checksum mismatch`. Затем разберите JSON; поле `format` должно быть равно `"linear-v1"`, а `len(weights)` должно равняться `len(features)`, иначе `ValueError`. Верните словарь модели без поля `format`.
+    3. Класс `ModelRegistry` хранит всё в памяти. Атрибут `STAGES = ("None", "Staging", "Production", "Archived")`.
+       * `register(name, blob, metrics, run_id)` сохраняет версию и возвращает её номер: 1, 2, 3... отдельно для каждого имени. Версия хранит `blob`, `sha256` (hex) от `blob`, копию `metrics`, `run_id` и стадию `"None"`.
+       * `get(name, version)` возвращает копию `{"name", "version", "stage", "sha256", "metrics", "run_id"}`; для неизвестного имени или версии - `KeyError`.
+       * `transition(name, version, stage)` переводит версию в стадию. Неизвестная стадия - `ValueError`, неизвестное имя или версия - `KeyError`. Перевод в `"Production"` переводит остальные Production-версии этого имени в `"Archived"`. Перевод из `"Archived"` в `"Production"` допустим (откат).
+       * `latest(name, stage="Production")` возвращает словарь, как `get`, для версии с наибольшим номером в этой стадии, либо `None`, если такой нет (в том числе для неизвестного имени).
+       * `promote_if_better(name, version, metric, mode="max", min_delta=0.0)` возвращает `bool`. Если у имени нет Production-версии, кандидат переводится в Production, результат `True`. Иначе улучшение равно `кандидат - текущая` при `mode="max"` и `текущая - кандидат` при `mode="min"`; кандидат повышается только если улучшение **строго больше** `min_delta`. При отказе стадии не меняются, результат `False`. `ValueError`, если у кандидата (или у текущей Production-версии) нет метрики `metric` либо `mode` не `"max"` и не `"min"`.
+       * `load(name, stage="Production")` находит `latest(name, stage)` и возвращает `deserialize_model(blob, expected_sha256=сохранённая сумма)`. Если версии в стадии нет, выбросьте `LookupError`.
+
+    **Пример.**
+
+    ```python
+    reg = ModelRegistry()
+    blob = serialize_model({"name": "churn", "features": ["age"], "weights": [0.5],
+                            "bias": 0.0, "threshold": 0.5, "metadata": {}})
+    v = reg.register("churn", blob, {"acc": 0.8}, "run-1")   # 1
+    reg.promote_if_better("churn", v, "acc")                  # True: Production пуст
+    reg.load("churn")["weights"]                              # [0.5]
+    ```
+  entryFile: "registry.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Начните с serialize_model и deserialize_model: это короткие функции без состояния. Затем класс: хранилище лучше завести как словарь «имя -> {версия: запись}»."
+    - "register: versions = self._models.setdefault(name, {}); version = len(versions) + 1; запись - словарь с blob, sha256 (hashlib.sha256(blob).hexdigest()), dict(metrics), run_id и stage. get собирает ответ из записи и копирует metrics через dict(...)."
+    - "transition: сначала проверьте stage in self.STAGES и существование записи (KeyError), затем при stage == \"Production\" пройдите по другим версиям имени и переведите Production в Archived. latest: max(...) по номерам версий с нужной стадией или None."
+    - "promote_if_better: сначала проверки (mode, наличие метрики), затем current = self.latest(name, \"Production\"); если current есть, считайте improvement и возвращайте False при not improvement > min_delta; иначе self.transition(name, version, \"Production\") и True. load: найдите версию через latest и передайте её blob и sha256 в deserialize_model."
+  tests:
+    - id: "serialize-roundtrip"
+      title: "serialize_model и deserialize_model: круг без потерь"
+      hint: "Байты - canonical_json с полем format, не зависят от порядка ключей; чтение возвращает исходную модель без format."
+    - id: "register-versions"
+      title: "register и get: номера версий и описание"
+      hint: "Нумерация с 1 отдельно для каждого имени; sha256 считается от blob; неизвестная версия - KeyError."
+    - id: "transition-production"
+      title: "transition: Production архивирует предыдущую"
+      hint: "Одна Production-версия на имя; неизвестная стадия - ValueError, неизвестная версия - KeyError."
+    - id: "promote-basic"
+      title: "promote_if_better: первая версия и сравнение по max"
+      hint: "Без Production кандидат повышается; худший кандидат не меняет стадий."
+    - id: "deserialize-errors"
+      title: "Ошибки чтения: сумма, формат, размеры (скрытый)"
+      hidden: true
+      hint: "Подмена содержимого при заданной сумме, чужой format, число весов не равно числу признаков и повреждённый JSON - ValueError."
+    - id: "rollback-latest-copies"
+      title: "Откат, latest и копии данных (скрытый)"
+      hidden: true
+      hint: "Archived -> Production архивирует текущую Production; latest берёт наибольший номер в стадии; get возвращает копию."
+    - id: "promote-modes"
+      title: "promote_if_better: режим min, порог и ошибки (скрытый)"
+      hidden: true
+      hint: "Улучшение строго больше min_delta; направление зависит от mode; отсутствие метрики - ValueError."
+    - id: "load"
+      title: "load: проверка суммы и отсутствие версии (скрытый)"
+      hidden: true
+      hint: "Загрузка по стадии, LookupError без подходящей версии, ValueError для чужого формата или несогласованных размеров."

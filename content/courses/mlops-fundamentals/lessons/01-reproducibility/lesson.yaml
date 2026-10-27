@@ -1,0 +1,138 @@
+id: "mlops.fundamentals.reproducibility"
+title: "Воспроизводимость: seed, отпечаток конфигурации, разбиение по хешу"
+goal: "Сделать запуск обучения повторяемым: вычислять отпечаток конфигурации из канонической JSON-формы и делить данные по хешу идентификатора так, чтобы разбиение не менялось при росте набора."
+difficulty: "medium"
+estimatedMinutes: 60
+prerequisites: ["ml.foundations.what-is-ml", "python.stdlib.json-csv-struct"]
+related: ["devops.fundamentals.build-pipelines-as-dags"]
+next: ["mlops.fundamentals.experiment-tracking"]
+seeAlso:
+  - "Детерминированные алгоритмы на GPU (torch.use_deterministic_algorithms) и их цена по скорости"
+  - "Фиксация окружения: lock-файлы, образы контейнеров с точными версиями"
+  - "Групповое и временное разбиение для данных с зависимостями"
+objectives:
+  - "Перечислить входы запуска обучения (код, данные, конфигурация, окружение, seed) и источники недетерминизма."
+  - "Использовать собственный генератор random.Random(seed) вместо глобального состояния."
+  - "Построить каноническую JSON-форму конфигурации и её отпечаток SHA-256."
+  - "Разбить объекты на train и test по хешу идентификатора с солью и объяснить, почему такое разбиение стабильно при дозагрузке данных."
+masteryCriteria:
+  - "Ваша canonical_json даёт одну строку для словарей с разным порядком ключей и отвергает NaN."
+  - "Ваш config_fingerprint совпадает с эталоном и меняется при любом изменении параметра или его типа."
+  - "Ваш hash_split сохраняет порядок входа, не переносит старые объекты при добавлении новых и проверяет диапазон test_percent."
+tags: ["mlops", "reproducibility", "seed", "hashing", "config", "train-test-split"]
+facts:
+  - kind: "internals"
+    text: "Встроенная функция hash() для строк и байтов в Python по умолчанию «солится» случайным значением при запуске интерпретатора, чтобы затруднить атаки на словари. Поэтому hash('user-1') различается между запусками, а для устойчивых разбиений и ключей кеша нужен hashlib. Поведение управляется переменной окружения PYTHONHASHSEED."
+    sources: ["https://docs.python.org/3/reference/datamodel.html#object.__hash__", "https://docs.python.org/3/using/cmdline.html#envvar-PYTHONHASHSEED"]
+  - kind: "internals"
+    text: "Стандарт JSON (RFC 8259) не допускает значений NaN и Infinity. Модуль json в Python по умолчанию всё равно записывает их как NaN и Infinity; параметр allow_nan=False заставляет json.dumps выбросить ValueError."
+    sources: ["https://docs.python.org/3/library/json.html#json.dump", "https://www.rfc-editor.org/rfc/rfc8259#section-6"]
+  - kind: "real-world"
+    text: "В PyTorch есть режим torch.use_deterministic_algorithms(True): операции без детерминированной реализации тогда выбрасывают ошибку, а не дают немного разный результат. Документация отдельно предупреждает, что полная воспроизводимость между версиями, платформами и устройствами не гарантируется."
+    sources: ["https://pytorch.org/docs/stable/notes/randomness.html"]
+  - kind: "misconception"
+    text: "«Зафиксировал seed - значит воспроизводимо». Seed повторяет только случайные решения; результат всё равно изменится при другой версии данных, библиотеки или порядке файлов в каталоге. Seed - необходимое, но не достаточное условие."
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Почему для отпечатка конфигурации нельзя просто взять hashlib.sha256(str(cfg).encode())?"
+      options:
+        - "str(cfg) работает слишком медленно"
+        - "Строка зависит от порядка ключей в словаре, поэтому эквивалентные конфигурации получат разные отпечатки"
+        - "SHA-256 не принимает строки"
+        - "str(cfg) не поддерживает числа"
+      answer: 1
+      explanation: "Словари в Python помнят порядок вставки, и str выводит ключи в этом порядке. Каноническая форма с sort_keys=True убирает эту зависимость. Скорость здесь ни при чём."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что изменит отпечаток config_fingerprint из урока? Выберите все верные варианты."
+      options:
+        - "Порядок ключей в словаре конфигурации"
+        - "Замена \"seed\": 42 на \"seed\": \"42\""
+        - "Изменение порядка элементов в списке features"
+        - "Замена \"lr\": 1 на \"lr\": 1.0"
+      answer: [1, 2, 3]
+      explanation: "Ключи сортируются, поэтому их порядок не важен. Тип значения (строка или число), порядок в списке и запись 1 против 1.0 дают разные канонические строки и разные отпечатки."
+    - id: "q3"
+      type: "single"
+      prompt: "В набор данных добавили 10% новых пользователей. Что произойдёт со старыми пользователями при разбиении hash_split с той же солью?"
+      options:
+        - "Около 10% из них поменяют часть"
+        - "Все останутся в своих частях"
+        - "Все перейдут в train"
+        - "Результат зависит от seed генератора random"
+      answer: 1
+      explanation: "Корзина объекта вычисляется только из соли и его id. Другие объекты на неё не влияют, поэтому старые пользователи остаются на месте. Перетасовка - свойство случайного разбиения через shuffle."
+    - id: "q4"
+      type: "single"
+      prompt: "Почему встроенный hash() не подходит для разбиения по идентификатору?"
+      options:
+        - "Он возвращает отрицательные числа"
+        - "Для строк он рандомизирован между запусками интерпретатора"
+        - "Он не определён для строк"
+        - "Он медленнее SHA-256"
+      answer: 1
+      explanation: "Хеш строк солится случайным значением при старте Python (PYTHONHASHSEED), поэтому разбиение менялось бы от запуска к запуску. Отрицательные значения легко исправить взятием по модулю, а вот нестабильность - нет."
+    - id: "q5"
+      type: "numeric"
+      prompt: "При hash_split с test_percent = 25 у объекта корзина bucket = 25. В какую часть он попадёт? Введите 1, если в test, и 0, если в train."
+      answer: 0
+      tolerance: 0
+      explanation: "Условие строгое: в test попадают корзины 0..24, то есть ровно 25 корзин из 100. Корзина 25 уходит в train."
+exercise:
+  id: "mlops.fundamentals.reproducibility.exercise"
+  title: "Отпечаток конфигурации и стабильное разбиение"
+  prompt: |
+    В файле `repro.py` реализуйте три функции. Тесты импортируют модуль и вызывают функции напрямую; ничего не печатайте и не читайте ввод. Функция `bucket(object_id, salt)` уже готова.
+
+    1. `canonical_json(obj)` возвращает каноническую JSON-строку: ключи по алфавиту на всех уровнях, разделители `","` и `":"` без пробелов, не-ASCII символы как есть (`ensure_ascii=False`), `NaN` и бесконечности запрещены (`ValueError`).
+    2. `config_fingerprint(cfg)` возвращает первые 12 символов `hashlib.sha256(...).hexdigest()` от `canonical_json(cfg)`, закодированной в UTF-8.
+    3. `hash_split(ids, test_percent, salt)` возвращает кортеж `(train, test)` из двух списков. Объект уходит в `test`, если `bucket(id, salt) < test_percent`, иначе в `train`; порядок внутри частей - как во входном списке. Если `test_percent` не в диапазоне `0..100`, выбросьте `ValueError`.
+
+    **Пример.**
+
+    ```python
+    canonical_json({"seed": 42, "lr": 0.1})                  # '{"lr":0.1,"seed":42}'
+    config_fingerprint({"model": "logreg", "lr": 0.1, "seed": 42})   # '344ef8961401'
+    train, test = hash_split(["a", "b", "c"], 0, "v1")       # (['a', 'b', 'c'], [])
+    ```
+  entryFile: "repro.py"
+  evaluation: "harness"
+  harness: "exercise/harness"
+  harnessEntry: "check.py"
+  hints:
+    - "Все три функции короткие. Начните с canonical_json: нужный результат даёт один вызов json.dumps с четырьмя именованными параметрами."
+    - "Параметры json.dumps: sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False, allow_nan=False. Отпечаток - хеш от этой строки, а не от словаря."
+    - "config_fingerprint: hashlib.sha256(canonical_json(cfg).encode(\"utf-8\")).hexdigest()[:12]."
+    - "hash_split: сначала проверка if not 0 <= test_percent <= 100: raise ValueError(...); затем два пустых списка и цикл по ids с bucket(object_id, salt) < test_percent."
+  tests:
+    - id: "canonical-order"
+      title: "Каноническая форма не зависит от порядка ключей"
+      hint: "Ключи сортируются на всех уровнях вложенности, разделители без пробелов."
+    - id: "fingerprint-format"
+      title: "Отпечаток: 12 шестнадцатеричных символов, совпадение с эталоном"
+      hint: "SHA-256 от canonical_json(cfg) в UTF-8, первые 12 символов hexdigest."
+    - id: "split-partition"
+      title: "Разбиение совпадает с эталоном и сохраняет порядок"
+      hint: "В test - объекты с bucket(id, salt) < test_percent, порядок как во входе."
+    - id: "split-stable-growth"
+      title: "Новые объекты не двигают старые"
+      hint: "Решение по каждому объекту зависит только от его id и соли."
+    - id: "canonical-unicode-nan"
+      title: "Кириллица и NaN (скрытый)"
+      hidden: true
+      hint: "Кириллица пишется как есть; NaN и бесконечность должны приводить к ValueError."
+    - id: "fingerprint-sensitive"
+      title: "Отпечаток чувствителен к значениям и типам (скрытый)"
+      hidden: true
+      hint: "Строка \"20\" и число 20 - разные конфигурации; порядок элементов списка тоже важен."
+    - id: "split-range"
+      title: "Границы 0 и 100, пустой список, недопустимые доли (скрытый)"
+      hidden: true
+      hint: "При 0 всё в train, при 100 всё в test; -1 и 101 - ValueError."
+    - id: "split-salt"
+      title: "Соль и числовые идентификаторы (скрытый)"
+      hidden: true
+      hint: "Другая соль - другое разбиение; числовой id хешируется через ту же f-строку."
