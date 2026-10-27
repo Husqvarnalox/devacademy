@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.LogicalTree;
 using DevAcademy.Desktop.ViewModels;
 
 namespace DevAcademy.Desktop.Views;
@@ -43,6 +44,8 @@ public partial class LessonWorkspaceView : UserControl
         if (_vm is not null) _vm.PropertyChanged -= OnVmChanged;
         _vm = DataContext as LessonWorkspaceViewModel;
         if (_vm is not null) _vm.PropertyChanged += OnVmChanged;
+        // The app's DataTemplate reuses this view for the next lesson, so its scroll viewers would keep the previous lesson's offset.
+        foreach (var scroll in this.FindControl<Grid>("CenterPane")!.GetLogicalDescendants().OfType<ScrollViewer>()) scroll.ScrollToHome();
         Arrange();
     }
 

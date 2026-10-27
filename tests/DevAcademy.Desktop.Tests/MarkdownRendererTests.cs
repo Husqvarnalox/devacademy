@@ -2,6 +2,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.LogicalTree;
+using Avalonia.Media;
 using DevAcademy.Desktop.Markdown;
 
 namespace DevAcademy.Desktop.Tests;
@@ -71,6 +72,25 @@ public class MarkdownRendererTests
         var title = Assert.Single(all.OfType<TextBlock>(), t => t.Classes.Contains("md-section"));
         Assert.Equal("Просто", PlainText(title));
         Assert.DoesNotContain(all.OfType<TextBlock>(), t => t.Text?.Contains("section:") == true);
+    }
+
+    [AvaloniaFact]
+    public void Inline_links_fit_the_body_line_so_wrapped_text_is_not_clipped()
+    {
+        // Go lesson 01 summary: the link wraps onto the last line, and a taller link pushed that line's text out of the paragraph.
+        var root = MarkdownRenderer.Render(
+            "Это основа: любая следующая программа в курсе устроена так же, меняется только содержимое `main`. " +
+            "В следующем уроке вы научитесь читать сообщения компилятора и исправлять ошибки: [Как читать сообщения об ошибках](lesson:go.first-steps.compiler-errors).");
+        var window = new Window { Content = root, Width = 760, Height = 400 };
+        window.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        var paragraph = Assert.Single(All(root).OfType<SelectableTextBlock>(), t => t.Classes.Contains("md-p"));
+        var button = Assert.Single(LinkButtons(root));
+        Assert.True(button.Bounds.Height <= paragraph.LineHeight, $"link is {button.Bounds.Height}px tall, line is {paragraph.LineHeight}px");
+        Assert.Equal(FontWeight.Normal, ((TextBlock)button.Content!).FontWeight);
+        Assert.True(TextBlock.GetBaselineOffset(button) > 0, "link is not aligned to the text baseline");
+        window.Close();
     }
 
     [AvaloniaFact]

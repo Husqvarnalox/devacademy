@@ -83,7 +83,7 @@
     <KeyBinding Gesture="F11" Command="{Binding Debug.StepIntoCommand}" />
     <KeyBinding Gesture="Shift+F11" Command="{Binding Debug.StepOutCommand}" />
   </UserControl.KeyBindings>
-  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,260">
     <!-- Toolbar: file name left; Debug, Check and Run (primary) right and never wrap; hint / reset / save live in the overflow menu. -->
     <Border Grid.Row="0" Classes="bar" MinHeight="44" Padding="12,0,8,0">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="6">
@@ -190,7 +190,7 @@
 
     <!-- Output -->
     <!-- Tab order must match ExerciseSessionViewModel.ConsoleTab..DebugTab. -->
-    <TabControl Grid.Row="5" Height="260" SelectedIndex="{Binding OutputTab}" Padding="0">
+    <TabControl Name="OutputTabs" Grid.Row="5" Classes="oneline" SelectedIndex="{Binding OutputTab}" Padding="0">
       <TabItem Header="{loc:T Out_Console}" IsVisible="{Binding CanRun}">
         <ScrollViewer>
           <StackPanel Margin="12,10" Spacing="10">
@@ -226,7 +226,7 @@
       <TabItem Header="{Binding HintsHeader}" IsVisible="{Binding HasHints}">
         <ScrollViewer>
           <StackPanel Margin="12,10" Spacing="8">
-            <TextBlock Text="{loc:T Hints_None}" Classes="secondary" IsVisible="{Binding !RevealedCount}" />
+            <TextBlock Text="{loc:T Hints_Intro}" Classes="secondary" TextWrapping="Wrap" IsVisible="{Binding !RevealedCount}" />
             <ItemsControl ItemsSource="{Binding Hints}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:HintItemViewModel">
@@ -237,6 +237,10 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <Button Name="NextHintButton" Command="{Binding RevealHintCommand}" IsVisible="{Binding CanRevealHint}" HorizontalAlignment="Left" Classes="compact"
+                    ToolTip.Tip="{loc:T Editor_HintTip}">
+              <StackPanel Orientation="Horizontal" Spacing="6"><ctl:Icon Kind="lightbulb" Size="14" /><TextBlock Text="{Binding NextHintButtonText}" /></StackPanel>
+            </Button>
             <Button Content="{loc:T Solution_Button}" Command="{Binding ShowSolutionCommand}" IsVisible="{Binding HasSolution}" HorizontalAlignment="Left" Classes="compact" />
             <ItemsControl ItemsSource="{Binding SolutionFiles}" IsVisible="{Binding IsSolutionVisible}">
               <ItemsControl.ItemTemplate>

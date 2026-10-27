@@ -475,7 +475,8 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" /><Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" />
   </Style>
 
-  <!-- Quiz option row: selected = AccentSubtle + accent border; after checking, selected rows turn success/danger -->
+  <!-- Quiz option row: selected = AccentSubtle + accent border; after checking, each row shows its own outcome: a right pick turns success,
+       a wrong pick danger, and a right answer that was not picked gets a success border (plus a caption, so colour is not the only cue) -->
   <Style Selector="Border.option">
     <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource LineStrongBrush}" />
@@ -485,8 +486,9 @@
     <Setter Property="Margin" Value="0,0,0,6" />
   </Style>
   <Style Selector="Border.option.selected"><Setter Property="Background" Value="{DynamicResource AccentSubtleBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" /></Style>
-  <Style Selector="Border.option.selected.correct"><Setter Property="Background" Value="{DynamicResource SuccessSubtleBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" /></Style>
-  <Style Selector="Border.option.selected.wrong"><Setter Property="Background" Value="{DynamicResource DangerSubtleBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" /></Style>
+  <Style Selector="Border.option.correct"><Setter Property="Background" Value="{DynamicResource SuccessSubtleBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" /></Style>
+  <Style Selector="Border.option.wrong"><Setter Property="Background" Value="{DynamicResource DangerSubtleBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" /></Style>
+  <Style Selector="Border.option.missed"><Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" /></Style>
 
   <!-- ================= Inputs ================= -->
   <Style Selector="TextBox">
@@ -517,6 +519,41 @@
     <Setter Property="FontWeight" Value="Medium" />
     <Setter Property="MinHeight" Value="36" />
     <Setter Property="Padding" Value="10,0" />
+  </Style>
+  <!-- One-line tab strip: the Fluent template with the headers in a horizontal scroller instead of a WrapPanel, so a narrow pane
+       scrolls the strip rather than moving the last tabs onto a second line. Top placement only. -->
+  <Style Selector="TabControl.oneline">
+    <Setter Property="ItemsPanel">
+      <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+    </Setter>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="{TemplateBinding CornerRadius}"
+                Background="{TemplateBinding Background}"
+                HorizontalAlignment="{TemplateBinding HorizontalAlignment}"
+                VerticalAlignment="{TemplateBinding VerticalAlignment}">
+          <DockPanel>
+            <ScrollViewer Name="PART_TabStrip" DockPanel.Dock="Top" Margin="{DynamicResource TabControlTopPlacementItemMargin}"
+                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+              <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+            </ScrollViewer>
+            <Panel ClipToBounds="True">
+              <ContentPresenter Name="PART_SelectedContentHost2"
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                IsVisible="False" />
+              <ContentPresenter Name="PART_SelectedContentHost"
+                                Margin="{TemplateBinding Padding}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Panel>
+          </DockPanel>
+        </Border>
+      </ControlTemplate>
+    </Setter>
   </Style>
   <Style Selector="ListBox"><Setter Property="Background" Value="Transparent" /></Style>
   <Style Selector="ListBoxItem"><Setter Property="CornerRadius" Value="6" /></Style>

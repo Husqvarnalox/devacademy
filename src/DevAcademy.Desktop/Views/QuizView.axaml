@@ -28,10 +28,13 @@
               <ItemsControl ItemsSource="{Binding SingleOptions}" IsVisible="{Binding IsSingle}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:QuizOptionViewModel">
-                    <Border Classes="option" Classes.selected="{Binding IsSelected}" Classes.correct="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsCorrect}" Classes.wrong="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsWrong}">
+                    <Border Classes="option" Classes.selected="{Binding IsSelected}" Classes.correct="{Binding IsRightPick}" Classes.wrong="{Binding IsWrongPick}" Classes.missed="{Binding IsMissed}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <RadioButton Content="{Binding Text}" IsChecked="{Binding IsSelected}"
                                  GroupName="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).GroupName}"
                                  IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                    <TextBlock Grid.Column="1" Text="{loc:T Quiz_MissedAnswer}" Classes="caption success" VerticalAlignment="Center" IsVisible="{Binding IsMissed}" />
+                    </Grid>
                     </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -39,9 +42,12 @@
               <ItemsControl ItemsSource="{Binding MultipleOptions}" IsVisible="{Binding IsMultiple}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:QuizOptionViewModel">
-                    <Border Classes="option" Classes.selected="{Binding IsSelected}" Classes.correct="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsCorrect}" Classes.wrong="{Binding $parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsWrong}">
+                    <Border Classes="option" Classes.selected="{Binding IsSelected}" Classes.correct="{Binding IsRightPick}" Classes.wrong="{Binding IsWrongPick}" Classes.missed="{Binding IsMissed}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                     <CheckBox Content="{Binding Text}" IsChecked="{Binding IsSelected}"
                               IsEnabled="{Binding !$parent[ItemsControl].((vm:QuizQuestionViewModel)DataContext).IsLocked}" />
+                    <TextBlock Grid.Column="1" Text="{loc:T Quiz_MissedAnswer}" Classes="caption success" VerticalAlignment="Center" IsVisible="{Binding IsMissed}" />
+                    </Grid>
                     </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
