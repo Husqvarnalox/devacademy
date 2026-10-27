@@ -492,6 +492,14 @@ light-my-request]`. Requests are injected into the app function without opening 
 by the no-network sandbox (EPERM), while light-my-request works under it. `vitest.config.mjs` for them: `test: { environment: "node",
 fsModuleCache: false, include: ["tests/**/*.test.mjs"] }` (`fsModuleCache: false` stops Vitest from creating `node_modules/.vitest-cache`, which is
 read-only at grading time).
+Next.js courses (`nextjs-fundamentals`, `languageId: typescript`) use the `nextjs` set (`next` pinned next to the same React/Vitest versions as the
+`react` set) and `npmPackages: [vitest, jsdom, next, react, react-dom, "@testing-library/react"]`. Vitest strips the TypeScript types (no tsc). What works
+in the sandbox: `NextRequest`/`NextResponse` from `next/server` (route handlers get real requests; test files start with `// @vitest-environment node`),
+the proxy helpers of `next/experimental/testing/server` (`unstable_doesMiddlewareMatch`, `getRedirectUrl`, `isRewrite`, `getRewrittenUrl`), `next/link` in
+jsdom, awaiting an async Server Component and rendering the element it returns, `useActionState`. `notFound()`, `redirect()` and the `next/cache` functions
+need a Next request context, so tests replace them with `vi.mock`. `next build` and `next dev` do not run: Turbopack refuses the linked `node_modules`
+outside the project root, and `next build --webpack` alone needs about 350 MB (plus worker processes) against the 256 MB run limit. `typescript run`
+theory samples are type-checked by tsc and cannot import `next/*`; real Next.js code in theory goes into non-run blocks.
 Allowed Vitest flags are an allowlist (`--reporter` junit/default/verbose/dot, `--outputFile`, `--config`, `--pool`, `--environment`,
 `--testTimeout`, `--maxWorkers`, `--no-file-parallelism`, `--silent`, `--passWithNoTests`, `--globals`); watch, ui, browser, coverage and update
 flags are rejected. The validator requires every package the tool needs to be in `npmPackages`. Theory samples of a lesson with such an
@@ -509,7 +517,7 @@ A learner's machine downloads only the packages of the library being studied, so
 Node sets are `node/<id>/{package.json,package-lock.json}` (lock generated with `npm install --package-lock-only --ignore-scripts`; shared
 versions must be identical across sets); Python sets are `python/<id>.txt` with pinned requirements; Go sets are `go/<id>/{go.mod,go.sum}` (`packages` lists
 the top-level module paths). Current sets: node `react`, `typescript`,
-`express`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`; nuget `aspnetcore-testing`; maven `spring-boot-web-test`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
+`express`, `nextjs`; python `numpy`, `pandas`, `fastapi`, `django`; go `gomlx`; nuget `aspnetcore-testing`; maven `spring-boot-web-test`. `tools/python-dev-requirements.txt` includes every Python set (`-r`) plus ipykernel.
 
 A set may carry an optional `platforms` list of the .NET RIDs it can be installed on (`osx-arm64`, `osx-x64`, `linux-x64`, `linux-arm64`, `win-x64`,
 `win-arm64`); absent means every platform. Use it when an upstream library has no builds for a platform (`pytorch`: PyTorch publishes no macOS Intel wheels, so

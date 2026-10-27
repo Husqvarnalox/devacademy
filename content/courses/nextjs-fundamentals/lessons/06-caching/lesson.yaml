@@ -1,0 +1,227 @@
+id: "nextjs.fundamentals.caching"
+title: "Кэширование и повторная проверка данных"
+goal: "Кэшировать данные и компоненты директивой \"use cache\" с cacheLife и cacheTag, сбрасывать кэш после изменений через updateTag и revalidateTag и не читать данные запроса внутри кэша."
+difficulty: "medium"
+estimatedMinutes: 85
+prerequisites:
+  - "nextjs.fundamentals.server-actions"
+objectives:
+  - "Объяснить, зачем нужен кэш и что при cacheComponents: true всё динамическое по умолчанию, а кэш включается явно."
+  - "Применить \"use cache\" на уровне функции, компонента и файла и объяснить, из чего состоит ключ кэша."
+  - "Выбрать профиль cacheLife (hours, days, max и другие) и назвать три времени профиля: stale, revalidate, expire."
+  - "Пометить данные cacheTag и сбросить их: revalidateTag(tag, \"max\"), updateTag(tag), revalidatePath."
+  - "Читать cookies, headers и searchParams вне кэша и передавать значения аргументами, оборачивая динамическую часть в Suspense."
+  - "Описать статическую оболочку при next build и честно оценить, что проверяют тесты Vitest."
+masteryCriteria:
+  - "Вы ставите \"use cache\" первым оператором тела функции и всегда указываете cacheLife и теги."
+  - "Вы выбираете между updateTag и revalidateTag по тому, нужно ли пользователю сразу увидеть свою запись."
+  - "Вы не вызываете cookies(), headers() и не читаете searchParams внутри кэшируемой области."
+related:
+  - "nextjs.fundamentals.server-components"
+  - "nextjs.fundamentals.server-actions"
+  - "nextjs.fundamentals.proxy"
+next:
+  - "nextjs.fundamentals.proxy"
+tags:
+  - "nextjs"
+  - "caching"
+  - "use-cache"
+  - "cacheTag"
+  - "revalidateTag"
+facts:
+  - kind: "internals"
+    text: "Ключ записи \"use cache\" строится из идентификатора сборки, идентификатора функции и сериализуемых аргументов; значения, замкнутые из внешней области, тоже становятся частью ключа. Поэтому разные аргументы дают отдельные записи, а новая сборка сбрасывает кэш целиком. Данные запроса (cookies, headers) в кэшируемой области читать нельзя: их передают аргументами."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/directives/use-cache"
+  - kind: "misconception"
+    text: "«revalidateTag сразу выбрасывает запись, и следующий запрос получит свежие данные». С профилем \"max\" revalidateTag только помечает запись устаревшей: пока идёт обновление, отдаётся прежнее значение (stale-while-revalidate). Чтобы пользователь сразу увидел свою запись, в серверном действии используют updateTag, который списывает запись немедленно."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/functions/revalidateTag"
+      - "https://nextjs.org/docs/app/api-reference/functions/updateTag"
+  - kind: "historical"
+    text: "До Next.js 16 кэширование строилось на параметрах fetch, unstable_cache и настройках сегмента маршрута. В Next.js 16 появились Cache Components (флаг cacheComponents, директива \"use cache\", cacheLife, cacheTag), revalidateTag получил обязательный второй аргумент-профиль, а updateTag и refresh - новые функции для серверных действий. Прежняя модель остаётся для проектов без cacheComponents."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/caching"
+      - "https://nextjs.org/docs/app/guides/upgrading/version-16"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Как ведёт себя функция получения данных в приложении с cacheComponents: true, если в ней нет директивы \"use cache\"?"
+      options:
+        - "Результат кэшируется автоматически на час."
+        - "Она динамическая: работа выполняется заново, кэширование нужно включить явно."
+        - "Next.js не соберёт приложение, пока директива не добавлена."
+        - "Кэшируется только результат вызова fetch."
+      answer: 1
+      explanation: "С включённым флагом всё динамическое по умолчанию, а кэш выбирают директивой. Автоматического кэша на час нет, сборка не требует директивы в каждой функции, а правило про fetch относится к прежней модели без cacheComponents."
+    - id: "q2"
+      type: "single"
+      prompt: "Что делает revalidateTag(\"products\", \"max\")?"
+      options:
+        - "Сразу удаляет записи с тегом products: следующий запрос ждёт свежих данных."
+        - "Помечает записи с тегом products устаревшими: пока идёт обновление, отдаётся прежнее значение."
+        - "Сбрасывает весь кэш приложения."
+        - "Ничего: без третьего аргумента вызов не действует."
+      answer: 1
+      explanation: "С профилем max работает схема stale-while-revalidate. Немедленное списание записи - поведение updateTag, а сброс по тегу не затрагивает весь кэш."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что верно про updateTag?"
+      options:
+        - "Его можно вызывать только в серверных действиях."
+        - "Он предназначен для сценария read-your-own-writes: пользователь сразу видит свои изменения."
+        - "Его можно вызвать в обработчике маршрута, например в вебхуке."
+        - "Он принимает вторым аргументом профиль cacheLife."
+      answer:
+        - 0
+        - 1
+      explanation: "updateTag(tag) доступен только в серверных действиях и сразу списывает записи. В обработчике маршрута применяют revalidateTag(tag, \"max\") или с { expire: 0 }. Второго аргумента у updateTag нет."
+    - id: "q4"
+      type: "single"
+      prompt: "Как правильно использовать язык (cookie) в кэшируемой функции getPrices?"
+      options:
+        - "Вызвать cookies() внутри getPrices: значение войдёт в ключ."
+        - "Прочитать cookie в компоненте и передать значение аргументом: getPrices(currency)."
+        - "Положить значение в глобальную переменную перед вызовом."
+        - "Обернуть cookies() в try/catch внутри getPrices."
+      answer: 1
+      explanation: "Кэш общий для запросов, поэтому внутри области кэша cookies() и headers() запрещены. Аргумент входит в ключ кэша, и у каждой валюты своя запись. Глобальная переменная не попадает в ключ и смешает чужие данные."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция из next/cache, которая помечает кэшируемые данные ярлыками для сброса? Введите имя функции."
+      answer:
+        - "cacheTag"
+        - "cachetag"
+      explanation: "cacheTag(\"products\", \"product-1\") вызывается внутри области кэша и принимает один или несколько тегов; по ним потом сбрасывают записи через revalidateTag или updateTag."
+exercise:
+  id: "nextjs.fundamentals.caching.exercise"
+  title: "Каталог: кэш и сброс по тегам"
+  prompt: |
+    Нужно объявить кэш для функций каталога и написать серверные действия, которые сбрасывают его после изменений. Источник данных готов: `src/lib/source.ts` (менять не нужно) - функции `fetchProducts()`, `fetchProduct(id)` (возвращает товар или `null`), `fetchPrices(currency)`, `savePrice(id, price)` (возвращает `false`, если товара нет) и `importAll()`.
+
+    Важно: Vitest не исполняет кэш, у него нет компилятора Next.js. Тесты читают ваш исходный код (директива должна стоять первым оператором тела функции) и подменяют `next/cache` макетами, которые записывают вызовы `cacheTag`, `cacheLife`, `updateTag`, `revalidateTag`. Они проверяют, что код объявляет и сбрасывает кэш правильно. Настоящее кэширование происходит только при `next build` и `next start`.
+
+    **`src/lib/catalog.ts`** - три асинхронные функции (объявления `export async function`). В каждой первым оператором тела стоит `"use cache"`, затем `cacheTag(...)` и `cacheLife("hours")`, затем возврат результата из источника:
+
+    * `getProducts()` - тег `products`, данные из `fetchProducts()`;
+    * `getProduct(id)` - теги `products` и `product-<id>` (например, `product-p1`), данные из `fetchProduct(id)`;
+    * `getPrices(currency)` - тег `products`, данные из `fetchPrices(currency)`. Валюта приходит **аргументом**; читать cookie или заголовки (`next/headers`) в этом файле нельзя.
+
+    Теги можно передать одним вызовом `cacheTag("products", "product-p1")` или несколькими вызовами.
+
+    **`src/app/admin/actions.ts`** - файл серверных действий (`"use server"` первым оператором):
+
+    * `updatePrice(id: string, price: number)` возвращает `{ ok: true }` или `{ ok: false, error }`. Проверки по порядку: цена конечное число больше нуля (ошибка `Цена должна быть числом больше нуля`); не больше 1 000 000 (ошибка `Цена не может быть больше 1000000`); не больше двух знаков после запятой (ошибка `Не больше двух знаков после запятой`). Затем `savePrice(id, price)`; если вернулось `false` - `{ ok: false, error: "Товар не найден" }`. После успешного сохранения: `updateTag("product-" + id)` и `revalidateTag("products", "max")`, результат `{ ok: true }`. При любой ошибке сохранять и сбрасывать кэш нельзя.
+    * `importCatalog()` вызывает `importAll()`, затем только `revalidateTag("products", "max")` (без `updateTag` и `revalidatePath`) и возвращает `{ ok: true }`.
+
+    `revalidateTag` всегда вызывается с двумя аргументами. Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/lib/catalog.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Три пункта на каждую функцию каталога: директива, теги, срок жизни. Директива \"use cache\" - первая строка внутри фигурных скобок функции, до cacheTag и cacheLife (импортируются из next/cache)."
+    - "getProduct: cacheTag(\"products\", \"product-\" + id); cacheLife(\"hours\"). getPrices принимает currency параметром и передаёт его в fetchPrices - так валюта попадает в ключ кэша."
+    - "updatePrice: сначала три проверки цены с ранним возвратом ошибки, потом savePrice. Для двух знаков после запятой сравните Math.round(price * 100) / 100 с price."
+    - "После успешного сохранения вызовите updateTag(\"product-\" + id) и revalidateTag(\"products\", \"max\"). В importCatalog остаётся только revalidateTag(\"products\", \"max\"). Файл actions.ts должен начинаться с \"use server\";."
+  tests:
+    - id: "use-cache"
+      title: "Каталог: директива use cache"
+      match: "Директивы > каждая функция каталога*"
+      hint: "\"use cache\" должен быть первым оператором тела каждой из трёх функций, до остальных строк."
+    - id: "products-tags"
+      title: "getProducts: тег и срок жизни"
+      match: "getProducts > помечает кэш*"
+      hint: "Внутри функции вызовите cacheTag(\"products\") и cacheLife(\"hours\")."
+    - id: "update-price"
+      title: "updatePrice: сохранение и сброс"
+      match: "updatePrice > сохраняет цену*"
+      hint: "После savePrice вызовите updateTag(\"product-\" + id) и revalidateTag(\"products\", \"max\")."
+    - id: "import-catalog"
+      title: "importCatalog: только revalidateTag"
+      match: "importCatalog > помечает products*"
+      hint: "Один вызов revalidateTag(\"products\", \"max\"); updateTag и revalidatePath не нужны."
+    - id: "use-server"
+      title: "actions.ts: директива use server (скрытый)"
+      match: "Директивы > admin/actions.ts*"
+      hint: "Строка \"use server\"; открывает файл действий."
+      hidden: true
+    - id: "no-runtime-apis"
+      title: "Каталог без cookies и headers (скрытый)"
+      match: "Директивы > каталог не читает*"
+      hint: "Не импортируйте next/headers: значение приходит в функцию аргументом."
+      hidden: true
+    - id: "product-tags"
+      title: "getProduct: два тега (скрытый)"
+      match: "getProduct > помечает кэш тегами*"
+      hint: "Теги products и product-<id>; можно одним вызовом cacheTag с двумя аргументами."
+      hidden: true
+    - id: "product-tags-differ"
+      title: "getProduct: теги разных товаров (скрытый)"
+      match: "getProduct > для разных товаров*"
+      hint: "Тег товара строится из id: \"product-\" + id."
+      hidden: true
+    - id: "product-null"
+      title: "getProduct: неизвестный товар (скрытый)"
+      match: "getProduct > возвращает null*"
+      hint: "Результат fetchProduct возвращайте как есть."
+      hidden: true
+    - id: "prices-arg"
+      title: "getPrices: валюта аргументом (скрытый)"
+      match: "getPrices > принимает валюту*"
+      hint: "Передайте currency в fetchPrices(currency)."
+      hidden: true
+    - id: "prices-tags"
+      title: "getPrices: тег и срок жизни (скрытый)"
+      match: "getPrices > объявляет срок*"
+      hint: "cacheTag(\"products\") и cacheLife(\"hours\") внутри getPrices."
+      hidden: true
+    - id: "prices-error"
+      title: "getPrices: ошибка источника (скрытый)"
+      match: "getPrices > не скрывает ошибку*"
+      hint: "Не перехватывайте ошибку источника: пусть исключение пройдёт наружу."
+      hidden: true
+    - id: "price-invalid"
+      title: "updatePrice: неверная цена (скрытый)"
+      match: "updatePrice > отклоняет нулевую*"
+      hint: "Проверьте Number.isFinite(price) и price > 0 до сохранения."
+      hidden: true
+    - id: "price-max"
+      title: "updatePrice: верхняя граница (скрытый)"
+      match: "updatePrice > принимает цену ровно*"
+      hint: "1000000 допустимо, больше - ошибка; сравнивайте строго price > 1_000_000."
+      hidden: true
+    - id: "price-decimals"
+      title: "updatePrice: два знака (скрытый)"
+      match: "updatePrice > принимает два знака*"
+      hint: "Math.round(price * 100) / 100 !== price означает больше двух знаков."
+      hidden: true
+    - id: "price-no-effects"
+      title: "updatePrice: без побочных эффектов при ошибке (скрытый)"
+      match: "updatePrice > при неверной цене*"
+      hint: "Проверки идут до savePrice; при ошибке сразу возвращайте результат."
+      hidden: true
+    - id: "price-unknown"
+      title: "updatePrice: неизвестный товар (скрытый)"
+      match: "updatePrice > для неизвестного товара*"
+      hint: "Если savePrice вернул false, верните ошибку и не сбрасывайте теги."
+      hidden: true
+    - id: "revalidate-two-args"
+      title: "revalidateTag всегда с профилем (скрытый)"
+      match: "updatePrice > не вызывает revalidateTag*"
+      hint: "Второй аргумент обязателен: revalidateTag(\"products\", \"max\")."
+      hidden: true

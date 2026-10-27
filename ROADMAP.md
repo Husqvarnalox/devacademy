@@ -56,7 +56,7 @@ a dev server or a browser is blocked on Project Workspaces; exercises graded by 
 |---|---|---|
 | A. Foundations | JavaScript, TypeScript, Node.js, HTML/CSS/Browser | JavaScript and TypeScript: from-zero (23 and 24 lessons), for-programmers, skill checks, then `*-first-steps` and `*-fundamentals`. Node.js: `nodejs-first-steps` (2 lessons, for programmers). HTML/CSS/Browser: Planned (needs web preview module) |
 | B. Core frameworks | React, Vue, Angular, Express, Fastify, NestJS | Partial: `react-fundamentals` (6 lessons, graded by real Vitest + Testing Library in the sandbox, packages from the pinned node content environment). Others: Planned |
-| C. Fullstack | Next.js, Nuxt, SvelteKit, Astro | Planned |
+| C. Fullstack | Next.js, Nuxt, SvelteKit, Astro | Partial: `nextjs-fundamentals` (7 lessons, Next.js 16 App Router; graded by real Next.js + Vitest in the sandbox with the pinned `nextjs` package set: route handlers, server/client components, server actions, cache declarations, proxy). `next dev`/`next build` do not run in the sandbox (theory only, needs Project Workspaces). Nuxt, SvelteKit, Astro: Planned |
 | D. Advanced ecosystem | State management, ORMs, testing (Vitest/Jest/Playwright), performance, security, deploy | Planned |
 | E. Additional | SolidJS, Qwik, Hono, AdonisJS, TanStack Start | Planned |
 | F. AI/ML in JS | TensorFlow.js, Transformers.js, ONNX Runtime Web/Node, WebGPU, Wasm | Planned |

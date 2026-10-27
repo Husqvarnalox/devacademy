@@ -1,0 +1,215 @@
+id: "nextjs.fundamentals.server-components"
+title: "Серверные компоненты, макеты и метаданные"
+goal: "Писать асинхронные серверные компоненты, которые загружают данные, читают params и searchParams, задают метаданные и обрабатывают отсутствующие данные."
+difficulty: "easy"
+estimatedMinutes: 80
+prerequisites:
+  - "nextjs.fundamentals.app-router-routing"
+objectives:
+  - "Объяснить, что страницы и макеты в app/ по умолчанию выполняются на сервере и в браузер не попадает код самого компонента."
+  - "Написать асинхронную страницу, которая дожидается params и searchParams и загружает данные прямо в теле компонента."
+  - "Задать заголовок и описание страницы через объект metadata или функцию generateMetadata и назвать ограничения этих экспортов."
+  - "Обработать отсутствующий ресурс через notFound() и объяснить, почему код после вызова не выполняется."
+  - "Описать, чем макет отличается от страницы по доступу к searchParams и по перерисовке при навигации."
+  - "Назвать, что недоступно серверному компоненту (состояние, события, браузерные API) и куда это выносится."
+masteryCriteria:
+  - "Вы ждёте params и searchParams через await и не обращаетесь к их полям напрямую."
+  - "Ваши страницы возвращают понятный результат для пустых данных, неизвестного идентификатора и незнакомых значений запроса."
+  - "Вы не помечаете страницы и макеты директивой use client без необходимости."
+  - "Вы разделяете данные для списка, страницы товара, заголовка вкладки и перечня адресов, не дублируя источник данных."
+related:
+  - "react.fundamentals.props-composition-keys"
+  - "react.fundamentals.effects"
+next:
+  - "nextjs.fundamentals.client-components"
+tags:
+  - "nextjs"
+  - "server-components"
+  - "layout"
+  - "metadata"
+  - "data-fetching"
+facts:
+  - kind: "misconception"
+    text: "«Серверный компонент - это то же самое, что серверный рендеринг (SSR) из старого React». Клиентские компоненты тоже отрисовываются на сервере для начального HTML, но их код после этого загружается в браузер и там оживляет страницу. Код серверного компонента в браузер не отправляется вовсе: туда приходит только результат его работы."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+  - kind: "internals"
+    text: "Результат серверных компонентов передаётся в особом формате - RSC Payload. В нём лежат отрисованное дерево, места для клиентских компонентов со ссылками на их скрипты и props, переданные от сервера клиенту. По этому описанию React в браузере согласует дерево и обновляет DOM."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+  - kind: "real-world"
+    text: "Макет не перерисовывается при переходах между его страницами, поэтому у него нет доступа к searchParams: значения быстро устарели бы. Фильтры и сортировку на основе параметров запроса читают в странице или в клиентском компоненте через useSearchParams."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/layout"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Страница app/orders/[id]/page.tsx объявлена как async-функция, но внутри написано const id = params.id; (params не ожидается). Что будет в id?"
+      options:
+        - "Строка с идентификатором: Next.js подставит значение заранее."
+        - "undefined: params - это промис, а у промиса нет поля id."
+        - "Ошибка сборки, потому что params нельзя читать в серверном компоненте."
+        - "Пустая строка."
+      answer: 1
+      explanation: "В Next.js 16 params приходит как Promise, и значение сегмента лежит внутри него. Чтобы получить id, нужно написать const { id } = await params;. Синхронный доступ удалён, а не заменён подстановкой значения."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Что из перечисленного нельзя использовать прямо в серверном компоненте? Выберите все верные."
+      options:
+        - "useState"
+        - "await в теле async-функции"
+        - "обработчик onClick у кнопки"
+        - "обращение к базе данных"
+      answer:
+        - 0
+        - 2
+      explanation: "Состояние и обработчики событий нужны браузеру, поэтому они требуют клиентского компонента. А await в теле и прямое обращение к данным как раз то, ради чего серверные компоненты и нужны."
+    - id: "q3"
+      type: "single"
+      prompt: "В одном page.tsx объявлены и export const metadata, и export async function generateMetadata. Что верно?"
+      options:
+        - "Next.js объединит оба результата."
+        - "Побеждает generateMetadata, а metadata игнорируется."
+        - "Так делать нельзя: из одного сегмента экспортируют либо объект metadata, либо функцию generateMetadata."
+        - "Это допустимо, только если файл помечен use client."
+      answer: 2
+      explanation: "Оба экспорта в одном сегменте запрещены. Кроме того, ни один из них не работает в клиентском компоненте: метаданные должны быть известны на сервере до отрисовки страницы."
+    - id: "q4"
+      type: "single"
+      prompt: "Страница вызывает notFound(), а следующей строкой выводит product.name. Что произойдёт, если товара нет?"
+      options:
+        - "Выполнятся обе строки, и в заголовке появится undefined."
+        - "notFound() вернёт null, и страница отрисует пустой элемент."
+        - "notFound() бросает ошибку и прерывает отрисовку сегмента, поэтому следующая строка не выполняется; показывается страница not-found."
+        - "Next.js перенаправит пользователя на главную страницу."
+      answer: 2
+      explanation: "notFound() работает через выброс специальной ошибки (тип возврата never), поэтому код ниже выполняется только для найденного товара. Перенаправления нет: пользователь остаётся на адресе, а вместо страницы получает интерфейс not-found."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция, которая возвращает список значений динамического сегмента для подготовки страниц заранее? Введите имя функции."
+      answer:
+        - "generateStaticParams"
+      explanation: "generateStaticParams возвращает массив объектов вида { id: \"1\" }, по одному на каждую страницу. Функция generateMetadata, с которой её легко спутать, отвечает не за адреса, а за заголовок и описание."
+exercise:
+  id: "nextjs.fundamentals.server-components.exercise"
+  title: "Каталог товаров на серверных компонентах"
+  prompt: |
+    Соберите три файла каталога из асинхронных серверных компонентов. Источник данных - готовый модуль **`src/lib/products.ts`** (его менять не нужно): функции `getProducts()` и `getProduct(id)` асинхронные, `getProduct` возвращает `undefined` для неизвестного `id`. Тип `Product`: `{ id, name, price, description }`.
+
+    **`src/app/products/page.tsx`** - список товаров. Компонент `async` и получает `{ searchParams: Promise<{ sort?: string }> }`.
+
+    * Дождитесь `searchParams` и `getProducts()`.
+    * Если товаров нет, верните `<p>Товаров пока нет</p>` (без списка).
+    * Иначе выведите `<ul>`: в каждом `<li>` - ссылка `<Link href={`/products/${id}`}>` с названием товара (`Link` из `next/link`) и рядом `<span>` с текстом вида `1490 ₽` (цена, пробел, знак рубля).
+    * Если `sort === "price"`, отсортируйте по возрастанию цены. При любом другом значении (в том числе отсутствующем) - по названию через `localeCompare(..., "ru")`. Исходный массив не меняйте: сортируйте копию.
+
+    **`src/app/products/[id]/page.tsx`** - страница товара. Здесь четыре экспорта:
+
+    * `default` - `async`-компонент с `{ params: Promise<{ id: string }> }`. Найдите товар через `getProduct`. Если его нет, вызовите `notFound()` из `next/navigation` (код после вызова выполняться не должен). Иначе верните `<article>` с `<h1>` (название), `<p>` с описанием и `<p>` с текстом `Цена: 1490 ₽`.
+    * `generateMetadata({ params })` - `async`, возвращает `{ title: название, description: описание }` для найденного товара и `{ title: "Товар не найден" }` (только это поле) для неизвестного.
+    * `generateStaticParams()` - `async`, возвращает `[{ id: "1" }, { id: "2" }, ...]` по одному объекту для каждого товара (`id` строкой).
+
+    **`src/app/products/layout.tsx`** - макет раздела. Верните `<section aria-label="Каталог">`, а внутри него `<nav aria-label="Сортировка">` с двумя ссылками `Link`: текст «По названию» ведёт на `/products`, «По цене» - на `/products?sort=price`. Ниже навигации выведите `children`. Макет - обычная функция, `async` ему не нужен.
+
+    Ни один из трёх файлов не должен содержать директиву `"use client"`.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/app/products/page.tsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Начните со страницы списка: сделайте функцию async и в первой строке дождитесь searchParams, как в params из теории. Остальные файлы устроены так же."
+    - "В списке нужны три шага: пустой список (ранний return), копия массива через [...products] с сортировкой и разметка списка через map с key. Для цены сравнение (a, b) => a.price - b.price, для названия a.name.localeCompare(b.name, \"ru\")."
+    - "На странице товара после const product = await getProduct(id) поставьте if (!product) { notFound(); }. Для generateMetadata используйте тот же getProduct и верните разные объекты для найденного и ненайденного товара. generateStaticParams - products.map((product) => ({ id: product.id }))."
+    - "В макете оберните {children} в <section aria-label=\"Каталог\">, перед ним поместите <nav aria-label=\"Сортировка\"> с двумя элементами <Link href=\"...\">. Не добавляйте 'use client' и async: макету это не нужно."
+  tests:
+    - id: "list-links"
+      title: "Список: товары ссылками"
+      match: "ProductsPage > показывает товары ссылками*"
+      hint: "Каждый товар - ссылка на /products/<id> с названием в тексте."
+    - id: "list-sort-name"
+      title: "Список: сортировка по названию по умолчанию"
+      match: "ProductsPage > по умолчанию сортирует*"
+      hint: "Без параметра sort товары идут по алфавиту (localeCompare для русского языка)."
+    - id: "list-sort-price"
+      title: "Список: sort=price (скрытый)"
+      match: "ProductsPage > при sort=price*"
+      hint: "При sort=price порядок - по возрастанию цены."
+      hidden: true
+    - id: "list-sort-unknown"
+      title: "Список: незнакомый sort (скрытый)"
+      match: "ProductsPage > незнакомое значение*"
+      hint: "Любое значение sort, кроме price, ведёт себя как отсутствие параметра."
+      hidden: true
+    - id: "list-price"
+      title: "Список: цена в строке (скрытый)"
+      match: "ProductsPage > показывает цену*"
+      hint: "В каждом элементе списка есть цена в формате '1490 ₽'; всего четыре элемента."
+      hidden: true
+    - id: "list-empty"
+      title: "Список: пустой каталог (скрытый)"
+      match: "ProductsPage > при пустом каталоге*"
+      hint: "Для пустого списка выводится сообщение, а не пустой ul."
+      hidden: true
+    - id: "list-async"
+      title: "Список: компонент асинхронный (скрытый)"
+      match: "ProductsPage > является асинхронным*"
+      hint: "Страница возвращает промис, в котором ожидается searchParams."
+      hidden: true
+    - id: "item-details"
+      title: "Товар: название, описание, цена"
+      match: "ProductPage > показывает название*"
+      hint: "Заголовок h1 с названием, описание и строка 'Цена: ...'."
+    - id: "item-not-found"
+      title: "Товар: неизвестный id (скрытый)"
+      match: "ProductPage > для неизвестного id*"
+      hint: "notFound() вызывается ровно один раз и прерывает выполнение."
+      hidden: true
+    - id: "item-found-ok"
+      title: "Товар: notFound не вызывается (скрытый)"
+      match: "ProductPage > для существующего*"
+      hint: "Для найденного товара notFound() не вызывается."
+      hidden: true
+    - id: "meta-found"
+      title: "Метаданные: найденный товар"
+      match: "generateMetadata > возвращает название*"
+      hint: "Объект с полями title и description, взятыми из товара."
+    - id: "meta-missing"
+      title: "Метаданные: неизвестный товар (скрытый)"
+      match: "generateMetadata > для неизвестного*"
+      hint: "Только поле title со значением 'Товар не найден', без description."
+      hidden: true
+    - id: "static-params"
+      title: "generateStaticParams (скрытый)"
+      match: "generateStaticParams > перечисляет*"
+      hint: "Массив объектов { id } для всех товаров, id - строки."
+      hidden: true
+    - id: "layout-section"
+      title: "Макет: раздел и содержимое"
+      match: "ProductsLayout > оборачивает*"
+      hint: "children лежит внутри section с aria-label='Каталог'."
+    - id: "layout-links"
+      title: "Макет: ссылки сортировки (скрытый)"
+      match: "ProductsLayout > добавляет ссылки*"
+      hint: "Две ссылки: /products и /products?sort=price с заданными подписями."
+      hidden: true
+    - id: "no-use-client"
+      title: "Директива use client отсутствует (скрытый)"
+      match: "Серверные компоненты > файлы страниц*"
+      hint: "Страницы и макет остаются серверными: в их исходном коде нет директивы use client."
+      hidden: true
