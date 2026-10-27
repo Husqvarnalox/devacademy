@@ -44,8 +44,8 @@ def dataset_version(manifest):
 with tempfile.TemporaryDirectory(dir=os.getcwd()) as root:
     root = Path(root)
     (root / "raw").mkdir()
-    (root / "raw" / "train.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8")
-    (root / "labels.txt").write_text("0\n1\n", encoding="utf-8")
+    (root / "raw" / "train.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8", newline="\n")
+    (root / "labels.txt").write_text("0\n1\n", encoding="utf-8", newline="\n")
 
     manifest = build_manifest(root)
     for path, digest in manifest.items():
@@ -53,11 +53,11 @@ with tempfile.TemporaryDirectory(dir=os.getcwd()) as root:
     print("версия:", dataset_version(manifest))
 
     # меняем одну запись в одном файле
-    (root / "raw" / "train.csv").write_text("id,y\n1,0\n2,1\n3,1\n", encoding="utf-8")
+    (root / "raw" / "train.csv").write_text("id,y\n1,0\n2,1\n3,1\n", encoding="utf-8", newline="\n")
     print("после правки:", dataset_version(build_manifest(root)))
 
     # возвращаем исходное содержимое
-    (root / "raw" / "train.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8")
+    (root / "raw" / "train.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8", newline="\n")
     print("после отката:", dataset_version(build_manifest(root)))
 ```
 ```output
@@ -72,6 +72,7 @@ with tempfile.TemporaryDirectory(dir=os.getcwd()) as root:
 
 * `file_digest` читает файл блоками: `f.read(chunk_size)` возвращает пустые байты в конце файла, и цикл заканчивается. Метод `update` можно вызывать много раз, результат равен хешу всего содержимого. Память занимает один блок, поэтому файл на десятки гигабайт не проблема;
 * в `build_manifest` ключ - относительный путь через `as_posix()` (всегда с `/`, на любой операционной системе), а значения - хеши. `sorted` делает порядок ключей одинаковым на любой машине: порядок обхода каталога не гарантирован;
+* файлы записываются с `newline="\n"`. Без этого Python в текстовом режиме на Windows заменяет каждый `\n` на `\r\n`, байты файла становятся другими, и тот же текст получает другой хеш. Хеш видит байты, а не текст;
 * `dataset_version` хеширует строки «хеш, два пробела, путь» - формат, как у утилиты `sha256sum`. Версия зависит и от содержимого файлов, и от их путей;
 * после правки версия изменилась, после отката вернулась прежняя: версия - функция содержимого, а не истории изменений.
 
@@ -132,13 +133,13 @@ with tempfile.TemporaryDirectory(dir=os.getcwd()) as tmp:
     tmp = Path(tmp)
     data, cache = tmp / "data", tmp / "cache"
     (data / "copy").mkdir(parents=True)
-    (data / "train.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8")
-    (data / "copy" / "train_backup.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8")   # тот же текст
-    (data / "labels.txt").write_text("0\n1\n", encoding="utf-8")
+    (data / "train.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8", newline="\n")
+    (data / "copy" / "train_backup.csv").write_text("id,y\n1,0\n2,1\n", encoding="utf-8", newline="\n")   # тот же текст
+    (data / "labels.txt").write_text("0\n1\n", encoding="utf-8", newline="\n")
 
     manifest = {p.relative_to(data).as_posix(): store_object(cache, p) for p in sorted(data.rglob("*")) if p.is_file()}
     print("файлов в данных:", len(manifest), "| объектов в кеше:", sum(1 for p in cache.rglob("*") if p.is_file()))
-    (tmp / "data.manifest.json").write_text(json.dumps(manifest, indent=1, sort_keys=True), encoding="utf-8")
+    (tmp / "data.manifest.json").write_text(json.dumps(manifest, indent=1, sort_keys=True), encoding="utf-8", newline="\n")
     print("размер манифеста:", (tmp / "data.manifest.json").stat().st_size, "байт")
 
     shutil.rmtree(data)                       # рабочая копия потеряна
