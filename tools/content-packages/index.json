@@ -21,6 +21,13 @@
     "packages": ["express", "light-my-request", "vitest", "vite"]
   },
   {
+    "id": "nextjs",
+    "title": "Next.js и Vitest",
+    "language": "node",
+    "description": "Next.js вместе с React, Testing Library, jsdom и Vitest: проверка упражнений по Next.js (страницы, обработчики маршрутов, серверные действия, proxy). Около 420 МБ: в пакет next входит сборщик SWC под вашу платформу.",
+    "packages": ["next", "react", "react-dom", "@testing-library/react", "@testing-library/dom", "@testing-library/user-event", "jsdom", "vitest", "vite"]
+  },
+  {
     "id": "numpy",
     "title": "NumPy",
     "language": "python",

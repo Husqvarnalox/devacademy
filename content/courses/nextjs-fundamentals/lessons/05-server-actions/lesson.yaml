@@ -1,0 +1,254 @@
+id: "nextjs.fundamentals.server-actions"
+title: "Серверные действия и формы"
+goal: "Писать серверные действия с директивой \"use server\", подключать их к формам через useActionState, проверять данные на сервере и защищать действие как публичную точку входа."
+difficulty: "medium"
+estimatedMinutes: 80
+prerequisites:
+  - "nextjs.fundamentals.route-handlers"
+objectives:
+  - "Объяснить, что серверное действие - асинхронная функция с директивой \"use server\", вызываемая клиентом запросом POST."
+  - "Подключить действие к форме через action и прочитать значения полей из FormData."
+  - "Использовать useActionState: сигнатуру действия (prevState, formData) и значения [state, formAction, pending]."
+  - "Проверить данные на сервере, вернуть ошибки как состояние и сохранить введённые значения через defaultValue."
+  - "Обновить данные и перейти на другую страницу: revalidatePath, затем redirect вне try и последним."
+  - "Защитить действие: проверить пользователя и права внутри функции, не доверять скрытым полям."
+masteryCriteria:
+  - "Вы проверяете аутентификацию, права и входные данные внутри каждого серверного действия."
+  - "Вы возвращаете ожидаемые ошибки как данные состояния, а не бросаете исключения."
+  - "Вы вызываете redirect последним и не оборачиваете его в try/catch."
+related:
+  - "nextjs.fundamentals.route-handlers"
+  - "nextjs.fundamentals.client-components"
+  - "nextjs.fundamentals.caching"
+next:
+  - "nextjs.fundamentals.caching"
+tags:
+  - "nextjs"
+  - "server-actions"
+  - "use-server"
+  - "useActionState"
+  - "forms"
+facts:
+  - kind: "misconception"
+    text: "«Если форму видят только вошедшие пользователи, действие защищено». Серверное действие вызывается запросом POST, который можно отправить без страницы и формы. Проверка на странице не распространяется на действие: аутентификацию и авторизацию проверяют внутри каждой серверной функции."
+    sources:
+      - "https://nextjs.org/docs/app/guides/data-security"
+      - "https://nextjs.org/docs/app/getting-started/mutating-data"
+  - kind: "internals"
+    text: "Директива \"use server\" заставляет компилятор заменить в клиентском коде реализацию функции ссылкой на действие (идентификатор и вызов, отправляющий POST на сервер), а сама реализация остаётся на сервере. Идентификаторы шифруются при сборке, а неиспользуемые серверные функции удаляются из клиентских пакетов. Эти меры не заменяют проверку прав внутри действия."
+    sources:
+      - "https://nextjs.org/docs/app/guides/server-actions"
+      - "https://nextjs.org/docs/app/guides/data-security"
+  - kind: "internals"
+    text: "redirect() бросает управляющее исключение и поэтому никогда не возвращает управление. В серверном действии оно превращается в переход на клиенте (при отправке формы без JavaScript - в HTTP-ответ 303). Если вызвать redirect внутри try, блок catch перехватит это исключение, и перенаправления не произойдёт."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/functions/redirect"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Как клиент вызывает серверное действие, объявленное с директивой \"use server\"?"
+      options:
+        - "Реализация функции отправляется в браузер и выполняется там."
+        - "Запросом POST на сервер: в клиентском коде вместо реализации находится ссылка на действие."
+        - "Запросом GET по адресу, совпадающему с именем функции."
+        - "Через WebSocket, который Next.js открывает при загрузке страницы."
+      answer: 1
+      explanation: "Код действия остаётся на сервере, а клиент получает ссылку, которая отправляет POST. GET-запросом действие вызвать нельзя, а исполнение реализации в браузере означало бы, что секреты и доступ к базе утекают на клиент."
+    - id: "q2"
+      type: "single"
+      prompt: "Что получает действие createNote, подключённое через useActionState(createNote, initialState)?"
+      options:
+        - "Только FormData: createNote(formData)."
+        - "Предыдущее состояние и FormData: createNote(prevState, formData)."
+        - "Объект события submit и FormData."
+        - "FormData и признак pending."
+      answer: 1
+      explanation: "useActionState добавляет первым аргументом предыдущее состояние (в первый раз - initialState). Вариант с одним FormData подходит для формы с прямым action={createNote} без хука. Признак pending возвращает сам хук, действие его не получает."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Что нужно сделать внутри серверного действия, чтобы оно было безопасным?"
+      options:
+        - "Проверить, что пользователь вошёл и вправе менять именно эту запись."
+        - "Проверить и нормализовать данные из FormData."
+        - "Положить идентификатор пользователя в скрытое поле формы и взять его оттуда."
+        - "Считать действие защищённым, если форма показывается только администраторам."
+      answer:
+        - 0
+        - 1
+      explanation: "Действие - публичная точка входа: данные и права проверяются внутри него. Скрытое поле лежит в HTML и меняется клиентом, а скрытая или недоступная форма не мешает отправить POST напрямую."
+    - id: "q4"
+      type: "single"
+      prompt: "Где правильно вызвать redirect в действии, которое сначала сохраняет запись?"
+      options:
+        - "Внутри try вместе с сохранением: если что-то упадёт, catch выполнит переход."
+        - "Последним оператором вне try, после сохранения и revalidatePath."
+        - "Первым оператором, до сохранения: переход всё равно сохранит запись."
+        - "В обработчике onClick клиентского компонента после await действия."
+      answer: 1
+      explanation: "redirect бросает исключение и останавливает функцию, поэтому всё нужное делают до него. Внутри try это исключение перехватит catch, и перехода не будет. Первым оператором он оборвёт сохранение."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется хук React, который возвращает [state, formAction, pending] для действия формы? Введите имя хука."
+      answer:
+        - "useActionState"
+        - "useactionstate"
+      explanation: "useActionState(action, initialState) возвращает последнее состояние, обёртку formAction для атрибута action и признак pending. Похожий useFormStatus отдаёт только статус отправки родительской формы."
+exercise:
+  id: "nextjs.fundamentals.server-actions.exercise"
+  title: "Заметки: действия и форма"
+  prompt: |
+    Нужно написать серверные действия для заметок и форму, которая их использует. Хранилище и «текущий пользователь» уже готовы: `src/lib/db.ts` (`insertNote({ title, tags, ownerId })` возвращает заметку с полем `id`, `findNote(id)`, `removeNote(id)`) и `src/lib/auth.ts` (`getCurrentUser()` возвращает `{ id, name }` или `null`). Эти файлы менять не нужно. Next.js в проверках заменён макетами: `revalidatePath` и `redirect` записывают вызов, а `redirect` ещё и бросает ошибку, как настоящий.
+
+    **`src/app/notes/actions.ts`** - файл серверных действий: первым оператором директива `"use server"`.
+
+    * `createNote(prevState: FormState, formData: FormData): Promise<FormState>`. Тип `FormState` уже объявлен в файле: `{ ok, errors: { title?, tags? }, values: { title, tags } }`.
+      1. Если `getCurrentUser()` вернул `null`, бросьте `new Error("Unauthorized")`.
+      2. Прочитайте поля `title` и `tags` из `FormData` (если поля нет или это не строка - пустая строка). В `values` кладутся строки **как введены**, без обрезки.
+      3. Заголовок: после `trim()` не пустой, не длиннее 80 символов. Ошибки: `Введите заголовок` и `Заголовок не длиннее 80 символов`.
+      4. Теги - строка через запятую: каждый тег обрезается, приводится к нижнему регистру, пустые отбрасываются, повторы убираются (порядок первого появления сохраняется). Допустимо не больше 5 различных тегов, иначе ошибка `Не больше 5 тегов` в `errors.tags`. Пустая строка - это ноль тегов.
+      5. Есть ошибка - верните `{ ok: false, errors, values }` (обе ошибки сразу, если неверны оба поля), ничего не сохраняйте, не вызывайте `revalidatePath` и `redirect`.
+      6. Иначе сохраните заметку `{ title: <обрезанный>, tags: <список>, ownerId: <id пользователя> }`, вызовите `revalidatePath("/notes")` и затем `redirect("/notes/<id>")` последним оператором.
+    * `deleteNote(id: string): Promise<DeleteResult>`. По порядку: нет пользователя - `{ ok: false, error: "Нужно войти" }`; заметки нет - `{ ok: false, error: "Заметка не найдена" }`; владелец другой - `{ ok: false, error: "Нельзя удалять чужую заметку" }` (заметка остаётся). Иначе удалите её, вызовите `revalidatePath("/notes")` и верните `{ ok: true }`.
+
+    **`src/app/notes/NoteForm.tsx`** - клиентский компонент `NoteForm` (первым оператором `"use client"`), экспорт именованный. Подключите `createNote` через `useActionState` с начальным состоянием `{ ok: true, errors: {}, values: { title: "", tags: "" } }`. Форма:
+
+    * поле `<input name="title">` с подписью `Заголовок` и поле `<input name="tags">` с подписью `Теги` (подписи связаны с полями, например оборачивающим `<label>`);
+    * введённые значения после ошибки остаются в полях: `defaultValue` берётся из `state.values`;
+    * ошибка заголовка и ошибка тегов выводятся каждая в своём элементе с `role="alert"` (только когда ошибка есть) с точным текстом ошибки;
+    * кнопка `type="submit"` с текстом `Сохранить`; пока действие выполняется, она отключена (`disabled`) и показывает `Сохранение...`.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest. Типы TypeScript в проверках стираются без проверки компилятором, но пишите их корректно.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/app/notes/actions.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Два файла, две директивы: actions.ts должен начинаться с \"use server\", NoteForm.tsx - с \"use client\". Директива идёт первым оператором файла, до импортов."
+    - "В createNote сначала получите пользователя, затем соберите values (formData.get(\"title\") может вернуть null или файл - проверьте typeof === \"string\"), потом заполните errors. Теги: split(\",\"), map(trim + toLowerCase), filter непустых, затем new Set для повторов."
+    - "Порядок в конце createNote: insertNote, revalidatePath(\"/notes\"), redirect(`/notes/${note.id}`). redirect бросает исключение, поэтому после него ничего не пишите и не оборачивайте его в try."
+    - "NoteForm: const [state, formAction, pending] = useActionState(createNote, initialState); <form action={formAction}>. Поля получают defaultValue={state.values.title} и defaultValue={state.values.tags}, ошибки выводятся как {state.errors.title && <p role=\"alert\">...</p>}, кнопка - disabled={pending} и текст {pending ? \"Сохранение...\" : \"Сохранить\"}."
+  tests:
+    - id: "use-server"
+      title: "actions.ts: директива use server"
+      match: "Директива > actions.ts*"
+      hint: "Строка \"use server\"; должна быть первым оператором файла, до импортов."
+    - id: "create-empty"
+      title: "createNote: пустой заголовок"
+      match: "createNote > возвращает ошибку для пустого*"
+      hint: "Верните { ok: false, errors: { title: \"Введите заголовок\" }, values } со значениями, как они были введены."
+    - id: "create-ok"
+      title: "createNote: сохранение и переход"
+      match: "createNote > сохраняет заметку, обновляет*"
+      hint: "Сохраните заметку, вызовите revalidatePath(\"/notes\"), затем redirect(\"/notes/<id>\")."
+    - id: "delete-foreign"
+      title: "deleteNote: чужая заметка"
+      match: "deleteNote > не удаляет чужую*"
+      hint: "Сравните ownerId заметки с id текущего пользователя до удаления."
+    - id: "form-error"
+      title: "NoteForm: ошибка заголовка"
+      match: "NoteForm > показывает ошибку заголовка*"
+      hint: "Выведите state.errors.title в элементе с role=\"alert\", только когда ошибка есть."
+    - id: "create-trim"
+      title: "createNote: обрезка заголовка (скрытый)"
+      match: "createNote > обрезает пробелы*"
+      hint: "Сохраняется заголовок после trim(), а в values остаётся введённая строка."
+      hidden: true
+    - id: "create-length"
+      title: "createNote: граница 80 символов (скрытый)"
+      match: "createNote > принимает заголовок из 80*"
+      hint: "80 символов допустимы, 81 - ошибка; длину считайте у обрезанного заголовка."
+      hidden: true
+    - id: "create-tags"
+      title: "createNote: нормализация тегов (скрытый)"
+      match: "createNote > нормализует теги*"
+      hint: "Обрежьте, приведите к нижнему регистру, отбросьте пустые и уберите повторы с сохранением порядка."
+      hidden: true
+    - id: "create-tag-limit"
+      title: "createNote: не больше пяти тегов (скрытый)"
+      match: "createNote > отклоняет больше пяти*"
+      hint: "Количество считается после удаления повторов; ошибка кладётся в errors.tags."
+      hidden: true
+    - id: "create-both"
+      title: "createNote: обе ошибки сразу (скрытый)"
+      match: "createNote > сообщает обе ошибки*"
+      hint: "Не возвращайтесь после первой найденной ошибки: заполните errors полностью."
+      hidden: true
+    - id: "create-no-effects"
+      title: "createNote: без побочных эффектов при ошибке (скрытый)"
+      match: "createNote > при ошибке не обновляет*"
+      hint: "revalidatePath и redirect вызываются только после успешной проверки."
+      hidden: true
+    - id: "create-owner"
+      title: "createNote: владелец (скрытый)"
+      match: "createNote > записывает владельцем*"
+      hint: "ownerId берётся из getCurrentUser(), а не из формы."
+      hidden: true
+    - id: "create-auth"
+      title: "createNote: без входа (скрытый)"
+      match: "createNote > без входа*"
+      hint: "Если пользователя нет, бросьте new Error(\"Unauthorized\") до проверки и сохранения."
+      hidden: true
+    - id: "create-missing-field"
+      title: "createNote: поля нет в форме (скрытый)"
+      match: "createNote > не падает*"
+      hint: "formData.get возвращает null для отсутствующего поля: считайте его пустой строкой."
+      hidden: true
+    - id: "delete-own"
+      title: "deleteNote: своя заметка (скрытый)"
+      match: "deleteNote > удаляет свою*"
+      hint: "Удалите заметку, вызовите revalidatePath(\"/notes\") и верните { ok: true }."
+      hidden: true
+    - id: "delete-auth"
+      title: "deleteNote: без входа (скрытый)"
+      match: "deleteNote > без входа*"
+      hint: "Если пользователя нет, верните { ok: false, error: \"Нужно войти\" }."
+      hidden: true
+    - id: "delete-missing"
+      title: "deleteNote: заметки нет (скрытый)"
+      match: "deleteNote > сообщает, что заметка не найдена*"
+      hint: "Проверьте результат findNote до сравнения владельца."
+      hidden: true
+    - id: "use-client"
+      title: "NoteForm.tsx: директива use client (скрытый)"
+      match: "Директива клиента > NoteForm.tsx*"
+      hint: "useActionState работает в клиентском компоненте: первой строкой файла поставьте \"use client\";."
+      hidden: true
+    - id: "form-values"
+      title: "NoteForm: значения после ошибки (скрытый)"
+      match: "NoteForm > после ошибки сохраняет*"
+      hint: "React очищает поля после действия: подставьте state.values в defaultValue."
+      hidden: true
+    - id: "form-two-alerts"
+      title: "NoteForm: две ошибки (скрытый)"
+      match: "NoteForm > показывает ошибки заголовка и тегов*"
+      hint: "У каждой ошибки свой элемент с role=\"alert\"; порядок: заголовок, затем теги."
+      hidden: true
+    - id: "form-clear"
+      title: "NoteForm: ошибка исчезает (скрытый)"
+      match: "NoteForm > ошибка исчезает*"
+      hint: "Ошибка выводится из состояния: новое состояние без errors убирает сообщение."
+      hidden: true
+    - id: "form-pending"
+      title: "NoteForm: ожидание (скрытый)"
+      match: "NoteForm > пока действие выполняется*"
+      hint: "Третье значение useActionState - pending: отключите кнопку и смените текст на «Сохранение...»."
+      hidden: true
+    - id: "form-formdata"
+      title: "NoteForm: поля формы (скрытый)"
+      match: "NoteForm > передаёт действию*"
+      hint: "Поля должны иметь атрибуты name=\"title\" и name=\"tags\", форма - action={formAction}."
+      hidden: true

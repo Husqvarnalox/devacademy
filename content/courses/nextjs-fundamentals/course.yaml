@@ -1,0 +1,55 @@
+id: nextjs-fundamentals
+version: 1.0.0
+title: "Next.js: основы App Router"
+description: >-
+  Курс по Next.js 16 (App Router) для тех, кто прошёл «React: основы» и «TypeScript: первые шаги». Семь уроков: файловая маршрутизация
+  (сегменты, динамические параметры, группы и вложенные макеты), серверные компоненты и загрузка данных на сервере, граница "use client"
+  и клиентские компоненты, обработчики маршрутов (Route Handlers), серверные действия и формы, кэширование и повторная проверка данных
+  (Cache Components, "use cache", теги), proxy (бывший middleware). Упражнения проверяются настоящими Next.js 16.4, React и Vitest в
+  песочнице без сети: страницы и компоненты рендерит Testing Library, обработчики маршрутов получают настоящие NextRequest, а proxy
+  проверяется тестовыми функциями самого Next.js. Для этого один раз нужно установить пакеты курсов (Настройки - Среды выполнения, около
+  420 МБ). Типы TypeScript в проверках стираются, а не проверяются компилятором. Сервер разработки (next dev), сборка (next build) и
+  развёртывание в песочнице не запускаются: они разобраны в теории. Pages Router, базы данных, аутентификация через библиотеки и
+  оптимизация изображений и шрифтов в курс не входят.
+languageId: typescript
+level: 3
+track: nextjs
+requires: [react-fundamentals, typescript-first-steps]
+lessons:
+  - 01-app-router-routing
+  - 02-server-components
+  - 03-client-components
+  - 04-route-handlers
+  - 05-server-actions
+  - 06-caching
+  - 07-proxy
+framework:
+  id: nextjs
+  version: "16.4.x"
+  docs:
+    - https://nextjs.org/docs/app
+    - https://nextjs.org/docs/app/api-reference
+    - https://nextjs.org/docs/app/guides/upgrading/version-16
+    - https://react.dev/reference/rsc/server-components
+  compatibility: "Next.js 16.4.3 с React и react-dom 19.3.1; Node.js >= 22.13 для проверок (сам Next.js 16 требует Node.js >= 20.9). Vitest 5.0.5 на Vite 8.3.4, jsdom 29.1.1, @testing-library/react 16.3.3. Версии зафиксированы в tools/content-packages/node/nextjs/package-lock.json. Только App Router."
+  deprecated:
+    - feature: "middleware.ts и функция middleware"
+      status: renamed
+      note: "В Next.js 16 файл называется proxy.ts, а экспортируемая функция - proxy. Старое имя ещё работает, но помечено устаревшим (и только оно позволяет среду edge: proxy всегда выполняется в Node.js); кодмод: npx @next/codemod@latest middleware-to-proxy ."
+    - feature: "Синхронный доступ к params, searchParams, cookies(), headers(), draftMode()"
+      status: removed
+      note: "С Next.js 15 это промисы; временная синхронная совместимость удалена в Next.js 16. Пишите await params и await cookies()."
+    - feature: "revalidateTag(tag) с одним аргументом"
+      status: legacy
+      note: "В Next.js 16 вторым аргументом передаётся профиль cacheLife (например \"max\"). Для «прочитать свою запись» в серверном действии есть updateTag(tag)."
+    - feature: "next lint"
+      status: removed
+      note: "Команда удалена в Next.js 16: ESLint или Biome запускают напрямую."
+  migrationNotes: |
+    **Next.js 15 -> 16 (что важно для кода курса).**
+
+    * `middleware.ts` переименован в `proxy.ts`, функция - в `proxy`; proxy выполняется в среде Node.js, edge для него недоступен.
+    * `params`, `searchParams`, `cookies()`, `headers()` - только асинхронные: синхронный доступ удалён.
+    * Turbopack стал сборщиком по умолчанию для `next dev` и `next build`.
+    * Кэширование строится на Cache Components (`cacheComponents: true`, директива `"use cache"`, `cacheLife`, `cacheTag`); `revalidateTag` требует профиль, появились `updateTag` и `refresh`.
+    * Новая мажорная версия Next.js требует нового издания курса: примеры не обновляются «молча».

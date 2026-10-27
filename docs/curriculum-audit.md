@@ -52,6 +52,7 @@
 | ml-foundations | ml-classical | 2 | python-fundamentals | 4 | Что такое машинное обучение | нет |
 | react-fundamentals | react | 2 | javascript-fundamentals | 6 | Что такое React: компоненты и JSX | нет |
 | express-fundamentals | express | 2 | javascript-fundamentals, nodejs-fundamentals | 7 | Устройство Express | нет |
+| nextjs-fundamentals | nextjs | 3 | react-fundamentals, typescript-first-steps | 7 | Файловая маршрутизация App Router | нет |
 | spring-boot-fundamentals | spring-boot | 2 | java-fundamentals | 7 | Контроллеры и маршрутизация | нет |
 | aspnetcore-fundamentals | aspnet-core | 2 | csharp-fundamentals | 7 | Minimal APIs и маршрутизация | нет |
 | python-stdlib | python | 3 | python-fundamentals | 8 | collections | нет |
@@ -459,6 +460,7 @@
 | system-design-fundamentals | L4 | продвинутый |
 | react-fundamentals | L2 | промежуточный |
 | express-fundamentals | L2 | промежуточный |
+| nextjs-fundamentals | L3 | промежуточный |
 | spring-boot-fundamentals | L2 | промежуточный |
 | aspnetcore-fundamentals | L2 | промежуточный |
 | django-fundamentals | L3 | промежуточный |

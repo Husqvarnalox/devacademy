@@ -1,0 +1,274 @@
+id: "nextjs.fundamentals.proxy"
+title: "Proxy: код перед маршрутом"
+goal: "Написать proxy.ts: ограничить его вызовы через matcher, перенаправить, переписать адрес и передать данные маршруту заголовками, понимая, чего Proxy не заменяет."
+difficulty: "medium"
+estimatedMinutes: 75
+prerequisites:
+  - "nextjs.fundamentals.caching"
+objectives:
+  - "Объяснить, где Proxy стоит в цепочке обработки запроса и чем он отличается от обработчика маршрута."
+  - "Написать matcher с шаблонами :path* и объяснить, почему /dashboard/:path* подходит для /dashboard, но не для /dashboards."
+  - "Выбрать между NextResponse.next, redirect, rewrite и прямым ответом и назвать, что видит пользователь при каждом исходе."
+  - "Передать данные маршруту заголовком запроса через NextResponse.next({ request: { headers } }) и отличить его от заголовка ответа."
+  - "Сделать оптимистичную проверку сессии по cookie и назвать, почему серверные действия и данные защищают отдельно."
+masteryCriteria:
+  - "Вы сужаете Proxy через matcher и не обращаетесь из него к базе данных или внешним сервисам."
+  - "Вы используете redirect с кодом 308 для постоянного переезда адреса и rewrite для внутренней подстановки страницы."
+  - "Вы не полагаетесь на Proxy как на единственную проверку прав: серверные действия и доступ к данным проверяют права сами."
+related:
+  - "nextjs.fundamentals.server-actions"
+  - "nextjs.fundamentals.caching"
+  - "nextjs.fundamentals.route-handlers"
+next: []
+tags:
+  - "nextjs"
+  - "proxy"
+  - "middleware"
+  - "matcher"
+  - "redirect"
+  - "rewrite"
+facts:
+  - kind: "historical"
+    text: "До Next.js 16 тот же механизм назывался middleware: файл middleware.ts и функция middleware. В версии 16.0 его переименовали в Proxy, чтобы подчеркнуть, что это сетевая граница перед приложением. Proxy всегда работает в среде Node.js, а прежнее имя ещё поддерживается, помечено устаревшим и остаётся единственным способом выбрать среду edge. Перенос выполняет кодмод middleware-to-proxy."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/proxy"
+      - "https://nextjs.org/docs/app/guides/upgrading/codemods"
+  - kind: "misconception"
+    text: "«Если раздел закрыт в Proxy, серверные действия внутри него защищены». Серверное действие - POST-запрос к маршруту, где оно используется. Если matcher исключает этот адрес или действие перенесли на другую страницу, Proxy на вызов не сработает. Права проверяют внутри самого действия и в слое доступа к данным; Proxy годится только для быстрой оптимистичной проверки по cookie."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/proxy"
+      - "https://nextjs.org/docs/app/guides/data-security"
+  - kind: "internals"
+    text: "Порядок обработки запроса: заголовки и перенаправления из next.config, затем Proxy, затем rewrites типа beforeFiles, затем файловые маршруты, затем afterFiles и динамические маршруты, затем fallback. Поэтому Proxy видит запрос раньше маршрутов, но после перенаправлений из конфигурации."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/proxy"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Чем перенаправление (redirect) в Proxy отличается от переписывания (rewrite)?"
+      options:
+        - "Redirect меняет адрес в строке браузера, rewrite подставляет другую страницу, а адрес остаётся прежним."
+        - "Redirect работает только для GET, rewrite - только для POST."
+        - "Rewrite отправляет браузеру код 308, redirect - код 200."
+        - "Разницы нет: оба вызова одинаково выбирают страницу."
+      answer: 0
+      explanation: "Redirect отвечает браузеру перенаправлением, и браузер идёт по новому адресу. Rewrite работает внутри сервера: страница берётся с другого адреса, а пользователь видит прежний. Методы запроса и коды ответа к различию не относятся."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие адреса обработает Proxy с настройкой matcher: [\"/dashboard/:path*\"]?"
+      options:
+        - "/dashboard"
+        - "/dashboard/team/7"
+        - "/dashboards"
+        - "/api/dashboard"
+      answer:
+        - 0
+        - 1
+      explanation: "Модификатор * означает «ноль или больше сегментов», поэтому подходят и корень /dashboard, и глубокие пути. Шаблон привязан к началу адреса и сегментам: /dashboards - другой сегмент, а /api/dashboard начинается не с /dashboard."
+    - id: "q3"
+      type: "single"
+      prompt: "Как передать странице значение, чтобы она прочитала его через headers(), а браузер его не получил?"
+      options:
+        - "NextResponse.next({ headers })"
+        - "NextResponse.next({ request: { headers } })"
+        - "response.headers.set(\"x-locale\", \"ru\")"
+        - "Записать значение в глобальную переменную в proxy.ts."
+      answer: 1
+      explanation: "Параметр request.headers задаёт заголовки запроса, которые увидит маршрут. Запись { headers } и response.headers.set относятся к ответу и уйдут браузеру. Глобальные переменные Proxy не годятся: он может выполняться отдельно от кода страниц."
+    - id: "q4"
+      type: "single"
+      prompt: "Раздел /admin закрыт в Proxy проверкой cookie session. Можно ли в серверном действии deleteUser не проверять права?"
+      options:
+        - "Можно: Proxy уже проверил пользователя."
+        - "Нельзя: действие - отдельная точка входа, а Proxy только проверяет cookie и может не сработать на вызов."
+        - "Можно, если действие лежит в папке app/admin."
+        - "Нельзя, но только когда включён cacheComponents."
+      answer: 1
+      explanation: "Серверное действие вызывается POST-запросом, и matcher может его не охватить. Cookie же проверяется только на наличие, а не по базе. Права проверяют внутри действия. Папка и флаги кэша защиты не добавляют."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется функция из next/server, которая в Proxy передаёт запрос дальше без изменений? Введите вызов вместе с именем объекта."
+      answer:
+        - "NextResponse.next()"
+        - "NextResponse.next"
+        - "next()"
+      explanation: "NextResponse.next() сообщает Next.js, что Proxy ничего не меняет и запрос продолжает путь к маршруту; в неё же передают request: { headers }, чтобы дополнить заголовки запроса."
+exercise:
+  id: "nextjs.fundamentals.proxy.exercise"
+  title: "Proxy сайта: переезд, кабинет, язык"
+  prompt: |
+    Нужно написать `src/proxy.ts` для сайта: `export const config` с `matcher` и функцию `export function proxy(request: NextRequest)`. Файл `src/lib/locales.ts` готов (менять не нужно): `isLocale(value)` проверяет, что значение - `ru` или `en`, `DEFAULT_LOCALE` равен `en`, тип `Locale`.
+
+    **Matcher.** Proxy вызывается только для адресов `/old-blog/:path*`, `/dashboard/:path*` и `/docs/:path*`. Главная, `/_next/...`, `/api/...` и похожие префиксы вроде `/dashboards` не должны подходить. Сами `/old-blog`, `/dashboard` и `/docs` (без хвоста) должны подходить.
+
+    **Старый блог.** `/old-blog/...` перенаправляется на тот же путь с `/blog` вместо `/old-blog` кодом `308`; `/old-blog` превращается в `/blog`. Параметры запроса (`?utm=mail`) сохраняются.
+
+    **Кабинет.** Для `/dashboard` и `/dashboard/...` нужна непустая cookie `session`. Если её нет (или значение пустое), ответ - перенаправление (код по умолчанию, `307`) на `/login?from=<путь и query>`, где `from` равен `pathname + search` исходного запроса и кодируется через `searchParams.set`. С cookie запрос идёт дальше (`NextResponse.next()`).
+
+    **Документация.** Для `/docs/...` определите язык: сначала первый сегмент после `/docs` (если это `ru` или `en`), иначе значение cookie `NEXT_LOCALE` (если допустимо), иначе `DEFAULT_LOCALE`. Если языка нет в адресе, перепишите (`rewrite`) адрес на `/docs/<язык>/...` с сохранением остального пути и query (`/docs/intro` с языком `ru` становится `/docs/ru/intro`, `/docs` - `/docs/ru`). Если язык уже есть в адресе, запрос идёт дальше без переписывания.
+
+    **Заголовки.** У каждого ответа, который не редирект (кабинет с сессией, `/docs`), заголовок ответа `x-request-path` равен исходному `pathname` запроса (до переписывания). Для `/docs` ещё и заголовок **запроса** `x-locale` со значением выбранного языка передаётся дальше через `request: { headers }`; заголовок, присланный клиентом, заменяется, остальные заголовки запроса сохраняются. Клиенту `x-locale` в ответе приходить не должен.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/proxy.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Начните с matcher: три строки с модификатором :path*, например \"/dashboard/:path*\". Затем в proxy разберите запрос по pathname из request.nextUrl и обработайте разделы по очереди."
+    - "Для редиректов и переписывания клонируйте адрес: const target = request.nextUrl.clone(); target.pathname = ...; так query сохраняется. Статус задаёт второй аргумент: NextResponse.redirect(target, 308)."
+    - "Cookie читает request.cookies.get(\"session\")?.value. Для адреса возврата: const login = new URL(\"/login\", request.url); login.searchParams.set(\"from\", pathname + search). Первый сегмент после /docs: pathname.split(\"/\")[2]."
+    - "Заголовки запроса: const headers = new Headers(request.headers); headers.set(\"x-locale\", locale); затем NextResponse.rewrite(target, { request: { headers } }) или NextResponse.next({ request: { headers } }). Заголовок ответа - response.headers.set(\"x-request-path\", pathname)."
+  tests:
+    - id: "matcher-match"
+      title: "Matcher: нужные разделы"
+      match: "Matcher > срабатывает на старом блоге*"
+      hint: "Три шаблона с :path* для /old-blog, /dashboard и /docs."
+    - id: "matcher-skip"
+      title: "Matcher: остальные адреса"
+      match: "Matcher > не срабатывает на главной*"
+      hint: "Не добавляйте шаблон, охватывающий всё подряд: главная, /_next и /api остаются вне Proxy."
+    - id: "matcher-roots"
+      title: "Matcher: корни разделов (скрытый)"
+      match: "Matcher > срабатывает на корне*"
+      hint: "Шаблон /dashboard/:path* подходит и для самого /dashboard."
+      hidden: true
+    - id: "matcher-prefixes"
+      title: "Matcher: похожие префиксы (скрытый)"
+      match: "Matcher > не срабатывает на похожих*"
+      hint: "Не используйте шаблон без границы сегмента, например регулярное выражение вида /dashboard.*."
+      hidden: true
+    - id: "matcher-deep"
+      title: "Matcher: глубокие пути (скрытый)"
+      match: "Matcher > срабатывает на глубоких*"
+      hint: "Модификатор * допускает любое число сегментов после раздела."
+      hidden: true
+    - id: "blog-redirect"
+      title: "Старый блог: редирект 308"
+      match: "Старые адреса блога > перенаправляет*"
+      hint: "NextResponse.redirect(target, 308); путь меняет /old-blog на /blog."
+    - id: "blog-query"
+      title: "Старый блог: query (скрытый)"
+      match: "Старые адреса блога > сохраняет параметры*"
+      hint: "Клонируйте request.nextUrl вместо сборки нового адреса: параметры останутся."
+      hidden: true
+    - id: "blog-root"
+      title: "Старый блог: корень (скрытый)"
+      match: "Старые адреса блога > переносит корень*"
+      hint: "Замена \"/old-blog\" на \"/blog\" должна работать и для адреса без хвоста."
+      hidden: true
+    - id: "blog-nested"
+      title: "Старый блог: вложенный путь (скрытый)"
+      match: "Старые адреса блога > переносит вложенный*"
+      hint: "Меняется только начало пути, остальные сегменты переносятся как есть."
+      hidden: true
+    - id: "blog-cyrillic"
+      title: "Старый блог: кириллица (скрытый)"
+      match: "Старые адреса блога > не портит кириллицу*"
+      hint: "Меняйте строку nextUrl.pathname, не декодируйте и не пересобирайте сегменты."
+      hidden: true
+    - id: "dash-login"
+      title: "Кабинет: вход без сессии"
+      match: "Кабинет > без сессии*"
+      hint: "Редирект на /login с параметром from, равным исходному пути."
+    - id: "dash-next"
+      title: "Кабинет: пропуск с сессией"
+      match: "Кабинет > с сессией*"
+      hint: "Если cookie session непустая, верните NextResponse.next()."
+    - id: "dash-root"
+      title: "Кабинет: сам /dashboard (скрытый)"
+      match: "Кабинет > защищает и сам*"
+      hint: "Условие должно срабатывать и для адреса /dashboard без хвоста."
+      hidden: true
+    - id: "dash-query"
+      title: "Кабинет: query в from (скрытый)"
+      match: "Кабинет > сохраняет query*"
+      hint: "В from кладётся pathname + search; searchParams.set закодирует значение."
+      hidden: true
+    - id: "dash-empty"
+      title: "Кабинет: пустая cookie (скрытый)"
+      match: "Кабинет > считает пустую*"
+      hint: "Проверяйте значение cookie, а не только её наличие."
+      hidden: true
+    - id: "dash-name"
+      title: "Кабинет: имя cookie (скрытый)"
+      match: "Кабинет > смотрит именно*"
+      hint: "Нужна cookie с точным именем session."
+      hidden: true
+    - id: "docs-default"
+      title: "Документация: язык по умолчанию"
+      match: "Язык документации > без cookie*"
+      hint: "NextResponse.rewrite на /docs/en/intro; DEFAULT_LOCALE уже определён."
+    - id: "docs-cookie"
+      title: "Документация: язык из cookie (скрытый)"
+      match: "Язык документации > берёт язык из cookie*"
+      hint: "Значение cookie NEXT_LOCALE подставляется в путь, если isLocale его пропускает."
+      hidden: true
+    - id: "docs-unknown"
+      title: "Документация: неизвестный язык (скрытый)"
+      match: "Язык документации > при неизвестном языке*"
+      hint: "Недопустимое значение cookie заменяется языком по умолчанию."
+      hidden: true
+    - id: "docs-root"
+      title: "Документация: корень /docs (скрытый)"
+      match: "Язык документации > переписывает корень*"
+      hint: "К /docs добавляется только сегмент языка: /docs/ru."
+      hidden: true
+    - id: "docs-has-locale"
+      title: "Документация: язык уже в адресе (скрытый)"
+      match: "Язык документации > не переписывает*"
+      hint: "Если первый сегмент после /docs - язык, верните NextResponse.next."
+      hidden: true
+    - id: "docs-path-wins"
+      title: "Документация: адрес сильнее cookie (скрытый)"
+      match: "Язык документации > язык из адреса*"
+      hint: "Сначала смотрите на первый сегмент, потом на cookie."
+      hidden: true
+    - id: "docs-query"
+      title: "Документация: query при переписывании (скрытый)"
+      match: "Язык документации > сохраняет query*"
+      hint: "Клонируйте request.nextUrl и меняйте только pathname."
+      hidden: true
+    - id: "headers-path"
+      title: "Заголовки: x-request-path"
+      match: "Заголовки > кладёт исходный путь*"
+      hint: "response.headers.set(\"x-request-path\", pathname) для ответа с next()."
+    - id: "headers-locale"
+      title: "Заголовки: x-locale в запросе (скрытый)"
+      match: "Заголовки > передаёт язык*"
+      hint: "NextResponse.next/rewrite с { request: { headers } }, где headers содержит x-locale."
+      hidden: true
+    - id: "headers-not-client"
+      title: "Заголовки: x-locale не в ответе (скрытый)"
+      match: "Заголовки > не отдаёт*"
+      hint: "Не ставьте x-locale через response.headers: он должен идти только в запрос."
+      hidden: true
+    - id: "headers-rewrite-path"
+      title: "Заголовки: путь до переписывания (скрытый)"
+      match: "Заголовки > при переписывании*"
+      hint: "Записывайте в x-request-path исходный pathname, а не target.pathname."
+      hidden: true
+    - id: "headers-override"
+      title: "Заголовки: замена присланного x-locale (скрытый)"
+      match: "Заголовки > заменяет*"
+      hint: "headers.set заменяет значение, присланное клиентом."
+      hidden: true
+    - id: "headers-keep"
+      title: "Заголовки: остальные сохранены (скрытый)"
+      match: "Заголовки > сохраняет остальные*"
+      hint: "Начинайте с копии request.headers: new Headers(request.headers)."
+      hidden: true

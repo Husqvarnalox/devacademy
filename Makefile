@@ -43,7 +43,7 @@ help:
 	@echo "format            apply formatting"
 	@echo "validate-content  validate content + run reference solutions and samples"
 	@echo "python-env        create $(PYENV) and pip-install tools/python-dev-requirements.txt (DOWNLOADS from PyPI)"
-	@echo "node-env          npm ci EVERY tools/content-packages/node set into $(NODEENV)/<set>/ (react, typescript, express; DOWNLOADS from npm)"
+	@echo "node-env          npm ci EVERY tools/content-packages/node set into $(NODEENV)/<set>/ (react, typescript, express, nextjs; DOWNLOADS from npm)"
 	@echo "go-env            go mod download EVERY tools/content-packages/go set into $(GOENV)/<set>/pkg/mod (gomlx; DOWNLOADS from proxy.golang.org)"
 	@echo "maven-env         download EVERY tools/content-packages/maven set into $(MAVENENV)/<set>/lib (spring-boot-web-test; DOWNLOADS from repo1.maven.org, sha256-verified)"
 	@echo "nuget-env         dotnet restore EVERY tools/content-packages/nuget set into $(NUGETENV)/<set>/packages (aspnetcore-testing; DOWNLOADS from api.nuget.org)"
