@@ -77,7 +77,7 @@ documents linked from [CURRICULUM.md](CURRICULUM.md).
 | D. Data Science | NumPy, Pandas/Polars, visualization, Jupyter | Planned (needs Python Environment Manager) |
 | E. Machine Learning | Math for ML, classical ML (from scratch, then library) | Planned |
 | F. Deep Learning | PyTorch/TensorFlow/JAX fundamentals | Planned (ML Runtime Manager) |
-| G. LLM engineering | Inference, fine-tuning, RAG, agents, LLM security | Planned |
+| G. LLM engineering | Inference, fine-tuning, RAG, agents, LLM security | Partial: `llm-fundamentals` (9 lessons on NumPy/stdlib, offline and CPU-only: byte-level BPE, embeddings, bigram LM and perplexity, sampling, attention, mini-GPT forward with KV-cache, TF-IDF retrieval for RAG with recall@k, chat templates and validated tool calls, evaluation metrics and limits). Provider APIs (fake server), local inference of real models, fine-tuning, agents: Planned |
 | H. MLOps | Tracking, serving, containers, monitoring | Planned |
 | I. Advanced Python | Internals, memory, performance, C extensions, advanced concurrency | Planned |
 | J. Additional | CV, NLP, RL, data engineering, desktop GUI, security | Planned |
