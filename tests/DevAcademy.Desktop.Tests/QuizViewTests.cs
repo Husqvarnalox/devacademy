@@ -45,4 +45,37 @@ public class QuizViewTests
         Assert.Equal([true, true, false], quiz.Questions[0].Options.Select(o => o.IsSelected));
         Assert.True(errors.Messages.Count == 0, string.Join("\n", errors.Messages.Distinct()));
     }
+
+    [AvaloniaFact]
+    public async Task A_wrong_multiple_choice_answer_marks_each_option_by_its_own_outcome()
+    {
+        // Regression (go basic-types, q4 on zero values): the row colour followed the whole question, so with float64 left
+        // unticked the two correct picks turned red and the missed answer was not marked at all.
+        using var errors = new BindingErrors();
+        using var host = new TestHost();
+        const string lessonId = "go.first-steps.basic-types";
+        var quiz = new QuizViewModel(host.Services, lessonId, host.Services.Content.Current.FindLesson(lessonId)!.Quiz!);
+        var window = new Window { Content = new QuizView { DataContext = quiz }, Width = 900, Height = 2400 };
+        window.Show();
+        var q4 = quiz.Questions.Single(q => q.Id == "q4");
+        q4.Options[0].IsSelected = true;
+        q4.Options[3].IsSelected = true;
+
+        await quiz.SubmitCommand.ExecuteAsync(null);
+        Settle();
+
+        Assert.True(q4.IsWrong);
+        Assert.Equal([true, false, false, true], q4.Options.Select(o => o.IsRightPick));
+        Assert.Equal([false, true, false, false], q4.Options.Select(o => o.IsMissed));
+        Assert.DoesNotContain(q4.Options, o => o.IsWrongPick);
+        var rows = window.GetVisualDescendants().OfType<Border>().Where(b => b.Classes.Contains("option") && b.DataContext is QuizOptionViewModel o && q4.Options.Contains(o)).ToList();
+        Assert.Equal(4, rows.Count);
+        Assert.DoesNotContain(rows, r => r.Classes.Contains("wrong"));
+        Assert.Equal(["correct", "missed", "", "correct"], rows.Select(r => r.Classes.Contains("correct") ? "correct" : r.Classes.Contains("missed") ? "missed" : ""));
+
+        quiz.RetryCommand.Execute(null);
+        Settle();
+        Assert.DoesNotContain(rows, r => r.Classes.Contains("correct") || r.Classes.Contains("missed"));
+        Assert.True(errors.Messages.Count == 0, string.Join("\n", errors.Messages.Distinct()));
+    }
 }

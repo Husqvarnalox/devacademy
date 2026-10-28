@@ -9,11 +9,17 @@ using DevAcademy.Domain;
 
 namespace DevAcademy.Desktop.ViewModels;
 
-public sealed partial class QuizOptionViewModel(int index, string text) : ObservableObject
+/// <summary>After grading each option shows its own outcome: a right pick, a wrong pick, or a right answer that was not picked.</summary>
+public sealed partial class QuizOptionViewModel(int index, string text, bool isAnswer) : ObservableObject
 {
     public int Index { get; } = index;
     public string Text { get; } = text;
-    [ObservableProperty] private bool _isSelected;
+    public bool IsAnswer { get; } = isAnswer;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsRightPick), nameof(IsWrongPick), nameof(IsMissed))] private bool _isSelected;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsRightPick), nameof(IsWrongPick), nameof(IsMissed))] private bool _isGraded;
+    public bool IsRightPick => IsGraded && IsSelected && IsAnswer;
+    public bool IsWrongPick => IsGraded && IsSelected && !IsAnswer;
+    public bool IsMissed => IsGraded && !IsSelected && IsAnswer;
 }
 
 public sealed partial class QuizQuestionViewModel : ObservableObject
@@ -22,7 +28,7 @@ public sealed partial class QuizQuestionViewModel : ObservableObject
     {
         Question = q;
         Number = number;
-        Options = q.Options.Select((o, i) => new QuizOptionViewModel(i, o)).ToList();
+        Options = q.Options.Select((o, i) => new QuizOptionViewModel(i, o, q.CorrectIndices.Contains(i))).ToList();
         GroupName = "q-" + q.Id;
     }
 
@@ -77,7 +83,11 @@ public sealed partial class QuizQuestionViewModel : ObservableObject
     public void Reset()
     {
         Text = "";
-        foreach (var o in Options) o.IsSelected = false;
+        foreach (var o in Options)
+        {
+            o.IsSelected = false;
+            o.IsGraded = false;
+        }
         Correct = null;
         OnPropertyChanged(nameof(IsLocked));
     }
@@ -85,6 +95,7 @@ public sealed partial class QuizQuestionViewModel : ObservableObject
     internal void SetResult(bool correct)
     {
         Correct = correct;
+        foreach (var o in Options) o.IsGraded = true;
         OnPropertyChanged(nameof(IsLocked));
     }
 }

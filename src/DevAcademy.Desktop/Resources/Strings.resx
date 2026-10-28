@@ -86,7 +86,8 @@
   <data name="Goal_study" xml:space="preserve"><value>Учёба</value></data>
   <data name="Hints_Button" xml:space="preserve"><value>Подсказка ({0}/{1})</value></data>
   <data name="Hints_Header" xml:space="preserve"><value>Подсказка {0} из {1}</value></data>
-  <data name="Hints_None" xml:space="preserve"><value>Подсказок для этого задания нет.</value></data>
+  <data name="Hints_Intro" xml:space="preserve"><value>Подсказки открываются по одной, и каждая следующая конкретнее предыдущей. Начните с первой, а решение оставьте на крайний случай.</value></data>
+  <data name="Hints_Next" xml:space="preserve"><value>Показать подсказку {0} из {1}</value></data>
   <data name="Isolation_Badge" xml:space="preserve"><value>Изоляция: {0}</value></data>
   <data name="Isolation_Container" xml:space="preserve"><value>контейнер Docker</value></data>
   <data name="Isolation_Limits" xml:space="preserve"><value>только лимиты процесса (не граница безопасности)</value></data>
@@ -152,6 +153,7 @@
   <data name="Quiz_Threshold" xml:space="preserve"><value>Проходной порог: {0}%</value></data>
   <data name="Quiz_Title" xml:space="preserve"><value>Тест</value></data>
   <data name="Quiz_Wrong" xml:space="preserve"><value>Неверно</value></data>
+  <data name="Quiz_MissedAnswer" xml:space="preserve"><value>Верный вариант</value></data>
   <data name="RecReason_Continue" xml:space="preserve"><value>Вы уже начали этот урок</value></data>
   <data name="RecReason_Next" xml:space="preserve"><value>Следующий доступный урок</value></data>
   <data name="RecReason_Review" xml:space="preserve"><value>Пора повторить этот урок</value></data>

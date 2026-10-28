@@ -1,0 +1,252 @@
+id: "nextjs.fundamentals.client-components"
+title: "Граница \"use client\" и клиентские компоненты"
+goal: "Выносить интерактивность в небольшие клиентские компоненты, не теряя преимуществ серверных, и использовать хуки навигации Next.js."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "nextjs.fundamentals.server-components"
+objectives:
+  - "Назвать признаки, по которым компонент нужно сделать клиентским: состояние, эффекты, события, браузерные API, хуки навигации."
+  - "Объяснить, что директива use client задаёт границу модуля и переводит в клиентский код всё, что файл импортирует."
+  - "Описать, что клиентские компоненты тоже отрисовываются на сервере и затем гидратируются в браузере."
+  - "Определить, какие props можно передать из серверного компонента в клиентский, и заменить функцию данными."
+  - "Передать серверное содержимое в клиентский компонент через children и объяснить, почему оно остаётся серверным."
+  - "Написать клиентские компоненты с useRouter, usePathname и useSearchParams и проверить их тестами с макетом next/navigation."
+masteryCriteria:
+  - "Вы ставите use client на небольшие интерактивные компоненты, а страницы оставляете серверными."
+  - "Ваши клиентские компоненты не получают функции из серверных props и не импортируют серверные компоненты."
+  - "Вы сравниваете текущий путь с адресом ссылки точно и обрабатываете отсутствие параметра запроса."
+  - "Ваша форма поиска отменяет стандартную отправку, обрезает пробелы и кодирует запрос."
+related:
+  - "react.fundamentals.state-with-usestate"
+  - "react.fundamentals.events-and-forms"
+next:
+  - "nextjs.fundamentals.route-handlers"
+tags:
+  - "nextjs"
+  - "client-components"
+  - "use-client"
+  - "navigation"
+  - "hydration"
+facts:
+  - kind: "misconception"
+    text: "«Клиентский компонент выполняется только в браузере». Он тоже отрисовывается на сервере: из клиентских компонентов и RSC Payload собирается начальный HTML. Браузер затем гидратирует разметку, то есть подключает обработчики. Поэтому клиентскому компоненту нельзя обращаться к window прямо в теле: на сервере этого объекта нет. Браузерные API вызывают в эффектах и обработчиках."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+  - kind: "internals"
+    text: "Директива use client делает границу между серверным и клиентским графами модулей. Все модули, которые файл импортирует, и компоненты, которые он отрисовывает прямо у себя, попадают в клиентский код. Серверные компоненты, переданные как children или в другие props, в граф клиентского модуля не входят: они отрисовываются на сервере и приходят готовым результатом."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/directives/use-client"
+      - "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+  - kind: "real-world"
+    text: "Пакет server-only защищает модули с секретами: если случайно импортировать такой модуль в клиентский компонент, сборка завершится ошибкой. Без метки переменные окружения без префикса NEXT_PUBLIC_ в клиентском коде заменяются пустой строкой, и ошибка проявится только при работе приложения."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/server-and-client-components"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "Какой из компонентов можно оставить серверным, то есть без директивы use client?"
+      options:
+        - "Кнопка, которая увеличивает счётчик через useState."
+        - "Список товаров, который выводит данные, полученные через await в теле компонента."
+        - "Поле поиска, которое по отправке вызывает router.push."
+        - "Блок, который читает размер окна через window.innerWidth."
+      answer: 1
+      explanation: "Вывод данных не требует состояния, событий и браузерных API, поэтому серверного компонента достаточно. Остальные варианты используют useState, хук навигации или window, а это возможно только в клиентском компоненте."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Серверная страница рендерит клиентский компонент <Chart />. Какие значения можно передать ему в props? Выберите все верные."
+      options:
+        - "массив чисел [1, 2, 3]"
+        - "обычная функция () => 42"
+        - "строка с названием"
+        - "объект вида { id: \"7\", tags: [\"a\", \"b\"] }"
+      answer:
+        - 0
+        - 2
+        - 3
+      explanation: "Строки, числа, массивы и обычные объекты из них сериализуются и могут пересечь границу. Обычную функцию сериализовать нельзя: её придётся заменить данными и обрабатывать событие внутри клиентского компонента."
+    - id: "q3"
+      type: "single"
+      prompt: "Файл Panel.tsx начинается с use client и импортирует Helper.tsx без директивы. Где выполняется Helper?"
+      options:
+        - "Только на сервере: у Helper нет своей директивы."
+        - "В клиентском коде тоже: модуль, импортированный из клиентского файла, входит в клиентский граф."
+        - "Next.js выдаст ошибку, потому что у Helper нет директивы."
+        - "Определяется при каждом запросе случайно."
+      answer: 1
+      explanation: "Директива задаёт границу, а не помечает каждый файл отдельно. Всё, что импортирует клиентский модуль, становится частью клиентского кода, поэтому ставить use client на каждом файле не нужно."
+    - id: "q4"
+      type: "single"
+      prompt: "Серверная страница передаёт в клиентский <Collapsible> свой серверный компонент как children. Что верно?"
+      options:
+        - "Серверный компонент превращается в клиентский и загружается в браузер."
+        - "Так делать нельзя: клиентский компонент не принимает children."
+        - "Серверный компонент отрисовывается на сервере, а Collapsible решает, показывать ли его результат."
+        - "Collapsible всегда выполняется на сервере, поэтому состояние в нём не работает."
+      answer: 2
+      explanation: "Серверные элементы, переданные как children или в другие props, не импортируются в клиентский модуль. Они приходят готовым результатом, поэтому границу не пересекают. Импорт того же компонента внутрь файла с use client сделал бы его клиентским."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется процесс, при котором браузер подключает обработчики событий к HTML, уже отрисованному на сервере? Введите одно слово."
+      answer:
+        - "гидратация"
+        - "Гидратация"
+        - "hydration"
+        - "Hydration"
+      explanation: "Гидратация подключает к готовой разметке состояние и обработчики клиентских компонентов. Поэтому страница видна ещё до загрузки JavaScript, а кнопки начинают работать после неё."
+exercise:
+  id: "nextjs.fundamentals.client-components.exercise"
+  title: "Интерактивные компоненты каталога"
+  prompt: |
+    Напишите четыре клиентских компонента и серверную страницу, которая их использует. Источник данных - готовый модуль **`src/lib/catalog.ts`** (менять не нужно): `getCatalog()` асинхронно возвращает позиции `{ id, title }`.
+
+    Компоненты лежат в **`src/components/`** и экспортируются по умолчанию. В заготовке уже есть сигнатуры; часть директив и логики отсутствует.
+
+    **`FavoriteButton.tsx`** - свойства `{ title: string; initial?: boolean }`. Кнопка `type="button"` с состоянием «в избранном» (изначально `initial`, по умолчанию `false`). Видимый текст: `В избранное`, если не в избранном, и `В избранном`, если в избранном. Атрибут `aria-pressed` равен `true` или `false` (строкой в DOM), а `aria-label` имеет вид `<title>: <видимый текст>`, например `Чайник: В избранное`. Клик переключает состояние.
+
+    **`SearchBox.tsx`** - без свойств. Форма `role="search"` с полем `<input type="search" aria-label="Поиск">` и кнопкой `<button type="submit">Найти</button>`. Начальное значение поля - `useSearchParams().get("q")`, а если параметра нет (`null`) - пустая строка. При отправке отмените стандартное поведение формы (`event.preventDefault()`), обрежьте пробелы по краям (`trim`) и вызовите `router.push(...)` у `useRouter()`: для непустого запроса - `"/search?q=" + encodeURIComponent(запрос)`, для пустого - `"/search"`.
+
+    **`NavLink.tsx`** - свойства `{ href: string; children: ReactNode }`. Рендерит `Link` из `next/link` с этим `href`. Если `usePathname()` в точности равен `href`, ссылка получает `aria-current="page"`; иначе атрибута нет (значение `undefined`).
+
+    **`Collapsible.tsx`** - свойства `{ title: string; children: ReactNode; defaultOpen?: boolean }`. Внутри `<section>` лежит `<button type="button" aria-expanded={открыт}>` с текстом `title`; содержимое `children` выводится только когда блок открыт (изначально открыт, если `defaultOpen` равно `true`). Клик по кнопке переключает состояние.
+
+    Все четыре файла должны начинаться с директивы `"use client"` (первый оператор файла).
+
+    **`src/app/catalog/page.tsx`** - серверный компонент, он остаётся **без** директивы `"use client"` и без хуков. Компонент `async`, без свойств. Дождитесь `getCatalog()` и верните `<main>` с такими элементами по порядку: заголовок `<h1>Каталог</h1>`; `<nav aria-label="Разделы">` с двумя `NavLink`: «Все позиции» (`/catalog`) и «Новинки» (`/catalog/new`); `<SearchBox />`; `<Collapsible title="О каталоге">` с абзацем `Позиций в каталоге: N` внутри (серверное содержимое передаётся как `children`); список `<ul>`, где в каждом `<li>` лежит `<span>` с названием позиции и `<FavoriteButton title={название} />`.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest. В тестах модуль `next/navigation` заменён макетом (`useRouter` отдаёт функцию `push`, `usePathname` и `useSearchParams` возвращают заданные значения).
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/components/FavoriteButton.tsx"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Начните с FavoriteButton: первой строкой файла напишите директиву \"use client\", затем заведите состояние через useState(initial) и меняйте его в обработчике onClick. Остальные компоненты строятся так же."
+    - "SearchBox: начальное значение состояния - searchParams.get(\"q\") ?? \"\". В onSubmit вызовите event.preventDefault(), вычислите trimmed = query.trim() и вызовите router.push с адресом, выбранным по trimmed."
+    - "NavLink: const pathname = usePathname(); атрибут aria-current={pathname === href ? \"page\" : undefined}. Collapsible: условный вывод {open && <div>{children}</div>} и aria-expanded={open} на кнопке."
+    - "Страница каталога: превратите заглушку в async-функцию с await getCatalog(), затем расположите элементы в порядке из условия. Директиву use client на странице не добавляйте: интерактивными остаются только импортированные компоненты."
+  tests:
+    - id: "fav-toggle"
+      title: "FavoriteButton: переключение"
+      match: "FavoriteButton > по клику переключает*"
+      hint: "Клик меняет aria-pressed, видимый текст и aria-label; формат подписей указан в условии."
+    - id: "fav-twice"
+      title: "FavoriteButton: повторный клик (скрытый)"
+      match: "FavoriteButton > повторный клик*"
+      hint: "Второй клик возвращает исходное состояние."
+      hidden: true
+    - id: "fav-initial"
+      title: "FavoriteButton: начальное значение (скрытый)"
+      match: "FavoriteButton > учитывает начальное*"
+      hint: "Свойство initial задаёт стартовое состояние."
+      hidden: true
+    - id: "fav-independent"
+      title: "FavoriteButton: независимые кнопки (скрытый)"
+      match: "FavoriteButton > состояние разных кнопок*"
+      hint: "Состояние хранится внутри каждого экземпляра компонента."
+      hidden: true
+    - id: "search-submit"
+      title: "SearchBox: переход по отправке"
+      match: "SearchBox > отправка ведёт*"
+      hint: "Запрос кодируется через encodeURIComponent и добавляется к /search?q=."
+    - id: "search-initial"
+      title: "SearchBox: начальное значение (скрытый)"
+      match: "SearchBox > подставляет начальное значение*"
+      hint: "Начальный текст берётся из useSearchParams().get('q')."
+      hidden: true
+    - id: "search-no-param"
+      title: "SearchBox: нет параметра q (скрытый)"
+      match: "SearchBox > без параметра q*"
+      hint: "Если параметра нет, поле пустое (null заменяется пустой строкой)."
+      hidden: true
+    - id: "search-trim"
+      title: "SearchBox: обрезка пробелов (скрытый)"
+      match: "SearchBox > обрезает пробелы*"
+      hint: "Перед отправкой запрос обрезается методом trim."
+      hidden: true
+    - id: "search-blank"
+      title: "SearchBox: пустой запрос (скрытый)"
+      match: "SearchBox > запрос из пробелов*"
+      hint: "После trim пустая строка ведёт на /search без параметра."
+      hidden: true
+    - id: "search-encode"
+      title: "SearchBox: спецсимволы (скрытый)"
+      match: "SearchBox > кодирует спецсимволы*"
+      hint: "Символы & и = в запросе должны быть закодированы."
+      hidden: true
+    - id: "search-prevent"
+      title: "SearchBox: отмена отправки формы (скрытый)"
+      match: "SearchBox > отменяет стандартную отправку*"
+      hint: "В обработчике нужен event.preventDefault(), иначе страница перезагрузится."
+      hidden: true
+    - id: "nav-current"
+      title: "NavLink: текущая страница"
+      match: "NavLink > помечает ссылку на текущий адрес*"
+      hint: "Если usePathname() равен href, ссылка получает aria-current='page'."
+    - id: "nav-other"
+      title: "NavLink: другая страница (скрытый)"
+      match: "NavLink > не помечает ссылку на другой адрес*"
+      hint: "У ссылки на другой адрес атрибута aria-current быть не должно."
+      hidden: true
+    - id: "nav-href"
+      title: "NavLink: адрес ссылки (скрытый)"
+      match: "NavLink > ведёт на указанный href*"
+      hint: "Компонент передаёт href в Link."
+      hidden: true
+    - id: "nav-exact"
+      title: "NavLink: точное совпадение (скрытый)"
+      match: "NavLink > сравнивает адрес целиком*"
+      hint: "Сравнивается весь путь, а не его начало."
+      hidden: true
+    - id: "coll-hidden"
+      title: "Collapsible: скрыт по умолчанию (скрытый)"
+      match: "Collapsible > по умолчанию скрывает*"
+      hint: "Закрытый блок не выводит children, aria-expanded равен false."
+      hidden: true
+    - id: "coll-toggle"
+      title: "Collapsible: открытие и закрытие"
+      match: "Collapsible > клик по заголовку*"
+      hint: "Клик показывает и скрывает children, меняя aria-expanded."
+    - id: "coll-default-open"
+      title: "Collapsible: defaultOpen (скрытый)"
+      match: "Collapsible > defaultOpen*"
+      hint: "Свойство defaultOpen задаёт начальное состояние."
+      hidden: true
+    - id: "page-content"
+      title: "Страница: заголовок и позиции"
+      match: "CatalogPage > показывает заголовок*"
+      hint: "Страница ждёт getCatalog() и выводит позиции в исходном порядке."
+    - id: "page-parts"
+      title: "Страница: клиентские части (скрытый)"
+      match: "CatalogPage > собирает интерактивные части*"
+      hint: "На странице есть поиск, навигация с отмеченной текущей ссылкой и кнопки избранного."
+      hidden: true
+    - id: "page-children"
+      title: "Страница: серверное содержимое в блоке (скрытый)"
+      match: "CatalogPage > передаёт серверное содержимое*"
+      hint: "Текст о числе позиций передаётся в Collapsible как children и появляется после открытия."
+      hidden: true
+    - id: "client-directive"
+      title: "Директива use client в компонентах (скрытый)"
+      match: "Граница use client > интерактивные компоненты*"
+      hint: "Директива стоит первым оператором в каждом из четырёх компонентов."
+      hidden: true
+    - id: "page-server"
+      title: "Страница остаётся серверной (скрытый)"
+      match: "Граница use client > страница каталога*"
+      hint: "В page.tsx нет директивы и клиентских хуков."
+      hidden: true

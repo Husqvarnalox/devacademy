@@ -215,7 +215,7 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
     [ObservableProperty] private int _outputTab;
     [ObservableProperty] private string? _statusMessage;
     [ObservableProperty] private bool _isSolutionVisible;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanRevealHint), nameof(HintButtonText), nameof(HintsHeader))] private int _revealedCount;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanRevealHint), nameof(HintButtonText), nameof(NextHintButtonText), nameof(HintsHeader))] private int _revealedCount;
 
     public bool IsAcceleratorBlocked => AcceleratorBlock is not null;
     public bool HasEnvironmentNotice => AcceleratorBlock is not null || EnvironmentNotice is not null || InstallSet is not null || InstallLog.Length > 0;
@@ -232,6 +232,8 @@ public sealed partial class ExerciseSessionViewModel : ObservableObject
 
     public bool CanRevealHint => Exercise is not null && RevealedCount < Exercise.Hints.Count;
     public string HintButtonText => Exercise is null ? "" : Loc.F("Hints_Button", RevealedCount, Exercise.Hints.Count);
+    /// <summary>The button on the hints tab names the hint it opens, not the count already open.</summary>
+    public string NextHintButtonText => Exercise is null ? "" : Loc.F("Hints_Next", Math.Min(RevealedCount + 1, Exercise.Hints.Count), Exercise.Hints.Count);
 
     /// <summary>Raised after a submission has been persisted.</summary>
     public event Action<ProgressUpdate>? Submitted;

@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using DevAcademy.Application.Visualization;
 using DevAcademy.Desktop.Localization;
 using Markdig;
@@ -186,10 +187,12 @@ public static class MarkdownRenderer
 
     private static InlineUIContainer LinkInlineUi(string text, string url, MarkdownRenderOptions o)
     {
-        var label = new TextBlock { Text = text.Length == 0 ? url : text, Foreground = o.Theme.Link, TextDecorations = TextDecorations.Underline, FontSize = BodySize };
+        var label = new TextBlock { Text = text.Length == 0 ? url : text, Foreground = o.Theme.Link, TextDecorations = TextDecorations.Underline, FontSize = BodySize, FontWeight = FontWeight.Normal };
+        // The theme's Button MinHeight (32) is taller than BodyLine and breaks the line the link wraps onto.
         var button = new Button
         {
             Content = label,
+            MinHeight = 0,
             Padding = default,
             Background = Brushes.Transparent,
             BorderThickness = default,
@@ -198,6 +201,14 @@ public static class MarkdownRenderer
             VerticalAlignment = VerticalAlignment.Bottom,
         };
         button.Classes.Add("md-link");
+        // An inline control sits on the baseline by its bottom edge; offset it by the label's own baseline so the link text lines up with the run text.
+        label.SizeChanged += (_, _) =>
+        {
+            var baseline = label.TextLayout.TextLines.Count > 0 ? label.TextLayout.TextLines[0].Baseline : 0;
+            if (baseline <= 0 || Math.Abs(TextBlock.GetBaselineOffset(button) - baseline) < 0.5) return;
+            TextBlock.SetBaselineOffset(button, baseline);
+            (button.GetVisualParent() as Layoutable)?.InvalidateMeasure();
+        };
         ToolTip.SetTip(button, url);
         button.Click += (_, _) => o.OpenLink?.Invoke(url);
         return new InlineUIContainer(button);

@@ -1,0 +1,297 @@
+id: "nextjs.fundamentals.route-handlers"
+title: "Обработчики маршрутов (Route Handlers)"
+goal: "Писать HTTP-обработчики в файлах route.ts: читать запрос, проверять входные данные, выбирать корректные коды ответов и отдавать JSON."
+difficulty: "medium"
+estimatedMinutes: 90
+prerequisites:
+  - "nextjs.fundamentals.client-components"
+objectives:
+  - "Объяснить, чем файл route отличается от page, и почему они не могут находиться в одном сегменте."
+  - "Написать обработчики GET, POST, PATCH и DELETE на основе Request, NextRequest и NextResponse."
+  - "Прочитать параметры запроса, тело JSON и параметры динамического сегмента (params как промис)."
+  - "Выбрать корректные коды ответов: 200, 201, 204, 400, 404, 415, и вернуть единообразное тело ошибки."
+  - "Объяснить правила кэширования обработчиков и автоматический ответ 405 на неподдерживаемый метод."
+  - "Проверить обработчик тестом, создав NextRequest и прочитав Response без запуска сервера."
+masteryCriteria:
+  - "Вы не доверяете телу запроса: проверяете корректность JSON, тип тела и тип каждого поля до использования."
+  - "Вы отвечаете кодом, который соответствует ситуации, а не 200 с описанием ошибки в теле."
+  - "Вы проверяете существование ресурса до проверки формата тела и ждёте params через await."
+  - "Вы отдаёте 204 без тела и Location в ответе на создание ресурса."
+related:
+  - "nextjs.fundamentals.app-router-routing"
+  - "typescript.first-steps.structural-typing-and-narrowing"
+next:
+  - "nextjs.fundamentals.server-actions"
+tags:
+  - "nextjs"
+  - "route-handlers"
+  - "http"
+  - "api"
+  - "validation"
+facts:
+  - kind: "misconception"
+    text: "«Обработчик маршрута кэшируется, как страница». По умолчанию нет: обработчики выполняются на каждый запрос. Для GET кэширование включают явно, например, настройкой dynamic = 'force-static'; остальные методы не кэшируются никогда, даже если лежат в одном файле с кэшируемым GET."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/route-handlers"
+  - kind: "internals"
+    text: "Файл route занимает все HTTP-методы своего адреса, поэтому он не может лежать рядом с page: оба претендуют на один сегмент. Если определены не все методы, Next.js сам отвечает 405 на остальные, а для OPTIONS, не заданного вручную, автоматически формирует ответ и заголовок Allow по определённым методам."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/route-handlers"
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/route"
+  - kind: "real-world"
+    text: "Обработчик маршрута - публичная точка входа: к нему может обратиться любой клиент с любым телом запроса. Поэтому валидацию входных данных и проверку прав выполняют внутри самого обработчика, а не полагаются на проверки в интерфейсе."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/route-handlers"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В файле app/api/ping/route.ts экспортирована только функция GET. Что получит клиент, отправив POST на /api/ping?"
+      options:
+        - "Ответ 404, потому что адреса нет."
+        - "Вызовется GET, потому что другой функции нет."
+        - "Ответ 405 Method Not Allowed: Next.js формирует его сам."
+        - "Ответ 500, потому что обработчик не найден."
+      answer: 2
+      explanation: "Адрес существует, но метод не поддерживается: для такого случая Next.js возвращает 405. 404 означает отсутствие адреса, а подмены метода не происходит."
+    - id: "q2"
+      type: "single"
+      prompt: "Какой код ответа подходит для успешного создания записи через POST, если в заголовке Location указан адрес новой записи?"
+      options:
+        - "200 OK"
+        - "201 Created"
+        - "204 No Content"
+        - "202 Accepted"
+      answer: 1
+      explanation: "201 сообщает, что ресурс создан, и обычно сопровождается заголовком Location. 200 тоже означает успех, но не говорит о создании. 204 не имеет тела, поэтому созданную запись в нём вернуть нельзя."
+    - id: "q3"
+      type: "multiple"
+      prompt: "Какие из этих ситуаций в обработчике POST /api/notes должны давать ответ 4xx? Выберите все верные."
+      options:
+        - "В заголовке Content-Type указано text/plain."
+        - "В теле запроса поле title пустое."
+        - "Тело содержит корректный JSON с допустимым title."
+        - "Тело запроса не является корректным JSON."
+      answer:
+        - 0
+        - 1
+        - 3
+      explanation: "Неподдерживаемый тип содержимого даёт 415, пустое поле и битый JSON - 400. Корректный запрос должен завершиться успехом (201)."
+    - id: "q4"
+      type: "single"
+      prompt: "В app/api/notes/[id]/route.ts обработчик GET начинается со строки const id = params.id; Почему в Next.js 16 это не сработает?"
+      options:
+        - "params недоступен в обработчиках маршрутов."
+        - "params передаётся промисом, поэтому нужно const { id } = await params;"
+        - "params нужно читать из request.params."
+        - "Динамические сегменты в route.ts не поддерживаются."
+      answer: 1
+      explanation: "Вторым аргументом приходит { params } с промисом, и значение сегмента нужно дождаться через await. Динамические сегменты в route.ts поддерживаются, но объекта request.params нет."
+    - id: "q5"
+      type: "short"
+      prompt: "Какой код ответа используют для успешного удаления записи, когда тело ответа не нужно? Введите число."
+      answer:
+        - "204"
+      explanation: "204 No Content означает успех без тела. Код 200 допустим, если в ответе есть данные, но для удаления без тела выбирают 204."
+exercise:
+  id: "nextjs.fundamentals.route-handlers.exercise"
+  title: "API заметок"
+  prompt: |
+    Напишите HTTP API заметок на обработчиках маршрутов. Хранилище в памяти - готовый модуль **`src/lib/store.ts`** (менять не нужно): `listNotes()`, `getNote(id)`, `createNote({ title, text })`, `updateNote(id, patch)`, `deleteNote(id)`. Заметка - `{ id, title, text }`.
+
+    Все ошибки возвращайте JSON-телом **`{ error: "<сообщение строкой>" }`** (текст сообщения произвольный, но непустой) с указанным ниже статусом. Ответы строятся через `NextResponse.json`.
+
+    **`src/app/api/notes/route.ts`**
+
+    * `GET(request: NextRequest)` - ответ 200 и `{ notes: Note[], total: number }`.
+      * `q` (необязательный): если после `trim` не пуст, остаются заметки, в заголовке или тексте которых есть подстрока `q` **без учёта регистра** (работает и для кириллицы); пустой `q` и `q` из пробелов не фильтруют.
+      * `limit` (необязательный): если параметр есть, он должен быть целым десятичным числом от 1 до 50 включительно (только цифры, без знака и дроби; пустое значение тоже недопустимо), иначе ответ 400. После фильтра по `q` берутся первые `limit` заметок в порядке хранилища.
+      * `total` - количество найденных заметок **до** применения `limit`.
+    * `POST(request: NextRequest)` - создание. Проверки идут в таком порядке:
+      1. заголовок `Content-Type` не содержит `application/json` (или отсутствует) - 415;
+      2. тело не разбирается как JSON - 400;
+      3. JSON не является обычным объектом (массив, `null`, строка, число) - 400;
+      4. `title` - обязательная строка; после `trim` её длина от 1 до 100 символов, иначе 400;
+      5. `text` необязателен; если передан, должен быть строкой, иначе 400. По умолчанию - пустая строка.
+      Сохраняйте `title` после `trim`, `text` без изменений. Успех: статус 201, тело - созданная заметка, заголовок `Location: /api/notes/<id>`.
+
+    **`src/app/api/notes/[id]/route.ts`**. Вторым аргументом каждая функция получает `{ params }` с `Promise<{ id: string }>`.
+
+    * `GET` - 200 и заметка, либо 404 для неизвестного `id`.
+    * `PATCH` - частичное обновление. Порядок проверок: заметки нет - 404; `Content-Type` не JSON - 415; тело не JSON или не обычный объект - 400; в объекте нет ни `title`, ни `text` - 400; переданный `title` не проходит правила из `POST` (строка, 1-100 символов после `trim`) - 400; переданный `text` не строка - 400. Успех: 200 и обновлённая заметка; изменяются только переданные поля (`text: ""` допустим), `title` сохраняется после `trim`. При любой ошибке заметка не меняется.
+    * `DELETE` - успешное удаление: статус 204 и пустое тело (`new NextResponse(null, { status: 204 })`); для неизвестного `id` - 404.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest в среде Node.js. Они создают настоящие `NextRequest` и вызывают ваши функции напрямую.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/app/api/notes/route.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Начните с GET списка: параметры лежат в request.nextUrl.searchParams. Сначала проверьте limit (если параметр есть), затем отфильтруйте listNotes(), затем примените slice и верните { notes, total }."
+    - "Проверку limit удобно сделать так: rawLimit !== null, затем /^\\d+$/.test(rawLimit) и диапазон 1..50. Для q приведите и запрос, и поля заметки к нижнему регистру через toLowerCase() и ищите includes."
+    - "В POST выстройте проверки в порядке из условия, каждый раз сразу делая return NextResponse.json({ error }, { status }). Разбор тела оберните в try/catch, затем убедитесь, что значение - объект, не null и не массив."
+    - "Для [id]: const { id } = await params; для PATCH сначала getNote(id) (404), потом те же проверки тела, что в POST, но поля необязательны; обновляйте через updateNote(id, { title, text }). Для DELETE: deleteNote(id) возвращает true или false."
+  tests:
+    - id: "list-all"
+      title: "GET: все заметки и total"
+      match: "GET /api/notes > возвращает все*"
+      hint: "Ответ 200 с полями notes (в порядке хранилища) и total."
+    - id: "list-filter"
+      title: "GET: фильтр q"
+      match: "GET /api/notes > фильтрует по q*"
+      hint: "Поиск по заголовку и тексту без учёта регистра, в том числе для кириллицы."
+    - id: "list-blank-q"
+      title: "GET: пустой q (скрытый)"
+      match: "GET /api/notes > пустой q*"
+      hint: "Пустой q и q из пробелов не фильтруют список."
+      hidden: true
+    - id: "list-empty"
+      title: "GET: нет совпадений (скрытый)"
+      match: "GET /api/notes > при отсутствии совпадений*"
+      hint: "Пустой список и total 0 со статусом 200, а не 404."
+      hidden: true
+    - id: "list-limit"
+      title: "GET: limit и total (скрытый)"
+      match: "GET /api/notes > limit ограничивает*"
+      hint: "total считает все найденные заметки, notes - только первые limit."
+      hidden: true
+    - id: "list-limit-after-filter"
+      title: "GET: limit после фильтра (скрытый)"
+      match: "GET /api/notes > limit применяется после*"
+      hint: "Сначала фильтр по q, затем срез по limit; total считается до среза."
+      hidden: true
+    - id: "list-limit-bounds"
+      title: "GET: границы limit (скрытый)"
+      match: "GET /api/notes > граничные значения*"
+      hint: "limit=1 и limit=50 допустимы."
+      hidden: true
+    - id: "list-limit-invalid"
+      title: "GET: недопустимый limit (скрытый)"
+      match: "GET /api/notes > недопустимый limit*"
+      hint: "Ноль, 51, отрицательные, дробные и нечисловые значения, а также пустой limit дают 400 и { error }."
+      hidden: true
+    - id: "post-created"
+      title: "POST: создание заметки"
+      match: "POST /api/notes > создаёт заметку*"
+      hint: "Ответ 201, тело с новой заметкой и заголовок Location: /api/notes/<id>."
+    - id: "post-in-list"
+      title: "POST: заметка видна в списке (скрытый)"
+      match: "POST /api/notes > созданная заметка*"
+      hint: "Заметка сохраняется через createNote из хранилища."
+      hidden: true
+    - id: "post-trim"
+      title: "POST: обрезка title (скрытый)"
+      match: "POST /api/notes > обрезает пробелы*"
+      hint: "title сохраняется без пробелов по краям, text по умолчанию - пустая строка."
+      hidden: true
+    - id: "post-415"
+      title: "POST: не JSON (скрытый)"
+      match: "POST /api/notes > без JSON в Content-Type*"
+      hint: "Content-Type без application/json даёт 415 и { error }."
+      hidden: true
+    - id: "post-no-type"
+      title: "POST: нет Content-Type (скрытый)"
+      match: "POST /api/notes > запрос без Content-Type*"
+      hint: "Отсутствие заголовка Content-Type тоже даёт 415."
+      hidden: true
+    - id: "post-bad-json"
+      title: "POST: битый JSON (скрытый)"
+      match: "POST /api/notes > некорректный JSON*"
+      hint: "Ошибку request.json() нужно перехватить и ответить 400."
+      hidden: true
+    - id: "post-not-object"
+      title: "POST: тело не объект (скрытый)"
+      match: "POST /api/notes > тело, не являющееся объектом*"
+      hint: "Массив, null и строка в теле дают 400."
+      hidden: true
+    - id: "post-bad-title"
+      title: "POST: неверный title (скрытый)"
+      match: "POST /api/notes > пустой, отсутствующий*"
+      hint: "Нет поля, пустая строка, пробелы, число и null дают 400."
+      hidden: true
+    - id: "post-title-length"
+      title: "POST: длина title (скрытый)"
+      match: "POST /api/notes > title до 100 символов*"
+      hint: "Допустимо до 100 символов включительно, 101 даёт 400."
+      hidden: true
+    - id: "post-title-trimmed-length"
+      title: "POST: длина после trim (скрытый)"
+      match: "POST /api/notes > длину title считают*"
+      hint: "Пробелы по краям в длину не входят."
+      hidden: true
+    - id: "post-bad-text"
+      title: "POST: неверный text (скрытый)"
+      match: "POST /api/notes > нестроковый text*"
+      hint: "text, если он передан, должен быть строкой; заметка при ошибке не создаётся."
+      hidden: true
+    - id: "one-get"
+      title: "GET по id: найдена"
+      match: "GET /api/notes/[id] > возвращает заметку*"
+      hint: "Ответ 200 с заметкой; params нужно дождаться через await."
+    - id: "one-get-404"
+      title: "GET по id: не найдена (скрытый)"
+      match: "GET /api/notes/[id] > для неизвестного id*"
+      hint: "Ответ 404 с { error }."
+      hidden: true
+    - id: "patch-title"
+      title: "PATCH: только title (скрытый)"
+      match: "PATCH /api/notes/[id] > обновляет только*"
+      hint: "Обновляется переданное поле, остальные не меняются; title обрезается."
+      hidden: true
+    - id: "patch-text"
+      title: "PATCH: только text (скрытый)"
+      match: "PATCH /api/notes/[id] > обновляет text*"
+      hint: "Пустая строка в text - допустимое значение."
+      hidden: true
+    - id: "patch-saved"
+      title: "PATCH: изменение сохраняется (скрытый)"
+      match: "PATCH /api/notes/[id] > изменение сохраняется*"
+      hint: "Изменения видны при следующем GET."
+      hidden: true
+    - id: "patch-404-first"
+      title: "PATCH: 404 раньше проверки тела (скрытый)"
+      match: "PATCH /api/notes/[id] > для неизвестного id отвечает 404*"
+      hint: "Сначала проверяется существование заметки, затем формат запроса."
+      hidden: true
+    - id: "patch-415"
+      title: "PATCH: не JSON (скрытый)"
+      match: "PATCH /api/notes/[id] > без JSON в Content-Type*"
+      hint: "Для существующей заметки неверный Content-Type даёт 415."
+      hidden: true
+    - id: "patch-400-shape"
+      title: "PATCH: пустое тело (скрытый)"
+      match: "PATCH /api/notes/[id] > пустой объект*"
+      hint: "Пустой объект, битый JSON и массив дают 400."
+      hidden: true
+    - id: "patch-400-values"
+      title: "PATCH: неверные значения (скрытый)"
+      match: "PATCH /api/notes/[id] > недопустимые значения*"
+      hint: "Правила title и text те же, что в POST; при ошибке заметка не меняется."
+      hidden: true
+    - id: "delete-ok"
+      title: "DELETE: удаление"
+      match: "DELETE /api/notes/[id] > удаляет заметку*"
+      hint: "Ответ 204 с пустым телом; заметка пропадает из хранилища."
+    - id: "delete-404"
+      title: "DELETE: не найдена (скрытый)"
+      match: "DELETE /api/notes/[id] > для неизвестного id*"
+      hint: "Ответ 404 с { error }."
+      hidden: true
+    - id: "delete-twice"
+      title: "DELETE: повторное удаление (скрытый)"
+      match: "DELETE /api/notes/[id] > повторное удаление*"
+      hint: "Второй вызов для того же id даёт 404."
+      hidden: true

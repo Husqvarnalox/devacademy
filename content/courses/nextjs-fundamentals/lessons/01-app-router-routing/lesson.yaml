@@ -1,0 +1,307 @@
+id: "nextjs.fundamentals.app-router-routing"
+title: "Файловая маршрутизация App Router"
+goal: "По структуре каталога app/ определять URL-шаблоны, параметры и вложенные макеты и реализовать функции, которые повторяют эти правила."
+difficulty: "easy"
+estimatedMinutes: 75
+prerequisites:
+  - "react.fundamentals.testing-library"
+objectives:
+  - "Объяснить, что папка внутри app/ задаёт сегмент адреса, а публичным маршрутом сегмент становится только при наличии файла page или route."
+  - "Назвать специальные файлы (layout, page, loading, not-found, error, route, template) и сказать, за что отвечает каждый."
+  - "Построить URL по пути к файлу с учётом групп (name), приватных папок _name и динамических сегментов."
+  - "Различать [slug], [...slug] и [[...slug]] и предсказывать значение params для адреса."
+  - "Объяснить порядок выбора между статическим, динамическим и catch-all маршрутами и ситуации, в которых Next.js сообщает о конфликте."
+  - "Назвать, какие макеты оборачивают страницу и в каком порядке, и почему корневой макет обязан содержать html и body."
+masteryCriteria:
+  - "Вы считаете публичными только сегменты с page или route и не выносите в маршруты компоненты из соседних папок."
+  - "Вы правильно определяете, какие макеты (включая макеты групп) оборачивают страницу, и в каком порядке."
+  - "Ваша функция выбора маршрута даёт один и тот же результат при любом порядке шаблонов и предпочитает более конкретный."
+  - "Ваши функции корректно обрабатывают завершающий слэш, кириллические сегменты и отсутствие необязательных параметров."
+related:
+  - "react.fundamentals.props-composition-keys"
+next:
+  - "nextjs.fundamentals.server-components"
+tags:
+  - "nextjs"
+  - "app-router"
+  - "routing"
+  - "layout"
+  - "dynamic-routes"
+facts:
+  - kind: "misconception"
+    text: "«Папка в app/ - это уже страница». Папка задаёт сегмент адреса, но по этому адресу ничего не откроется, пока в ней нет файла page или route. Поэтому рядом со страницей можно хранить компоненты, стили и тесты: наружу попадает только то, что возвращает page или route."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/project-structure"
+  - kind: "internals"
+    text: "Файл route не участвует в макетах и клиентской навигации, и в одном сегменте не может лежать вместе с page: такая пара считается конфликтом, потому что оба файла претендуют на один и тот же адрес и на все HTTP-методы. Два page в разных группах, дающие один URL, тоже приводят к ошибке."
+    sources:
+      - "https://nextjs.org/docs/app/getting-started/route-handlers"
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/route-groups"
+  - kind: "real-world"
+    text: "Несколько корневых макетов (например, app/(shop)/layout.tsx и app/(marketing)/layout.tsx без app/layout.tsx) подходят для частей сайта с разной оболочкой. Цена такого решения: переход между разными корневыми макетами выполняется полной загрузкой страницы, а не клиентской навигацией."
+    sources:
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/layout"
+      - "https://nextjs.org/docs/app/api-reference/file-conventions/route-groups"
+quiz:
+  passThreshold: 0.7
+  questions:
+    - id: "q1"
+      type: "single"
+      prompt: "В каталоге app/ создана папка pricing, а в ней только файлы Table.tsx и layout.tsx. Что произойдёт при открытии /pricing?"
+      options:
+        - "Откроется Table.tsx: Next.js берёт первый компонент в папке."
+        - "Откроется layout.tsx с пустым содержимым."
+        - "Адрес вернёт 404: у сегмента нет файла page или route."
+        - "Next.js создаст page.tsx автоматически."
+      answer: 2
+      explanation: "Сегмент становится публичным только при наличии page или route. Layout оформляет страницы внутри сегмента, но сам адрес не открывает, а Table.tsx для маршрутизации не существует."
+    - id: "q2"
+      type: "multiple"
+      prompt: "Какие из этих файлов в app/ дают публичный адрес? Выберите все верные."
+      options:
+        - "app/(shop)/cart/page.tsx"
+        - "app/_components/page.tsx"
+        - "app/api/ping/route.ts"
+        - "app/blog/layout.tsx"
+      answer:
+        - 0
+        - 2
+      explanation: "Первый файл даёт /cart: группа в скобках из адреса исключается. Третий даёт обработчик /api/ping. Папка _components приватна, поэтому всё внутри неё не маршрутизируется, а layout.tsx оформляет сегмент, но адреса не создаёт."
+    - id: "q3"
+      type: "single"
+      prompt: "Есть файл app/docs/[[...slug]]/page.tsx. Для каких адресов он подходит и каким будет params?"
+      options:
+        - "Только для /docs/a и глубже; для /docs params равен { slug: [] }."
+        - "Для /docs (params без ключа slug) и для /docs/a/b (slug равен ['a', 'b'])."
+        - "Только для /docs/a, где slug равен 'a'."
+        - "Для любого адреса сайта, потому что скобки двойные."
+      answer: 1
+      explanation: "Двойные квадратные скобки делают catch-all необязательным: адрес без хвоста тоже подходит, а ключ slug в params отсутствует. В обязательном [...slug] адрес /docs не подошёл бы."
+    - id: "q4"
+      type: "single"
+      prompt: "В проекте есть app/blog/new/page.tsx и app/blog/[slug]/page.tsx. Какой файл обработает /blog/new?"
+      options:
+        - "[slug]/page.tsx, потому что динамический сегмент проверяется первым."
+        - "new/page.tsx: статический сегмент конкретнее динамического и выбирается раньше."
+        - "Next.js сообщит о конфликте и не соберёт проект."
+        - "Оба: страницы отрисуются друг под другом."
+      answer: 1
+      explanation: "Это не конфликт: шаблоны различаются. Статический сегмент побеждает динамический, динамический побеждает catch-all. Если выбор сделать в обратном порядке, страницу new нельзя было бы открыть вовсе."
+    - id: "q5"
+      type: "short"
+      prompt: "Как называется специальный файл, который оборачивает страницы своего сегмента и сохраняет состояние при переходах между ними? Введите имя файла без расширения."
+      answer:
+        - "layout"
+        - "Layout"
+      explanation: "Файл layout получает children (страницу или вложенный макет) и при навигации между его страницами не перерисовывается заново. Файл template тоже оборачивает страницу, но получает новый ключ при каждом переходе, и состояние клиентских компонентов внутри него сбрасывается."
+exercise:
+  id: "nextjs.fundamentals.app-router-routing.exercise"
+  title: "Таблица маршрутов приложения"
+  prompt: |
+    Напишите четыре функции, которые повторяют правила файловой маршрутизации App Router. Это обычный TypeScript без React; всё нужное лежит в файле **`src/routes.ts`** (в заготовке уже есть типы `RouteParams`, `ResolvedRoute`, регулярные выражения для имён файлов и вспомогательные `splitPath`, `decode`).
+
+    **`routesFromFiles(files: string[]): string[]`**. `files` - пути файлов относительно каталога `app/`, всегда с `/` в качестве разделителя, например `page.tsx`, `(shop)/cart/page.tsx`, `blog/[slug]/page.tsx`, `_components/Button.tsx`, `api/items/route.ts`. Верните URL-шаблоны:
+
+    * учитываются только файлы с именем `page.tsx`, `page.ts`, `page.jsx`, `page.js` и `route.ts`, `route.js` (имя файла проверяется целиком, регистр важен: `Page.tsx`, `pages.tsx`, `page.module.css`, `route.tsx` маршрутами не являются);
+    * из пути удаляется имя файла; папки-группы вида `(name)` в адрес не попадают; остальные папки (в том числе `[slug]`, `[...slug]`, `[[...slug]]` и кириллические) попадают как есть;
+    * если среди папок есть приватная (имя начинается с `_`), файл игнорируется целиком;
+    * адрес - это `/` и оставшиеся папки через `/`; главная страница даёт `/`, `blog/page.tsx` даёт `/blog`, `(shop)/cart/page.tsx` даёт `/cart`;
+    * одинаковые строки во входном списке считаются один раз; результат отсортирован стандартным `Array.prototype.sort()` и не содержит повторов;
+    * если два разных файла дают один и тот же URL (например, `status/page.tsx` и `status/route.ts`, либо `(a)/about/page.tsx` и `(b)/about/page.tsx`), бросьте `Error`, в сообщении которого есть этот URL-шаблон (`/status`, `/about`).
+
+    **`matchRoute(pattern: string, pathname: string): RouteParams | null`**. Сравнивает шаблон (`/blog/[slug]`) с адресом (`/blog/hello`) и возвращает параметры или `null`.
+
+    * Статические сегменты сравниваются точно, с учётом регистра.
+    * `[x]` забирает ровно один сегмент: `{ x: "значение" }`.
+    * `[...x]` забирает один и больше сегментов: `{ x: ["a", "b"] }`; на адрес без хвоста не подходит.
+    * `[[...x]]` забирает ноль и больше сегментов; если сегментов нет, ключа `x` в результате **нет** (возвращается `{}`).
+    * Завершающий слэш не влияет на результат (`/blog/hello/` как `/blog/hello`); корневой шаблон `/` подходит только адресу `/`.
+    * Сегменты адреса декодируются через `decodeURIComponent` (в заготовке это функция `decode`), поэтому `"/блог/привет%20мир"` и `"/%D0%B1%D0%BB%D0%BE%D0%B3/..."` работают одинаково; статические сегменты шаблона сравниваются с декодированным сегментом адреса.
+    * Адрес приходит без строки запроса. Если шаблон не подошёл, верните `null`.
+
+    **`resolveRoute(patterns: string[], pathname: string): ResolvedRoute | null`**. Из списка шаблонов выберите подходящий и верните `{ pattern, params }` или `null`, если подходящих нет. Если подходят несколько, побеждает самый конкретный. Шаблоны сравниваются сегмент за сегментом слева направо; на первом месте, где виды сегментов различаются, побеждает более конкретный вид: статический, затем `[x]`, затем `[...x]`, затем `[[...x]]`. Если на общей части шаблонов различий нет, побеждает более короткий шаблон (без хвоста). Результат не должен зависеть от порядка элементов в `patterns`. Примеры: для `/blog/new` шаблон `/blog/new` лучше `/blog/[slug]`; для `/blog/about` шаблон `/blog/[slug]` лучше `/[lang]/about`, потому что первый сегмент статический.
+
+    **`layoutsFor(files: string[], pageFile: string): string[]`**. `pageFile` - путь файла страницы, например `(shop)/cart/page.tsx`. Верните из `files` файлы макетов, которые оборачивают эту страницу, от корня вглубь: для каждой папки на пути к странице (начиная с корня `app/` и включая папку самой страницы, группы тоже считаются папками) возьмите файл `layout.tsx`, `layout.ts`, `layout.jsx` или `layout.js`, лежащий прямо в этой папке. В каждой папке не больше одного макета. Верните пути так, как они даны во входном списке. Макеты чужих веток и файлы с похожими именами (`mylayout.tsx`, `layout-utils.tsx`) в результат не входят; если макетов нет, верните `[]`.
+
+    Тесты лежат в скрытой папке `tests/`, кнопка «Проверить» запускает Vitest.
+  evaluation: "command"
+  languageId: "typescript"
+  entryFile: "src/routes.ts"
+  starter: "exercise/starter"
+  solution: "exercise/solution"
+  tests_dir: "exercise/tests"
+  requires:
+    node: ">=22"
+    npmPackages: ["vitest", "jsdom", "next", "react", "react-dom", "@testing-library/react"]
+  command:
+    tool: "vitest"
+    args: ["--reporter=default", "--reporter=junit", "--outputFile=report.xml"]
+    testsTarget: "."
+    report: "junit"
+    reportFile: "report.xml"
+    timeoutSeconds: 60
+  hints:
+    - "Начните с routesFromFiles: разбейте путь по '/', последняя часть - имя файла, остальные - папки. Фильтры по имени файла уже записаны в регулярных выражениях PAGE_FILE и ROUTE_FILE."
+    - "В routesFromFiles нужна Map из URL-шаблона в исходный файл: если шаблон уже есть, бросайте Error с этим шаблоном в тексте. Группа - папка, которая начинается с '(' и заканчивается ')'."
+    - "В matchRoute обходите сегменты шаблона по индексу i и сравнивайте с частями адреса. Вид сегмента определяйте регулярными выражениями: сначала /^\\[\\[\\.\\.\\..+\\]\\]$/, затем /^\\[\\.\\.\\..+\\]$/, затем /^\\[.+\\]$/. Для [...x] и [[...x]] возьмите parts.slice(i) и сразу верните результат."
+    - "resolveRoute: пройдите по patterns, для каждого вызовите matchRoute и храните лучший. Сравнение двух шаблонов: сопоставьте их сегменты попарно, переведите вид сегмента в число (статический 0, [x] 1, [...x] 2, [[...x]] 3) и верните разность на первом отличии; при полном совпадении выигрывает более короткий шаблон."
+  tests:
+    - id: "routes-pages"
+      title: "routesFromFiles: файлы page"
+      match: "routesFromFiles > превращает файлы page*"
+      hint: "Из пути берутся папки без имени файла и склеиваются через '/' с ведущим '/'; layout, loading и прочее маршрутами не являются."
+    - id: "routes-groups"
+      title: "routesFromFiles: группы"
+      match: "routesFromFiles > убирает группы*"
+      hint: "Папки вида (name) не должны попадать в адрес, даже если их несколько подряд."
+    - id: "routes-group-root"
+      title: "routesFromFiles: группа в корне (скрытый)"
+      match: "routesFromFiles > группа в корне*"
+      hint: "Если после удаления групп папок не осталось, адрес равен '/'."
+      hidden: true
+    - id: "routes-private"
+      title: "routesFromFiles: приватные папки (скрытый)"
+      match: "routesFromFiles > игнорирует приватные*"
+      hint: "Приватной может быть любая папка на пути, не только первая; файл внутри неё игнорируется целиком."
+      hidden: true
+    - id: "routes-route-files"
+      title: "routesFromFiles: файлы route (скрытый)"
+      match: "routesFromFiles > считает маршрутом route*"
+      hint: "route.ts и route.js тоже публикуют сегмент; соседние служебные файлы - нет."
+      hidden: true
+    - id: "routes-lookalike"
+      title: "routesFromFiles: похожие имена (скрытый)"
+      match: "routesFromFiles > не принимает файлы*"
+      hint: "Имя файла проверяется регулярным выражением целиком (page.module.css, Page.tsx, route.tsx не подходят)."
+      hidden: true
+    - id: "routes-sorted"
+      title: "routesFromFiles: порядок и повторы (скрытый)"
+      match: "routesFromFiles > возвращает отсортированный*"
+      hint: "Повторяющиеся пути учитываются один раз, итоговый список отсортирован."
+      hidden: true
+    - id: "routes-dynamic"
+      title: "routesFromFiles: динамические и кириллические папки (скрытый)"
+      match: "routesFromFiles > сохраняет динамические*"
+      hint: "Скобки [ ] и кириллица остаются в шаблоне без изменений."
+      hidden: true
+    - id: "routes-empty"
+      title: "routesFromFiles: пустой ввод (скрытый)"
+      match: "routesFromFiles > пустой список*"
+      hint: "Для пустого списка файлов результат - пустой массив, без ошибок."
+      hidden: true
+    - id: "routes-conflict-route"
+      title: "routesFromFiles: page и route рядом (скрытый)"
+      match: "routesFromFiles > бросает ошибку, если в одной папке*"
+      hint: "Один URL не может обслуживаться двумя файлами; в тексте ошибки должен быть сам шаблон."
+      hidden: true
+    - id: "routes-conflict-groups"
+      title: "routesFromFiles: одинаковый адрес в разных группах (скрытый)"
+      match: "routesFromFiles > бросает ошибку, если две группы*"
+      hint: "Конфликт определяется по итоговому URL после удаления групп, а не по папкам."
+      hidden: true
+    - id: "match-dynamic"
+      title: "matchRoute: динамический сегмент"
+      match: "matchRoute > извлекает параметр*"
+      hint: "[slug] забирает ровно один сегмент; лишних или недостающих сегментов быть не должно."
+    - id: "match-static"
+      title: "matchRoute: статический шаблон"
+      match: "matchRoute > статический шаблон*"
+      hint: "Для шаблона без параметров при совпадении возвращается пустой объект, а не null."
+    - id: "match-catch-all"
+      title: "matchRoute: catch-all (скрытый)"
+      match: "matchRoute > catch-all*"
+      hint: "[...x] требует хотя бы один сегмент и возвращает массив строк."
+      hidden: true
+    - id: "match-optional"
+      title: "matchRoute: optional catch-all (скрытый)"
+      match: "matchRoute > optional catch-all*"
+      hint: "При нуле сегментов в результате не должно быть ключа (и не пустого массива)."
+      hidden: true
+    - id: "match-slash"
+      title: "matchRoute: завершающий слэш и корень (скрытый)"
+      match: "matchRoute > не различает*"
+      hint: "Пустые части пути после split('/') отбрасывайте (splitPath); корень состоит из нуля сегментов."
+      hidden: true
+    - id: "match-cyrillic"
+      title: "matchRoute: кириллица (скрытый)"
+      match: "matchRoute > работает с кириллицей*"
+      hint: "Декодируйте сегменты адреса через decode перед сравнением и записью в параметры."
+      hidden: true
+    - id: "match-multi"
+      title: "matchRoute: несколько параметров (скрытый)"
+      match: "matchRoute > собирает несколько*"
+      hint: "Каждому динамическому сегменту соответствует свой ключ; несовпавший статический сегмент даёт null."
+      hidden: true
+    - id: "match-case"
+      title: "matchRoute: регистр (скрытый)"
+      match: "matchRoute > учитывает регистр*"
+      hint: "Статические сегменты сравниваются строго, без toLowerCase."
+      hidden: true
+    - id: "resolve-static"
+      title: "resolveRoute: статический важнее динамического"
+      match: "resolveRoute > статический шаблон важнее*"
+      hint: "Нужно сравнивать конкретность шаблонов, а не брать первый подошедший."
+    - id: "resolve-catch-all"
+      title: "resolveRoute: динамический важнее catch-all (скрытый)"
+      match: "resolveRoute > динамический шаблон важнее*"
+      hint: "Порядок видов сегментов: статический, [x], [...x], [[...x]]."
+      hidden: true
+    - id: "resolve-order"
+      title: "resolveRoute: порядок шаблонов не важен (скрытый)"
+      match: "resolveRoute > результат не зависит*"
+      hint: "Результат определяется конкретностью шаблона, а не его позицией в массиве."
+      hidden: true
+    - id: "resolve-null"
+      title: "resolveRoute: нет подходящих (скрытый)"
+      match: "resolveRoute > возвращает null*"
+      hint: "Если ни один шаблон не подошёл, верните null."
+      hidden: true
+    - id: "resolve-left-to-right"
+      title: "resolveRoute: сравнение слева направо (скрытый)"
+      match: "resolveRoute > сегменты сравниваются*"
+      hint: "Решает первый сегмент, в котором виды различаются; последующие не учитываются."
+      hidden: true
+    - id: "resolve-optional"
+      title: "resolveRoute: optional catch-all (скрытый)"
+      match: "resolveRoute > optional catch-all*"
+      hint: "Адрес без хвоста подходит optional catch-all; при наличии динамического сегмента тот выигрывает."
+      hidden: true
+    - id: "resolve-cyrillic"
+      title: "resolveRoute: кириллица (скрытый)"
+      match: "resolveRoute > находит маршрут для кириллического*"
+      hint: "Используйте matchRoute, он уже умеет работать с кириллицей."
+      hidden: true
+    - id: "layouts-chain"
+      title: "layoutsFor: цепочка макетов"
+      match: "layoutsFor > возвращает макеты от корня*"
+      hint: "Идите по папкам пути к странице от корня и в каждой ищите файл layout.*."
+    - id: "layouts-groups"
+      title: "layoutsFor: макеты групп (скрытый)"
+      match: "layoutsFor > включает макеты групп*"
+      hint: "Группа - обычная папка на пути; её макет входит в цепочку."
+      hidden: true
+    - id: "layouts-root"
+      title: "layoutsFor: страница в корне (скрытый)"
+      match: "layoutsFor > для страницы в корне*"
+      hint: "У страницы в корне только одна папка пути - сам корень (пустая строка)."
+      hidden: true
+    - id: "layouts-none"
+      title: "layoutsFor: макетов нет (скрытый)"
+      match: "layoutsFor > возвращает пустой*"
+      hint: "Если подходящих файлов нет, верните []."
+      hidden: true
+    - id: "layouts-lookalike"
+      title: "layoutsFor: похожие имена (скрытый)"
+      match: "layoutsFor > не путает*"
+      hint: "Сравнивайте папку файла с папкой пути целиком, а имя файла - регулярным выражением LAYOUT_FILE."
+      hidden: true
+    - id: "layouts-multi-root"
+      title: "layoutsFor: несколько корневых макетов (скрытый)"
+      match: "layoutsFor > при нескольких*"
+      hint: "Макеты соседних групп в цепочку не входят."
+      hidden: true
+    - id: "layouts-ext"
+      title: "layoutsFor: расширения (скрытый)"
+      match: "layoutsFor > принимает макеты*"
+      hint: "Подходят layout.tsx, layout.ts, layout.jsx и layout.js."
+      hidden: true

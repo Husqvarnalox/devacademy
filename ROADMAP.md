@@ -56,7 +56,7 @@ a dev server or a browser is blocked on Project Workspaces; exercises graded by 
 |---|---|---|
 | A. Foundations | JavaScript, TypeScript, Node.js, HTML/CSS/Browser | JavaScript and TypeScript: from-zero (23 and 24 lessons), for-programmers, skill checks, then `*-first-steps` and `*-fundamentals`. Node.js: `nodejs-first-steps` (2 lessons, for programmers). HTML/CSS/Browser: Planned (needs web preview module) |
 | B. Core frameworks | React, Vue, Angular, Express, Fastify, NestJS | Partial: `react-fundamentals` (6 lessons, graded by real Vitest + Testing Library in the sandbox, packages from the pinned node content environment). Others: Planned |
-| C. Fullstack | Next.js, Nuxt, SvelteKit, Astro | Planned |
+| C. Fullstack | Next.js, Nuxt, SvelteKit, Astro | Partial: `nextjs-fundamentals` (7 lessons, Next.js 16 App Router; graded by real Next.js + Vitest in the sandbox with the pinned `nextjs` package set: route handlers, server/client components, server actions, cache declarations, proxy). `next dev`/`next build` do not run in the sandbox (theory only, needs Project Workspaces). Nuxt, SvelteKit, Astro: Planned |
 | D. Advanced ecosystem | State management, ORMs, testing (Vitest/Jest/Playwright), performance, security, deploy | Planned |
 | E. Additional | SolidJS, Qwik, Hono, AdonisJS, TanStack Start | Planned |
 | F. AI/ML in JS | TensorFlow.js, Transformers.js, ONNX Runtime Web/Node, WebGPU, Wasm | Planned |
@@ -77,8 +77,8 @@ documents linked from [CURRICULUM.md](CURRICULUM.md).
 | D. Data Science | NumPy, Pandas/Polars, visualization, Jupyter | Planned (needs Python Environment Manager) |
 | E. Machine Learning | Math for ML, classical ML (from scratch, then library) | Planned |
 | F. Deep Learning | PyTorch/TensorFlow/JAX fundamentals | Planned (ML Runtime Manager) |
-| G. LLM engineering | Inference, fine-tuning, RAG, agents, LLM security | Planned |
-| H. MLOps | Tracking, serving, containers, monitoring | Planned |
+| G. LLM engineering | Inference, fine-tuning, RAG, agents, LLM security | Partial: `llm-fundamentals` (9 lessons on NumPy/stdlib, offline and CPU-only: byte-level BPE, embeddings, bigram LM and perplexity, sampling, attention, mini-GPT forward with KV-cache, TF-IDF retrieval for RAG with recall@k, chat templates and validated tool calls, evaluation metrics and limits). Provider APIs (fake server), local inference of real models, fine-tuning, agents: Planned |
+| H. MLOps | Tracking, serving, containers, monitoring | Partial: `mlops-fundamentals` (8 lessons, stdlib only, offline): reproducibility, hand-made experiment tracking, content-hash data versioning, cached step pipeline, model registry with stages, serving with validation and batching, drift (PSI/KS), quality monitoring and alert rules. Real MLflow/DVC/BentoML installs, Docker images, Kubernetes, feature stores: Planned (theory only) |
 | I. Advanced Python | Internals, memory, performance, C extensions, advanced concurrency | Planned |
 | J. Additional | CV, NLP, RL, data engineering, desktop GUI, security | Planned |
 | Enabler: Python Environment Manager | venv/uv, explicit installs, run in env | In progress |
