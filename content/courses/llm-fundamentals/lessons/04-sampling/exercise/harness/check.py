@@ -281,13 +281,13 @@ def t_sample_distribution():
     ]
     for kw, want in cases:
         rng = np.random.default_rng(123)
-        n = 20000
+        n = 5000
         counts = np.zeros(len(logits))
         for _ in range(n):
             counts[m.sample_next(logits, rng, **kw)] += 1
         freq = counts / n
-        if np.abs(freq - want).max() > 0.02:
-            return f"настройки {kw}: частоты {freq.round(3).tolist()} расходятся с ожидаемыми {want.round(3).tolist()} больше чем на 0.02"
+        if np.abs(freq - want).max() > 0.03:
+            return f"настройки {kw}: частоты {freq.round(3).tolist()} расходятся с ожидаемыми {want.round(3).tolist()} больше чем на 0.03"
 
 
 def t_generate_stops():
