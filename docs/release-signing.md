@@ -26,8 +26,14 @@ and a `::warning::` in the workflow summary, so an unsigned release is never mis
    | `APPLE_TEAM_ID` | the 10-character team ID |
    | `APPLE_APP_PASSWORD` | the app-specific password |
 
-Not verified yet: no Developer ID certificate was available while writing the signing code. If the first notarized
-build fails to load a bundled dylib, see the note in `packaging/macos/entitlements.plist`.
+Verified locally on osx-arm64 (v0.3.0): Developer ID signing, notarization and stapling of the `.app` and `.dmg`;
+`spctl --assess` reports "Notarized Developer ID" for both, and the app starts under the hardened runtime without
+`disable-library-validation`. The CI path (secrets above) and osx-x64 have not been run yet.
+
+Local build: `MACOS_SIGN_IDENTITY="Developer ID Application: <Name> (<TEAMID>)" MACOS_NOTARY_PROFILE=<profile>
+packaging/macos/build-app.sh osx-arm64`, with the profile created once by `xcrun notarytool store-credentials <profile>
+--apple-id <id> --team-id <TEAMID>`. With a Homebrew-built .NET SDK also pass
+`DEVACADEMY_PUBLISH_ARGS=-p:RuntimeFrameworkVersion=<latest 10.0.x>` (publish.sh refuses its runtime pack).
 
 ## Windows (SignPath Foundation, free for open source)
 
