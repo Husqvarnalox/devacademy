@@ -75,9 +75,11 @@ notarize() { # <file>
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
   echo "signing with Developer ID identity (hardened runtime)"
   # Inside-out: every nested Mach-O first, then the bundle. Same identity everywhere => library validation passes.
+  # The main executable is left to the bundle signature: codesign treats it as the bundle and checks the nested code, so
+  # signing it before an unsigned dylib (osx-x64 NuGet dylibs such as libonigwrap ship without any signature) fails.
   while IFS= read -r f; do
     codesign --force --timestamp --options runtime --entitlements "$here/entitlements.plist" -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$f"
-  done < <(find "$app/Contents/MacOS" -type f -exec sh -c 'file "$1" | grep -q "Mach-O"' _ {} \; -print)
+  done < <(find "$app/Contents/MacOS" -type f ! -path "$app/Contents/MacOS/DevAcademy.Desktop" -exec sh -c 'file "$1" | grep -q "Mach-O"' _ {} \; -print)
   codesign --force --timestamp --options runtime --entitlements "$here/entitlements.plist" -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$app"
 else
   echo "ad-hoc signing (set MACOS_SIGN_IDENTITY for Developer ID signing)"
