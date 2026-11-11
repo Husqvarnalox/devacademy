@@ -24,9 +24,14 @@ dmg="$out/DevAcademy-$version-$rid.dmg"
 
 rm -rf "$out/$rid"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-# Everything except the data files goes next to the executable; data goes into Resources (found by FindContentRoot).
-(cd "$pub" && tar --exclude=./content --exclude=./THIRD-PARTY-NOTICES.md --exclude=./LICENSE -cf - .) | (cd "$app/Contents/MacOS" && tar -xf -)
-cp -R "$pub/content" "$pub/THIRD-PARTY-NOTICES.md" "$pub/LICENSE" "$app/Contents/Resources/"
+# Everything except the data files goes next to the executable; data goes into Resources (found by FindContentRoot and
+# ContentPackageIndex.FindDirectory). Contents/MacOS must hold only code: codesign treats any other file there as an unsigned nested
+# component and `codesign --verify --deep --strict` (and notarization) reject the bundle.
+(cd "$pub" && tar --exclude=./content --exclude=./content-packages --exclude=./THIRD-PARTY-NOTICES.md --exclude=./LICENSE -cf - .) | (cd "$app/Contents/MacOS" && tar -xf -)
+cp -R "$pub/content" "$pub/content-packages" "$pub/THIRD-PARTY-NOTICES.md" "$pub/LICENSE" "$app/Contents/Resources/"
+# Guard: anything non-Mach-O left in Contents/MacOS breaks the signature, so fail here with a clear message instead.
+stray="$(find "$app/Contents/MacOS" -type f -exec sh -c 'file -b "$1" | grep -q "Mach-O" || echo "$1"' _ {} \;)"
+[ -z "$stray" ] || { echo "ERROR: non-code files in Contents/MacOS (move them to Resources):" >&2; echo "$stray" >&2; exit 1; }
 cp "$root/packaging/icon/DevAcademy.icns" "$app/Contents/Resources/DevAcademy.icns"
 
 cat > "$app/Contents/Info.plist" <<PLIST
@@ -61,19 +66,28 @@ if [ -n "${MACOS_NOTARY_PROFILE:-}" ]; then notary_args=(--keychain-profile "$MA
 elif [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ] && [ -n "${APPLE_APP_PASSWORD:-}" ]; then
   notary_args=(--apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"); fi
 
+# Apple's timestamp and notary services time out now and then; a network blip must not fail a release build.
+retry() { # <command...>: up to 4 attempts, 15 s apart
+  local n
+  for n in 1 2 3 4; do "$@" && return 0; [ $n -lt 4 ] && { echo "retrying in 15 s ($n/3): $1" >&2; sleep 15; }; done
+  return 1
+}
+
 notarize() { # <file>
   [ -n "${MACOS_SIGN_IDENTITY:-}" ] && [ ${#notary_args[@]} -gt 0 ] || return 1
   echo "notarizing $1"
-  xcrun notarytool submit "$1" "${notary_args[@]}" --wait
+  retry xcrun notarytool submit "$1" "${notary_args[@]}" --wait
 }
 
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
   echo "signing with Developer ID identity (hardened runtime)"
   # Inside-out: every nested Mach-O first, then the bundle. Same identity everywhere => library validation passes.
+  # The main executable is left to the bundle signature: codesign treats it as the bundle and checks the nested code, so
+  # signing it before an unsigned dylib (osx-x64 NuGet dylibs such as libonigwrap ship without any signature) fails.
   while IFS= read -r f; do
-    codesign --force --timestamp --options runtime --entitlements "$here/entitlements.plist" -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$f"
-  done < <(find "$app/Contents/MacOS" -type f -exec sh -c 'file "$1" | grep -q "Mach-O"' _ {} \; -print)
-  codesign --force --timestamp --options runtime --entitlements "$here/entitlements.plist" -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$app"
+    retry codesign --force --timestamp --options runtime --entitlements "$here/entitlements.plist" -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$f"
+  done < <(find "$app/Contents/MacOS" -type f ! -path "$app/Contents/MacOS/DevAcademy.Desktop" -exec sh -c 'file "$1" | grep -q "Mach-O"' _ {} \; -print)
+  retry codesign --force --timestamp --options runtime --entitlements "$here/entitlements.plist" -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$app"
 else
   echo "ad-hoc signing (set MACOS_SIGN_IDENTITY for Developer ID signing)"
   codesign --force --deep -s - "$app"
@@ -84,14 +98,14 @@ if [ -n "${MACOS_SIGN_IDENTITY:-}" ] && [ ${#notary_args[@]} -gt 0 ]; then
   zip="$out/$rid/DevAcademy-notarize.zip"
   ditto -c -k --keepParent "$app" "$zip"
   notarize "$zip"
-  xcrun stapler staple "$app"
+  retry xcrun stapler staple "$app"
   rm -f "$zip"
 fi
 
 "$here/build-dmg.sh" "$app" "$dmg"
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
-  codesign --force --timestamp -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$dmg"
-  if [ ${#notary_args[@]} -gt 0 ]; then notarize "$dmg"; xcrun stapler staple "$dmg"; fi
+  retry codesign --force --timestamp -s "$MACOS_SIGN_IDENTITY" ${sign_args[@]+"${sign_args[@]}"} "$dmg"
+  if [ ${#notary_args[@]} -gt 0 ]; then notarize "$dmg"; retry xcrun stapler staple "$dmg"; fi
 fi
 echo "app: $app"
 echo "dmg: $dmg"

@@ -11,10 +11,10 @@
   <!--
     Deliberately NOT granted: com.apple.security.cs.disable-library-validation. Every Mach-O in the bundle (including the
     SkiaSharp/HarfBuzz/SQLite dylibs from NuGet) is re-signed with the same identity by build-app.sh, so library
-    validation passes. NOT run-verified here (no Developer ID certificate): hardened runtime + AD-HOC signing does fail to load
+    validation passes. Run-verified on osx-arm64 with a real Developer ID identity: the app starts and loads libSkiaSharp,
+    libHarfBuzzSharp and libAvaloniaNative under the hardened runtime. Hardened runtime + AD-HOC signing does fail to load
     libSkiaSharp (ad-hoc dylibs have no Team ID), which is why build-app.sh only enables the hardened runtime together with a
-    real identity. If the first notarized build reports a dylib load failure, add disable-library-validation and note it in
-    PLATFORM_SUPPORT.md. Not sandboxed (no com.apple.security.app-sandbox): DevAcademy runs learners' toolchains and a
+    real identity. Not sandboxed (no com.apple.security.app-sandbox): DevAcademy runs learners' toolchains and a
     sandbox-exec profile of its own, which an App Sandbox container would forbid.
   -->
 </dict>
