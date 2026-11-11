@@ -250,14 +250,17 @@ public sealed partial class ContentPackageIndex
     // ---------------------------------------------------------------- loading
 
     /// <summary>
-    /// Where the index lives: <c>content-packages</c> next to the executable (published builds), else <c>tools/content-packages</c> in a parent
-    /// directory (a repository checkout). Null when neither exists.
+    /// Where the index lives: <c>content-packages</c> next to the executable (published builds), or in <c>../Resources</c> (a macOS .app,
+    /// whose Contents/MacOS may hold only code for the signature to verify), else <c>tools/content-packages</c> in a parent directory
+    /// (a repository checkout). Null when none exists.
     /// </summary>
     public static string? FindDirectory(string? startDirectory = null)
     {
         var start = startDirectory ?? AppContext.BaseDirectory;
         var shipped = Path.Combine(start, ShippedDirectoryName);
         if (File.Exists(Path.Combine(shipped, IndexFile))) return shipped;
+        var bundle = Path.GetFullPath(Path.Combine(start, "..", "Resources", ShippedDirectoryName));
+        if (File.Exists(Path.Combine(bundle, IndexFile))) return bundle;
         for (var dir = new DirectoryInfo(start); dir is not null; dir = dir.Parent)
         {
             var candidate = Path.Combine(dir.FullName, "tools", ShippedDirectoryName);

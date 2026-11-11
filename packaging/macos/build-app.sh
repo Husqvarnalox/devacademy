@@ -24,9 +24,14 @@ dmg="$out/DevAcademy-$version-$rid.dmg"
 
 rm -rf "$out/$rid"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-# Everything except the data files goes next to the executable; data goes into Resources (found by FindContentRoot).
-(cd "$pub" && tar --exclude=./content --exclude=./THIRD-PARTY-NOTICES.md --exclude=./LICENSE -cf - .) | (cd "$app/Contents/MacOS" && tar -xf -)
-cp -R "$pub/content" "$pub/THIRD-PARTY-NOTICES.md" "$pub/LICENSE" "$app/Contents/Resources/"
+# Everything except the data files goes next to the executable; data goes into Resources (found by FindContentRoot and
+# ContentPackageIndex.FindDirectory). Contents/MacOS must hold only code: codesign treats any other file there as an unsigned nested
+# component and `codesign --verify --deep --strict` (and notarization) reject the bundle.
+(cd "$pub" && tar --exclude=./content --exclude=./content-packages --exclude=./THIRD-PARTY-NOTICES.md --exclude=./LICENSE -cf - .) | (cd "$app/Contents/MacOS" && tar -xf -)
+cp -R "$pub/content" "$pub/content-packages" "$pub/THIRD-PARTY-NOTICES.md" "$pub/LICENSE" "$app/Contents/Resources/"
+# Guard: anything non-Mach-O left in Contents/MacOS breaks the signature, so fail here with a clear message instead.
+stray="$(find "$app/Contents/MacOS" -type f -exec sh -c 'file -b "$1" | grep -q "Mach-O" || echo "$1"' _ {} \;)"
+[ -z "$stray" ] || { echo "ERROR: non-code files in Contents/MacOS (move them to Resources):" >&2; echo "$stray" >&2; exit 1; }
 cp "$root/packaging/icon/DevAcademy.icns" "$app/Contents/Resources/DevAcademy.icns"
 
 cat > "$app/Contents/Info.plist" <<PLIST

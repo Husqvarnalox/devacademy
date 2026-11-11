@@ -307,6 +307,12 @@ public class NodeEnvironmentServiceTests
         Directory.CreateDirectory(Path.Combine(repo, "src", "bin"));
         File.WriteAllText(Path.Combine(repo, "tools", "content-packages", "index.json"), "[]");
         Assert.Equal(Path.Combine(repo, "tools", "content-packages"), ContentPackageIndex.FindDirectory(Path.Combine(repo, "src", "bin")));
+        // A macOS bundle keeps data in Contents/Resources: Contents/MacOS may hold only code for codesign --verify to pass.
+        var contents = Path.Combine(fx.Root, "DevAcademy.app", "Contents");
+        Directory.CreateDirectory(Path.Combine(contents, "MacOS"));
+        Directory.CreateDirectory(Path.Combine(contents, "Resources", "content-packages"));
+        File.WriteAllText(Path.Combine(contents, "Resources", "content-packages", "index.json"), "[]");
+        Assert.Equal(Path.Combine(contents, "Resources", "content-packages"), ContentPackageIndex.FindDirectory(Path.Combine(contents, "MacOS")));
     }
 
     [Fact]
